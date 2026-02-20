@@ -97,11 +97,10 @@ export class SQLiteMemoryStore implements MemoryStore {
       params.push(query.minImportance);
     }
 
-    // Text filter (still used as a pre-filter for LIKE match)
-    if (query.query) {
-      conditions.push("content LIKE ?");
-      params.push(`%${query.query}%`);
-    }
+    // NOTE: query.query is intentionally NOT used as a SQL LIKE pre-filter.
+    // LIKE '%full sentence%' eliminates almost all memories before semantic
+    // scoring gets a chance to run. The query is used only for embedding-based
+    // and token-overlap scoring below.
 
     const where =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -149,10 +148,8 @@ export class SQLiteMemoryStore implements MemoryStore {
             : b;
         semanticScore = Math.max(0, cosineSimilarity(aPadded, bPadded));
       } else if (query.query) {
-        // Fallback: simple text overlap score
-        const q = query.query.toLowerCase();
-        const c = entry.content.toLowerCase();
-        semanticScore = c.includes(q) ? 0.6 : 0;
+        // Fallback: token-overlap score (works for both CJK and Latin text)
+        semanticScore = tokenOverlapScore(query.query, entry.content);
       }
 
       // Recency score (0-1): exponential decay, half-life = 7 days
@@ -379,6 +376,41 @@ function rowToMemoryEntry(row: MemoryRow): MemoryEntry {
       ? (JSON.parse(row.metadata) as Record<string, unknown>)
       : undefined,
   };
+}
+
+/**
+ * Compute a token-overlap score between two texts.
+ * Handles CJK by splitting into individual characters (each is a semantic unit),
+ * and Latin/Cyrillic text by splitting on whitespace.
+ * Returns a value in [0, 1].
+ */
+function tokenOverlapScore(query: string, content: string): number {
+  const qTokens = tokenizeForOverlap(query);
+  const cTokens = tokenizeForOverlap(content);
+  if (qTokens.size === 0 || cTokens.size === 0) return 0;
+
+  let overlap = 0;
+  for (const t of qTokens) {
+    if (cTokens.has(t)) overlap++;
+  }
+
+  // Jaccard-like: overlap / querySize (recall-oriented)
+  return overlap / qTokens.size;
+}
+
+/** Tokenize text into a Set of lowercased tokens. CJK chars become individual tokens. */
+function tokenizeForOverlap(text: string): Set<string> {
+  const tokens = new Set<string>();
+  const lower = text.toLowerCase();
+
+  // Split CJK characters individually, keep Latin/Cyrillic words together
+  const parts = lower.match(
+    /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[\p{L}\p{N}]{2,}/gu,
+  );
+  if (parts) {
+    for (const p of parts) tokens.add(p);
+  }
+  return tokens;
 }
 
 function rowToConversationTurn(row: TurnRow): ConversationTurn {

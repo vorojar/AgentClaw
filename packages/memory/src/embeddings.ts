@@ -39,13 +39,14 @@ export class SimpleBagOfWords {
     this.maxDim = maxDim;
   }
 
-  /** Tokenize text into lowercase word tokens */
+  /** Tokenize text into lowercase tokens. Handles CJK by emitting individual characters. */
   private tokenize(text: string): string[] {
-    return text
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, " ")
-      .split(/\s+/)
-      .filter((t) => t.length > 1);
+    const lower = text.toLowerCase();
+    // Match CJK characters individually (each is a semantic unit) and Latin/Cyrillic words (2+ chars)
+    const matches = lower.match(
+      /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[\p{L}\p{N}]{2,}/gu,
+    );
+    return matches ?? [];
   }
 
   /** Generate an embedding vector for a piece of text */

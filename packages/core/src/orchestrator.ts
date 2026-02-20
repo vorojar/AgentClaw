@@ -3,6 +3,7 @@ import type {
   Session,
   Message,
   AgentEvent,
+  ToolExecutionContext,
   LLMProvider,
   MemoryStore,
   AgentConfig,
@@ -14,7 +15,7 @@ import { SimpleContextManager } from "./context-manager.js";
 import { MemoryExtractor } from "./memory-extractor.js";
 
 /** How many user turns between automatic memory extraction runs */
-const EXTRACT_EVERY_N_TURNS = 5;
+const EXTRACT_EVERY_N_TURNS = 3;
 
 export class SimpleOrchestrator implements Orchestrator {
   private sessions = new Map<string, Session>();
@@ -59,9 +60,17 @@ export class SimpleOrchestrator implements Orchestrator {
     return this.sessions.get(sessionId);
   }
 
-  async processInput(sessionId: string, input: string): Promise<Message> {
+  async processInput(
+    sessionId: string,
+    input: string,
+    context?: ToolExecutionContext,
+  ): Promise<Message> {
     let lastMessage: Message | undefined;
-    for await (const event of this.processInputStream(sessionId, input)) {
+    for await (const event of this.processInputStream(
+      sessionId,
+      input,
+      context,
+    )) {
       if (event.type === "response_complete") {
         lastMessage = (event.data as { message: Message }).message;
       }
@@ -75,6 +84,7 @@ export class SimpleOrchestrator implements Orchestrator {
   async *processInputStream(
     sessionId: string,
     input: string,
+    context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent> {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -83,13 +93,26 @@ export class SimpleOrchestrator implements Orchestrator {
 
     session.lastActiveAt = new Date();
 
-    const loop = this.createAgentLoop();
-    yield* loop.runStream(input, session.conversationId);
+    // Merge orchestrator-provided callbacks into the context
+    const memoryStore = this.memoryStore;
+    const mergedContext: ToolExecutionContext = {
+      ...context,
+      saveMemory: async (content, type) => {
+        await memoryStore.add({
+          type: type ?? "fact",
+          content,
+          importance: 0.8,
+        });
+      },
+    };
 
-    // Background memory extraction every N turns (fire-and-forget)
+    const loop = this.createAgentLoop();
+    yield* loop.runStream(input, session.conversationId, mergedContext);
+
+    // Background memory extraction: on the 1st turn and every N turns after
     const count = (this.turnCounters.get(session.conversationId) ?? 0) + 1;
     this.turnCounters.set(session.conversationId, count);
-    if (count % EXTRACT_EVERY_N_TURNS === 0) {
+    if (count === 1 || count % EXTRACT_EVERY_N_TURNS === 0) {
       this.memoryExtractor
         .processConversation(session.conversationId)
         .then((n) => {

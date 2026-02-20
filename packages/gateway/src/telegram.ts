@@ -1,9 +1,17 @@
 import { Bot } from "grammy";
 import type { AppContext } from "./bootstrap.js";
-import type { Message, ContentBlock, AgentEvent } from "@agentclaw/types";
+import type {
+  Message,
+  ContentBlock,
+  AgentEvent,
+  ToolExecutionContext,
+} from "@agentclaw/types";
 
 /** Map Telegram chat ID → AgentClaw session ID */
 const chatSessionMap = new Map<number, string>();
+
+/** Pending ask_user prompts: chatId → resolve function for the next user message */
+const pendingPrompts = new Map<number, (answer: string) => void>();
 
 function extractText(content: string | ContentBlock[]): string {
   if (typeof content === "string") return content;
@@ -92,6 +100,14 @@ export async function startTelegramBot(
     const chatId = ctx.chat.id;
     const text = ctx.message.text;
 
+    // If there's a pending ask_user prompt for this chat, resolve it and return
+    const pendingResolve = pendingPrompts.get(chatId);
+    if (pendingResolve) {
+      pendingPrompts.delete(chatId);
+      pendingResolve(text);
+      return;
+    }
+
     // Get or create session
     let sessionId = chatSessionMap.get(chatId);
     if (!sessionId) {
@@ -115,9 +131,20 @@ export async function startTelegramBot(
     }, 4000);
 
     try {
+      // Build execution context with Telegram-specific promptUser
+      const toolContext: ToolExecutionContext = {
+        promptUser: async (question: string) => {
+          await ctx.reply(`❓ ${question}`);
+          return new Promise<string>((resolve) => {
+            pendingPrompts.set(chatId, resolve);
+          });
+        },
+      };
+
       const eventStream = appCtx.orchestrator.processInputStream(
         sessionId,
         text,
+        toolContext,
       );
 
       let accumulatedText = "";

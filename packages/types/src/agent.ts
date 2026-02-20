@@ -1,6 +1,6 @@
 import type { Message, Conversation } from "./message.js";
 import type { LLMProvider } from "./llm.js";
-import type { ToolRegistry } from "./tool.js";
+import type { ToolRegistry, ToolExecutionContext } from "./tool.js";
 import type { MemoryStore } from "./memory.js";
 
 /** Agent loop state */
@@ -51,10 +51,18 @@ export interface AgentLoop {
   readonly config: AgentConfig;
 
   /** Process a user message and return the response */
-  run(input: string, conversationId?: string): Promise<Message>;
+  run(
+    input: string,
+    conversationId?: string,
+    context?: ToolExecutionContext,
+  ): Promise<Message>;
 
   /** Process with streaming */
-  runStream(input: string, conversationId?: string): AsyncIterable<AgentEvent>;
+  runStream(
+    input: string,
+    conversationId?: string,
+    context?: ToolExecutionContext,
+  ): AsyncIterable<AgentEvent>;
 
   /** Stop the current execution */
   stop(): void;
@@ -93,12 +101,17 @@ export interface Orchestrator {
   getSession(sessionId: string): Promise<Session | undefined>;
 
   /** Process user input within a session */
-  processInput(sessionId: string, input: string): Promise<Message>;
+  processInput(
+    sessionId: string,
+    input: string,
+    context?: ToolExecutionContext,
+  ): Promise<Message>;
 
   /** Process with streaming */
   processInputStream(
     sessionId: string,
     input: string,
+    context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent>;
 
   /** List active sessions */

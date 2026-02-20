@@ -1,10 +1,9 @@
 import { createInterface } from "node:readline";
-import type { Tool, ToolResult } from "@agentclaw/types";
+import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 export const askUserTool: Tool = {
   name: "ask_user",
-  description:
-    "Ask the user a question in the terminal and return their answer",
+  description: "Ask the user a question and return their answer",
   category: "builtin",
   parameters: {
     type: "object",
@@ -17,9 +16,19 @@ export const askUserTool: Tool = {
     required: ["question"],
   },
 
-  async execute(input: Record<string, unknown>): Promise<ToolResult> {
+  async execute(
+    input: Record<string, unknown>,
+    context?: ToolExecutionContext,
+  ): Promise<ToolResult> {
     const question = input.question as string;
 
+    // Use gateway-provided promptUser when available (Telegram, WebSocket, etc.)
+    if (context?.promptUser) {
+      const answer = await context.promptUser(question);
+      return { content: answer, isError: false };
+    }
+
+    // Fallback: readline for CLI usage
     const rl = createInterface({
       input: process.stdin,
       output: process.stderr,

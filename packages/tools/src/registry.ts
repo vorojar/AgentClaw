@@ -1,6 +1,7 @@
 import type {
   Tool,
   ToolDefinition,
+  ToolExecutionContext,
   ToolRegistry,
   ToolResult,
 } from "@agentclaw/types";
@@ -41,13 +42,14 @@ export class ToolRegistryImpl implements ToolRegistry {
   async execute(
     name: string,
     input: Record<string, unknown>,
+    context?: ToolExecutionContext,
   ): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) {
       return { content: `Tool "${name}" not found`, isError: true };
     }
     try {
-      return await tool.execute(input);
+      return await tool.execute(input, context);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return { content: `Tool execution failed: ${message}`, isError: true };

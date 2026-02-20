@@ -9,6 +9,7 @@ import type {
   ContentBlock,
   ToolUseContent,
   ToolResultContent,
+  ToolExecutionContext,
   LLMProvider,
   LLMStreamChunk,
   ContextManager,
@@ -58,9 +59,13 @@ export class SimpleAgentLoop implements AgentLoop {
     this._config = { ...DEFAULT_CONFIG, ...options.config };
   }
 
-  async run(input: string, conversationId?: string): Promise<Message> {
+  async run(
+    input: string,
+    conversationId?: string,
+    context?: ToolExecutionContext,
+  ): Promise<Message> {
     let lastMessage: Message | undefined;
-    for await (const event of this.runStream(input, conversationId)) {
+    for await (const event of this.runStream(input, conversationId, context)) {
       if (event.type === "response_complete") {
         lastMessage = (event.data as { message: Message }).message;
       }
@@ -78,6 +83,7 @@ export class SimpleAgentLoop implements AgentLoop {
   async *runStream(
     input: string,
     conversationId?: string,
+    context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent> {
     this.aborted = false;
     const convId = conversationId ?? generateId();
@@ -225,6 +231,7 @@ export class SimpleAgentLoop implements AgentLoop {
         const result = await this.toolRegistry.execute(
           toolCall.name,
           toolCall.input,
+          context,
         );
 
         yield this.createEvent("tool_result", {

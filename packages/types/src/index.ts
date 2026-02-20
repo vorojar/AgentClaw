@@ -26,6 +26,7 @@ export type {
   ToolDefinition,
   ToolResult,
   ToolCategory,
+  ToolExecutionContext,
   Tool,
   ToolRegistry,
   MCPServerConfig,

@@ -126,6 +126,9 @@ export async function bootstrap(): Promise<AppContext> {
 
   // Memory store
   const memoryStore = new SQLiteMemoryStore(db);
+  if (provider.embed) {
+    memoryStore.setEmbedFn((texts) => provider.embed!(texts));
+  }
 
   // Build system prompt with explicit tool descriptions for smaller models
   const toolDescriptions = toolRegistry

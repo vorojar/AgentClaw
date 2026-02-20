@@ -11,12 +11,18 @@ import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
 import { SimpleAgentLoop } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
+import { MemoryExtractor } from "./memory-extractor.js";
+
+/** How many user turns between automatic memory extraction runs */
+const EXTRACT_EVERY_N_TURNS = 5;
 
 export class SimpleOrchestrator implements Orchestrator {
   private sessions = new Map<string, Session>();
+  private turnCounters = new Map<string, number>();
   private provider: LLMProvider;
   private toolRegistry: ToolRegistryImpl;
   private memoryStore: MemoryStore;
+  private memoryExtractor: MemoryExtractor;
   private agentConfig?: Partial<AgentConfig>;
   private systemPrompt?: string;
 
@@ -30,6 +36,10 @@ export class SimpleOrchestrator implements Orchestrator {
     this.provider = options.provider;
     this.toolRegistry = options.toolRegistry;
     this.memoryStore = options.memoryStore;
+    this.memoryExtractor = new MemoryExtractor({
+      provider: options.provider,
+      memoryStore: options.memoryStore,
+    });
     this.agentConfig = options.agentConfig;
     this.systemPrompt = options.systemPrompt;
   }
@@ -58,7 +68,23 @@ export class SimpleOrchestrator implements Orchestrator {
     session.lastActiveAt = new Date();
 
     const loop = this.createAgentLoop();
-    return loop.run(input, session.conversationId);
+    const result = await loop.run(input, session.conversationId);
+
+    // Background memory extraction every N turns (fire-and-forget)
+    const count = (this.turnCounters.get(session.conversationId) ?? 0) + 1;
+    this.turnCounters.set(session.conversationId, count);
+    if (count % EXTRACT_EVERY_N_TURNS === 0) {
+      this.memoryExtractor
+        .processConversation(session.conversationId)
+        .then((n) => {
+          if (n > 0) console.log(`[memory] Extracted ${n} memories`);
+        })
+        .catch((err) => {
+          console.error("[memory] Extraction failed:", err);
+        });
+    }
+
+    return result;
   }
 
   async *processInputStream(

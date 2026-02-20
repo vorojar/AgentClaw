@@ -38,7 +38,7 @@ export class SimpleContextManager implements ContextManager {
 
   async buildContext(
     conversationId: string,
-    _currentInput: string,
+    currentInput: string,
   ): Promise<{ systemPrompt: string; messages: Message[] }> {
     // Get conversation history
     const turns = await this.memoryStore.getHistory(
@@ -59,6 +59,22 @@ export class SimpleContextManager implements ContextManager {
           .join("\n");
         finalPrompt += `\n\nAvailable tools:\n${toolList}`;
       }
+    }
+
+    // Recall relevant long-term memories and inject into system prompt
+    try {
+      const memories = await this.memoryStore.search({
+        query: currentInput,
+        limit: 10,
+      });
+      if (memories.length > 0) {
+        const memoryLines = memories
+          .map((m) => `- [${m.entry.type}] ${m.entry.content}`)
+          .join("\n");
+        finalPrompt += `\n\nYour long-term memory (things you know about the user and previous interactions):\n${memoryLines}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`;
+      }
+    } catch {
+      // Memory search failed — continue without memories
     }
 
     return {

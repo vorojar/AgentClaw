@@ -275,11 +275,12 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
   ): ContentBlock[] {
     const blocks: ContentBlock[] = [];
 
-    // Some models (e.g. qwen3 with thinking mode) return empty content
-    // with all output in a "reasoning" field. Fall back to reasoning if
-    // content is empty.
+    // Some models return empty content with thinking in a separate field:
+    // - qwen3: "reasoning"
+    // - DeepSeek V3: "reasoning_content"
+    const extra = msg as unknown as Record<string, string>;
     const text =
-      msg.content || (msg as unknown as Record<string, string>).reasoning || "";
+      msg.content || extra.reasoning_content || extra.reasoning || "";
     if (text) {
       blocks.push({ type: "text", text });
     }

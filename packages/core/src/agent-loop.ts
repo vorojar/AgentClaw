@@ -121,8 +121,9 @@ export class SimpleAgentLoop implements AgentLoop {
       };
       await this.memoryStore.addTurn(convId, assistantTurn);
 
-      // If no tool calls, we're done
-      if (response.stopReason !== "tool_use" || toolCalls.length === 0) {
+      // If no tool calls, we're done (ignore stopReason — some providers
+      // return finish_reason:"stop" even when tool_calls are present)
+      if (toolCalls.length === 0) {
         this.setState("responding");
         this.emit("response_complete", { message: response.message });
         this.setState("idle");

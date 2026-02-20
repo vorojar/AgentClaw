@@ -216,8 +216,25 @@
 - [x] 完整工作流：submit prompt → poll history → download output → sendFile 自动发送给用户
 - [x] Telegram 图片消息同时保存到本地磁盘（`data/uploads/`），供 ComfyUI 等工具读取
 
+### 6.2 Skills System Activation（技能系统激活）✅
+- [x] `ContextManager.buildContext()` 中调用 `SkillRegistry.match()` 匹配用户输入
+- [x] 匹配 confidence > 0.3 时将 skill instructions 注入 system prompt
+- [x] Orchestrator 将 skillRegistry 传递给 ContextManager
+- [x] 三个内置 skill（coding/research/writing）生效：LLM 行为根据用户意图自适应
+
+### 6.3 Planner Integration（规划器集成）✅
+- [x] `plan_task` 内置工具：LLM 可主动调用规划器分解复杂多步任务
+- [x] `ToolExecutionContext` 扩展 `planner` 字段，Orchestrator 自动注入
+- [x] 完整流程：createPlan（LLM 分解目标为步骤）→ executeNext 循环执行 → 汇总结果返回
+- [x] 每个步骤通过独立 AgentLoop 执行，拥有完整工具访问能力
+
+### 6.4 Tool Retry Mechanism（工具重试机制）✅
+- [x] AgentLoop 中网络类工具（comfyui/http_request/web_search/web_fetch）失败自动重试
+- [x] 最多重试 2 次，指数退避（2s、4s）
+- [x] 重试成功立即返回，无需 LLM 重新决策
+
 ---
 
 ## Current Focus（当前重点）
 
-**Phase 6 进行中！** ComfyUI 图片生成/处理已完成。下一步可考虑：多平台扩展（Discord/WeChat）、更多 ComfyUI workflow（img2img、ControlNet）、Agent 自主规划能力增强。
+**Phase 6 完成！** ComfyUI 集成、Skills 激活、Planner 集成、工具重试均已实现。下一步可考虑：会话持久化、动态工具筛选、更多 Skills（comfyui-art、daily-brief）、更多 ComfyUI workflow（img2img、ControlNet）。

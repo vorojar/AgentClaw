@@ -10,6 +10,7 @@ import type {
   AgentConfig,
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
+import type { SkillRegistryImpl } from "./skills/registry.js";
 import { generateId } from "@agentclaw/providers";
 import { SimpleAgentLoop } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
@@ -29,6 +30,8 @@ export class SimpleOrchestrator implements Orchestrator {
   private agentConfig?: Partial<AgentConfig>;
   private systemPrompt?: string;
   private scheduler?: ToolExecutionContext["scheduler"];
+  private planner?: ToolExecutionContext["planner"];
+  private skillRegistry?: SkillRegistryImpl;
 
   constructor(options: {
     provider: LLMProvider;
@@ -38,6 +41,8 @@ export class SimpleOrchestrator implements Orchestrator {
     agentConfig?: Partial<AgentConfig>;
     systemPrompt?: string;
     scheduler?: ToolExecutionContext["scheduler"];
+    planner?: ToolExecutionContext["planner"];
+    skillRegistry?: SkillRegistryImpl;
   }) {
     this.provider = options.provider;
     this.visionProvider = options.visionProvider;
@@ -50,6 +55,8 @@ export class SimpleOrchestrator implements Orchestrator {
     this.agentConfig = options.agentConfig;
     this.systemPrompt = options.systemPrompt;
     this.scheduler = options.scheduler;
+    this.planner = options.planner;
+    this.skillRegistry = options.skillRegistry;
   }
 
   async createSession(): Promise<Session> {
@@ -112,6 +119,7 @@ export class SimpleOrchestrator implements Orchestrator {
         });
       },
       scheduler: this.scheduler,
+      planner: this.planner,
     };
 
     const inputHasImage = hasImage(input);
@@ -157,6 +165,7 @@ export class SimpleOrchestrator implements Orchestrator {
     const contextManager = new SimpleContextManager({
       systemPrompt: this.systemPrompt,
       memoryStore: this.memoryStore,
+      skillRegistry: this.skillRegistry,
     });
 
     return new SimpleAgentLoop({

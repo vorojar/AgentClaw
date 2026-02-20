@@ -269,15 +269,10 @@ ${toolDescriptions}
   // Scheduler
   const scheduler = new TaskScheduler();
 
-  // Orchestrator
-  const orchestrator = new SimpleOrchestrator({
-    provider,
-    visionProvider,
-    toolRegistry,
-    memoryStore,
-    systemPrompt: process.env.SYSTEM_PROMPT || defaultSystemPrompt,
-    scheduler,
-  });
+  // Skill registry
+  const skillsDir = process.env.SKILLS_DIR || "./skills/";
+  const skillRegistry = new SkillRegistryImpl();
+  await skillRegistry.loadFromDirectory(skillsDir);
 
   // Planner
   const planner = new SimplePlanner({
@@ -295,10 +290,20 @@ ${toolDescriptions}
     },
   });
 
-  // Skill registry
-  const skillsDir = process.env.SKILLS_DIR || "./skills/";
-  const skillRegistry = new SkillRegistryImpl();
-  await skillRegistry.loadFromDirectory(skillsDir);
+  // Orchestrator
+  const orchestrator = new SimpleOrchestrator({
+    provider,
+    visionProvider,
+    toolRegistry,
+    memoryStore,
+    systemPrompt: process.env.SYSTEM_PROMPT || defaultSystemPrompt,
+    scheduler,
+    planner: {
+      createPlan: (goal, ctx) => planner.createPlan(goal, ctx),
+      executeNext: (planId) => planner.executeNext(planId),
+    },
+    skillRegistry,
+  });
 
   const config: AppRuntimeConfig = {
     provider: providerName,

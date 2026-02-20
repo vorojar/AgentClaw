@@ -63,6 +63,26 @@ export interface ToolExecutionContext {
     }>;
     delete(id: string): boolean;
   };
+  /** Planner for decomposing complex tasks into executable steps */
+  planner?: {
+    createPlan(
+      goal: string,
+      context?: string,
+    ): Promise<{
+      id: string;
+      goal: string;
+      steps: Array<{ id: string; description: string; status: string }>;
+    }>;
+    executeNext(planId: string): Promise<
+      Array<{
+        id: string;
+        description: string;
+        status: string;
+        result?: string;
+        error?: string;
+      }>
+    >;
+  };
 }
 
 /** A tool that can be executed */

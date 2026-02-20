@@ -142,11 +142,11 @@ Shared TypeScript interfaces.（共享的 TypeScript 接口定义。）Zero runt
 
 The brain of the system:（系统的大脑：）
 
-- **AgentLoop**: The think-act-observe cycle.（思考-行动-观察循环。）Receives user input, manages the conversation loop with the LLM, handles tool calls, and produces final responses.（接收用户输入，管理与 LLM 的对话循环，处理工具调用，生成最终回复。）
-- **Planner** ✅: Decomposes complex tasks into executable plans with steps and dependencies via LLM.（通过 LLM 将复杂任务分解为带有步骤和依赖关系的可执行计划。）Executes steps through AgentLoop, monitors progress, and re-plans on failure.（通过 AgentLoop 执行步骤，监控进度，失败时自动重规划。）
-- **ContextManager**: Builds the optimal context window for each LLM call by combining system prompts, conversation history, memory retrieval results, and active skill instructions.（通过组合系统提示、对话历史、记忆检索结果和活跃技能指令，为每次 LLM 调用构建最优上下文窗口。）
-- **Orchestrator**: Top-level coordinator.（顶层协调器。）Manages sessions, routes between simple chat and complex planning, handles lifecycle.（管理会话，在简单对话和复杂规划之间路由，处理生命周期。）
-- **SkillRegistry** ✅: Loads skills from SKILL.md files (YAML frontmatter + natural language instructions).（从 SKILL.md 文件加载技能：YAML 元数据 + 自然语言指令。）Matches user input via keyword/intent triggers.（通过关键词/意图触发器匹配用户输入。）
+- **AgentLoop**: The think-act-observe cycle with automatic retry.（思考-行动-观察循环，带自动重试。）Receives user input, manages the conversation loop with the LLM, handles tool calls with exponential backoff retry for network tools (comfyui/http_request/web_search/web_fetch), and produces final responses.（接收用户输入，管理与 LLM 的对话循环，网络类工具失败自动重试（指数退避），生成最终回复。）
+- **Planner** ✅: Decomposes complex tasks into executable plans with steps and dependencies via LLM.（通过 LLM 将复杂任务分解为带有步骤和依赖关系的可执行计划。）Exposed as built-in `plan_task` tool so the LLM can invoke it autonomously.（作为内置 `plan_task` 工具暴露，LLM 可自主调用。）Executes steps through AgentLoop, monitors progress, and re-plans on failure.（通过 AgentLoop 执行步骤，监控进度，失败时自动重规划。）
+- **ContextManager**: Builds the optimal context window for each LLM call by combining system prompts, conversation history, memory retrieval results, and **matched skill instructions**.（通过组合系统提示、对话历史、记忆检索结果和**匹配的技能指令**，为每次 LLM 调用构建最优上下文窗口。）Skills are dynamically matched against user input and injected when confidence > 0.3.（技能根据用户输入动态匹配，confidence > 0.3 时注入。）
+- **Orchestrator**: Top-level coordinator.（顶层协调器。）Manages sessions, injects skill/planner/scheduler into tool execution context, handles lifecycle.（管理会话，将 skill/planner/scheduler 注入工具执行上下文，处理生命周期。）
+- **SkillRegistry** ✅: Loads skills from SKILL.md files (YAML frontmatter + natural language instructions).（从 SKILL.md 文件加载技能：YAML 元数据 + 自然语言指令。）Matches user input via keyword/intent triggers and injects instructions into system prompt.（通过关键词/意图触发器匹配用户输入，并将指令注入系统提示词。）
 - **MemoryExtractor** ✅: Uses LLM to extract long-term memories (facts, preferences, entities, episodic) from conversations.（使用 LLM 从对话中提取长期记忆：事实、偏好、实体、情景。）Runs periodically every 5 turns.（每 5 轮对话自动运行。）
 
 ### packages/providers（模型提供商包）
@@ -163,7 +163,7 @@ LLM abstraction layer with 3 adapters covering 8+ providers:（LLM 抽象层，3
 
 Tool system with three tiers:（三层工具系统：）
 
-- **Built-in** ✅: shell, file-read, file-write, web-search (DuckDuckGo), web-fetch (HTML auto-clean), ask-user, remember, set-reminder, schedule, send-file, python, http-request, browser, comfyui（内置工具：命令行、文件读写、网页搜索、网页抓取、询问用户、记忆、提醒、定时任务、发送文件、Python 执行、HTTP 请求、浏览器、ComfyUI 图片处理）
+- **Built-in** ✅: shell, file-read, file-write, web-search, web-fetch, ask-user, remember, set-reminder, schedule, send-file, python, http-request, browser, comfyui, plan-task（内置工具：命令行、文件读写、网页搜索、网页抓取、询问用户、记忆、提醒、定时任务、发送文件、Python 执行、HTTP 请求、浏览器、ComfyUI 图片处理、任务规划）
 - **External**: claude-code, codex — future（外部工具：Claude Code、Codex——未来计划）
 - **MCP** ✅: MCPClient (stdio + HTTP transport) + MCPManager for multi-server connections.（MCP 协议：MCPClient 支持 stdio + HTTP 传输 + MCPManager 管理多服务器连接。）Auto-discovers tools from MCP servers and adapts them to AgentClaw Tool interface.（自动从 MCP 服务器发现工具并适配为 AgentClaw Tool 接口。）
 

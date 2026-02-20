@@ -27,6 +27,17 @@ const DEFAULT_CONFIG: AgentConfig = {
   maxTokens: 4096,
 };
 
+/** Tools that are safe to retry on failure (network-dependent tools) */
+const RETRYABLE_TOOLS = new Set([
+  "comfyui",
+  "http_request",
+  "web_search",
+  "web_fetch",
+]);
+
+const MAX_RETRIES = 2;
+const RETRY_BASE_DELAY = 2000; // ms
+
 export class SimpleAgentLoop implements AgentLoop {
   private _state: AgentState = "idle";
   private _config: AgentConfig;
@@ -254,11 +265,28 @@ export class SimpleAgentLoop implements AgentLoop {
           input: toolCall.input,
         });
 
-        const result = await this.toolRegistry.execute(
+        let result = await this.toolRegistry.execute(
           toolCall.name,
           toolCall.input,
           context,
         );
+
+        // Retry retryable tools on failure
+        if (result.isError && RETRYABLE_TOOLS.has(toolCall.name)) {
+          for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
+            console.log(
+              `[agent-loop] Retrying ${toolCall.name} (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms...`,
+            );
+            await new Promise((r) => setTimeout(r, delay));
+            result = await this.toolRegistry.execute(
+              toolCall.name,
+              toolCall.input,
+              context,
+            );
+            if (!result.isError) break;
+          }
+        }
 
         yield this.createEvent("tool_result", {
           name: toolCall.name,

@@ -5,6 +5,7 @@ import type {
   MemoryStore,
   ConversationTurn,
   ToolRegistry,
+  SkillRegistry,
 } from "@agentclaw/types";
 
 const DEFAULT_SYSTEM_PROMPT = `You are AgentClaw, a powerful AI assistant. You MUST use tools to help the user. Do NOT say you cannot do something — use the appropriate tool instead.
@@ -22,17 +23,20 @@ export class SimpleContextManager implements ContextManager {
   private systemPrompt: string;
   private memoryStore: MemoryStore;
   private toolRegistry?: ToolRegistry;
+  private skillRegistry?: SkillRegistry;
   private maxHistoryTurns: number;
 
   constructor(options: {
     systemPrompt?: string;
     memoryStore: MemoryStore;
     toolRegistry?: ToolRegistry;
+    skillRegistry?: SkillRegistry;
     maxHistoryTurns?: number;
   }) {
     this.systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
     this.memoryStore = options.memoryStore;
     this.toolRegistry = options.toolRegistry;
+    this.skillRegistry = options.skillRegistry;
     this.maxHistoryTurns = options.maxHistoryTurns ?? 50;
   }
 
@@ -86,6 +90,20 @@ export class SimpleContextManager implements ContextManager {
       }
     } catch {
       // Memory search failed — continue without memories
+    }
+
+    // Match skills against user input
+    if (this.skillRegistry) {
+      try {
+        const matches = await this.skillRegistry.match(searchQuery);
+        // Take top match with confidence > 0.3
+        const topMatch = matches.find((m) => m.confidence > 0.3);
+        if (topMatch) {
+          finalPrompt += `\n\n## Active Skill: ${topMatch.skill.name}\n${topMatch.skill.instructions}`;
+        }
+      } catch {
+        // Skill matching failed — continue without skills
+      }
     }
 
     return {

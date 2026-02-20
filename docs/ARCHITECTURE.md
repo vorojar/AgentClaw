@@ -44,6 +44,21 @@ AgentClaw is a commander-level AI dispatch center — a 24/7 personal assistant 
 
 ## Data Flow（数据流）
 
+### Streaming Data Flow with Usage Statistics（流式数据流与用量统计）
+
+```
+Provider.stream()  →  AgentLoop.runStream()  →  Orchestrator  →  Gateway(WS/TG)  →  前端
+  done chunk 携带         累加 tokensIn/Out       透传 Message      WS done 携带       渲染灰色
+  usage + model          计时 durationMs         含统计字段        统计字段/TG 追加行   统计行
+```
+
+三个 Provider 在流式 done chunk 中返回 `{ usage: { tokensIn, tokensOut }, model }`：
+- **OpenAI Compatible**: `stream_options: { include_usage: true }`，从最后一个 chunk 的 `chunk.usage` 提取
+- **Claude**: 从 `message_start`（input_tokens）和 `message_delta`（output_tokens）事件中提取
+- **Gemini**: 从每个 `chunk.usageMetadata` 持续更新
+
+AgentLoop 跨多轮 LLM 调用累加 token、工具次数、计时，最终写入 Message 和 ConversationTurn。
+
 ### Agent Loop (Core Cycle)（智能循环，核心周期）
 
 ```
@@ -63,7 +78,7 @@ User Input（用户输入）
 ┌─────────────────┐
 │ LLM Thinking    │ ← Provider Router selects model
 │ （LLM 思考）     │ ←（路由器选择模型）
-└────────┬────────┘
+└────────┬────────┘  done chunk → 累加 tokensIn/Out, 记录 model
          │
     ┌────┴────┐
     │Tool Call?│
@@ -72,8 +87,8 @@ User Input（用户输入）
     Yes  │  No
     ▼    │   ▼
 ┌───────┐│ ┌──────────┐
-│Execute││ │Output    │
-│Tool   ││ │Response  │
+│Execute││ │Output    │ → Message 携带 model/tokensIn/tokensOut/
+│Tool   ││ │Response  │   durationMs/toolCallCount
 │（执行）││ │（输出）   │
 └───┬───┘│ └────┬─────┘
     │    │      │
@@ -85,6 +100,7 @@ User Input（用户输入）
 └───┬───┘│ └──────────┘
     │    │
     └──→ Loop back to LLM Thinking（循环回到 LLM 思考）
+         totalToolCalls += toolCalls.length
 ```
 
 ### Planner Flow（规划器流程）
@@ -147,8 +163,8 @@ LLM abstraction layer with 3 adapters covering 8+ providers:（LLM 抽象层，3
 
 Tool system with three tiers:（三层工具系统：）
 
-- **Built-in** ✅: shell, file-read, file-write, web-search (DuckDuckGo), web-fetch (HTML auto-clean), ask-user（内置工具：命令行、文件读写、网页搜索 DuckDuckGo、网页抓取 HTML 自动清洗、询问用户）
-- **External**: claude-code, codex, browser (Playwright) — Phase 3（外部工具：Claude Code、Codex、浏览器 Playwright——Phase 3）
+- **Built-in** ✅: shell, file-read, file-write, web-search (DuckDuckGo), web-fetch (HTML auto-clean), ask-user, remember, set-reminder, schedule, send-file, python, http-request, browser, comfyui（内置工具：命令行、文件读写、网页搜索、网页抓取、询问用户、记忆、提醒、定时任务、发送文件、Python 执行、HTTP 请求、浏览器、ComfyUI 图片处理）
+- **External**: claude-code, codex — future（外部工具：Claude Code、Codex——未来计划）
 - **MCP** ✅: MCPClient (stdio + HTTP transport) + MCPManager for multi-server connections.（MCP 协议：MCPClient 支持 stdio + HTTP 传输 + MCPManager 管理多服务器连接。）Auto-discovers tools from MCP servers and adapts them to AgentClaw Tool interface.（自动从 MCP 服务器发现工具并适配为 AgentClaw Tool 接口。）
 
 Each tool implements a standard interface: `{ name, description, parameters, execute() }`.（每个工具实现标准接口：`{ name, description, parameters, execute() }`。）
@@ -178,7 +194,7 @@ Background daemon powered by Fastify:（基于 Fastify 的后台守护进程：�
 
 - **Server** ✅: Fastify HTTP server with CORS + WebSocket plugin.（Fastify HTTP 服务器 + CORS + WebSocket 插件。）`bootstrap.ts` initializes all core components (provider, tools, memory, orchestrator, planner, skills).（`bootstrap.ts` 初始化所有核心组件。）
 - **REST API** ✅: 18 endpoints covering sessions (CRUD + chat + history), plans (list + detail), memories (search + delete), tools & skills (list), stats & config (get/update), scheduled tasks (CRUD).（18 个端点覆盖会话、计划、记忆、工具技能、统计配置、定时任务。）
-- **WebSocket** ✅: Real-time streaming at `/ws?sessionId=xxx`.（`/ws?sessionId=xxx` 实时流式传输。）Maps AgentEvent types to client WSMessage format (text/tool_call/tool_result/done/error).（将 AgentEvent 类型映射为客户端 WSMessage 格式。）
+- **WebSocket** ✅: Real-time streaming at `/ws?sessionId=xxx`.（`/ws?sessionId=xxx` 实时流式传输。）Maps AgentEvent types to client WSMessage format (text/tool_call/tool_result/done/error).（将 AgentEvent 类型映射为客户端 WSMessage 格式。）Done message carries usage stats (model/tokensIn/tokensOut/durationMs/toolCallCount).（done 消息携带用量统计。）
 - **Scheduler** ✅: Cron-based task scheduling using `croner` library with CRUD API.（基于 croner 库的 Cron 任务调度 + CRUD API。）
 - **Graceful shutdown**: Handles SIGINT/SIGTERM, stops scheduler and closes Fastify.（处理 SIGINT/SIGTERM，停止调度器并关闭 Fastify。）
 
@@ -186,7 +202,7 @@ Background daemon powered by Fastify:（基于 Fastify 的后台守护进程：�
 
 React + Vite dark-themed Web UI:（基于 React + Vite 的深色主题 Web 界面：）
 
-- **ChatPage** ✅: Real-time chat with WebSocket streaming, tool call cards (collapsible), session sidebar (collapsible), auto-scroll, empty state, reconnection banner.（实时聊天：WebSocket 流式传输、可折叠工具调用卡片、可折叠会话侧栏、自动滚动、空状态、断连重连。）
+- **ChatPage** ✅: Real-time chat with WebSocket streaming, tool call cards (collapsible), session sidebar (collapsible), auto-scroll, empty state, reconnection banner, usage stats display on assistant messages (model/tokens/duration/tool count).（实时聊天：WebSocket 流式传输、可折叠工具调用卡片、可折叠会话侧栏、自动滚动、空状态、断连重连、assistant 消息底部显示用量统计。）
 - **PlansPage** ✅: Plan list with status badges, expandable step timeline, dependency visualization, auto-refresh every 10s.（计划列表：状态徽章、可展开的步骤时间线、依赖可视化、每 10 秒自动刷新。）
 - **MemoryPage** ✅: Memory browser with search (debounced 300ms), type filter, sort toggle (importance/time), importance stars, delete with confirmation.（记忆浏览器：搜索防抖 300ms、类型筛选、排序切换、重要度星级、删除确认。）
 - **SettingsPage** ✅: Provider config (editable), usage statistics (4 cards + model breakdown table), tools list, skills list with toggle, scheduled tasks CRUD, system info.（设置面板：可编辑的提供商配置、使用统计、工具列表、技能开关、定时任务管理、系统信息。）
@@ -196,7 +212,8 @@ React + Vite dark-themed Web UI:（基于 React + Vite 的深色主题 Web 界�
 
 See `packages/types/src/` for complete definitions.（完整定义见 `packages/types/src/`。）Key interfaces:（核心接口：）
 
-- `Message` — Chat message with role, content, tool calls（聊天消息，包含角色、内容、工具调用）
+- `Message` — Chat message with role, content, tool calls, usage stats (model/tokensIn/tokensOut/durationMs/toolCallCount)（聊天消息，包含角色、内容、工具调用、用量统计）
+- `LLMStreamChunk` — Streaming chunk; done chunk carries `usage` and `model`（流式片段；done chunk 携带 usage 和 model）
 - `LLMProvider` — Unified LLM provider interface（统一的 LLM 提供商接口）
 - `LLMRouter` — Model selection based on task type（基于任务类型的模型选择）
 - `Tool` / `ToolRegistry` — Tool definition and registry（工具定义和注册表）
@@ -233,6 +250,8 @@ CREATE TABLE turns (
   model TEXT,
   tokens_in INTEGER,
   tokens_out INTEGER,
+  duration_ms INTEGER, -- Response duration in milliseconds（响应耗时，毫秒）
+  tool_call_count INTEGER, -- Number of tool calls executed（工具调用次数）
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX idx_turns_conversation ON turns(conversation_id, created_at);

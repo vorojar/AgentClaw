@@ -12,6 +12,7 @@ import { sendFileTool } from "./send-file.js";
 import { pythonTool } from "./python.js";
 import { httpRequestTool } from "./http-request.js";
 import { browserTool } from "./browser.js";
+import { comfyuiGenerateTool } from "./comfyui.js";
 
 export { shellTool, shellInfo } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
@@ -26,6 +27,7 @@ export { sendFileTool } from "./send-file.js";
 export { pythonTool } from "./python.js";
 export { httpRequestTool } from "./http-request.js";
 export { browserTool } from "./browser.js";
+export { comfyuiGenerateTool } from "./comfyui.js";
 
 /** Create all built-in tools */
 export function createBuiltinTools(): Tool[] {
@@ -43,5 +45,6 @@ export function createBuiltinTools(): Tool[] {
     pythonTool,
     httpRequestTool,
     browserTool,
+    comfyuiGenerateTool,
   ];
 }

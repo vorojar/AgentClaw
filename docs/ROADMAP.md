@@ -192,6 +192,32 @@
 
 ---
 
+### 5.7 Usage Statistics Display（用量统计展示）✅
+- [x] `LLMStreamChunk` 新增 `usage` + `model` 字段，done chunk 携带 token 用量（类型层）
+- [x] `Message` / `ConversationTurn` 新增 `durationMs` + `toolCallCount` 字段（类型层）
+- [x] 三大 Provider（OpenAI Compatible / Claude / Gemini）的 `stream()` 方法在 done chunk 中返回 usage
+- [x] AgentLoop 跨多轮 LLM 调用累加 tokensIn/Out、toolCallCount、计时 durationMs，写入 Message 和 DB
+- [x] WebSocket done 消息携带 model/tokensIn/tokensOut/durationMs/toolCallCount
+- [x] REST API history 端点返回统计字段
+- [x] Telegram 回复末尾追加统计行：`— model · N tokens (in↑ out↓) · Xs · 🔧×N`
+- [x] Web UI assistant 消息底部灰色小字显示统计行（流式和历史消息均支持）
+
+---
+
+## Phase 6: Creative Tools — "搞创作" (Create)
+
+**Goal**: 集成本地 AI 创作工具（目标：ComfyUI 图片生成/处理 + 更多创意工具）
+
+### 6.1 ComfyUI Integration（ComfyUI 集成）✅
+- [x] `comfyui` 工具：统一入口，三种 action（generate / remove_background / upscale）
+- [x] 文生图（text-to-image）：基于 z-image-turbo 模型，支持 prompt / width / height / steps / seed 参数
+- [x] 去除背景（remove background）：基于 RMBG-2.0 模型，上传图片 → 处理 → 自动发送结果
+- [x] 4x 超分放大（upscale）：基于 RealESRGAN_x4plus 模型，上传图片 → 处理 → 自动发送结果
+- [x] 完整工作流：submit prompt → poll history → download output → sendFile 自动发送给用户
+- [x] Telegram 图片消息同时保存到本地磁盘（`data/uploads/`），供 ComfyUI 等工具读取
+
+---
+
 ## Current Focus（当前重点）
 
-**Phase 5 完成！** 所有 6 个子任务均已实现。下一步可考虑：多平台扩展（Discord/WeChat）、更多文件格式处理、Agent 自主规划能力增强。
+**Phase 6 进行中！** ComfyUI 图片生成/处理已完成。下一步可考虑：多平台扩展（Discord/WeChat）、更多 ComfyUI workflow（img2img、ControlNet）、Agent 自主规划能力增强。

@@ -504,7 +504,8 @@ export async function startTelegramBot(
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      const base64Data = Buffer.from(arrayBuffer).toString("base64");
+      const imageBuffer = Buffer.from(arrayBuffer);
+      const base64Data = imageBuffer.toString("base64");
 
       // 根据文件扩展名判断 MIME 类型
       const ext = filePath.split(".").pop()?.toLowerCase() ?? "jpg";
@@ -517,7 +518,16 @@ export async function startTelegramBot(
       };
       const mediaType = mimeMap[ext] ?? "image/jpeg";
 
-      // 构造多模态输入：ImageContent + TextContent
+      // 保存图片到本地磁盘，供工具（如 comfyui）使用
+      const { mkdirSync, writeFileSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const uploadsDir = join(process.cwd(), "data", "uploads");
+      mkdirSync(uploadsDir, { recursive: true });
+      const localImageName = `photo_${Date.now()}.${ext}`;
+      const localImagePath = join(uploadsDir, localImageName);
+      writeFileSync(localImagePath, imageBuffer);
+
+      // 构造多模态输入：ImageContent + TextContent（含本地路径）
       const contentBlocks: ContentBlock[] = [
         {
           type: "image",
@@ -526,7 +536,7 @@ export async function startTelegramBot(
         },
         {
           type: "text",
-          text: caption,
+          text: `[用户发送了图片，已保存到 ${localImagePath}]\n${caption}`,
         },
       ];
 

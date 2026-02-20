@@ -133,13 +133,13 @@ The brain of the system:（系统的大脑：）
 
 ### packages/providers（模型提供商包）
 
-LLM abstraction layer:（LLM 抽象层：）
+LLM abstraction layer with 3 adapters covering 8+ providers:（LLM 抽象层，3 个适配器覆盖 8+ 提供商：）
 
-- **Provider interface**: Unified API for all LLM providers (chat, stream, embed).（统一的 LLM 提供商 API，支持对话、流式输出、嵌入。）
-- **ClaudeProvider**: Anthropic Claude API adapter.（Anthropic Claude API 适配器。）
-- **OpenAIProvider**: OpenAI API adapter.（OpenAI API 适配器。）
-- **OllamaProvider**: Local Ollama adapter.（本地 Ollama 适配器。）
-- **Router**: Intelligent model selection based on task type (planning → Opus, coding → Sonnet, chat → Haiku, classification → local).（基于任务类型的智能模型选择：规划 → Opus，编码 → Sonnet，对话 → Haiku，分类 → 本地模型。）
+- **BaseLLMProvider**: Abstract base class with shared logic.（抽象基类，包含通用逻辑。）
+- **ClaudeProvider**: Anthropic Claude API adapter (@anthropic-ai/sdk).（Anthropic Claude API 适配器。）
+- **OpenAICompatibleProvider**: One adapter for all OpenAI-compatible APIs — OpenAI, DeepSeek, Kimi, MiniMax, Qwen, Ollama, etc.（一个适配器通吃所有 OpenAI 兼容 API——OpenAI、DeepSeek、Kimi、MiniMax、通义千问、Ollama 等。）Just configure baseUrl + apiKey.（只需配置 baseUrl + apiKey。）
+- **GeminiProvider**: Google Gemini API adapter (@google/genai).（Google Gemini API 适配器。）
+- **SmartRouter**: Intelligent model selection based on task type.（基于任务类型的智能模型选择。）
 
 ### packages/tools（工具包）
 

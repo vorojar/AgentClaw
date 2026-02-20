@@ -1,93 +1,118 @@
 # AgentClaw
 
-> Your 24/7 AI Commander — an intelligent dispatch center that understands intent, plans tasks, orchestrates tools, and remembers everything.
+> 你的 24/7 AI 指挥官——一个理解意图、规划任务、调度工具、记住一切的智能调度中心。
 
-AgentClaw is a personal AI assistant that acts as a commander-level orchestrator. It doesn't write code itself (it calls Claude Code/Codex), doesn't search itself (it calls search tools), but it understands your intent, plans complex tasks, dispatches the right tools, and keeps running in the background.
+AgentClaw 是一个指挥官级别的个人 AI 助理。它自己不写代码（调用 Claude Code/Codex），自己不搜索（调用搜索工具），但它理解你的意图、规划复杂任务、调度合适的工具，并一直在后台运行。
 
-## Architecture
+## 架构
 
 ```
-You (the boss)
+你（老板）
   │
   ▼
-AgentClaw (commander)
-  ├── LLM Providers (Claude, OpenAI, Ollama)
-  ├── Tools (shell, files, web, claude-code, codex, MCP...)
-  ├── Memory (conversations, facts, preferences, experiences)
-  └── Skills (coding, research, writing, custom...)
+AgentClaw（指挥官）
+  ├── LLM 提供商 (Claude, OpenAI, Gemini, DeepSeek, Kimi, MiniMax, Qwen, Ollama)
+  ├── 工具 (shell, 文件读写, ask-user, 未来: web-search, claude-code, MCP...)
+  ├── 记忆 (对话历史, 未来: 事实/偏好/实体/经验)
+  └── 技能 (未来: 编码, 研究, 写作, 自定义...)
 ```
 
-## Tech Stack
+## 技术栈
 
-- **Language**: TypeScript monorepo (pnpm + Turborepo)
-- **LLM**: Claude (primary) + OpenAI + Ollama with intelligent routing
-- **Storage**: SQLite + sqlite-vec for vector search
-- **CLI**: Commander.js + Ink
-- **Web UI**: React + Vite (Phase 3)
-- **Daemon**: Fastify HTTP + WebSocket
-- **Build**: tsup + Turborepo
+- **语言**: TypeScript monorepo (pnpm + Turborepo)
+- **LLM**: Claude（主力）+ OpenAI + Gemini + DeepSeek + Kimi + MiniMax + Qwen + Ollama
+- **存储**: SQLite (better-sqlite3)，未来加 sqlite-vec 向量搜索
+- **CLI**: Node.js readline 交互式对话
+- **Web UI**: React + Vite（Phase 3）
+- **守护进程**: Fastify HTTP + WebSocket（Phase 3）
+- **构建**: tsup + Turborepo
 
-## Project Structure
+## 项目结构
 
 ```
 agentclaw/
 ├── packages/
-│   ├── types/       — Shared type definitions
-│   ├── core/        — Agent Loop, Planner, Context Manager, Orchestrator
-│   ├── providers/   — LLM adapters (Claude, OpenAI, Ollama) + Router
-│   ├── tools/       — Tool system (built-in + external + MCP)
-│   ├── memory/      — Memory system (SQLite + vector search)
-│   ├── cli/         — CLI entry point (agentclaw / ac)
-│   ├── gateway/     — Daemon + HTTP API
-│   └── web/         — Web UI (Phase 3)
-├── skills/          — Skill definitions (SKILL.md)
-├── docs/            — Documentation
-└── data/            — Runtime data (gitignored)
+│   ├── types/       — 共享类型定义（所有接口）
+│   ├── core/        — Agent Loop, Context Manager, Orchestrator
+│   ├── providers/   — LLM 适配器 (Claude, OpenAI兼容, Gemini) + Router
+│   ├── tools/       — 工具系统 (shell, file-read/write, ask-user)
+│   ├── memory/      — 记忆系统 (SQLite 对话历史)
+│   ├── cli/         — CLI 入口 (agentclaw / ac)
+│   ├── gateway/     — 守护进程 + HTTP API（Phase 3）
+│   └── web/         — Web UI（Phase 3）
+├── skills/          — 技能定义（Phase 2）
+├── docs/            — 项目文档
+└── data/            — 运行时数据 (gitignored)
 ```
 
-## Quick Start
+## 快速开始
 
-### Prerequisites
+### 前置要求
 
 - Node.js >= 20
 - pnpm >= 9
 
-### Setup
+### 安装
 
 ```bash
-# Clone and install
 git clone <repo-url> agentclaw
 cd agentclaw
 pnpm install
-
-# Configure
-cp .env.example .env
-# Edit .env with your API keys
-
-# Build
 pnpm build
-
-# Run
-pnpm dev
 ```
 
-### CLI Usage
+### 配置
 
 ```bash
-# Interactive chat
-agentclaw chat
-
-# Or use the short alias
-ac chat
-
-# One-shot command
-ac "help me refactor the auth module"
+cp .env.example .env
+# 编辑 .env，填入你的 API key
 ```
 
-## Documentation
+### 运行
 
-- [Architecture](docs/ARCHITECTURE.md) — System design, data flow, schemas
-- [Roadmap](docs/ROADMAP.md) — Development phases and task list
+```bash
+# 使用 Claude（默认）
+ANTHROPIC_API_KEY=你的key node packages/cli/dist/index.js
+
+# 使用 OpenAI
+OPENAI_API_KEY=你的key node packages/cli/dist/index.js --provider openai
+
+# 使用 DeepSeek
+DEEPSEEK_API_KEY=你的key node packages/cli/dist/index.js --provider deepseek
+
+# 使用 Ollama（本地，无需 API key）
+node packages/cli/dist/index.js --provider ollama
+
+# 查看帮助
+node packages/cli/dist/index.js --help
+```
+
+## 支持的 LLM 提供商
+
+| 提供商 | 环境变量 | --provider 参数 |
+|--------|----------|----------------|
+| Claude (Anthropic) | `ANTHROPIC_API_KEY` | `claude` |
+| OpenAI | `OPENAI_API_KEY` | `openai` |
+| Gemini (Google) | `GEMINI_API_KEY` | `gemini` |
+| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek` |
+| Kimi (月之暗面) | `MOONSHOT_API_KEY` | `kimi` |
+| MiniMax | `MINIMAX_API_KEY` | `minimax` |
+| Qwen (通义千问) | `DASHSCOPE_API_KEY` | `qwen` |
+| Ollama (本地) | `OLLAMA_BASE_URL` | `ollama` |
+
+## 内置工具
+
+| 工具 | 名称 | 说明 |
+|------|------|------|
+| Shell | `shell` | 执行命令行命令 |
+| 文件读取 | `file_read` | 读取文件内容 |
+| 文件写入 | `file_write` | 写入文件（自动创建目录） |
+| 询问用户 | `ask_user` | 在终端向用户提问 |
+
+## 文档
+
+- [架构设计](docs/ARCHITECTURE.md) — 系统设计、数据流、数据库结构
+- [路线图](docs/ROADMAP.md) — 开发阶段和任务清单
 
 ## License
 

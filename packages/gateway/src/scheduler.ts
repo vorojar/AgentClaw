@@ -17,6 +17,11 @@ interface InternalTask extends ScheduledTask {
 
 export class TaskScheduler {
   private tasks = new Map<string, InternalTask>();
+  private onTaskFire?: (task: ScheduledTask) => void;
+
+  setOnTaskFire(callback: (task: ScheduledTask) => void): void {
+    this.onTaskFire = callback;
+  }
 
   create(input: {
     name: string;
@@ -71,11 +76,13 @@ export class TaskScheduler {
   private startJob(task: InternalTask): void {
     task.job = new Cron(task.cron, () => {
       task.lastRunAt = new Date();
-      // In a full implementation, we would execute the action here
-      // (e.g., send a message to a session, run a command, etc.)
       console.log(
         `[scheduler] Task "${task.name}" (${task.id}) executed at ${task.lastRunAt.toISOString()}`,
       );
+      // Notify via callback if registered
+      if (this.onTaskFire) {
+        this.onTaskFire(this.toPublic(task));
+      }
     });
 
     const nextRun = task.job.nextRun();

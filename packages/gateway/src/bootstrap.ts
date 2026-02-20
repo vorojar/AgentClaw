@@ -23,6 +23,7 @@ import type {
 } from "@agentclaw/types";
 import { mkdirSync } from "fs";
 import { dirname } from "path";
+import { TaskScheduler } from "./scheduler.js";
 
 export interface AppContext {
   provider: LLMProvider;
@@ -32,6 +33,7 @@ export interface AppContext {
   memoryStore: SQLiteMemoryStore;
   skillRegistry: SkillRegistryImpl;
   config: AppRuntimeConfig;
+  scheduler: TaskScheduler;
 }
 
 export interface AppRuntimeConfig {
@@ -150,12 +152,16 @@ IMPORTANT RULES:
 - Always respond in the same language the user uses.
 - Think step by step before acting.`;
 
+  // Scheduler
+  const scheduler = new TaskScheduler();
+
   // Orchestrator
   const orchestrator = new SimpleOrchestrator({
     provider,
     toolRegistry,
     memoryStore,
     systemPrompt: process.env.SYSTEM_PROMPT || defaultSystemPrompt,
+    scheduler,
   });
 
   // Planner
@@ -194,5 +200,6 @@ IMPORTANT RULES:
     memoryStore,
     skillRegistry,
     config,
+    scheduler,
   };
 }

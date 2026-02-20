@@ -14,6 +14,14 @@ export interface ToolUseContent {
   input: Record<string, unknown>;
 }
 
+export interface ImageContent {
+  type: "image";
+  /** Base64-encoded image data */
+  data: string;
+  /** MIME type (e.g. "image/jpeg", "image/png") */
+  mediaType: string;
+}
+
 export interface ToolResultContent {
   type: "tool_result";
   toolUseId: string;
@@ -21,7 +29,11 @@ export interface ToolResultContent {
   isError?: boolean;
 }
 
-export type ContentBlock = TextContent | ToolUseContent | ToolResultContent;
+export type ContentBlock =
+  | TextContent
+  | ImageContent
+  | ToolUseContent
+  | ToolResultContent;
 
 /** A single message in a conversation */
 export interface Message {

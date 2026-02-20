@@ -212,6 +212,14 @@ export class GeminiProvider extends BaseLLMProvider {
             },
           });
           break;
+        case "image":
+          parts.push({
+            inlineData: {
+              mimeType: block.mediaType,
+              data: block.data,
+            },
+          });
+          break;
         case "tool_result":
           parts.push({
             functionResponse: {

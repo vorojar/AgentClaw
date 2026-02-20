@@ -123,8 +123,69 @@
 - [x] Message forwarding with typing indicator（消息转发 + 输入中指示器）
 - [x] Long message splitting (4096-char Telegram limit)（长消息自动分段：适配 Telegram 4096 字符限制）
 - [x] Error handling with session auto-recovery（错误处理 + 会话自动恢复）
+
+### 4.2 Cross-Gateway Tool Context（跨网关工具上下文）✅
+- [x] `ToolExecutionContext` 类型：贯穿 orchestrator → agentLoop → toolRegistry → tool 的可选上下文
+- [x] `promptUser` 回调：`ask_user` 工具在 Telegram 下正常工作（不再阻塞在 stdin）
+- [x] `notifyUser` 回调：支持异步通知（提醒等场景，tool 返回后仍可发消息给用户）
+- [x] `saveMemory` 回调：由 orchestrator 自动注入，工具可直接写入长期记忆
+
+### 4.3 New Built-in Tools（新内置工具）✅
+- [x] `remember` 工具：即时将信息写入长期记忆（不依赖后台提取）
+- [x] `set_reminder` 工具：设置一次性定时提醒，到时通过 `notifyUser` 发送通知
+
+### 4.4 Memory System Fixes（记忆系统修复）✅
+- [x] 移除 `search()` 的 SQL LIKE 预过滤（之前会杀死所有语义搜索结果）
+- [x] 中文分词支持：CJK 字符逐字拆分，`SimpleBagOfWords` + token overlap 评分均支持中文
+- [x] 提取频率优化：首轮即提取，之后每 3 轮提取（原为每 5 轮）
+- [x] `bootstrap.ts` 中自动设置 LLM embed 函数（如 provider 支持）
+
+### 4.5 Platform Fixes（平台修复）✅
+- [x] Shell 工具 Windows 中文乱码修复（`chcp 65001` 切换 UTF-8 代码页）
+- [x] Gateway 直接托管 Web UI 静态文件（`@fastify/static`，`pnpm start` 一键启动全部服务）
+
+### 4.6 Other Platform Bots（其他平台机器人）
+- [ ] Discord bot
+- [ ] WeChat bot
+
+---
+
+## Phase 5: Superpowers — "超能力" (Level Up)
+
+**Goal**: 让 Agent 真正能看、能操作、能定期执行（目标：多模态输入 + 浏览器操控 + 文件交互 + 周期任务）
+
+### 5.1 Image Understanding（看图理解）✅
+- [x] Telegram 图片/截图接收：监听 `message:photo`，下载图片并转 base64
+- [x] 多模态 LLM 调用：三大 provider（Claude / OpenAI / Gemini）均支持 `ImageContent` block
+- [x] 图片 + 文字混合对话：用户可以发图并附带问题（无 caption 时默认"请描述这张图片"）
+- [x] Agent Loop / Context Manager 全链路支持 `string | ContentBlock[]` 输入
+
+### 5.2 File Transfer（文件收发）✅
+- [x] Telegram 文件接收：监听 `message:document`，下载到 `data/uploads/` 目录
+- [x] 文件发送工具 `send_file`：通过 `context.sendFile` 回调将文件发回 Telegram
+- [x] 所有 Telegram handler（text / photo / document）均注入 `sendFile` 回调
+
+### 5.3 Recurring Tasks（周期任务）✅
+- [x] `schedule` 工具：让 LLM 创建 cron 定时任务（create / list / delete）
+- [x] 任务触发时自动发消息给用户（`scheduler.setOnTaskFire` + Telegram 通知）
+- [x] TaskScheduler 统一在 bootstrap 创建，通过 `ToolExecutionContext.scheduler` 注入
+
+### 5.4 Browser Automation（浏览器操控）
+- [ ] `browser` 工具：基于 puppeteer-core，使用系统已安装的 Chrome
+- [ ] 支持操作：open / screenshot / click / type / get_content / close
+- [ ] 截图发回 Telegram
+
+### 5.5 HTTP Request Tool（HTTP 请求工具）
+- [ ] `http_request` 工具：支持 GET/POST/PUT/DELETE，自定义 headers 和 body
+- [ ] 适用于调用第三方 API（天气、股价、智能家居等）
+
+### 5.6 Python Code Executor（Python 代码执行器）
+- [ ] `python` 工具：安全的 Python 代码执行环境
+- [ ] 输出捕获：stdout + stderr + 生成的文件（图表等）
+- [ ] 超时控制和资源限制
+
 ---
 
 ## Current Focus（当前重点）
 
-**Phase 3** — Completed!（已完成！）Next: Phase 4 (Telegram + Discord + WeChat bot integrations).（下一步：第四阶段，Telegram + Discord + 微信机器人集成。）
+**Phase 5.4** — 浏览器操控（Browser Automation）。下一个重要能力，让 Agent 能打开网页、截图、填表、点击。

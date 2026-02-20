@@ -60,7 +60,7 @@ export class SimpleAgentLoop implements AgentLoop {
   }
 
   async run(
-    input: string,
+    input: string | ContentBlock[],
     conversationId?: string,
     context?: ToolExecutionContext,
   ): Promise<Message> {
@@ -81,19 +81,19 @@ export class SimpleAgentLoop implements AgentLoop {
   }
 
   async *runStream(
-    input: string,
+    input: string | ContentBlock[],
     conversationId?: string,
     context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent> {
     this.aborted = false;
     const convId = conversationId ?? generateId();
 
-    // Store user message
+    // 存储用户消息：ContentBlock[] 需序列化为 JSON 字符串
     const userTurn: ConversationTurn = {
       id: generateId(),
       conversationId: convId,
       role: "user",
-      content: input,
+      content: typeof input === "string" ? input : JSON.stringify(input),
       createdAt: new Date(),
     };
     await this.memoryStore.addTurn(convId, userTurn);

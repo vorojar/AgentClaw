@@ -6,6 +6,9 @@ import { askUserTool } from "./ask-user.js";
 import { webFetchTool } from "./web-fetch.js";
 import { webSearchTool } from "./web-search.js";
 import { rememberTool } from "./remember.js";
+import { setReminderTool } from "./set-reminder.js";
+import { scheduleTool } from "./schedule.js";
+import { sendFileTool } from "./send-file.js";
 
 export { shellTool } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
@@ -14,6 +17,9 @@ export { askUserTool } from "./ask-user.js";
 export { webFetchTool } from "./web-fetch.js";
 export { webSearchTool } from "./web-search.js";
 export { rememberTool } from "./remember.js";
+export { setReminderTool } from "./set-reminder.js";
+export { scheduleTool } from "./schedule.js";
+export { sendFileTool } from "./send-file.js";
 
 /** Create all built-in tools */
 export function createBuiltinTools(): Tool[] {
@@ -25,5 +31,8 @@ export function createBuiltinTools(): Tool[] {
     webFetchTool,
     webSearchTool,
     rememberTool,
+    setReminderTool,
+    scheduleTool,
+    sendFileTool,
   ];
 }

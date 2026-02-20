@@ -2,6 +2,7 @@ import type {
   Orchestrator,
   Session,
   Message,
+  ContentBlock,
   AgentEvent,
   ToolExecutionContext,
   LLMProvider,
@@ -26,6 +27,7 @@ export class SimpleOrchestrator implements Orchestrator {
   private memoryExtractor: MemoryExtractor;
   private agentConfig?: Partial<AgentConfig>;
   private systemPrompt?: string;
+  private scheduler?: ToolExecutionContext["scheduler"];
 
   constructor(options: {
     provider: LLMProvider;
@@ -33,6 +35,7 @@ export class SimpleOrchestrator implements Orchestrator {
     memoryStore: MemoryStore;
     agentConfig?: Partial<AgentConfig>;
     systemPrompt?: string;
+    scheduler?: ToolExecutionContext["scheduler"];
   }) {
     this.provider = options.provider;
     this.toolRegistry = options.toolRegistry;
@@ -43,6 +46,7 @@ export class SimpleOrchestrator implements Orchestrator {
     });
     this.agentConfig = options.agentConfig;
     this.systemPrompt = options.systemPrompt;
+    this.scheduler = options.scheduler;
   }
 
   async createSession(): Promise<Session> {
@@ -62,7 +66,7 @@ export class SimpleOrchestrator implements Orchestrator {
 
   async processInput(
     sessionId: string,
-    input: string,
+    input: string | ContentBlock[],
     context?: ToolExecutionContext,
   ): Promise<Message> {
     let lastMessage: Message | undefined;
@@ -83,7 +87,7 @@ export class SimpleOrchestrator implements Orchestrator {
 
   async *processInputStream(
     sessionId: string,
-    input: string,
+    input: string | ContentBlock[],
     context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent> {
     const session = this.sessions.get(sessionId);
@@ -104,6 +108,7 @@ export class SimpleOrchestrator implements Orchestrator {
           importance: 0.8,
         });
       },
+      scheduler: this.scheduler,
     };
 
     const loop = this.createAgentLoop();

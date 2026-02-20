@@ -38,7 +38,7 @@ export class SimpleContextManager implements ContextManager {
 
   async buildContext(
     conversationId: string,
-    currentInput: string,
+    currentInput: string | ContentBlock[],
   ): Promise<{ systemPrompt: string; messages: Message[] }> {
     // Get conversation history
     const turns = await this.memoryStore.getHistory(
@@ -61,10 +61,21 @@ export class SimpleContextManager implements ContextManager {
       }
     }
 
+    // Extract text from input for memory search query
+    const searchQuery =
+      typeof currentInput === "string"
+        ? currentInput
+        : currentInput
+            .filter(
+              (b): b is { type: "text"; text: string } => b.type === "text",
+            )
+            .map((b) => b.text)
+            .join(" ");
+
     // Recall relevant long-term memories and inject into system prompt
     try {
       const memories = await this.memoryStore.search({
-        query: currentInput,
+        query: searchQuery,
         limit: 10,
       });
       if (memories.length > 0) {
@@ -129,6 +140,24 @@ export class SimpleContextManager implements ContextManager {
         };
       } catch {
         // Fallback: plain string
+      }
+    }
+
+    // 用户消息可能包含多模态内容（ContentBlock[] 序列化为 JSON），尝试解析
+    if (turn.role === "user") {
+      try {
+        const parsed = JSON.parse(turn.content);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
+          return {
+            id: turn.id,
+            role: turn.role,
+            content: parsed as ContentBlock[],
+            createdAt: turn.createdAt,
+            model: turn.model,
+          };
+        }
+      } catch {
+        // 不是 JSON，按纯文本处理
       }
     }
 

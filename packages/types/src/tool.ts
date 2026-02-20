@@ -34,11 +34,34 @@ export type ToolCategory = "builtin" | "external" | "mcp";
 export interface ToolExecutionContext {
   /** Ask the user a question and wait for their answer (implemented by gateway) */
   promptUser?: (question: string) => Promise<string>;
+  /** Send a notification to the user (fire-and-forget, for reminders etc.) */
+  notifyUser?: (message: string) => Promise<void>;
+  /** Send a file to the user (implemented by gateway) */
+  sendFile?: (filePath: string, caption?: string) => Promise<void>;
   /** Save a piece of information to long-term memory (provided by orchestrator) */
   saveMemory?: (
     content: string,
     type?: "fact" | "preference" | "entity" | "episodic",
   ) => Promise<void>;
+  /** Task scheduler for recurring tasks (provided by orchestrator) */
+  scheduler?: {
+    create(input: {
+      name: string;
+      cron: string;
+      action: string;
+      enabled: boolean;
+    }): { id: string; name: string; nextRunAt?: Date };
+    list(): Array<{
+      id: string;
+      name: string;
+      cron: string;
+      action: string;
+      enabled: boolean;
+      nextRunAt?: Date;
+      lastRunAt?: Date;
+    }>;
+    delete(id: string): boolean;
+  };
 }
 
 /** A tool that can be executed */

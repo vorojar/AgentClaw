@@ -20,8 +20,7 @@ async function main(): Promise<void> {
   const ctx = await bootstrap();
 
   console.log("[gateway] Creating server...");
-  const scheduler = new TaskScheduler();
-  const app = await createServer({ ctx, scheduler });
+  const app = await createServer({ ctx, scheduler: ctx.scheduler });
 
   // Start listening
   try {
@@ -37,7 +36,7 @@ async function main(): Promise<void> {
   const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
   if (telegramToken) {
     try {
-      telegramBot = await startTelegramBot(telegramToken, ctx);
+      telegramBot = await startTelegramBot(telegramToken, ctx, ctx.scheduler);
     } catch (err) {
       console.error("[gateway] Failed to start Telegram bot:", err);
     }
@@ -47,7 +46,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     console.log(`[gateway] Received ${signal}, shutting down...`);
     telegramBot?.stop();
-    scheduler.stopAll();
+    ctx.scheduler.stopAll();
     await app.close();
     process.exit(0);
   };

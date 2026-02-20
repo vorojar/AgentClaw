@@ -1,4 +1,4 @@
-import type { Message, Conversation } from "./message.js";
+import type { Message, Conversation, ContentBlock } from "./message.js";
 import type { LLMProvider } from "./llm.js";
 import type { ToolRegistry, ToolExecutionContext } from "./tool.js";
 import type { MemoryStore } from "./memory.js";
@@ -52,14 +52,14 @@ export interface AgentLoop {
 
   /** Process a user message and return the response */
   run(
-    input: string,
+    input: string | ContentBlock[],
     conversationId?: string,
     context?: ToolExecutionContext,
   ): Promise<Message>;
 
   /** Process with streaming */
   runStream(
-    input: string,
+    input: string | ContentBlock[],
     conversationId?: string,
     context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent>;
@@ -76,7 +76,7 @@ export interface ContextManager {
   /** Build the full context (system prompt + history + memories + skills) */
   buildContext(
     conversationId: string,
-    currentInput: string,
+    currentInput: string | ContentBlock[],
   ): Promise<{
     systemPrompt: string;
     messages: Message[];
@@ -100,17 +100,17 @@ export interface Orchestrator {
   /** Get or resume an existing session */
   getSession(sessionId: string): Promise<Session | undefined>;
 
-  /** Process user input within a session */
+  /** Process user input within a session（支持文本或多模态内容） */
   processInput(
     sessionId: string,
-    input: string,
+    input: string | ContentBlock[],
     context?: ToolExecutionContext,
   ): Promise<Message>;
 
-  /** Process with streaming */
+  /** Process with streaming（支持文本或多模态内容） */
   processInputStream(
     sessionId: string,
-    input: string,
+    input: string | ContentBlock[],
     context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent>;
 

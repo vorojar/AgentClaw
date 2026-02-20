@@ -1,5 +1,9 @@
+import { existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
@@ -46,6 +50,28 @@ export async function createServer(
 
   // Register WebSocket
   registerWebSocket(app, ctx);
+
+  // Serve Web UI static files (built by @agentclaw/web)
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const webDistDir = resolve(__dirname, "../../web/dist");
+  if (existsSync(webDistDir)) {
+    await app.register(fastifyStatic, {
+      root: webDistDir,
+      prefix: "/",
+      wildcard: false,
+    });
+
+    // SPA fallback: serve index.html for non-API, non-file routes
+    app.setNotFoundHandler((request, reply) => {
+      if (request.url.startsWith("/api/") || request.url.startsWith("/ws")) {
+        reply.code(404).send({ error: "Not found" });
+      } else {
+        reply.sendFile("index.html");
+      }
+    });
+
+    console.log("[server] Serving Web UI from", webDistDir);
+  }
 
   return app;
 }

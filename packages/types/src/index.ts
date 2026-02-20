@@ -1,6 +1,7 @@
 export type {
   MessageRole,
   TextContent,
+  ImageContent,
   ToolUseContent,
   ToolResultContent,
   ContentBlock,

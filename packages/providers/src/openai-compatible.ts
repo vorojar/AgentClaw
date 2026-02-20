@@ -6,6 +6,7 @@ import type {
   ModelInfo,
   Message,
   ContentBlock,
+  ImageContent,
   ToolDefinition,
   ToolUseContent,
   ToolResultContent,
@@ -192,7 +193,9 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       if (msg.role === "system") {
         result.push({ role: "system", content: this.extractText(msg.content) });
       } else if (msg.role === "user") {
-        result.push({ role: "user", content: this.extractText(msg.content) });
+        // 用户消息可能包含图片等多模态内容，需要构造 OpenAI 格式的 content 数组
+        const userContent = this.convertUserContent(msg.content);
+        result.push({ role: "user", content: userContent });
       } else if (msg.role === "assistant") {
         const assistantMsg = this.convertAssistantMessage(msg);
         result.push(assistantMsg);
@@ -203,6 +206,43 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
     }
 
     return result;
+  }
+
+  /**
+   * 将用户消息内容转换为 OpenAI 格式。
+   * 纯文本返回 string；包含图片时返回 OpenAI 多模态 content 数组。
+   */
+  private convertUserContent(
+    content: string | ContentBlock[],
+  ): string | OpenAI.ChatCompletionContentPart[] {
+    if (typeof content === "string") return content;
+
+    // 检查是否包含图片内容
+    const hasImage = content.some((b) => b.type === "image");
+    if (!hasImage) {
+      // 无图片时直接提取文本
+      return this.extractText(content);
+    }
+
+    // 包含图片，构造 OpenAI 多模态 content 数组
+    const parts: OpenAI.ChatCompletionContentPart[] = [];
+    for (const block of content) {
+      switch (block.type) {
+        case "text":
+          parts.push({ type: "text", text: block.text });
+          break;
+        case "image":
+          parts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${(block as ImageContent).mediaType};base64,${(block as ImageContent).data}`,
+            },
+          });
+          break;
+        // 其他类型（tool_use, tool_result）在用户消息中一般不会出现，忽略
+      }
+    }
+    return parts;
   }
 
   private convertAssistantMessage(

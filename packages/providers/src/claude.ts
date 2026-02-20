@@ -201,6 +201,20 @@ export class ClaudeProvider extends BaseLLMProvider {
             input: block.input,
           });
           break;
+        case "image":
+          blocks.push({
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: block.mediaType as
+                | "image/jpeg"
+                | "image/png"
+                | "image/gif"
+                | "image/webp",
+              data: block.data,
+            },
+          });
+          break;
         case "tool_result":
           blocks.push({
             type: "tool_result",

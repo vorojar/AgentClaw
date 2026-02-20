@@ -31,12 +31,14 @@ export const shellTool: Tool = {
     const isWindows = process.platform === "win32";
     const shell = isWindows ? "cmd.exe" : "/bin/sh";
     const flag = isWindows ? "/c" : "-c";
+    // On Windows, prepend chcp 65001 to switch to UTF-8 codepage
+    const fullCommand = isWindows ? `chcp 65001 >nul && ${command}` : command;
 
     return new Promise<ToolResult>((resolve) => {
       execFile(
         shell,
-        [flag, command],
-        { timeout, maxBuffer: 10 * 1024 * 1024 },
+        [flag, fullCommand],
+        { timeout, maxBuffer: 10 * 1024 * 1024, encoding: "utf8" },
         (error, stdout, stderr) => {
           const output = [stdout, stderr].filter(Boolean).join("\n");
 

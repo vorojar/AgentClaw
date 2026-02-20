@@ -4,6 +4,7 @@ export { ToolRegistryImpl } from "./registry.js";
 export {
   createBuiltinTools,
   shellTool,
+  shellInfo,
   fileReadTool,
   fileWriteTool,
   askUserTool,

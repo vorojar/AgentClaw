@@ -125,6 +125,8 @@ export function registerSessionRoutes(
           content: turn.content,
           model: turn.model,
           createdAt: turn.createdAt.toISOString(),
+          ...(turn.toolCalls ? { toolCalls: turn.toolCalls } : {}),
+          ...(turn.toolResults ? { toolResults: turn.toolResults } : {}),
         }));
 
         return reply.send(messages);

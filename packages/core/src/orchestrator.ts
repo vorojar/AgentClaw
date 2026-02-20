@@ -114,10 +114,18 @@ export class SimpleOrchestrator implements Orchestrator {
       scheduler: this.scheduler,
     };
 
+    const inputHasImage = hasImage(input);
     const effectiveProvider =
-      hasImage(input) && this.visionProvider
+      inputHasImage && this.visionProvider
         ? this.visionProvider
         : this.provider;
+
+    if (inputHasImage) {
+      console.log(
+        `[orchestrator] Image detected in input. visionProvider=${this.visionProvider ? "yes" : "NO"} → using ${effectiveProvider.name}`,
+      );
+    }
+
     const loop = this.createAgentLoop(effectiveProvider);
     yield* loop.runStream(input, session.conversationId, mergedContext);
 

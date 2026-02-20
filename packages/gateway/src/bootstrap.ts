@@ -11,7 +11,11 @@ import {
   GeminiProvider,
   generateId,
 } from "@agentclaw/providers";
-import { ToolRegistryImpl, createBuiltinTools } from "@agentclaw/tools";
+import {
+  ToolRegistryImpl,
+  createBuiltinTools,
+  shellInfo,
+} from "@agentclaw/tools";
 import { initDatabase, SQLiteMemoryStore } from "@agentclaw/memory";
 import type {
   LLMProvider,
@@ -22,6 +26,7 @@ import type {
   MemoryStore,
 } from "@agentclaw/types";
 import { mkdirSync } from "fs";
+import { execFileSync } from "child_process";
 import { dirname, resolve } from "path";
 import { platform, arch, homedir, tmpdir } from "os";
 import { TaskScheduler } from "./scheduler.js";
@@ -157,6 +162,10 @@ export async function bootstrap(): Promise<AppContext> {
     console.log(
       `[bootstrap] Vision provider: ${visionProviderType}, model: ${visionModel ?? "default"}`,
     );
+  } else {
+    console.log(
+      "[bootstrap] No VISION_API_KEY set — vision routing disabled. Images will be sent as text descriptions.",
+    );
   }
 
   // Tool registry
@@ -182,10 +191,6 @@ export async function bootstrap(): Promise<AppContext> {
   const os = platform();
   const osName =
     os === "win32" ? "Windows" : os === "darwin" ? "macOS" : "Linux";
-  const shellName =
-    os === "win32"
-      ? "PowerShell (commands are executed via powershell.exe directly, $ variables work normally)"
-      : "/bin/sh";
   const tempDir = resolve(process.cwd(), "data", "tmp");
   try {
     mkdirSync(tempDir, { recursive: true });
@@ -193,15 +198,47 @@ export async function bootstrap(): Promise<AppContext> {
     // may already exist
   }
 
+  // Detect available CLI tools
+  const cliTools = [
+    "ffmpeg",
+    "ffprobe",
+    "git",
+    "curl",
+    "wget",
+    "magick",
+    "node",
+    "npm",
+  ];
+  const availableCli: string[] = [];
+  for (const tool of cliTools) {
+    try {
+      execFileSync(os === "win32" ? "where" : "which", [tool], {
+        timeout: 2000,
+        stdio: "ignore",
+      });
+      availableCli.push(tool);
+    } catch {
+      // not available
+    }
+  }
+
+  const shellDesc =
+    shellInfo.name === "bash"
+      ? "bash (Git Bash). Use standard Unix/bash commands (ls, grep, cat, ffmpeg, etc.)."
+      : "PowerShell. Use PowerShell syntax (Get-ChildItem, $variable).";
+
+  console.log(
+    `[bootstrap] Shell: ${shellInfo.name} (${shellInfo.shell}), CLI tools: ${availableCli.join(", ") || "none detected"}`,
+  );
+
   const defaultSystemPrompt = `You are AgentClaw, a powerful AI assistant. You MUST use tools to help the user. Do NOT say you cannot do something — use the appropriate tool instead.
 
 ## Runtime Environment
 - OS: ${osName} (${arch()})
-- Shell: ${shellName}
+- Shell: ${shellDesc}
 - Home directory: ${homedir()}
 - Temp directory for generated files: ${tempDir}
-
-IMPORTANT: You are running on ${osName}. Always use ${osName}-compatible commands.${os === "win32" ? " The shell tool runs PowerShell directly. Use PowerShell syntax (e.g., Get-ChildItem, $variable). Do NOT use macOS/Linux commands like screencapture, pbcopy, etc." : ""}
+${availableCli.length > 0 ? `- Available CLI tools: ${availableCli.join(", ")}` : ""}
 
 ## Available tools
 ${toolDescriptions}
@@ -211,16 +248,23 @@ ${toolDescriptions}
 - When the user asks to read a file, use the "file_read" tool.
 - When the user asks to write a file, use the "file_write" tool.
 - When the user asks to fetch a URL, use the "web_fetch" tool.
-- For complex tasks (screenshots, image processing, PDF/Excel, data analysis, file conversion, etc.), use the "python" tool. It directly executes Python code — no need to write files first.
+- For media processing (video, audio, image conversion/compression), prefer using the "shell" tool with ffmpeg/ffprobe directly — it's faster and uses less tokens than writing Python scripts.
+- For complex tasks (screenshots, data analysis, PDF/Excel, etc.), use the "python" tool.
 - For simple system commands (list files, check processes, network info, etc.), use the "shell" tool.
 - When generating files (images, documents, etc.), ALWAYS save them to: ${tempDir}
 - After generating a file that the user needs (screenshot, document, image, etc.), ALWAYS send it via "send_file" immediately. Do not wait for the user to ask.
 - Always respond in the same language the user uses.
 
-## Style
-- Be concise. Do not narrate your actions ("让我来...", "我现在要...").
-- After sending a file, do NOT repeat metadata (resolution, file size, path). A brief confirmation is enough.
-- Act directly. Minimize unnecessary explanation.`;
+## Style — CRITICAL
+- Be extremely concise. Maximum 1-2 short sentences per response.
+- NEVER narrate your actions ("让我来...", "我现在要...", "I'll now..."). Just do it silently.
+- NEVER explain what tools you're using or why. The user doesn't care about your process.
+- After completing a task, reply with ONLY the result. Examples:
+  - Good: "已压缩，26MB → 8MB" then send the file.
+  - Bad: "我来帮你压缩视频。首先我会用ffprobe检查视频参数，然后使用ffmpeg进行压缩处理。压缩完成！原始大小26MB，压缩后8MB，分辨率1920x1080，使用了H.264编码..."
+- After sending a file, say NOTHING or at most a 5-word confirmation. No metadata, no path, no technical details.
+- Do NOT list steps, do NOT explain your reasoning, do NOT provide unnecessary context.
+- If a task fails, state the error briefly and retry. Do not apologize or over-explain.`;
 
   // Scheduler
   const scheduler = new TaskScheduler();

@@ -23,6 +23,14 @@ const IMAGE_EXTENSIONS = new Set([
   "bmp",
 ]);
 
+const VIDEO_EXTENSIONS = new Set([
+  "mp4",
+  "mkv",
+  "avi",
+  "mov",
+  "webm",
+]);
+
 function extractText(content: string | ContentBlock[]): string {
   if (typeof content === "string") return content;
   return content
@@ -47,6 +55,8 @@ function createSendFile(
 
     if (IMAGE_EXTENSIONS.has(ext)) {
       await bot.api.sendPhoto(chatId, inputFile, { caption });
+    } else if (VIDEO_EXTENSIONS.has(ext)) {
+      await bot.api.sendVideo(chatId, inputFile, { caption });
     } else {
       await bot.api.sendDocument(chatId, inputFile, { caption });
     }
@@ -128,33 +138,34 @@ export async function startTelegramBot(
     await ctx.reply("🔄 New conversation started. Send me a message!");
   });
 
-  // ── Document messages ──────────────────────────
-  bot.on("message:document", async (ctx) => {
-    const chatId = ctx.chat.id;
-    const doc = ctx.message.document;
-
+  // ── File message helper (document, video, audio, voice) ──
+  async function handleFileMessage(
+    chatId: number,
+    caption: string,
+    replyFn: (text: string) => Promise<unknown>,
+    fileId: string,
+    fileName: string,
+    fileType: string,
+  ) {
     // Download file
-    const file = await ctx.api.getFile(doc.file_id);
-    const fileUrl = `https://api.telegram.org/file/bot${token}/` + file.file_path;
+    const file = await bot.api.getFile(fileId);
+    const fileUrl = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
 
     const response = await fetch(fileUrl);
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    // Save to temp directory
+    // Save to uploads directory
     const { mkdirSync, writeFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const tmpDir = join(process.cwd(), "data", "uploads");
     mkdirSync(tmpDir, { recursive: true });
 
-    const fileName = doc.file_name ?? `file_${Date.now()}`;
     const filePath = join(tmpDir, fileName);
     writeFileSync(filePath, buffer);
 
-    // Forward to orchestrator as text message describing the file
-    const caption = ctx.message.caption ?? "";
-    const text = `[用户发送了文件: ${fileName}, 已保存到 ${filePath}]${caption ? `\n用户附言: ${caption}` : ""}`;
+    const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath}]${caption ? `\n用户附言: ${caption}` : ""}`;
 
-    // Get or create session (same pattern as text handler)
+    // Get or create session
     let sessionId = chatSessionMap.get(chatId);
     if (!sessionId) {
       try {
@@ -163,20 +174,20 @@ export async function startTelegramBot(
         chatSessionMap.set(chatId, sessionId);
       } catch (err) {
         console.error("[telegram] Failed to create session:", err);
-        await ctx.reply("❌ Failed to start session. Please try again.");
+        await replyFn("❌ Failed to start session. Please try again.");
         return;
       }
     }
 
-    await ctx.api.sendChatAction(chatId, "typing");
+    await bot.api.sendChatAction(chatId, "typing");
     const typingInterval = setInterval(() => {
-      ctx.api.sendChatAction(chatId, "typing").catch(() => {});
+      bot.api.sendChatAction(chatId, "typing").catch(() => {});
     }, 4000);
 
     try {
       const toolContext: ToolExecutionContext = {
         promptUser: async (question: string) => {
-          await ctx.reply(`❓ ${question}`);
+          await replyFn(`❓ ${question}`);
           return new Promise<string>((resolve) => {
             pendingPrompts.set(chatId, resolve);
           });
@@ -199,7 +210,7 @@ export async function startTelegramBot(
           case "tool_call": {
             const data = event.data as { name: string; input: Record<string, unknown> };
             const label = `⚙️ 正在执行: ${data.name}...`;
-            await ctx.reply(label);
+            await replyFn(label);
             break;
           }
           case "response_chunk": {
@@ -220,25 +231,62 @@ export async function startTelegramBot(
       clearInterval(typingInterval);
 
       if (!accumulatedText.trim()) {
-        await ctx.reply("(empty response)");
+        await replyFn("(empty response)");
         return;
       }
 
       const chunks = splitMessage(accumulatedText);
       for (const chunk of chunks) {
-        await ctx.reply(chunk);
+        await replyFn(chunk);
       }
     } catch (err) {
       clearInterval(typingInterval);
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error("[telegram] Error processing document:", errMsg);
+      console.error(`[telegram] Error processing ${fileType}:`, errMsg);
       if (errMsg.includes("Session not found")) {
         chatSessionMap.delete(chatId);
-        await ctx.reply("⚠️ Session expired. Send your message again.");
+        await replyFn("⚠️ Session expired. Send your message again.");
         return;
       }
-      await ctx.reply(`❌ Error: ${errMsg.slice(0, 200)}`);
+      await replyFn(`❌ Error: ${errMsg.slice(0, 200)}`);
     }
+  }
+
+  // ── Document messages ──────────────────────────
+  bot.on("message:document", async (ctx) => {
+    const doc = ctx.message.document;
+    const fileName = doc.file_name ?? `file_${Date.now()}`;
+    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), doc.file_id, fileName, "文件");
+  });
+
+  // ── Video messages ─────────────────────────────
+  bot.on("message:video", async (ctx) => {
+    const video = ctx.message.video;
+    const ext = video.mime_type?.split("/")[1] ?? "mp4";
+    const fileName = (video as unknown as { file_name?: string }).file_name ?? `video_${Date.now()}.${ext}`;
+    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), video.file_id, fileName, "视频");
+  });
+
+  // ── Animation (GIF) messages ───────────────────
+  bot.on("message:animation", async (ctx) => {
+    const anim = ctx.message.animation;
+    const fileName = (anim as unknown as { file_name?: string }).file_name ?? `animation_${Date.now()}.mp4`;
+    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), anim.file_id, fileName, "动图");
+  });
+
+  // ── Audio messages ─────────────────────────────
+  bot.on("message:audio", async (ctx) => {
+    const audio = ctx.message.audio;
+    const ext = audio.mime_type?.split("/")[1] ?? "mp3";
+    const fileName = audio.file_name ?? `audio_${Date.now()}.${ext}`;
+    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), audio.file_id, fileName, "音频");
+  });
+
+  // ── Voice messages ─────────────────────────────
+  bot.on("message:voice", async (ctx) => {
+    const voice = ctx.message.voice;
+    const fileName = `voice_${Date.now()}.ogg`;
+    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), voice.file_id, fileName, "语音");
   });
 
   // ── Text messages ───────────────────────────────

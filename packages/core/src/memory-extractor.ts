@@ -21,20 +21,28 @@ interface ExtractedMemory {
   importance: number;
 }
 
-const EXTRACTION_PROMPT = `Analyze the following conversation excerpt and extract important information to remember long-term. For each piece of information, classify it and rate its importance (0.0-1.0).
+const EXTRACTION_PROMPT = `Analyze the following conversation and extract ONLY information worth remembering permanently. Be extremely selective.
 
 Categories:
-- fact: concrete information (e.g. "User's project uses TypeScript", "API endpoint is /api/v2")
-- preference: user preferences (e.g. "User prefers dark mode", "User wants responses in Chinese")
-- entity: people, projects, tools mentioned (e.g. "Project: AgentClaw", "Tool: Ollama")
-- episodic: task outcomes, lessons learned (e.g. "sqlite-vec doesn't work well on Windows")
+- fact: enduring facts about the user or their environment (e.g. "User's name is Alex", "User's project uses TypeScript", "User lives in Beijing")
+- preference: user preferences and habits (e.g. "User prefers dark mode", "User wants responses in Chinese", "User likes concise answers")
+- entity: important people, projects, or systems in the user's life (e.g. "Project: AgentClaw — a self-hosted AI agent", "User's colleague: Zhang Wei")
+- episodic: lessons learned from past failures/successes (e.g. "sqlite-vec doesn't work well on Windows", "chcp 65001 fixes Chinese encoding in cmd.exe")
 
-Return a JSON array of extracted memories. Each item:
+Return a JSON array. Each item:
 {"type": "fact|preference|entity|episodic", "content": "...", "importance": 0.0-1.0}
 
-If nothing worth remembering, return an empty array: []
+If nothing worth remembering, return: []
 
-IMPORTANT: Only extract genuinely useful long-term information. Skip greetings, small talk, and trivial exchanges. Be selective — quality over quantity.
+DO NOT extract:
+- One-off commands or tasks ("user asked to take a screenshot", "user asked to open a URL")
+- Tool execution details (file paths, screen resolutions, command outputs)
+- Temporary actions ("user set a reminder", "user sent a file")
+- Things the assistant did or said (only extract what reveals something about the USER)
+- Anything that would not be useful in a future conversation
+
+GOOD examples: "User's name is 小明", "User prefers to be called 主人", "User's OS is Windows 11"
+BAD examples: "User asked to screenshot", "User opened www.example.com", "Reminder was set for 8pm"
 
 Conversation:
 `;

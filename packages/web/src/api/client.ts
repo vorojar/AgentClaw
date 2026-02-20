@@ -71,6 +71,10 @@ export interface ChatMessage {
   content: string;
   model?: string;
   createdAt: string;
+  /** JSON-serialized tool calls (for assistant messages) */
+  toolCalls?: string;
+  /** JSON-serialized tool results (for tool messages) */
+  toolResults?: string;
 }
 
 export function sendMessage(

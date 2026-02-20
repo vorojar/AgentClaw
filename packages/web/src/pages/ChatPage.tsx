@@ -71,6 +71,28 @@ function formatSessionLabel(s: SessionInfo): string {
 }
 
 function chatMessageToDisplay(m: ChatMessage): DisplayMessage {
+  // Parse tool calls from assistant messages
+  const toolCalls: ToolCallEntry[] = [];
+  if (m.role === "assistant" && m.toolCalls) {
+    try {
+      const parsed = JSON.parse(m.toolCalls) as Array<{
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      }>;
+      for (const tc of parsed) {
+        toolCalls.push({
+          id: ++msgCounter,
+          toolName: tc.name,
+          toolInput: JSON.stringify(tc.input),
+          collapsed: true,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return {
     key: nextKey(),
     role: m.role,
@@ -78,8 +100,88 @@ function chatMessageToDisplay(m: ChatMessage): DisplayMessage {
     model: m.model,
     createdAt: m.createdAt,
     streaming: false,
-    toolCalls: [],
+    toolCalls,
   };
+}
+
+/**
+ * Convert raw history turns into DisplayMessages.
+ * Merges tool-result turns into the preceding assistant message's toolCalls,
+ * and filters out raw "tool" messages from display.
+ */
+function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
+  const result: DisplayMessage[] = [];
+
+  for (const m of history) {
+    if (m.role === "tool") {
+      // Merge tool results into the last assistant message
+      const lastMsg = result[result.length - 1];
+      if (
+        lastMsg &&
+        lastMsg.role === "assistant" &&
+        lastMsg.toolCalls.length > 0
+      ) {
+        // Parse tool results
+        try {
+          const results = JSON.parse(m.toolResults || m.content) as Array<{
+            toolUseId?: string;
+            content?: string;
+            isError?: boolean;
+          }>;
+          for (const tr of results) {
+            // Find the matching tool call by index (no result yet)
+            const tc = lastMsg.toolCalls.find(
+              (t) => t.toolResult === undefined,
+            );
+            if (tc) {
+              tc.toolResult = tr.content ?? "";
+              tc.isError = tr.isError ?? false;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+      continue; // Don't add tool messages as separate bubbles
+    }
+
+    result.push(chatMessageToDisplay(m));
+  }
+
+  return result;
+}
+
+/* ────────────────────────────────────────────────────
+   Helper: parse message content for multimodal blocks
+   If content is JSON-encoded ContentBlock[], extract
+   text and images separately for proper rendering.
+   ──────────────────────────────────────────────────── */
+
+interface ParsedContent {
+  text: string;
+  images: Array<{ data: string; mediaType: string }>;
+}
+
+function parseMessageContent(content: string): ParsedContent {
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.type) {
+      const text = parsed
+        .filter((b: { type: string }) => b.type === "text")
+        .map((b: { text: string }) => b.text)
+        .join("");
+      const images = parsed
+        .filter((b: { type: string }) => b.type === "image")
+        .map((b: { data: string; mediaType: string }) => ({
+          data: b.data,
+          mediaType: b.mediaType,
+        }));
+      return { text, images };
+    }
+  } catch {
+    // not JSON, treat as plain text
+  }
+  return { text: content, images: [] };
 }
 
 /* ────────────────────────────────────────────────────
@@ -325,7 +427,7 @@ export function ChatPage() {
       try {
         const history = await getHistory(activeSessionId!);
         if (cancelled) return;
-        setMessages(history.map(chatMessageToDisplay));
+        setMessages(historyToDisplayMessages(history));
       } catch (err) {
         console.error("Failed to load history:", err);
         if (!cancelled) setMessages([]);
@@ -663,24 +765,43 @@ export function ChatPage() {
                   ) : (
                     <>
                       {/* Regular message content */}
-                      {m.content && (
-                        <div className={`message-row ${m.role}`}>
-                          <div className="message-bubble">
-                            <div>
-                              {m.content}
-                              {m.streaming && m.toolCalls.length === 0 && (
-                                <span className="streaming-cursor" />
-                              )}
-                            </div>
-                            {m.createdAt && (
-                              <div className="message-meta">
-                                {formatTime(m.createdAt)}
-                                {m.model ? ` \u00b7 ${m.model}` : ""}
+                      {m.content &&
+                        (() => {
+                          const parsed = parseMessageContent(m.content);
+                          return (
+                            <div className={`message-row ${m.role}`}>
+                              <div className="message-bubble">
+                                {/* Render images inline */}
+                                {parsed.images.map((img, i) => (
+                                  <img
+                                    key={i}
+                                    src={`data:${img.mediaType};base64,${img.data}`}
+                                    alt="user image"
+                                    style={{
+                                      maxWidth: "100%",
+                                      maxHeight: "300px",
+                                      borderRadius: "8px",
+                                      marginBottom: parsed.text ? "8px" : 0,
+                                      display: "block",
+                                    }}
+                                  />
+                                ))}
+                                <div>
+                                  {parsed.text}
+                                  {m.streaming && m.toolCalls.length === 0 && (
+                                    <span className="streaming-cursor" />
+                                  )}
+                                </div>
+                                {m.createdAt && (
+                                  <div className="message-meta">
+                                    {formatTime(m.createdAt)}
+                                    {m.model ? ` \u00b7 ${m.model}` : ""}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                            </div>
+                          );
+                        })()}
 
                       {/* Tool calls */}
                       {m.toolCalls.map((tc) => (

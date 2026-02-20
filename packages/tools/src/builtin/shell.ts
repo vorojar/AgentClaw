@@ -1,18 +1,116 @@
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import type { Tool, ToolResult } from "@agentclaw/types";
 
 const DEFAULT_TIMEOUT = 30_000;
 
+/**
+ * Find Git Bash on Windows.
+ *
+ * IMPORTANT: Simply running `bash` on Windows may resolve to WSL's
+ * `/bin/bash` (via C:\Windows\System32\bash.exe), which does NOT have
+ * access to Windows-installed tools like ffmpeg. We must explicitly
+ * locate Git Bash's `bash.exe` instead.
+ */
+function findGitBash(): string | null {
+  // 1. Check common Git installation paths
+  const candidates = [
+    "C:\\Program Files\\Git\\bin\\bash.exe",
+    "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
+  ];
+
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      return p;
+    }
+  }
+
+  // 2. Try to locate via `where git` and derive bash path
+  try {
+    const gitPath = execFileSync("where", ["git"], {
+      timeout: 3000,
+      encoding: "utf8",
+    })
+      .trim()
+      .split(/\r?\n/)[0]
+      .trim();
+    // git.exe is typically at ...\Git\cmd\git.exe
+    // bash.exe is at ...\Git\bin\bash.exe
+    const gitRoot = gitPath
+      .replace(/\\cmd\\git\.exe$/i, "")
+      .replace(/\\bin\\git\.exe$/i, "");
+    const bashPath = gitRoot + "\\bin\\bash.exe";
+    if (existsSync(bashPath)) {
+      return bashPath;
+    }
+  } catch {
+    // git not found
+  }
+
+  return null;
+}
+
+/**
+ * Detect the best available shell on this system.
+ * Priority: Git Bash on Windows > PowerShell > /bin/sh
+ *
+ * bash is preferred because LLMs generate bash commands far more reliably
+ * than PowerShell, and Git Bash is present on most Windows dev machines.
+ */
+function detectShell(): {
+  shell: string;
+  args: (cmd: string) => string[];
+  name: string;
+} {
+  if (process.platform !== "win32") {
+    return {
+      shell: "/bin/sh",
+      args: (cmd) => ["-c", cmd],
+      name: "bash",
+    };
+  }
+
+  // Windows: find Git Bash explicitly (NOT WSL bash)
+  const gitBash = findGitBash();
+  if (gitBash) {
+    return {
+      shell: gitBash,
+      args: (cmd) => ["--login", "-c", cmd],
+      name: "bash",
+    };
+  }
+
+  return {
+    shell: "powershell.exe",
+    args: (cmd) => [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + cmd,
+    ],
+    name: "powershell",
+  };
+}
+
+/** Cached shell config — detected once at startup */
+const detectedShell = detectShell();
+
+/** Exported so bootstrap.ts can read the detected shell name */
+export const shellInfo = {
+  name: detectedShell.name,
+  shell: detectedShell.shell,
+};
+
 export const shellTool: Tool = {
   name: "shell",
-  description: "Execute a shell command and return its output",
+  description: `Execute a ${detectedShell.name} command and return its output`,
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
       command: {
         type: "string",
-        description: "The command to execute",
+        description: `The ${detectedShell.name} command to execute`,
       },
       timeout: {
         type: "number",
@@ -27,42 +125,26 @@ export const shellTool: Tool = {
     const command = input.command as string;
     const timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
 
-    const isWindows = process.platform === "win32";
-
-    // On Windows, use PowerShell directly to avoid cmd.exe stripping $ signs
-    // and to get native UTF-8 support.
-    // On Unix, use /bin/sh as usual.
-    const shell = isWindows ? "powershell.exe" : "/bin/sh";
-    const args = isWindows
-      ? [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          // Force UTF-8 output encoding, then run the user command
-          "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " +
-            command,
-        ]
-      : ["-c", command];
-
-    // On Windows, force UTF-8 for common tools via environment variables
-    const env = isWindows
-      ? {
-          ...process.env,
-          PYTHONIOENCODING: "utf-8",
-          PYTHONUTF8: "1",
-        }
-      : undefined;
+    const { shell, args } = detectedShell;
 
     return new Promise<ToolResult>((resolve) => {
       execFile(
         shell,
-        args,
-        { timeout, maxBuffer: 10 * 1024 * 1024, encoding: "utf8", env },
+        args(command),
+        {
+          timeout,
+          maxBuffer: 10 * 1024 * 1024,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PYTHONIOENCODING: "utf-8",
+            PYTHONUTF8: "1",
+          },
+        },
         (error, stdout, stderr) => {
           const output = [stdout, stderr].filter(Boolean).join("\n");
 
           if (error) {
-            // Check for timeout
             if (error.killed) {
               resolve({
                 content: `Command timed out after ${timeout}ms\n${output}`,

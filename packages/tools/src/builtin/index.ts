@@ -13,7 +13,7 @@ import { pythonTool } from "./python.js";
 import { httpRequestTool } from "./http-request.js";
 import { browserTool } from "./browser.js";
 
-export { shellTool } from "./shell.js";
+export { shellTool, shellInfo } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
 export { fileWriteTool } from "./file-write.js";
 export { askUserTool } from "./ask-user.js";

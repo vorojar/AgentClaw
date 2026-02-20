@@ -115,19 +115,41 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       request.messages,
       request.systemPrompt,
     );
+
+    // Debug: detect if we're sending images
+    const hasImageContent = messages.some(
+      (m) =>
+        Array.isArray(m.content) &&
+        (m.content as Array<{ type: string }>).some(
+          (c) => c.type === "image_url",
+        ),
+    );
+    if (hasImageContent) {
+      console.log(
+        `[${this.name}] Sending request with image content to model: ${model}`,
+      );
+    }
+
     const tools = request.tools ? this.convertTools(request.tools) : undefined;
 
-    const stream = await this.client.chat.completions.create({
-      model,
-      messages,
-      stream: true,
-      ...(tools && tools.length > 0 ? { tools } : {}),
-      ...(request.temperature != null
-        ? { temperature: request.temperature }
-        : {}),
-      ...(request.maxTokens != null ? { max_tokens: request.maxTokens } : {}),
-      ...(request.stopSequences ? { stop: request.stopSequences } : {}),
-    });
+    let stream;
+    try {
+      stream = await this.client.chat.completions.create({
+        model,
+        messages,
+        stream: true,
+        ...(tools && tools.length > 0 ? { tools } : {}),
+        ...(request.temperature != null
+          ? { temperature: request.temperature }
+          : {}),
+        ...(request.maxTokens != null ? { max_tokens: request.maxTokens } : {}),
+        ...(request.stopSequences ? { stop: request.stopSequences } : {}),
+      });
+    } catch (err) {
+      // Enrich error with provider/model info for easier debugging
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`[${this.name}/${model}] ${msg}`);
+    }
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta;

@@ -6,5 +6,10 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ["@agentclaw/types"],
+  external: [
+    "@agentclaw/types",
+    "@agentclaw/providers",
+    "@agentclaw/tools",
+    "@agentclaw/memory",
+  ],
 });

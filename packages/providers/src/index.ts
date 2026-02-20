@@ -1,4 +1,10 @@
-// @agentclaw/providers — LLM adapters (Claude, OpenAI, Ollama) + Router
-// Phase 1 implementation pending
+// @agentclaw/providers — LLM adapters (Claude, OpenAI-compatible, Gemini) + Router
 
-export {};
+export { BaseLLMProvider, generateId } from "./base.js";
+export { ClaudeProvider } from "./claude.js";
+export {
+  OpenAICompatibleProvider,
+  type OpenAICompatibleOptions,
+} from "./openai-compatible.js";
+export { GeminiProvider } from "./gemini.js";
+export { SmartRouter } from "./router.js";

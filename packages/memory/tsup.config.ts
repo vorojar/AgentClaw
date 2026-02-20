@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ["@agentclaw/types"],
+  external: ["@agentclaw/types", "better-sqlite3"],
 });

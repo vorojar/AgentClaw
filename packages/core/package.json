@@ -17,7 +17,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agentclaw/types": "workspace:*"
+    "@agentclaw/types": "workspace:*",
+    "@agentclaw/providers": "workspace:*",
+    "@agentclaw/tools": "workspace:*",
+    "@agentclaw/memory": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.4.0",

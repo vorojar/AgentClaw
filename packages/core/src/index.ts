@@ -1,4 +1,5 @@
-// @agentclaw/core — Agent Loop, Planner, Context Manager, Orchestrator
-// Phase 1 implementation pending
+// @agentclaw/core — Agent Loop, Context Manager, Orchestrator
 
-export {};
+export { SimpleAgentLoop } from "./agent-loop.js";
+export { SimpleContextManager } from "./context-manager.js";
+export { SimpleOrchestrator } from "./orchestrator.js";

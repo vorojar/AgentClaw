@@ -1,4 +1,4 @@
-// @agentclaw/memory — Memory system (SQLite + vector search)
-// Phase 1 implementation pending
+// @agentclaw/memory — Memory system (SQLite-backed)
 
-export {};
+export { initDatabase } from "./database.js";
+export { SQLiteMemoryStore } from "./store.js";

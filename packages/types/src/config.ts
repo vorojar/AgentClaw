@@ -8,6 +8,16 @@ export interface ProviderConfig {
   enabled: boolean;
 }
 
+/** OpenAI-compatible provider configuration (Kimi, DeepSeek, MiniMax, etc.) */
+export interface OpenAICompatibleProviderConfig extends ProviderConfig {
+  /** Provider identifier */
+  id: string;
+  /** Display name */
+  name: string;
+  /** API base URL (required) */
+  baseUrl: string;
+}
+
 /** LLM routing configuration */
 export interface RoutingConfig {
   planning: { provider: string; model: string };
@@ -24,7 +34,9 @@ export interface AppConfig {
   providers: {
     claude?: ProviderConfig;
     openai?: ProviderConfig;
-    ollama?: ProviderConfig;
+    gemini?: ProviderConfig;
+    /** OpenAI-compatible providers (Kimi, DeepSeek, MiniMax, Qwen, etc.) */
+    openaiCompatible?: OpenAICompatibleProviderConfig[];
   };
 
   /** Model routing rules */

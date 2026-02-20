@@ -62,4 +62,9 @@ export type {
   SkillRegistry,
 } from "./skill.js";
 
-export type { ProviderConfig, RoutingConfig, AppConfig } from "./config.js";
+export type {
+  ProviderConfig,
+  OpenAICompatibleProviderConfig,
+  RoutingConfig,
+  AppConfig,
+} from "./config.js";

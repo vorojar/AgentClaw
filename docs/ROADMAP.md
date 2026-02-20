@@ -141,8 +141,10 @@
 - [x] `bootstrap.ts` 中自动设置 LLM embed 函数（如 provider 支持）
 
 ### 4.5 Platform Fixes（平台修复）✅
-- [x] Shell 工具 Windows 中文乱码修复（`chcp 65001` 切换 UTF-8 代码页）
+- [x] Shell 工具改用 PowerShell（解决 cmd.exe 吞 `$` 变量 + 中文乱码问题，`[Console]::OutputEncoding = UTF8`）
 - [x] Gateway 直接托管 Web UI 静态文件（`@fastify/static`，`pnpm start` 一键启动全部服务）
+- [x] System prompt 注入运行环境信息（OS、Shell 类型、临时目录路径），LLM 不再盲猜平台
+- [x] `sendFile` 智能发送：图片扩展名用 `sendPhoto`（内联预览），其他用 `sendDocument`
 
 ### 4.6 Other Platform Bots（其他平台机器人）
 - [ ] Discord bot
@@ -179,13 +181,15 @@
 - [ ] `http_request` 工具：支持 GET/POST/PUT/DELETE，自定义 headers 和 body
 - [ ] 适用于调用第三方 API（天气、股价、智能家居等）
 
-### 5.6 Python Code Executor（Python 代码执行器）
-- [ ] `python` 工具：安全的 Python 代码执行环境
-- [ ] 输出捕获：stdout + stderr + 生成的文件（图表等）
-- [ ] 超时控制和资源限制
+### 5.6 Python Code Executor（Python 代码执行器）✅
+- [x] `python` 工具：直接接收 Python 代码执行，无需先写文件（`cwd` 自动设为 `data/tmp/`）
+- [x] 输出捕获：stdout + stderr，脚本执行后自动清理临时 .py 文件
+- [x] 超时控制：默认 60 秒，UTF-8 编码强制开启
+- [x] System prompt 引导 LLM 优先用 python 处理复杂任务（截图、图片处理、数据分析等）
+- [x] Style 规则：简洁回复，发送文件后不复述元信息
 
 ---
 
 ## Current Focus（当前重点）
 
-**Phase 5.4** — 浏览器操控（Browser Automation）。下一个重要能力，让 Agent 能打开网页、截图、填表、点击。
+**Phase 5.4 + 5.5** — 浏览器操控 + HTTP 请求工具。让 Agent 能操作网页和调用第三方 API。

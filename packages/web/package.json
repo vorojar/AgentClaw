@@ -1,0 +1,11 @@
+{
+  "name": "@agentclaw/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Phase 3 - not yet implemented'",
+    "typecheck": "echo 'Phase 3 - not yet implemented'",
+    "clean": "echo 'Phase 3 - not yet implemented'"
+  }
+}

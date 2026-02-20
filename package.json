@@ -1,0 +1,22 @@
+{
+  "name": "agentclaw",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Your 24/7 AI Commander — intelligent dispatch center",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean",
+    "lint": "turbo lint"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

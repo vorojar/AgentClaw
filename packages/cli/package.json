@@ -1,0 +1,35 @@
+{
+  "name": "@agentclaw/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "agentclaw": "./dist/index.js",
+    "ac": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@agentclaw/types": "workspace:*",
+    "@agentclaw/core": "workspace:*",
+    "@agentclaw/providers": "workspace:*",
+    "@agentclaw/tools": "workspace:*",
+    "@agentclaw/memory": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0"
+  }
+}

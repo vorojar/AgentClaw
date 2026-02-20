@@ -172,14 +172,16 @@
 - [x] 任务触发时自动发消息给用户（`scheduler.setOnTaskFire` + Telegram 通知）
 - [x] TaskScheduler 统一在 bootstrap 创建，通过 `ToolExecutionContext.scheduler` 注入
 
-### 5.4 Browser Automation（浏览器操控）
-- [ ] `browser` 工具：基于 puppeteer-core，使用系统已安装的 Chrome
-- [ ] 支持操作：open / screenshot / click / type / get_content / close
-- [ ] 截图发回 Telegram
+### 5.4 Browser Automation（浏览器操控）✅
+- [x] `browser` 工具：基于 puppeteer-core，使用系统已安装的 Chrome/Edge（自动检测路径）
+- [x] 支持 6 种操作：open / screenshot / click / type / get_content / close
+- [x] 模块级单例管理（Browser + Page），headless 模式运行
+- [x] 截图保存到 `data/tmp/`，配合 `send_file` 发回 Telegram
 
-### 5.5 HTTP Request Tool（HTTP 请求工具）
-- [ ] `http_request` 工具：支持 GET/POST/PUT/DELETE，自定义 headers 和 body
-- [ ] 适用于调用第三方 API（天气、股价、智能家居等）
+### 5.5 HTTP Request Tool（HTTP 请求工具）✅
+- [x] `http_request` 工具：支持 GET/POST/PUT/DELETE/PATCH，自定义 headers 和 body
+- [x] 原生 fetch 实现，JSON 自动美化，响应超长自动截断
+- [x] AbortController 超时控制，完善的错误处理
 
 ### 5.6 Python Code Executor（Python 代码执行器）✅
 - [x] `python` 工具：直接接收 Python 代码执行，无需先写文件（`cwd` 自动设为 `data/tmp/`）
@@ -192,4 +194,4 @@
 
 ## Current Focus（当前重点）
 
-**Phase 5.4 + 5.5** — 浏览器操控 + HTTP 请求工具。让 Agent 能操作网页和调用第三方 API。
+**Phase 5 完成！** 所有 6 个子任务均已实现。下一步可考虑：多平台扩展（Discord/WeChat）、更多文件格式处理、Agent 自主规划能力增强。

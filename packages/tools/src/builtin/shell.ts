@@ -27,18 +27,37 @@ export const shellTool: Tool = {
     const command = input.command as string;
     const timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
 
-    // Determine the shell and flag based on platform
     const isWindows = process.platform === "win32";
-    const shell = isWindows ? "cmd.exe" : "/bin/sh";
-    const flag = isWindows ? "/c" : "-c";
-    // On Windows, prepend chcp 65001 to switch to UTF-8 codepage
-    const fullCommand = isWindows ? `chcp 65001 >nul && ${command}` : command;
+
+    // On Windows, use PowerShell directly to avoid cmd.exe stripping $ signs
+    // and to get native UTF-8 support.
+    // On Unix, use /bin/sh as usual.
+    const shell = isWindows ? "powershell.exe" : "/bin/sh";
+    const args = isWindows
+      ? [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          // Force UTF-8 output encoding, then run the user command
+          "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " +
+            command,
+        ]
+      : ["-c", command];
+
+    // On Windows, force UTF-8 for common tools via environment variables
+    const env = isWindows
+      ? {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8",
+          PYTHONUTF8: "1",
+        }
+      : undefined;
 
     return new Promise<ToolResult>((resolve) => {
       execFile(
         shell,
-        [flag, fullCommand],
-        { timeout, maxBuffer: 10 * 1024 * 1024, encoding: "utf8" },
+        args,
+        { timeout, maxBuffer: 10 * 1024 * 1024, encoding: "utf8", env },
         (error, stdout, stderr) => {
           const output = [stdout, stderr].filter(Boolean).join("\n");
 

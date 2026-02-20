@@ -14,12 +14,43 @@ const chatSessionMap = new Map<number, string>();
 /** Pending ask_user prompts: chatId → resolve function for the next user message */
 const pendingPrompts = new Map<number, (answer: string) => void>();
 
+const IMAGE_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "bmp",
+]);
+
 function extractText(content: string | ContentBlock[]): string {
   if (typeof content === "string") return content;
   return content
     .filter((b): b is { type: "text"; text: string } => b.type === "text")
     .map((b) => b.text)
     .join("");
+}
+
+/**
+ * Create a sendFile callback for a specific chat.
+ * Sends images via sendPhoto (inline preview) and other files via sendDocument.
+ */
+function createSendFile(
+  bot: Bot,
+  chatId: number,
+): (path: string, caption?: string) => Promise<void> {
+  return async (filePath: string, caption?: string) => {
+    const { createReadStream } = await import("node:fs");
+    const { InputFile } = await import("grammy");
+    const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+    const inputFile = new InputFile(createReadStream(filePath));
+
+    if (IMAGE_EXTENSIONS.has(ext)) {
+      await bot.api.sendPhoto(chatId, inputFile, { caption });
+    } else {
+      await bot.api.sendDocument(chatId, inputFile, { caption });
+    }
+  };
 }
 
 /**
@@ -153,13 +184,7 @@ export async function startTelegramBot(
         notifyUser: async (message: string) => {
           await bot.api.sendMessage(chatId, message);
         },
-        sendFile: async (path: string, fileCaption?: string) => {
-          const { createReadStream } = await import("node:fs");
-          const { InputFile } = await import("grammy");
-          await bot.api.sendDocument(chatId, new InputFile(createReadStream(path)), {
-            caption: fileCaption,
-          });
-        },
+        sendFile: createSendFile(bot, chatId),
       };
 
       const eventStream = appCtx.orchestrator.processInputStream(
@@ -263,13 +288,7 @@ export async function startTelegramBot(
         notifyUser: async (message: string) => {
           await bot.api.sendMessage(chatId, message);
         },
-        sendFile: async (path: string, fileCaption?: string) => {
-          const { createReadStream } = await import("node:fs");
-          const { InputFile } = await import("grammy");
-          await bot.api.sendDocument(chatId, new InputFile(createReadStream(path)), {
-            caption: fileCaption,
-          });
-        },
+        sendFile: createSendFile(bot, chatId),
       };
 
       const eventStream = appCtx.orchestrator.processInputStream(
@@ -427,13 +446,7 @@ export async function startTelegramBot(
         notifyUser: async (message: string) => {
           await bot.api.sendMessage(chatId, message);
         },
-        sendFile: async (path: string, fileCaption?: string) => {
-          const { createReadStream } = await import("node:fs");
-          const { InputFile } = await import("grammy");
-          await bot.api.sendDocument(chatId, new InputFile(createReadStream(path)), {
-            caption: fileCaption,
-          });
-        },
+        sendFile: createSendFile(bot, chatId),
       };
 
       const eventStream = appCtx.orchestrator.processInputStream(

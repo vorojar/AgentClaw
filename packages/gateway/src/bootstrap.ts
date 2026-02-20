@@ -22,7 +22,8 @@ import type {
   MemoryStore,
 } from "@agentclaw/types";
 import { mkdirSync } from "fs";
-import { dirname } from "path";
+import { dirname, resolve } from "path";
+import { platform, arch, homedir, tmpdir } from "os";
 import { TaskScheduler } from "./scheduler.js";
 
 export interface AppContext {
@@ -138,19 +139,49 @@ export async function bootstrap(): Promise<AppContext> {
     .map((t) => `- ${t.name}: ${t.description}`)
     .join("\n");
 
+  // Detect runtime environment
+  const os = platform();
+  const osName =
+    os === "win32" ? "Windows" : os === "darwin" ? "macOS" : "Linux";
+  const shellName =
+    os === "win32"
+      ? "PowerShell (commands are executed via powershell.exe directly, $ variables work normally)"
+      : "/bin/sh";
+  const tempDir = resolve(process.cwd(), "data", "tmp");
+  try {
+    mkdirSync(tempDir, { recursive: true });
+  } catch {
+    // may already exist
+  }
+
   const defaultSystemPrompt = `You are AgentClaw, a powerful AI assistant. You MUST use tools to help the user. Do NOT say you cannot do something — use the appropriate tool instead.
 
-Available tools:
+## Runtime Environment
+- OS: ${osName} (${arch()})
+- Shell: ${shellName}
+- Home directory: ${homedir()}
+- Temp directory for generated files: ${tempDir}
+
+IMPORTANT: You are running on ${osName}. Always use ${osName}-compatible commands.${os === "win32" ? " The shell tool runs PowerShell directly. Use PowerShell syntax (e.g., Get-ChildItem, $variable). Do NOT use macOS/Linux commands like screencapture, pbcopy, etc." : ""}
+
+## Available tools
 ${toolDescriptions}
 
-IMPORTANT RULES:
+## Rules
 - When the user asks to search, use the "web_search" tool.
 - When the user asks to read a file, use the "file_read" tool.
 - When the user asks to write a file, use the "file_write" tool.
-- When the user asks to run a command, use the "shell" tool.
 - When the user asks to fetch a URL, use the "web_fetch" tool.
+- For complex tasks (screenshots, image processing, PDF/Excel, data analysis, file conversion, etc.), use the "python" tool. It directly executes Python code — no need to write files first.
+- For simple system commands (list files, check processes, network info, etc.), use the "shell" tool.
+- When generating files (images, documents, etc.), ALWAYS save them to: ${tempDir}
+- After generating a file that the user needs (screenshot, document, image, etc.), ALWAYS send it via "send_file" immediately. Do not wait for the user to ask.
 - Always respond in the same language the user uses.
-- Think step by step before acting.`;
+
+## Style
+- Be concise. Do not narrate your actions ("让我来...", "我现在要...").
+- After sending a file, do NOT repeat metadata (resolution, file size, path). A brief confirmation is enough.
+- Act directly. Minimize unnecessary explanation.`;
 
   // Scheduler
   const scheduler = new TaskScheduler();

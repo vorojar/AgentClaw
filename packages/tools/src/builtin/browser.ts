@@ -1,5 +1,6 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { spawn } from "node:child_process";
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import type { Tool, ToolResult } from "@agentclaw/types";
 
@@ -10,22 +11,29 @@ import type { Tool, ToolResult } from "@agentclaw/types";
 const MAX_CONTENT_LENGTH = 50_000;
 const SCREENSHOT_DIR = resolve(process.cwd(), "data", "tmp");
 const DEFAULT_NAVIGATION_TIMEOUT = 30_000;
+const CDP_PORT = 9222;
+const CDP_URL = `http://127.0.0.1:${CDP_PORT}`;
 
 // ---------------------------------------------------------------------------
-// Singleton browser state
+// Singleton state
 // ---------------------------------------------------------------------------
 
+/** CDP connection to the user's real browser */
 let browser: Browser | null = null;
+/** The tab we manage (created by us, not hijacking user's tabs) */
 let page: Page | null = null;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 /** Detect a usable Chrome / Edge executable on the current platform. */
 function detectBrowserPath(): string | undefined {
   const platform = process.platform;
-
   const candidates: string[] = [];
 
   if (platform === "win32") {
@@ -41,7 +49,6 @@ function detectBrowserPath(): string | undefined {
       "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
     );
   } else {
-    // Linux
     candidates.push(
       "/usr/bin/google-chrome",
       "/usr/bin/google-chrome-stable",
@@ -50,63 +57,91 @@ function detectBrowserPath(): string | undefined {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { existsSync } = require("node:fs") as typeof import("node:fs");
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
-
   return undefined;
 }
 
-/** Ensure the browser and page singletons are running. */
-async function ensureBrowser(): Promise<{ browser: Browser; page: Page }> {
-  if (browser && page) {
-    // Verify the browser is still connected
-    if (browser.connected) {
-      return { browser, page };
-    }
-    // Browser disconnected — reset state
-    browser = null;
-    page = null;
+/**
+ * Connect to the user's real Chrome/Edge via CDP.
+ *
+ * 1. Try connecting to an already-running CDP endpoint.
+ * 2. If unavailable, launch Chrome with --remote-debugging-port so we
+ *    attach to the user's real profile (passwords, cookies, extensions).
+ */
+async function ensureConnected(): Promise<Browser> {
+  if (browser?.connected) return browser;
+
+  // Reset stale state
+  browser = null;
+  page = null;
+
+  // 1. Try connecting to existing CDP
+  try {
+    browser = await puppeteer.connect({ browserURL: CDP_URL });
+    console.log("[browser] Connected to existing Chrome CDP");
+    return browser;
+  } catch {
+    // Not available — launch Chrome ourselves
   }
 
+  // 2. Launch Chrome with CDP enabled
   const executablePath = detectBrowserPath();
   if (!executablePath) {
     throw new Error(
-      "Could not find Chrome or Edge on this system. " +
-        "Please install Google Chrome or Microsoft Edge and try again.",
+      "找不到 Chrome 或 Edge。请安装 Google Chrome 或 Microsoft Edge。",
     );
   }
 
-  browser = await puppeteer.launch({
+  console.log(`[browser] Launching Chrome with CDP on port ${CDP_PORT}...`);
+  const child = spawn(
     executablePath,
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+    [`--remote-debugging-port=${CDP_PORT}`],
+    { detached: true, stdio: "ignore" },
+  );
+  child.unref();
 
-  const pages = await browser.pages();
-  page = pages.length > 0 ? pages[0]! : await browser.newPage();
+  // 3. Wait for CDP to become available
+  for (let i = 0; i < 15; i++) {
+    await sleep(500);
+    try {
+      browser = await puppeteer.connect({ browserURL: CDP_URL });
+      console.log("[browser] Connected to Chrome CDP");
+      return browser;
+    } catch {
+      // not ready yet
+    }
+  }
+
+  throw new Error(
+    "无法连接到 Chrome 调试端口。如果 Chrome 已在运行，请先关闭所有 Chrome 窗口后重试。",
+  );
+}
+
+/** Get or create our managed tab. */
+async function ensurePage(): Promise<Page> {
+  if (page && !page.isClosed()) return page;
+
+  const b = await ensureConnected();
+  page = await b.newPage();
   page.setDefaultNavigationTimeout(DEFAULT_NAVIGATION_TIMEOUT);
-
-  return { browser, page };
+  return page;
 }
 
 // ---------------------------------------------------------------------------
 // Action handlers
 // ---------------------------------------------------------------------------
 
-async function handleOpen(input: Record<string, unknown>): Promise<ToolResult> {
+async function handleOpen(
+  input: Record<string, unknown>,
+): Promise<ToolResult> {
   const url = input.url as string | undefined;
   if (!url) {
     return { content: "Missing required parameter: url", isError: true };
   }
 
-  const { page: p } = await ensureBrowser();
+  const p = await ensurePage();
   await p.goto(url, { waitUntil: "domcontentloaded" });
   const title = await p.title();
 
@@ -118,14 +153,13 @@ async function handleOpen(input: Record<string, unknown>): Promise<ToolResult> {
 }
 
 async function handleScreenshot(): Promise<ToolResult> {
-  if (!page || !browser?.connected) {
+  if (!page || page.isClosed()) {
     return {
-      content: "Browser is not open. Use the 'open' action first.",
+      content: "No page open. Use the 'open' action first.",
       isError: true,
     };
   }
 
-  // Ensure screenshot directory exists
   try {
     mkdirSync(SCREENSHOT_DIR, { recursive: true });
   } catch {
@@ -150,9 +184,9 @@ async function handleScreenshot(): Promise<ToolResult> {
 async function handleClick(
   input: Record<string, unknown>,
 ): Promise<ToolResult> {
-  if (!page || !browser?.connected) {
+  if (!page || page.isClosed()) {
     return {
-      content: "Browser is not open. Use the 'open' action first.",
+      content: "No page open. Use the 'open' action first.",
       isError: true,
     };
   }
@@ -165,10 +199,7 @@ async function handleClick(
   try {
     await page.waitForSelector(selector, { timeout: 5_000 });
     await page.click(selector);
-    return {
-      content: `Clicked element: ${selector}`,
-      isError: false,
-    };
+    return { content: `Clicked element: ${selector}`, isError: false };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {
@@ -178,10 +209,12 @@ async function handleClick(
   }
 }
 
-async function handleType(input: Record<string, unknown>): Promise<ToolResult> {
-  if (!page || !browser?.connected) {
+async function handleType(
+  input: Record<string, unknown>,
+): Promise<ToolResult> {
+  if (!page || page.isClosed()) {
     return {
-      content: "Browser is not open. Use the 'open' action first.",
+      content: "No page open. Use the 'open' action first.",
       isError: true,
     };
   }
@@ -214,9 +247,9 @@ async function handleType(input: Record<string, unknown>): Promise<ToolResult> {
 async function handleGetContent(
   input: Record<string, unknown>,
 ): Promise<ToolResult> {
-  if (!page || !browser?.connected) {
+  if (!page || page.isClosed()) {
     return {
-      content: "Browser is not open. Use the 'open' action first.",
+      content: "No page open. Use the 'open' action first.",
       isError: true,
     };
   }
@@ -260,20 +293,23 @@ async function handleGetContent(
 }
 
 async function handleClose(): Promise<ToolResult> {
-  if (!browser) {
-    return { content: "Browser is already closed.", isError: false };
+  // Only close our managed tab, NOT the whole browser
+  if (page && !page.isClosed()) {
+    try {
+      await page.close();
+    } catch {
+      // ignore
+    }
   }
-
-  try {
-    await browser.close();
-  } catch {
-    // ignore close errors
-  }
-
-  browser = null;
   page = null;
 
-  return { content: "Browser closed.", isError: false };
+  // Disconnect CDP (browser keeps running)
+  if (browser) {
+    browser.disconnect();
+    browser = null;
+  }
+
+  return { content: "Tab closed.", isError: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +319,9 @@ async function handleClose(): Promise<ToolResult> {
 export const browserTool: Tool = {
   name: "browser",
   description:
-    "Control a web browser to open pages, take screenshots, click elements, type text, and extract content. Uses the system's installed Chrome or Edge browser.",
+    "Control the user's real Chrome/Edge browser via CDP. Opens pages in a new tab " +
+    "within the user's actual browser (with all their logins, cookies, passwords, extensions). " +
+    "Supports: open, screenshot, click, type, get_content, close.",
   category: "builtin",
   parameters: {
     type: "object",
@@ -329,7 +367,7 @@ export const browserTool: Tool = {
           return await handleClose();
         default:
           return {
-            content: `Unknown action: "${action}". Supported actions: open, screenshot, click, type, get_content, close`,
+            content: `Unknown action: "${action}". Supported: open, screenshot, click, type, get_content, close`,
             isError: true,
           };
       }

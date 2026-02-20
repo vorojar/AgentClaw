@@ -10,7 +10,7 @@ import type {
   ToolUseContent,
   ToolResultContent,
   LLMProvider,
-  LLMResponse,
+  LLMStreamChunk,
   ContextManager,
   MemoryStore,
   ConversationTurn,
@@ -59,6 +59,26 @@ export class SimpleAgentLoop implements AgentLoop {
   }
 
   async run(input: string, conversationId?: string): Promise<Message> {
+    let lastMessage: Message | undefined;
+    for await (const event of this.runStream(input, conversationId)) {
+      if (event.type === "response_complete") {
+        lastMessage = (event.data as { message: Message }).message;
+      }
+    }
+    return (
+      lastMessage ?? {
+        id: generateId(),
+        role: "assistant",
+        content: "No response generated.",
+        createdAt: new Date(),
+      }
+    );
+  }
+
+  async *runStream(
+    input: string,
+    conversationId?: string,
+  ): AsyncIterable<AgentEvent> {
     this.aborted = false;
     const convId = conversationId ?? generateId();
 
@@ -85,10 +105,18 @@ export class SimpleAgentLoop implements AgentLoop {
         input,
       );
 
-      // Call LLM
-      this.emit("thinking", { iteration: iterations });
+      // Notify thinking
+      yield this.createEvent("thinking", { iteration: iterations });
 
-      const response: LLMResponse = await this.provider.chat({
+      // Stream LLM response
+      let fullText = "";
+      const pendingToolCalls: Map<
+        number,
+        { id: string; name: string; args: string }
+      > = new Map();
+      let toolIndex = 0;
+
+      const stream = this.provider.stream({
         messages,
         systemPrompt,
         tools: this.toolRegistry.definitions(),
@@ -96,38 +124,91 @@ export class SimpleAgentLoop implements AgentLoop {
         maxTokens: this._config.maxTokens,
       });
 
-      // Store assistant response — extract plain text so the LLM doesn't
-      // see raw JSON in its conversation history and start mimicking it.
-      const assistantContent =
-        typeof response.message.content === "string"
-          ? response.message.content
-          : response.message.content
-              .filter((b) => b.type === "text")
-              .map((b) => (b as { text: string }).text)
-              .join("");
+      for await (const chunk of stream) {
+        if (this.aborted) break;
 
-      const toolCalls = this.extractToolCalls(response.message.content);
+        switch (chunk.type) {
+          case "text":
+            if (chunk.text) {
+              fullText += chunk.text;
+              yield this.createEvent("response_chunk", { text: chunk.text });
+            }
+            break;
+          case "tool_use_start":
+            if (chunk.toolUse) {
+              pendingToolCalls.set(toolIndex, {
+                id: chunk.toolUse.id,
+                name: chunk.toolUse.name,
+                args: chunk.toolUse.input ?? "",
+              });
+              toolIndex++;
+            }
+            break;
+          case "tool_use_delta":
+            if (chunk.toolUse) {
+              // Find the most recent pending tool call to append to
+              const lastIdx = toolIndex - 1;
+              const pending = pendingToolCalls.get(lastIdx);
+              if (pending) {
+                pending.args += chunk.toolUse.input ?? "";
+              }
+            }
+            break;
+          case "done":
+            break;
+        }
+      }
 
+      // Build tool calls from accumulated chunks
+      const toolCalls: ToolUseContent[] = [];
+      for (const [, tc] of pendingToolCalls) {
+        let parsedInput: Record<string, unknown> = {};
+        if (tc.args) {
+          try {
+            parsedInput = JSON.parse(tc.args);
+          } catch {
+            parsedInput = { _raw: tc.args };
+          }
+        }
+        toolCalls.push({
+          type: "tool_use",
+          id: tc.id,
+          name: tc.name,
+          input: parsedInput,
+        });
+      }
+
+      // Build content blocks for the assistant message
+      const contentBlocks: ContentBlock[] = [];
+      if (fullText) {
+        contentBlocks.push({ type: "text", text: fullText });
+      }
+      for (const tc of toolCalls) {
+        contentBlocks.push(tc);
+      }
+
+      // Store assistant turn
       const assistantTurn: ConversationTurn = {
         id: generateId(),
         conversationId: convId,
         role: "assistant",
-        content: assistantContent,
+        content: fullText,
         toolCalls: toolCalls.length > 0 ? JSON.stringify(toolCalls) : undefined,
-        model: response.model,
-        tokensIn: response.tokensIn,
-        tokensOut: response.tokensOut,
         createdAt: new Date(),
       };
       await this.memoryStore.addTurn(convId, assistantTurn);
 
-      // If no tool calls, we're done (ignore stopReason — some providers
-      // return finish_reason:"stop" even when tool_calls are present)
+      // If no tool calls, we're done
       if (toolCalls.length === 0) {
-        this.setState("responding");
-        this.emit("response_complete", { message: response.message });
+        const message: Message = {
+          id: generateId(),
+          role: "assistant",
+          content: contentBlocks.length > 0 ? contentBlocks : fullText,
+          createdAt: new Date(),
+        };
         this.setState("idle");
-        return response.message;
+        yield this.createEvent("response_complete", { message });
+        return;
       }
 
       // Execute tool calls
@@ -136,7 +217,7 @@ export class SimpleAgentLoop implements AgentLoop {
       for (const toolCall of toolCalls) {
         if (this.aborted) break;
 
-        this.emit("tool_call", {
+        yield this.createEvent("tool_call", {
           name: toolCall.name,
           input: toolCall.input,
         });
@@ -146,7 +227,7 @@ export class SimpleAgentLoop implements AgentLoop {
           toolCall.input,
         );
 
-        this.emit("tool_result", {
+        yield this.createEvent("tool_result", {
           name: toolCall.name,
           result,
         });
@@ -182,16 +263,7 @@ export class SimpleAgentLoop implements AgentLoop {
         "I've reached the maximum number of iterations. Please try breaking your request into smaller steps.",
       createdAt: new Date(),
     };
-    return fallbackMessage;
-  }
-
-  async *runStream(
-    input: string,
-    conversationId?: string,
-  ): AsyncIterable<AgentEvent> {
-    // For Phase 1, delegate to non-streaming run and yield events
-    const message = await this.run(input, conversationId);
-    yield this.createEvent("response_complete", { message });
+    yield this.createEvent("response_complete", { message: fallbackMessage });
   }
 
   stop(): void {
@@ -218,12 +290,5 @@ export class SimpleAgentLoop implements AgentLoop {
 
   private createEvent(type: AgentEventType, data: unknown): AgentEvent {
     return { type, data, timestamp: new Date() };
-  }
-
-  private extractToolCalls(content: string | ContentBlock[]): ToolUseContent[] {
-    if (typeof content === "string") return [];
-    return content.filter(
-      (block): block is ToolUseContent => block.type === "tool_use",
-    );
   }
 }

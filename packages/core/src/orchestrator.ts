@@ -60,31 +60,16 @@ export class SimpleOrchestrator implements Orchestrator {
   }
 
   async processInput(sessionId: string, input: string): Promise<Message> {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session not found: ${sessionId}`);
+    let lastMessage: Message | undefined;
+    for await (const event of this.processInputStream(sessionId, input)) {
+      if (event.type === "response_complete") {
+        lastMessage = (event.data as { message: Message }).message;
+      }
     }
-
-    session.lastActiveAt = new Date();
-
-    const loop = this.createAgentLoop();
-    const result = await loop.run(input, session.conversationId);
-
-    // Background memory extraction every N turns (fire-and-forget)
-    const count = (this.turnCounters.get(session.conversationId) ?? 0) + 1;
-    this.turnCounters.set(session.conversationId, count);
-    if (count % EXTRACT_EVERY_N_TURNS === 0) {
-      this.memoryExtractor
-        .processConversation(session.conversationId)
-        .then((n) => {
-          if (n > 0) console.log(`[memory] Extracted ${n} memories`);
-        })
-        .catch((err) => {
-          console.error("[memory] Extraction failed:", err);
-        });
+    if (!lastMessage) {
+      throw new Error("No response generated");
     }
-
-    return result;
+    return lastMessage;
   }
 
   async *processInputStream(
@@ -100,6 +85,20 @@ export class SimpleOrchestrator implements Orchestrator {
 
     const loop = this.createAgentLoop();
     yield* loop.runStream(input, session.conversationId);
+
+    // Background memory extraction every N turns (fire-and-forget)
+    const count = (this.turnCounters.get(session.conversationId) ?? 0) + 1;
+    this.turnCounters.set(session.conversationId, count);
+    if (count % EXTRACT_EVERY_N_TURNS === 0) {
+      this.memoryExtractor
+        .processConversation(session.conversationId)
+        .then((n) => {
+          if (n > 0) console.log(`[memory] Extracted ${n} memories`);
+        })
+        .catch((err) => {
+          console.error("[memory] Extraction failed:", err);
+        });
+    }
   }
 
   async listSessions(): Promise<Session[]> {

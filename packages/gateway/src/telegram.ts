@@ -1,6 +1,6 @@
 import { Bot } from "grammy";
 import type { AppContext } from "./bootstrap.js";
-import type { Message, ContentBlock } from "@agentclaw/types";
+import type { Message, ContentBlock, AgentEvent } from "@agentclaw/types";
 
 /** Map Telegram chat ID → AgentClaw session ID */
 const chatSessionMap = new Map<number, string>();
@@ -115,22 +115,51 @@ export async function startTelegramBot(
     }, 4000);
 
     try {
-      const response: Message = await appCtx.orchestrator.processInput(
+      const eventStream = appCtx.orchestrator.processInputStream(
         sessionId,
         text,
       );
 
+      let accumulatedText = "";
+
+      for await (const event of eventStream) {
+        switch (event.type) {
+          case "tool_call": {
+            const data = event.data as {
+              name: string;
+              input: Record<string, unknown>;
+            };
+            const label =
+              data.name === "web_search"
+                ? `🔍 正在搜索: ${(data.input as { query?: string }).query ?? data.name}...`
+                : `⚙️ 正在执行: ${data.name}...`;
+            await ctx.reply(label);
+            break;
+          }
+          case "response_chunk": {
+            const data = event.data as { text: string };
+            accumulatedText += data.text;
+            break;
+          }
+          case "response_complete": {
+            if (!accumulatedText) {
+              const data = event.data as { message: Message };
+              accumulatedText = extractText(data.message.content);
+            }
+            break;
+          }
+        }
+      }
+
       clearInterval(typingInterval);
 
-      const responseText = extractText(response.content);
-
-      if (!responseText.trim()) {
+      if (!accumulatedText.trim()) {
         await ctx.reply("(empty response)");
         return;
       }
 
       // Split and send
-      const chunks = splitMessage(responseText);
+      const chunks = splitMessage(accumulatedText);
       for (const chunk of chunks) {
         await ctx.reply(chunk);
       }

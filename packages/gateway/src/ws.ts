@@ -124,14 +124,8 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
               break;
             }
             case "response_complete": {
-              const data = event.data as { message: Message };
-              const text = extractTextFromMessage(data.message);
-              socket.send(
-                JSON.stringify({
-                  type: "text",
-                  text,
-                }),
-              );
+              // Text already sent via response_chunk events; no need to
+              // duplicate it here. The "done" message is sent after the loop.
               break;
             }
             case "error": {
@@ -144,8 +138,11 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
               );
               break;
             }
+            case "thinking":
+              socket.send(JSON.stringify({ type: "thinking" }));
+              break;
             default:
-              // state_change, thinking — skip
+              // state_change — skip
               break;
           }
         }

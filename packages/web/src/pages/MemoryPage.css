@@ -1,0 +1,161 @@
+/* MemoryPage styles */
+
+.memory-toolbar {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.memory-search-row {
+  display: flex;
+  gap: 12px;
+}
+
+.memory-search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.memory-type-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.memory-type-select:focus {
+  border-color: var(--accent);
+}
+
+.memory-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memory-sort-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.memory-sort-btn {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.memory-sort-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.memory-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.memory-loading,
+.memory-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.memory-error {
+  padding: 12px 16px;
+  background: rgba(234, 67, 53, 0.1);
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  color: var(--error);
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.memory-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.memory-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.memory-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.memory-importance {
+  font-size: 13px;
+  color: var(--warning);
+  letter-spacing: 1px;
+}
+
+.memory-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memory-confirm-delete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.memory-confirm-text {
+  font-size: 13px;
+  color: var(--error);
+  font-weight: 500;
+}
+
+.memory-delete-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.memory-cancel-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.memory-content {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.memory-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+/* Badge muted for unknown types */
+.badge-muted {
+  background: rgba(95, 99, 104, 0.15);
+  color: var(--text-muted);
+}

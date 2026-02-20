@@ -132,9 +132,13 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       const delta = chunk.choices[0]?.delta;
       if (!delta) continue;
 
-      // Text content
-      if (delta.content) {
-        yield { type: "text", text: delta.content };
+      // Text content — also check "reasoning" field for thinking-mode models
+      const deltaText =
+        delta.content ||
+        (delta as unknown as Record<string, string>).reasoning ||
+        "";
+      if (deltaText) {
+        yield { type: "text", text: deltaText };
       }
 
       // Tool calls
@@ -271,8 +275,13 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
   ): ContentBlock[] {
     const blocks: ContentBlock[] = [];
 
-    if (msg.content) {
-      blocks.push({ type: "text", text: msg.content });
+    // Some models (e.g. qwen3 with thinking mode) return empty content
+    // with all output in a "reasoning" field. Fall back to reasoning if
+    // content is empty.
+    const text =
+      msg.content || (msg as unknown as Record<string, string>).reasoning || "";
+    if (text) {
+      blocks.push({ type: "text", text });
     }
 
     if (msg.tool_calls) {

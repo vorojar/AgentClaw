@@ -127,9 +127,11 @@ Shared TypeScript interfaces.（共享的 TypeScript 接口定义。）Zero runt
 The brain of the system:（系统的大脑：）
 
 - **AgentLoop**: The think-act-observe cycle.（思考-行动-观察循环。）Receives user input, manages the conversation loop with the LLM, handles tool calls, and produces final responses.（接收用户输入，管理与 LLM 的对话循环，处理工具调用，生成最终回复。）
-- **Planner**: Decomposes complex tasks into executable plans with steps and dependencies.（将复杂任务分解为带有步骤和依赖关系的可执行计划。）Monitors execution and adapts.（监控执行并自适应调整。）
+- **Planner** ✅: Decomposes complex tasks into executable plans with steps and dependencies via LLM.（通过 LLM 将复杂任务分解为带有步骤和依赖关系的可执行计划。）Executes steps through AgentLoop, monitors progress, and re-plans on failure.（通过 AgentLoop 执行步骤，监控进度，失败时自动重规划。）
 - **ContextManager**: Builds the optimal context window for each LLM call by combining system prompts, conversation history, memory retrieval results, and active skill instructions.（通过组合系统提示、对话历史、记忆检索结果和活跃技能指令，为每次 LLM 调用构建最优上下文窗口。）
 - **Orchestrator**: Top-level coordinator.（顶层协调器。）Manages sessions, routes between simple chat and complex planning, handles lifecycle.（管理会话，在简单对话和复杂规划之间路由，处理生命周期。）
+- **SkillRegistry** ✅: Loads skills from SKILL.md files (YAML frontmatter + natural language instructions).（从 SKILL.md 文件加载技能：YAML 元数据 + 自然语言指令。）Matches user input via keyword/intent triggers.（通过关键词/意图触发器匹配用户输入。）
+- **MemoryExtractor** ✅: Uses LLM to extract long-term memories (facts, preferences, entities, episodic) from conversations.（使用 LLM 从对话中提取长期记忆：事实、偏好、实体、情景。）Runs periodically every 5 turns.（每 5 轮对话自动运行。）
 
 ### packages/providers（模型提供商包）
 
@@ -139,15 +141,15 @@ LLM abstraction layer with 3 adapters covering 8+ providers:（LLM 抽象层，3
 - **ClaudeProvider**: Anthropic Claude API adapter (@anthropic-ai/sdk).（Anthropic Claude API 适配器。）
 - **OpenAICompatibleProvider**: One adapter for all OpenAI-compatible APIs — OpenAI, DeepSeek, Kimi, MiniMax, Qwen, Ollama, etc.（一个适配器通吃所有 OpenAI 兼容 API——OpenAI、DeepSeek、Kimi、MiniMax、通义千问、Ollama 等。）Just configure baseUrl + apiKey.（只需配置 baseUrl + apiKey。）
 - **GeminiProvider**: Google Gemini API adapter (@google/genai).（Google Gemini API 适配器。）
-- **SmartRouter**: Intelligent model selection based on task type.（基于任务类型的智能模型选择。）
+- **SmartRouter** ✅: Intelligent model selection based on task type with cost tracking, auto-fallback on failure, and tier-based routing (planning→flagship, coding→standard, chat→fast).（基于任务类型的智能模型选择，含成本追踪、故障自动切换、tier 路由。）
 
 ### packages/tools（工具包）
 
 Tool system with three tiers:（三层工具系统：）
 
-- **Built-in**: shell, file-read, file-write, web-search, web-fetch, ask-user（内置工具：命令行、文件读写、网页搜索、网页抓取、询问用户）
-- **External**: claude-code, codex, browser (Playwright)（外部工具：Claude Code、Codex、浏览器 Playwright）
-- **MCP**: Connect to any MCP Server, auto-discover and adapt tools（MCP 协议：连接任意 MCP 服务器，自动发现和适配工具）
+- **Built-in** ✅: shell, file-read, file-write, web-search (DuckDuckGo), web-fetch (HTML auto-clean), ask-user（内置工具：命令行、文件读写、网页搜索 DuckDuckGo、网页抓取 HTML 自动清洗、询问用户）
+- **External**: claude-code, codex, browser (Playwright) — Phase 3（外部工具：Claude Code、Codex、浏览器 Playwright——Phase 3）
+- **MCP** ✅: MCPClient (stdio + HTTP transport) + MCPManager for multi-server connections.（MCP 协议：MCPClient 支持 stdio + HTTP 传输 + MCPManager 管理多服务器连接。）Auto-discovers tools from MCP servers and adapts them to AgentClaw Tool interface.（自动从 MCP 服务器发现工具并适配为 AgentClaw Tool 接口。）
 
 Each tool implements a standard interface: `{ name, description, parameters, execute() }`.（每个工具实现标准接口：`{ name, description, parameters, execute() }`。）
 
@@ -155,28 +157,40 @@ Each tool implements a standard interface: `{ name, description, parameters, exe
 
 Persistent memory backed by SQLite:（基于 SQLite 的持久化记忆：）
 
-- **Short-term**: Conversation history (turns table)（短期记忆：对话历史，turns 表）
-- **Long-term**: Extracted facts, preferences, entities (with vector embeddings)（长期记忆：提取的事实、偏好、实体，带向量嵌入）
-- **Episodic**: Task records, lessons learned (completed plans and results)（情景记忆：任务记录、经验教训，已完成的计划和结果）
-- **Hybrid retrieval**: `semantic_similarity × 0.5 + recency × 0.2 + importance × 0.3`（混合检索：语义相似度 × 0.5 + 时效性 × 0.2 + 重要性 × 0.3）
+- **Short-term** ✅: Conversation history (turns table)（短期记忆：对话历史，turns 表）
+- **Long-term** ✅: Extracted facts, preferences, entities via LLM MemoryExtractor, with vector embeddings (pure JS cosine similarity + bag-of-words fallback, LLM embed when available).（长期记忆：通过 LLM MemoryExtractor 提取的事实、偏好、实体，带向量嵌入——纯 JS 余弦相似度 + 词袋模型兜底，LLM embed 可用时自动使用。）
+- **Episodic** ✅: Task records, lessons learned (completed plans and results)（情景记忆：任务记录、经验教训，已完成的计划和结果）
+- **Hybrid retrieval** ✅: `semantic_similarity × 0.5 + recency × 0.2 + importance × 0.3` with exponential decay (half-life = 7 days) for recency scoring.（混合检索：语义相似度 × 0.5 + 时效性 × 0.2 + 重要性 × 0.3，时效性使用指数衰减，半衰期 7 天。）
 
 ### packages/cli（命令行包）
 
-CLI interface using Commander.js + Ink:（使用 Commander.js + Ink 的命令行界面：）
+CLI interface using Node.js readline:（使用 Node.js readline 的命令行界面：）
 
 - `agentclaw` / `ac` commands（`agentclaw` / `ac` 命令）
-- Interactive chat mode（交互式对话模式）
-- Task management commands（任务管理命令）
-- Configuration management（配置管理）
+- Interactive chat mode with skill matching display（交互式对话模式，显示匹配的技能）
+- Auto-loads skills from `skills/` directory on startup（启动时自动从 `skills/` 目录加载技能）
+- Periodic memory extraction every 5 turns（每 5 轮对话自动提取长期记忆）
+- Supports `--provider` flag for 8+ LLM providers（支持 `--provider` 参数切换 8+ 个 LLM 提供商）
 
-### packages/gateway（网关包）
+### packages/gateway（网关包）✅
 
-Background daemon:（后台守护进程：）
+Background daemon powered by Fastify:（基于 Fastify 的后台守护进程：）
 
-- Fastify HTTP server + WebSocket（Fastify HTTP 服务器 + WebSocket）
-- RESTful API for all operations（所有操作的 RESTful API）
-- WebSocket for real-time streaming（WebSocket 实时流式传输）
-- Scheduled task execution（定时任务执行）
+- **Server** ✅: Fastify HTTP server with CORS + WebSocket plugin.（Fastify HTTP 服务器 + CORS + WebSocket 插件。）`bootstrap.ts` initializes all core components (provider, tools, memory, orchestrator, planner, skills).（`bootstrap.ts` 初始化所有核心组件。）
+- **REST API** ✅: 18 endpoints covering sessions (CRUD + chat + history), plans (list + detail), memories (search + delete), tools & skills (list), stats & config (get/update), scheduled tasks (CRUD).（18 个端点覆盖会话、计划、记忆、工具技能、统计配置、定时任务。）
+- **WebSocket** ✅: Real-time streaming at `/ws?sessionId=xxx`.（`/ws?sessionId=xxx` 实时流式传输。）Maps AgentEvent types to client WSMessage format (text/tool_call/tool_result/done/error).（将 AgentEvent 类型映射为客户端 WSMessage 格式。）
+- **Scheduler** ✅: Cron-based task scheduling using `croner` library with CRUD API.（基于 croner 库的 Cron 任务调度 + CRUD API。）
+- **Graceful shutdown**: Handles SIGINT/SIGTERM, stops scheduler and closes Fastify.（处理 SIGINT/SIGTERM，停止调度器并关闭 Fastify。）
+
+### packages/web（Web UI 包）✅
+
+React + Vite dark-themed Web UI:（基于 React + Vite 的深色主题 Web 界面：）
+
+- **ChatPage** ✅: Real-time chat with WebSocket streaming, tool call cards (collapsible), session sidebar (collapsible), auto-scroll, empty state, reconnection banner.（实时聊天：WebSocket 流式传输、可折叠工具调用卡片、可折叠会话侧栏、自动滚动、空状态、断连重连。）
+- **PlansPage** ✅: Plan list with status badges, expandable step timeline, dependency visualization, auto-refresh every 10s.（计划列表：状态徽章、可展开的步骤时间线、依赖可视化、每 10 秒自动刷新。）
+- **MemoryPage** ✅: Memory browser with search (debounced 300ms), type filter, sort toggle (importance/time), importance stars, delete with confirmation.（记忆浏览器：搜索防抖 300ms、类型筛选、排序切换、重要度星级、删除确认。）
+- **SettingsPage** ✅: Provider config (editable), usage statistics (4 cards + model breakdown table), tools list, skills list with toggle, scheduled tasks CRUD, system info.（设置面板：可编辑的提供商配置、使用统计、工具列表、技能开关、定时任务管理、系统信息。）
+- **Design system**: CSS custom properties based dark theme, sidebar navigation with active state, responsive (768px breakpoint).（设计系统：基于 CSS 变量的深色主题、侧栏导航、响应式。）
 
 ## TypeScript Interfaces (Key Types)（TypeScript 接口，核心类型）
 

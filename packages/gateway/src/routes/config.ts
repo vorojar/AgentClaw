@@ -1,0 +1,79 @@
+import type { FastifyInstance } from "fastify";
+import type { AppContext } from "../bootstrap.js";
+
+export function registerConfigRoutes(
+  app: FastifyInstance,
+  ctx: AppContext,
+): void {
+  // GET /api/stats - Usage stats
+  app.get("/api/stats", async (_req, reply) => {
+    try {
+      // Basic stats from memory store — aggregate from conversation turns
+      // For now, return placeholder stats since we don't have a dedicated stats tracker
+      const stats = {
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalCost: 0,
+        totalCalls: 0,
+        byModel: [] as Array<{
+          provider: string;
+          model: string;
+          totalInputTokens: number;
+          totalOutputTokens: number;
+          totalCost: number;
+          callCount: number;
+        }>,
+      };
+      return reply.send(stats);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(500).send({ error: message });
+    }
+  });
+
+  // GET /api/config - Get config
+  app.get("/api/config", async (_req, reply) => {
+    try {
+      return reply.send({
+        provider: ctx.config.provider,
+        model: ctx.config.model,
+        databasePath: ctx.config.databasePath,
+        skillsDir: ctx.config.skillsDir,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(500).send({ error: message });
+    }
+  });
+
+  // PUT /api/config - Update config
+  app.put<{
+    Body: {
+      provider?: string;
+      model?: string;
+      databasePath?: string;
+      skillsDir?: string;
+    };
+  }>("/api/config", async (req, reply) => {
+    try {
+      const updates = req.body;
+      if (updates.provider !== undefined)
+        ctx.config.provider = updates.provider;
+      if (updates.model !== undefined) ctx.config.model = updates.model;
+      if (updates.databasePath !== undefined)
+        ctx.config.databasePath = updates.databasePath;
+      if (updates.skillsDir !== undefined)
+        ctx.config.skillsDir = updates.skillsDir;
+
+      return reply.send({
+        provider: ctx.config.provider,
+        model: ctx.config.model,
+        databasePath: ctx.config.databasePath,
+        skillsDir: ctx.config.skillsDir,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(500).send({ error: message });
+    }
+  });
+}

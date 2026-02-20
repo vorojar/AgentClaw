@@ -13,5 +13,6 @@ export default defineConfig({
     "@agentclaw/providers",
     "@agentclaw/tools",
     "@agentclaw/memory",
+    "better-sqlite3",
   ],
 });

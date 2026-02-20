@@ -4,6 +4,8 @@
   "private": true,
   "description": "Your 24/7 AI Commander — intelligent dispatch center",
   "scripts": {
+    "start": "node packages/gateway/dist/index.js",
+    "start:web": "pnpm --filter @agentclaw/web dev",
     "build": "turbo build",
     "dev": "turbo dev",
     "typecheck": "turbo typecheck",
@@ -12,11 +14,27 @@
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
     "turbo": "^2.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@agentclaw/memory": "workspace:^",
+    "@agentclaw/providers": "workspace:^",
+    "@agentclaw/tools": "workspace:^",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/websocket": "^11.2.0",
+    "croner": "^10.0.1",
+    "fastify": "^5.7.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0"
   }
 }

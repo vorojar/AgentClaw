@@ -18,8 +18,17 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@agentclaw/core": "workspace:*",
+    "@agentclaw/memory": "workspace:^",
+    "@agentclaw/providers": "workspace:^",
+    "@agentclaw/tools": "workspace:^",
     "@agentclaw/types": "workspace:*",
-    "@agentclaw/core": "workspace:*"
+    "@fastify/cors": "^11.2.0",
+    "@fastify/websocket": "^11.2.0",
+    "croner": "^10.0.1",
+    "dotenv": "^17.3.1",
+    "fastify": "^5.7.4",
+    "grammy": "^1.40.0"
   },
   "devDependencies": {
     "tsup": "^8.4.0",

@@ -7,18 +7,35 @@ import type {
   MemorySearchResult,
   ConversationTurn,
 } from "@agentclaw/types";
+import { cosineSimilarity, SimpleBagOfWords } from "./embeddings.js";
+
+/** Optional external embedding function (e.g. from an LLM provider) */
+export type EmbedFn = (texts: string[]) => Promise<number[][]>;
 
 /**
  * SQLite-backed implementation of the MemoryStore interface.
  *
- * Phase 1: text-based LIKE search + importance sorting.
- * Vector / semantic search will be added in a later phase.
+ * Supports hybrid retrieval:
+ *   score = semantic_similarity × semanticWeight
+ *         + recency × recencyWeight
+ *         + importance × importanceWeight
+ *
+ * When no LLM embed function is provided, falls back to SimpleBagOfWords.
  */
 export class SQLiteMemoryStore implements MemoryStore {
   private db: Database.Database;
+  private embedFn?: EmbedFn;
+  private bow: SimpleBagOfWords;
 
-  constructor(db: Database.Database) {
+  constructor(db: Database.Database, embedFn?: EmbedFn) {
     this.db = db;
+    this.embedFn = embedFn;
+    this.bow = new SimpleBagOfWords(512);
+  }
+
+  /** Set or update the embedding function (e.g. after provider is ready) */
+  setEmbedFn(fn: EmbedFn): void {
+    this.embedFn = fn;
   }
 
   // ─── Memory CRUD ───────────────────────────────────────────────
@@ -28,6 +45,12 @@ export class SQLiteMemoryStore implements MemoryStore {
   ): Promise<MemoryEntry> {
     const id = randomUUID();
     const now = new Date().toISOString();
+
+    // Auto-generate embedding if not provided
+    let embedding = entry.embedding;
+    if (!embedding) {
+      embedding = await this.generateEmbedding(entry.content);
+    }
 
     this.db
       .prepare(
@@ -40,9 +63,7 @@ export class SQLiteMemoryStore implements MemoryStore {
         entry.content,
         entry.sourceTurnId ?? null,
         entry.importance,
-        entry.embedding
-          ? Buffer.from(new Float64Array(entry.embedding).buffer)
-          : null,
+        embedding ? Buffer.from(new Float64Array(embedding).buffer) : null,
         now,
         now,
         entry.metadata ? JSON.stringify(entry.metadata) : null,
@@ -54,7 +75,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       content: entry.content,
       sourceTurnId: entry.sourceTurnId,
       importance: entry.importance,
-      embedding: entry.embedding,
+      embedding,
       createdAt: new Date(now),
       accessedAt: new Date(now),
       accessCount: 0,
@@ -76,6 +97,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       params.push(query.minImportance);
     }
 
+    // Text filter (still used as a pre-filter for LIKE match)
     if (query.query) {
       conditions.push("content LIKE ?");
       params.push(`%${query.query}%`);
@@ -83,19 +105,74 @@ export class SQLiteMemoryStore implements MemoryStore {
 
     const where =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    const limit = query.limit ?? 20;
+
+    // Fetch more candidates than needed — we re-rank with hybrid scoring
+    const fetchLimit = Math.max((query.limit ?? 20) * 3, 60);
 
     const rows = this.db
       .prepare(
         `SELECT * FROM memories ${where} ORDER BY importance DESC, accessed_at DESC LIMIT ?`,
       )
-      .all(...params, limit) as MemoryRow[];
+      .all(...params, fetchLimit) as MemoryRow[];
 
-    return rows.map((row) => ({
-      entry: rowToMemoryEntry(row),
-      // Phase 1: simple score based on importance (no vector similarity yet)
-      score: row.importance,
-    }));
+    // Hybrid scoring weights
+    const wSemantic = query.semanticWeight ?? 0.5;
+    const wRecency = query.recencyWeight ?? 0.2;
+    const wImportance = query.importanceWeight ?? 0.3;
+
+    // Generate query embedding for semantic scoring
+    let queryEmbedding: number[] | undefined;
+    if (query.query && wSemantic > 0) {
+      queryEmbedding = await this.generateEmbedding(query.query);
+    }
+
+    const now = Date.now();
+    const ONE_DAY_MS = 86_400_000;
+
+    const scored: MemorySearchResult[] = rows.map((row) => {
+      const entry = rowToMemoryEntry(row);
+
+      // Semantic similarity score (0-1)
+      let semanticScore = 0;
+      if (queryEmbedding && entry.embedding) {
+        // Pad shorter vector with zeros for cosine similarity
+        const a = queryEmbedding;
+        const b = entry.embedding;
+        const maxLen = Math.max(a.length, b.length);
+        const aPadded =
+          a.length < maxLen
+            ? [...a, ...new Array(maxLen - a.length).fill(0)]
+            : a;
+        const bPadded =
+          b.length < maxLen
+            ? [...b, ...new Array(maxLen - b.length).fill(0)]
+            : b;
+        semanticScore = Math.max(0, cosineSimilarity(aPadded, bPadded));
+      } else if (query.query) {
+        // Fallback: simple text overlap score
+        const q = query.query.toLowerCase();
+        const c = entry.content.toLowerCase();
+        semanticScore = c.includes(q) ? 0.6 : 0;
+      }
+
+      // Recency score (0-1): exponential decay, half-life = 7 days
+      const ageMs = now - entry.accessedAt.getTime();
+      const recencyScore = Math.exp(-ageMs / (7 * ONE_DAY_MS));
+
+      // Importance score (already 0-1)
+      const importanceScore = entry.importance;
+
+      const score =
+        wSemantic * semanticScore +
+        wRecency * recencyScore +
+        wImportance * importanceScore;
+
+      return { entry, score };
+    });
+
+    // Sort by hybrid score, return top N
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, query.limit ?? 20);
   }
 
   async get(id: string): Promise<MemoryEntry | undefined> {
@@ -222,6 +299,19 @@ export class SQLiteMemoryStore implements MemoryStore {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────
+
+  /** Generate embedding for text — uses LLM embed if available, else bag-of-words */
+  private async generateEmbedding(text: string): Promise<number[]> {
+    if (this.embedFn) {
+      try {
+        const [embedding] = await this.embedFn([text]);
+        return embedding;
+      } catch {
+        // Fall back to bag-of-words on error
+      }
+    }
+    return this.bow.embed(text);
+  }
 
   private ensureConversation(conversationId: string): void {
     const exists = this.db

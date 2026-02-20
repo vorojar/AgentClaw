@@ -96,11 +96,15 @@ export class SimpleAgentLoop implements AgentLoop {
         maxTokens: this._config.maxTokens,
       });
 
-      // Store assistant response
+      // Store assistant response — extract plain text so the LLM doesn't
+      // see raw JSON in its conversation history and start mimicking it.
       const assistantContent =
         typeof response.message.content === "string"
           ? response.message.content
-          : JSON.stringify(response.message.content);
+          : response.message.content
+              .filter((b) => b.type === "text")
+              .map((b) => (b as { text: string }).text)
+              .join("");
 
       const toolCalls = this.extractToolCalls(response.message.content);
 

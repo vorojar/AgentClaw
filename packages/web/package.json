@@ -1,11 +1,24 @@
 {
   "name": "@agentclaw/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo 'Phase 3 - not yet implemented'",
-    "typecheck": "echo 'Phase 3 - not yet implemented'",
-    "clean": "echo 'Phase 3 - not yet implemented'"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "4",
+    "typescript": "^5.7.0",
+    "vite": "6"
   }
 }

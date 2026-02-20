@@ -181,12 +181,6 @@ export async function bootstrap(): Promise<AppContext> {
     memoryStore.setEmbedFn((texts) => provider.embed!(texts));
   }
 
-  // Build system prompt with explicit tool descriptions for smaller models
-  const toolDescriptions = toolRegistry
-    .list()
-    .map((t) => `- ${t.name}: ${t.description}`)
-    .join("\n");
-
   // Detect runtime environment
   const os = platform();
   const osName =
@@ -239,9 +233,6 @@ export async function bootstrap(): Promise<AppContext> {
 - Home directory: ${homedir()}
 - Temp directory for generated files: ${tempDir}
 ${availableCli.length > 0 ? `- Available CLI tools: ${availableCli.join(", ")}` : ""}
-
-## Available tools
-${toolDescriptions}
 
 ## Rules
 - When the user asks to search, use the "web_search" tool.

@@ -235,6 +235,49 @@
 
 ---
 
+## 竞品对比：AgentClaw vs LobsterAI（网易有道）
+
+> LobsterAI：网易有道开源的全场景个人助理 Agent 桌面应用（Electron），MIT 协议。
+> 对比时间：2026-02
+
+| 能力 | LobsterAI | AgentClaw | 评价 |
+|---|---|---|---|
+| **沙箱隔离执行** | Alpine Linux VM (QCOW2)，进程级隔离 | 无 | LobsterAI 完胜 |
+| **Office 文档生成** | DOCX / XLSX / PPTX / PDF 全套内置 | 无 | LobsterAI 完胜 |
+| **视频生成** | Remotion 程序化生成视频 | 无 | LobsterAI 完胜 |
+| **IM 远程操控** | 钉钉 + 飞书 + Telegram + Discord (4个) | Telegram (1个) | LobsterAI 覆盖广（尤其国内 IM） |
+| **技能自扩展** | skill-creator 让 AI 自己创建新技能并热加载 | Skills 系统已接入但无自创建 | LobsterAI 更高级 |
+| **记忆系统** | 5 种记忆类型 + 置信度排序 + 可调严格度 + LLM 判断过滤 | MemoryExtractor + 向量搜索 | LobsterAI 分类更精细；AgentClaw 有向量搜索 |
+| **权限门控** | 敏感操作弹窗确认 | 无 | LobsterAI 更安全 |
+| **Artifacts 预览** | HTML / SVG / Mermaid / React 组件实时渲染 | 无 | LobsterAI 前端体验好 |
+| **LLM 提供商数量** | 11 个（含 DeepSeek/Kimi/智谱/通义等国产） | 4 个（Claude/OpenAI/Gemini/Ollama） | LobsterAI 数量多 |
+| **AI 引擎灵活度** | 绑定 Claude Agent SDK（agent 循环依赖 Anthropic） | **自研 AgentLoop，任意 Provider 跑完整 agent 循环** | **AgentClaw 胜** |
+| **图片生成/处理** | 无 | **ComfyUI 文生图 + 去背景 + 4x 放大** | **AgentClaw 胜** |
+| **浏览器控制** | Playwright 自动化（独立实例） | **CDP 连接用户真实 Chrome（带登录态）** | **AgentClaw 胜** |
+| **部署形态** | Electron 桌面应用（必须本地装） | **Web + Gateway 服务（远程部署，多端访问）** | **AgentClaw 更灵活** |
+| **工具重试** | 未提及 | **指数退避重试** | **AgentClaw 胜** |
+| **定时任务** | Cron 调度 | TaskScheduler + set_reminder | 持平 |
+| **网页搜索** | Playwright 驱动 Chrome 搜索 | web_search 工具 | 持平 |
+| **Planner** | create-plan 技能 | plan_task 工具 + SimplePlanner | 持平 |
+| **数据隐私** | 全本地 SQLite | 全本地 SQLite | 持平 |
+
+### 最值得借鉴的方向（优先级排序）
+
+1. **沙箱执行** — 让 agent 安全执行任意代码，是能力天花板的关键
+2. **Office 文档生成** — DOCX/XLSX/PPTX 高频刚需，加上就是巨大实用性提升
+3. **技能自创建** — 让 AI 自己写新技能并热加载，指数级扩展能力
+4. **更多 IM 网关** — 钉钉、飞书对国内用户至关重要
+5. **权限门控** — 敏感操作需用户确认，提升安全性
+6. **Artifacts 渲染** — 前端实时预览 HTML/SVG/Mermaid/React
+
+---
+
 ## Current Focus（当前重点）
 
-**Phase 6 完成！** ComfyUI 集成、Skills 激活、Planner 集成、工具重试均已实现。下一步可考虑：会话持久化、动态工具筛选、更多 Skills（comfyui-art、daily-brief）、更多 ComfyUI workflow（img2img、ControlNet）。
+**Phase 6 完成！** ComfyUI 集成、Skills 激活、Planner 集成、工具重试均已实现。浏览器工具已升级为 CDP 模式（连接用户真实 Chrome）。
+
+下一步优先方向（参考竞品对比）：
+- 沙箱执行环境
+- Office 文档生成工具（DOCX/XLSX/PPTX）
+- 技能自创建（skill-creator）
+- 更多 IM 网关（钉钉、飞书、Discord）

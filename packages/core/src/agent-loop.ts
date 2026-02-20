@@ -15,6 +15,7 @@ import type {
   ContextManager,
   MemoryStore,
   ConversationTurn,
+  ToolDefinition,
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
@@ -140,10 +141,15 @@ export class SimpleAgentLoop implements AgentLoop {
       > = new Map();
       let toolIndex = 0;
 
+      const tools =
+        iterations === 1
+          ? this.selectTools(input)
+          : this.toolRegistry.definitions();
+
       const stream = this.provider.stream({
         messages,
         systemPrompt,
-        tools: this.toolRegistry.definitions(),
+        tools,
         temperature: this._config.temperature,
         maxTokens: this._config.maxTokens,
       });
@@ -357,5 +363,132 @@ export class SimpleAgentLoop implements AgentLoop {
 
   private createEvent(type: AgentEventType, data: unknown): AgentEvent {
     return { type, data, timestamp: new Date() };
+  }
+
+  /** Core tools that are always sent to the LLM */
+  private static readonly CORE_TOOLS = new Set([
+    "shell",
+    "file_read",
+    "file_write",
+    "ask_user",
+    "web_search",
+    "web_fetch",
+    "remember",
+  ]);
+
+  /** Keyword-triggered specialist tools */
+  private static readonly SPECIALIST_TOOLS: ReadonlyArray<{
+    tools: string[];
+    keywords: string[];
+  }> = [
+    {
+      tools: ["comfyui", "comfyui_generate"],
+      keywords: [
+        "画",
+        "图片",
+        "生成图",
+        "图像",
+        "去背景",
+        "放大",
+        "upscale",
+        "generate",
+        "image",
+        "draw",
+        "壁纸",
+        "头像",
+      ],
+    },
+    {
+      tools: ["browser"],
+      keywords: [
+        "打开",
+        "浏览器",
+        "网页",
+        "网站",
+        "截图",
+        "screenshot",
+        "browse",
+        "open",
+        "click",
+      ],
+    },
+    {
+      tools: ["python"],
+      keywords: [
+        "代码",
+        "脚本",
+        "计算",
+        "分析",
+        "数据",
+        "python",
+        "code",
+        "script",
+        "截图",
+        "excel",
+        "pdf",
+        "csv",
+      ],
+    },
+    {
+      tools: ["http_request"],
+      keywords: ["api", "http", "request", "请求", "接口", "endpoint", "curl"],
+    },
+    {
+      tools: ["send_file"],
+      keywords: ["发送文件", "发给我", "send file", "文件发", "传给"],
+    },
+    {
+      tools: ["set_reminder"],
+      keywords: ["提醒", "提醒我", "remind", "reminder", "分钟后", "小时后"],
+    },
+    {
+      tools: ["schedule"],
+      keywords: ["定时", "每天", "每周", "定期", "cron", "schedule", "每小时"],
+    },
+    {
+      tools: ["plan_task"],
+      keywords: ["计划", "规划", "plan", "分解", "步骤", "复杂任务"],
+    },
+    {
+      tools: ["create_skill"],
+      keywords: ["创建技能", "保存技能", "新技能", "create skill", "save skill", "记住这个流程", "保存为配方"],
+    },
+  ];
+
+  /**
+   * Select relevant tools based on user input.
+   * Core tools are always included; specialist tools are added
+   * only when the input matches their trigger keywords.
+   */
+  private selectTools(input: string | ContentBlock[]): ToolDefinition[] {
+    // Extract text from input
+    let text: string;
+    if (typeof input === "string") {
+      text = input;
+    } else {
+      text = input
+        .map((block) => {
+          if (block.type === "text") return block.text;
+          return "";
+        })
+        .join(" ");
+    }
+    const lowerText = text.toLowerCase();
+
+    // Build set of tool names to include
+    const selectedNames = new Set(SimpleAgentLoop.CORE_TOOLS);
+
+    for (const spec of SimpleAgentLoop.SPECIALIST_TOOLS) {
+      if (spec.keywords.some((kw) => lowerText.includes(kw))) {
+        for (const toolName of spec.tools) {
+          selectedNames.add(toolName);
+        }
+      }
+    }
+
+    // Filter from full definitions
+    return this.toolRegistry
+      .definitions()
+      .filter((def) => selectedNames.has(def.name));
   }
 }

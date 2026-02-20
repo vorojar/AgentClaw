@@ -1,5 +1,7 @@
-import { readdir, readFile } from "fs/promises";
-import path from "path";
+import { existsSync } from "node:fs";
+import { watch, type FSWatcher } from "node:fs";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import type {
   Skill,
   SkillMatch,
@@ -16,6 +18,9 @@ import { parseSkillFile } from "./parser.js";
  */
 export class SkillRegistryImpl implements SkillRegistry {
   private skills: Map<string, Skill> = new Map();
+  private watcher: FSWatcher | null = null;
+  private debounceTimers: Map<string, ReturnType<typeof setTimeout>> =
+    new Map();
 
   /**
    * Load all skills from a directory.
@@ -25,6 +30,9 @@ export class SkillRegistryImpl implements SkillRegistry {
    *     coding/SKILL.md
    *     research/SKILL.md
    *     writing/SKILL.md
+   *
+   * After initial loading, starts watching the directory for changes so that
+   * new, modified, or deleted skill files are automatically picked up.
    */
   async loadFromDirectory(dirPath: string): Promise<void> {
     let entries;
@@ -39,15 +47,89 @@ export class SkillRegistryImpl implements SkillRegistry {
       if (!entry.isDirectory()) continue;
 
       const skillFilePath = path.join(dirPath, entry.name, "SKILL.md");
+      await this.loadSkillFile(skillFilePath);
+    }
 
-      try {
-        const content = await readFile(skillFilePath, "utf-8");
-        const skill = parseSkillFile(skillFilePath, content);
-        this.register(skill);
-      } catch {
-        // Skip skills that can't be parsed
-        continue;
+    this.watchDirectory(dirPath);
+  }
+
+  /**
+   * Load (or reload) a single skill file into the registry.
+   *
+   * If the file exists and is valid, the skill is registered (upserted).
+   * If the file does not exist (deleted), the corresponding skill is removed.
+   *
+   * @returns true if the skill was loaded/removed successfully
+   */
+  private async loadSkillFile(filePath: string): Promise<boolean> {
+    if (!existsSync(filePath)) {
+      // File was deleted — remove the skill whose path matches
+      for (const [id, skill] of this.skills) {
+        if (skill.path === filePath) {
+          this.skills.delete(id);
+          return true;
+        }
       }
+      return false;
+    }
+
+    try {
+      const content = await readFile(filePath, "utf-8");
+      const skill = parseSkillFile(filePath, content);
+      this.register(skill);
+      return true;
+    } catch {
+      // Skip skills that can't be parsed
+      return false;
+    }
+  }
+
+  /**
+   * Watch a skills directory for file changes and automatically reload
+   * skills when their SKILL.md files are added, modified, or deleted.
+   *
+   * Uses `fs.watch` with recursive mode and a 300ms debounce to handle
+   * duplicate events that some platforms emit.
+   */
+  private watchDirectory(dir: string): void {
+    try {
+      this.watcher = watch(dir, { recursive: true }, (_eventType, filename) => {
+        // filename may be null on some platforms
+        if (!filename) return;
+
+        // Normalize path separators (Windows may use backslashes)
+        const normalized = filename.replace(/\\/g, "/");
+
+        // Only react to .md files
+        if (!normalized.endsWith(".md")) return;
+
+        const fullPath = path.resolve(dir, filename);
+
+        // Debounce: clear any pending timer for this file
+        const existing = this.debounceTimers.get(fullPath);
+        if (existing) {
+          clearTimeout(existing);
+        }
+
+        this.debounceTimers.set(
+          fullPath,
+          setTimeout(async () => {
+            this.debounceTimers.delete(fullPath);
+
+            const loaded = await this.loadSkillFile(fullPath);
+            if (loaded) {
+              console.log(`[skills] Reloaded: ${filename}`);
+            }
+          }, 300),
+        );
+      });
+
+      // Don't let the watcher prevent the process from exiting
+      this.watcher.unref();
+
+      console.log(`[skills] Watching ${dir} for changes`);
+    } catch (err) {
+      console.warn(`[skills] Failed to watch directory: ${err}`);
     }
   }
 

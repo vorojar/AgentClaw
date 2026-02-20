@@ -4,7 +4,6 @@ import type {
   ContentBlock,
   MemoryStore,
   ConversationTurn,
-  ToolRegistry,
   SkillRegistry,
 } from "@agentclaw/types";
 
@@ -22,20 +21,17 @@ IMPORTANT RULES:
 export class SimpleContextManager implements ContextManager {
   private systemPrompt: string;
   private memoryStore: MemoryStore;
-  private toolRegistry?: ToolRegistry;
   private skillRegistry?: SkillRegistry;
   private maxHistoryTurns: number;
 
   constructor(options: {
     systemPrompt?: string;
     memoryStore: MemoryStore;
-    toolRegistry?: ToolRegistry;
     skillRegistry?: SkillRegistry;
     maxHistoryTurns?: number;
   }) {
     this.systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
     this.memoryStore = options.memoryStore;
-    this.toolRegistry = options.toolRegistry;
     this.skillRegistry = options.skillRegistry;
     this.maxHistoryTurns = options.maxHistoryTurns ?? 50;
   }
@@ -53,17 +49,7 @@ export class SimpleContextManager implements ContextManager {
     // Convert turns to Messages, rebuilding tool_use and tool_result content blocks
     const messages: Message[] = turns.map((turn) => this.turnToMessage(turn));
 
-    // Append tool descriptions to system prompt for smaller models
     let finalPrompt = this.systemPrompt;
-    if (this.toolRegistry) {
-      const tools = this.toolRegistry.list();
-      if (tools.length > 0) {
-        const toolList = tools
-          .map((t) => `- ${t.name}: ${t.description}`)
-          .join("\n");
-        finalPrompt += `\n\nAvailable tools:\n${toolList}`;
-      }
-    }
 
     // Extract text from input for memory search query
     const searchQuery =

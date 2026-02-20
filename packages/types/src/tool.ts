@@ -8,6 +8,7 @@ export interface ToolParameterSchema {
       description: string;
       enum?: string[];
       default?: unknown;
+      items?: { type: string };
     }
   >;
   required?: string[];

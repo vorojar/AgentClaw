@@ -70,6 +70,10 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   model?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  durationMs?: number;
+  toolCallCount?: number;
   createdAt: string;
   /** JSON-serialized tool calls (for assistant messages) */
   toolCalls?: string;
@@ -251,6 +255,11 @@ export interface WSMessage {
   toolInput?: string;
   toolResult?: string;
   error?: string;
+  model?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  durationMs?: number;
+  toolCallCount?: number;
 }
 
 export function connectWebSocket(

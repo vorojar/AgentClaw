@@ -87,6 +87,13 @@ export class SimpleAgentLoop implements AgentLoop {
   ): AsyncIterable<AgentEvent> {
     this.aborted = false;
     const convId = conversationId ?? generateId();
+    const startTime = Date.now();
+
+    // Accumulators across all LLM iterations
+    let totalTokensIn = 0;
+    let totalTokensOut = 0;
+    let totalToolCalls = 0;
+    let usedModel: string | undefined;
 
     // 存储用户消息：ContentBlock[] 需序列化为 JSON 字符串
     const userTurn: ConversationTurn = {
@@ -161,6 +168,14 @@ export class SimpleAgentLoop implements AgentLoop {
             }
             break;
           case "done":
+            // Accumulate usage from this LLM call
+            if (chunk.usage) {
+              totalTokensIn += chunk.usage.tokensIn;
+              totalTokensOut += chunk.usage.tokensOut;
+            }
+            if (chunk.model) {
+              usedModel = chunk.model;
+            }
             break;
         }
       }
@@ -184,6 +199,8 @@ export class SimpleAgentLoop implements AgentLoop {
         });
       }
 
+      totalToolCalls += toolCalls.length;
+
       // Build content blocks for the assistant message
       const contentBlocks: ContentBlock[] = [];
       if (fullText) {
@@ -200,17 +217,26 @@ export class SimpleAgentLoop implements AgentLoop {
         role: "assistant",
         content: fullText,
         toolCalls: toolCalls.length > 0 ? JSON.stringify(toolCalls) : undefined,
+        model: usedModel,
+        tokensIn: totalTokensIn,
+        tokensOut: totalTokensOut,
         createdAt: new Date(),
       };
       await this.memoryStore.addTurn(convId, assistantTurn);
 
       // If no tool calls, we're done
       if (toolCalls.length === 0) {
+        const durationMs = Date.now() - startTime;
         const message: Message = {
           id: generateId(),
           role: "assistant",
           content: contentBlocks.length > 0 ? contentBlocks : fullText,
           createdAt: new Date(),
+          model: usedModel,
+          tokensIn: totalTokensIn,
+          tokensOut: totalTokensOut,
+          durationMs,
+          toolCallCount: totalToolCalls,
         };
         this.setState("idle");
         yield this.createEvent("response_complete", { message });
@@ -262,6 +288,7 @@ export class SimpleAgentLoop implements AgentLoop {
     }
 
     // Max iterations reached
+    const durationMs = Date.now() - startTime;
     this.setState("idle");
     const fallbackMessage: Message = {
       id: generateId(),
@@ -269,6 +296,11 @@ export class SimpleAgentLoop implements AgentLoop {
       content:
         "I've reached the maximum number of iterations. Please try breaking your request into smaller steps.",
       createdAt: new Date(),
+      model: usedModel,
+      tokensIn: totalTokensIn,
+      tokensOut: totalTokensOut,
+      durationMs,
+      toolCallCount: totalToolCalls,
     };
     yield this.createEvent("response_complete", { message: fallbackMessage });
   }

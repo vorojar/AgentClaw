@@ -138,6 +138,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
         model,
         messages,
         stream: true,
+        stream_options: { include_usage: true },
         ...(tools && tools.length > 0 ? { tools } : {}),
         ...(request.temperature != null
           ? { temperature: request.temperature }
@@ -151,7 +152,16 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       throw new Error(`[${this.name}/${model}] ${msg}`);
     }
 
+    let tokensIn = 0;
+    let tokensOut = 0;
+
     for await (const chunk of stream) {
+      // Extract usage from the final chunk (sent when stream_options.include_usage is true)
+      if (chunk.usage) {
+        tokensIn = chunk.usage.prompt_tokens ?? 0;
+        tokensOut = chunk.usage.completion_tokens ?? 0;
+      }
+
       const delta = chunk.choices[0]?.delta;
       if (!delta) continue;
 
@@ -193,7 +203,11 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
       // Check finish reason
       if (chunk.choices[0]?.finish_reason) {
-        yield { type: "done" };
+        yield {
+          type: "done",
+          usage: { tokensIn, tokensOut },
+          model,
+        };
       }
     }
   }

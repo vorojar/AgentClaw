@@ -39,6 +39,31 @@ function extractText(content: string | ContentBlock[]): string {
     .join("");
 }
 
+/** Format a compact usage statistics line for appending to Telegram replies */
+function formatUsageLine(stats: {
+  model?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  durationMs?: number;
+  toolCallCount?: number;
+}): string {
+  const parts: string[] = [];
+  if (stats.model) parts.push(stats.model);
+  const totalTokens = (stats.tokensIn ?? 0) + (stats.tokensOut ?? 0);
+  if (totalTokens > 0) {
+    parts.push(
+      `${totalTokens.toLocaleString()} tokens (${stats.tokensIn ?? 0}\u2191 ${stats.tokensOut ?? 0}\u2193)`,
+    );
+  }
+  if (stats.durationMs != null) {
+    parts.push(`${(stats.durationMs / 1000).toFixed(1)}s`);
+  }
+  if (stats.toolCallCount) {
+    parts.push(`\uD83D\uDD27\u00D7${stats.toolCallCount}`);
+  }
+  return parts.length > 0 ? `\u2014 ${parts.join(" \u00B7 ")}` : "";
+}
+
 /**
  * Create a sendFile callback for a specific chat.
  * Sends images via sendPhoto (inline preview) and other files via sendDocument.
@@ -205,6 +230,7 @@ export async function startTelegramBot(
       );
 
       let accumulatedText = "";
+      let usageStats: Parameters<typeof formatUsageLine>[0] = {};
       for await (const event of eventStream) {
         switch (event.type) {
           case "tool_call": {
@@ -219,16 +245,26 @@ export async function startTelegramBot(
             break;
           }
           case "response_complete": {
+            const data = event.data as { message: Message };
             if (!accumulatedText) {
-              const data = event.data as { message: Message };
               accumulatedText = extractText(data.message.content);
             }
+            usageStats = {
+              model: data.message.model,
+              tokensIn: data.message.tokensIn,
+              tokensOut: data.message.tokensOut,
+              durationMs: data.message.durationMs,
+              toolCallCount: data.message.toolCallCount,
+            };
             break;
           }
         }
       }
 
       clearInterval(typingInterval);
+
+      const usageLine = formatUsageLine(usageStats);
+      if (usageLine) accumulatedText += `\n\n${usageLine}`;
 
       if (!accumulatedText.trim()) {
         await replyFn("(empty response)");
@@ -346,6 +382,7 @@ export async function startTelegramBot(
       );
 
       let accumulatedText = "";
+      let usageStats: Parameters<typeof formatUsageLine>[0] = {};
 
       for await (const event of eventStream) {
         switch (event.type) {
@@ -367,16 +404,26 @@ export async function startTelegramBot(
             break;
           }
           case "response_complete": {
+            const data = event.data as { message: Message };
             if (!accumulatedText) {
-              const data = event.data as { message: Message };
               accumulatedText = extractText(data.message.content);
             }
+            usageStats = {
+              model: data.message.model,
+              tokensIn: data.message.tokensIn,
+              tokensOut: data.message.tokensOut,
+              durationMs: data.message.durationMs,
+              toolCallCount: data.message.toolCallCount,
+            };
             break;
           }
         }
       }
 
       clearInterval(typingInterval);
+
+      const usageLine = formatUsageLine(usageStats);
+      if (usageLine) accumulatedText += `\n\n${usageLine}`;
 
       if (!accumulatedText.trim()) {
         await ctx.reply("(empty response)");
@@ -504,6 +551,7 @@ export async function startTelegramBot(
       );
 
       let accumulatedText = "";
+      let usageStats: Parameters<typeof formatUsageLine>[0] = {};
 
       for await (const event of eventStream) {
         switch (event.type) {
@@ -525,16 +573,26 @@ export async function startTelegramBot(
             break;
           }
           case "response_complete": {
+            const data = event.data as { message: Message };
             if (!accumulatedText) {
-              const data = event.data as { message: Message };
               accumulatedText = extractText(data.message.content);
             }
+            usageStats = {
+              model: data.message.model,
+              tokensIn: data.message.tokensIn,
+              tokensOut: data.message.tokensOut,
+              durationMs: data.message.durationMs,
+              toolCallCount: data.message.toolCallCount,
+            };
             break;
           }
         }
       }
 
       clearInterval(typingInterval);
+
+      const usageLine = formatUsageLine(usageStats);
+      if (usageLine) accumulatedText += `\n\n${usageLine}`;
 
       if (!accumulatedText.trim()) {
         await ctx.reply("(empty response)");

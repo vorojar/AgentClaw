@@ -36,6 +36,11 @@ interface DisplayMessage {
   streaming: boolean;
   /** Tool calls associated with this assistant turn */
   toolCalls: ToolCallEntry[];
+  /** Usage statistics */
+  tokensIn?: number;
+  tokensOut?: number;
+  durationMs?: number;
+  toolCallCount?: number;
 }
 
 /* ────────────────────────────────────────────────────
@@ -101,6 +106,10 @@ function chatMessageToDisplay(m: ChatMessage): DisplayMessage {
     createdAt: m.createdAt,
     streaming: false,
     toolCalls,
+    tokensIn: m.tokensIn,
+    tokensOut: m.tokensOut,
+    durationMs: m.durationMs,
+    toolCallCount: m.toolCallCount,
   };
 }
 
@@ -212,6 +221,25 @@ function formatToolResult(result: string): string {
   } catch {
     return result;
   }
+}
+
+/** Format usage stats into a compact display string */
+function formatUsageStats(msg: DisplayMessage): string | null {
+  const parts: string[] = [];
+  if (msg.model) parts.push(msg.model);
+  const total = (msg.tokensIn ?? 0) + (msg.tokensOut ?? 0);
+  if (total > 0) {
+    parts.push(
+      `${total.toLocaleString()} tokens (${msg.tokensIn ?? 0}\u2191 ${msg.tokensOut ?? 0}\u2193)`,
+    );
+  }
+  if (msg.durationMs != null) {
+    parts.push(`${(msg.durationMs / 1000).toFixed(1)}s`);
+  }
+  if (msg.toolCallCount) {
+    parts.push(`\uD83D\uDD27\u00D7${msg.toolCallCount}`);
+  }
+  return parts.length > 0 ? parts.join(" \u00B7 ") : null;
 }
 
 /* ────────────────────────────────────────────────────
@@ -563,7 +591,18 @@ export function ChatPage() {
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
-            return [...prev.slice(0, -1), { ...last, streaming: false }];
+            return [
+              ...prev.slice(0, -1),
+              {
+                ...last,
+                streaming: false,
+                model: msg.model ?? last.model,
+                tokensIn: msg.tokensIn ?? last.tokensIn,
+                tokensOut: msg.tokensOut ?? last.tokensOut,
+                durationMs: msg.durationMs ?? last.durationMs,
+                toolCallCount: msg.toolCallCount ?? last.toolCallCount,
+              },
+            ];
           }
           return prev;
         });
@@ -792,10 +831,16 @@ export function ChatPage() {
                                     <span className="streaming-cursor" />
                                   )}
                                 </div>
-                                {m.createdAt && (
+                                {(m.createdAt ||
+                                  (m.role === "assistant" && !m.streaming)) && (
                                   <div className="message-meta">
                                     {formatTime(m.createdAt)}
-                                    {m.model ? ` \u00b7 ${m.model}` : ""}
+                                    {m.role === "assistant" &&
+                                    formatUsageStats(m)
+                                      ? ` \u00b7 ${formatUsageStats(m)}`
+                                      : m.model
+                                        ? ` \u00b7 ${m.model}`
+                                        : ""}
                                   </div>
                                 )}
                               </div>

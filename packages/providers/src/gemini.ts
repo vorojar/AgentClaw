@@ -131,7 +131,20 @@ export class GeminiProvider extends BaseLLMProvider {
       },
     });
 
+    let tokensIn = 0;
+    let tokensOut = 0;
+
     for await (const chunk of response) {
+      // Track usage from each chunk
+      if (chunk.usageMetadata) {
+        tokensIn =
+          (chunk.usageMetadata as unknown as { promptTokenCount?: number })
+            .promptTokenCount ?? tokensIn;
+        tokensOut =
+          (chunk.usageMetadata as unknown as { candidatesTokenCount?: number })
+            .candidatesTokenCount ?? tokensOut;
+      }
+
       const parts = chunk.candidates?.[0]?.content?.parts ?? [];
 
       for (const part of parts) {
@@ -153,7 +166,11 @@ export class GeminiProvider extends BaseLLMProvider {
       }
     }
 
-    yield { type: "done" };
+    yield {
+      type: "done",
+      usage: { tokensIn, tokensOut },
+      model,
+    };
   }
 
   // ---- Internal conversion helpers ----

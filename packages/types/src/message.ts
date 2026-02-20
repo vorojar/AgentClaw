@@ -46,6 +46,10 @@ export interface Message {
   /** Token usage */
   tokensIn?: number;
   tokensOut?: number;
+  /** Total response duration in milliseconds */
+  durationMs?: number;
+  /** Number of tool calls executed */
+  toolCallCount?: number;
 }
 
 /** A conversation session */

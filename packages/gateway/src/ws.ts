@@ -83,6 +83,15 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           parsed.content,
         );
 
+        // Usage stats to send with the "done" message
+        let usageStats: {
+          model?: string;
+          tokensIn?: number;
+          tokensOut?: number;
+          durationMs?: number;
+          toolCallCount?: number;
+        } = {};
+
         for await (const event of eventStream) {
           switch (event.type) {
             case "tool_call": {
@@ -124,8 +133,14 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
               break;
             }
             case "response_complete": {
-              // Text already sent via response_chunk events; no need to
-              // duplicate it here. The "done" message is sent after the loop.
+              const data = event.data as { message: Message };
+              usageStats = {
+                model: data.message.model,
+                tokensIn: data.message.tokensIn,
+                tokensOut: data.message.tokensOut,
+                durationMs: data.message.durationMs,
+                toolCallCount: data.message.toolCallCount,
+              };
               break;
             }
             case "error": {
@@ -147,7 +162,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           }
         }
 
-        socket.send(JSON.stringify({ type: "done" }));
+        socket.send(JSON.stringify({ type: "done", ...usageStats }));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         socket.send(JSON.stringify({ type: "error", error: message }));

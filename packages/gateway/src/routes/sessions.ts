@@ -29,6 +29,10 @@ function serializeMessage(msg: Message) {
     role: msg.role,
     content: extractText(msg.content),
     model: msg.model,
+    tokensIn: msg.tokensIn,
+    tokensOut: msg.tokensOut,
+    durationMs: msg.durationMs,
+    toolCallCount: msg.toolCallCount,
     createdAt: msg.createdAt.toISOString(),
   };
 }
@@ -124,6 +128,10 @@ export function registerSessionRoutes(
           role: turn.role,
           content: turn.content,
           model: turn.model,
+          tokensIn: turn.tokensIn,
+          tokensOut: turn.tokensOut,
+          durationMs: turn.durationMs,
+          toolCallCount: turn.toolCallCount,
           createdAt: turn.createdAt.toISOString(),
           ...(turn.toolCalls ? { toolCalls: turn.toolCalls } : {}),
           ...(turn.toolResults ? { toolResults: turn.toolResults } : {}),

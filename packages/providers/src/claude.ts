@@ -113,8 +113,30 @@ export class ClaudeProvider extends BaseLLMProvider {
 
     const stream = this.client.messages.stream(params);
 
+    let tokensIn = 0;
+    let tokensOut = 0;
+
     for await (const event of stream) {
-      if (event.type === "content_block_start") {
+      if (event.type === "message_start") {
+        const msg = (
+          event as unknown as {
+            message?: {
+              usage?: { input_tokens?: number; output_tokens?: number };
+            };
+          }
+        ).message;
+        if (msg?.usage) {
+          tokensIn = msg.usage.input_tokens ?? 0;
+          tokensOut = msg.usage.output_tokens ?? 0;
+        }
+      } else if (event.type === "message_delta") {
+        const delta = event as unknown as {
+          usage?: { output_tokens?: number };
+        };
+        if (delta.usage?.output_tokens) {
+          tokensOut = delta.usage.output_tokens;
+        }
+      } else if (event.type === "content_block_start") {
         const block = event.content_block;
         if (block.type === "text") {
           // text block start — nothing to yield yet
@@ -145,7 +167,11 @@ export class ClaudeProvider extends BaseLLMProvider {
       } else if (event.type === "content_block_stop") {
         // Could be end of text or tool_use — emit tool_use_end if needed
       } else if (event.type === "message_stop") {
-        yield { type: "done" };
+        yield {
+          type: "done",
+          usage: { tokensIn, tokensOut },
+          model,
+        };
       }
     }
   }

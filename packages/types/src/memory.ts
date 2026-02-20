@@ -82,5 +82,7 @@ export interface ConversationTurn {
   model?: string;
   tokensIn?: number;
   tokensOut?: number;
+  durationMs?: number;
+  toolCallCount?: number;
   createdAt: Date;
 }

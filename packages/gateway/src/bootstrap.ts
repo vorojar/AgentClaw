@@ -28,6 +28,7 @@ import { TaskScheduler } from "./scheduler.js";
 
 export interface AppContext {
   provider: LLMProvider;
+  visionProvider?: LLMProvider;
   orchestrator: Orchestrator;
   planner: Planner;
   toolRegistry: ToolRegistryImpl;
@@ -40,6 +41,8 @@ export interface AppContext {
 export interface AppRuntimeConfig {
   provider: string;
   model?: string;
+  visionProvider?: string;
+  visionModel?: string;
   databasePath: string;
   skillsDir: string;
 }
@@ -120,6 +123,42 @@ export async function bootstrap(): Promise<AppContext> {
   // Provider
   const { provider, providerName, model } = createProvider();
 
+  // Vision provider (optional, for multimodal image support)
+  let visionProvider: LLMProvider | undefined;
+  let visionProviderName: string | undefined;
+  let visionModelName: string | undefined;
+  const visionApiKey = process.env.VISION_API_KEY;
+  if (visionApiKey) {
+    const visionBaseURL = process.env.VISION_BASE_URL;
+    const visionModel = process.env.VISION_MODEL;
+    const visionProviderType = process.env.VISION_PROVIDER || "openai";
+
+    if (visionProviderType === "claude") {
+      visionProvider = new ClaudeProvider({
+        apiKey: visionApiKey,
+        defaultModel: visionModel,
+      });
+    } else if (visionProviderType === "gemini") {
+      visionProvider = new GeminiProvider({
+        apiKey: visionApiKey,
+        defaultModel: visionModel,
+      });
+    } else {
+      visionProvider = new OpenAICompatibleProvider({
+        apiKey: visionApiKey,
+        baseURL: visionBaseURL,
+        defaultModel: visionModel,
+        providerName: "vision",
+      });
+    }
+
+    visionProviderName = visionProviderType;
+    visionModelName = visionModel;
+    console.log(
+      `[bootstrap] Vision provider: ${visionProviderType}, model: ${visionModel ?? "default"}`,
+    );
+  }
+
   // Tool registry
   const toolRegistry = new ToolRegistryImpl();
   const builtinTools = createBuiltinTools();
@@ -189,6 +228,7 @@ ${toolDescriptions}
   // Orchestrator
   const orchestrator = new SimpleOrchestrator({
     provider,
+    visionProvider,
     toolRegistry,
     memoryStore,
     systemPrompt: process.env.SYSTEM_PROMPT || defaultSystemPrompt,
@@ -219,12 +259,15 @@ ${toolDescriptions}
   const config: AppRuntimeConfig = {
     provider: providerName,
     model,
+    visionProvider: visionProviderName,
+    visionModel: visionModelName,
     databasePath,
     skillsDir,
   };
 
   return {
     provider,
+    visionProvider,
     orchestrator,
     planner,
     toolRegistry,

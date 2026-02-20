@@ -7,6 +7,7 @@ export interface ScheduledTask {
   cron: string;
   action: string;
   enabled: boolean;
+  oneShot?: boolean;
   lastRunAt?: Date;
   nextRunAt?: Date;
 }
@@ -28,6 +29,7 @@ export class TaskScheduler {
     cron: string;
     action: string;
     enabled: boolean;
+    oneShot?: boolean;
   }): ScheduledTask {
     const id = generateId();
     const task: InternalTask = {
@@ -36,6 +38,7 @@ export class TaskScheduler {
       cron: input.cron,
       action: input.action,
       enabled: input.enabled,
+      oneShot: input.oneShot,
     };
 
     if (task.enabled) {
@@ -83,6 +86,14 @@ export class TaskScheduler {
       if (this.onTaskFire) {
         this.onTaskFire(this.toPublic(task));
       }
+      // One-shot tasks: stop and remove after firing
+      if (task.oneShot) {
+        if (task.job) task.job.stop();
+        this.tasks.delete(task.id);
+        console.log(
+          `[scheduler] One-shot task "${task.name}" (${task.id}) auto-removed`,
+        );
+      }
     });
 
     const nextRun = task.job.nextRun();
@@ -102,6 +113,7 @@ export class TaskScheduler {
       cron: task.cron,
       action: task.action,
       enabled: task.enabled,
+      oneShot: task.oneShot,
       lastRunAt: task.lastRunAt,
       nextRunAt,
     };

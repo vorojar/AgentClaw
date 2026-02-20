@@ -83,55 +83,153 @@ function chatMessageToDisplay(m: ChatMessage): DisplayMessage {
 }
 
 /* ────────────────────────────────────────────────────
-   Component: ToolCallCard
+   Helpers: format tool input / result
    ──────────────────────────────────────────────────── */
 
-function ToolCallCard({
-  entry,
-  onToggle,
-}: {
-  entry: ToolCallEntry;
-  onToggle: () => void;
-}) {
-  const hasResult = entry.toolResult !== undefined;
+function formatToolInput(input: string): string {
+  try {
+    const parsed = JSON.parse(input);
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return input;
+  }
+}
+
+function formatToolResult(result: string): string {
+  try {
+    const parsed = JSON.parse(result);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item: Record<string, unknown>) => {
+          if (item.content) return String(item.content);
+          return JSON.stringify(item, null, 2);
+        })
+        .join("\n");
+    }
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return result;
+  }
+}
+
+/* ────────────────────────────────────────────────────
+   Component: ToolCallCard
+   Collapsible card with fixed-height scrollable content,
+   similar to ChatGPT / Claude code-execution result blocks.
+   ──────────────────────────────────────────────────── */
+
+function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="tool-call-card">
-      <div className="tool-call-header" onClick={onToggle}>
-        <span
-          className={`tool-call-chevron ${entry.collapsed ? "" : "expanded"}`}
-        >
-          &#9654;
+    <div
+      style={{
+        margin: "8px 0",
+        border: "1px solid #3a3a3a",
+        borderRadius: "8px",
+        overflow: "hidden",
+        backgroundColor: "#1e1e1e",
+      }}
+    >
+      {/* Header – always visible, clickable */}
+      <div
+        onClick={() => setExpanded(!expanded)}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.backgroundColor = "#333";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.backgroundColor = "#2a2a2a";
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "8px 12px",
+          cursor: "pointer",
+          backgroundColor: "#2a2a2a",
+          userSelect: "none",
+          transition: "background-color 0.15s ease",
+        }}
+      >
+        <span style={{ fontSize: "14px", flexShrink: 0 }}>
+          {entry.toolResult !== undefined
+            ? entry.isError
+              ? "\u274C"
+              : "\u2705"
+            : "\u23F3"}
         </span>
-        <span className="tool-call-icon">&#128295;</span>
-        <span className="tool-call-name">{entry.toolName}</span>
-        {hasResult && (
-          <span
-            className={`tool-call-status badge ${entry.isError ? "badge-error" : "badge-success"}`}
-          >
-            {entry.isError ? "error" : "done"}
-          </span>
-        )}
-        {!hasResult && (
-          <span className="tool-call-status badge badge-warning">running</span>
-        )}
+        <span style={{ fontWeight: 500, color: "#e0e0e0", fontSize: "13px" }}>
+          {entry.toolName}
+        </span>
+        <span
+          style={{
+            marginLeft: "auto",
+            color: "#888",
+            fontSize: "12px",
+            transition: "transform 0.2s ease",
+            display: "inline-block",
+            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+          }}
+        >
+          {"\u25B6"}
+        </span>
       </div>
-      {!entry.collapsed && (
-        <div className="tool-call-body">
-          <div className="tool-call-input">
-            <div className="tool-call-section-label">Input</div>
-            <div className="tool-call-content">
-              {entry.toolInput || "(none)"}
-            </div>
-          </div>
-          {hasResult && (
-            <div className="tool-call-result">
-              <div className="tool-call-section-label">Result</div>
+
+      {/* Expandable content */}
+      {expanded && (
+        <div style={{ padding: "0 12px 12px" }}>
+          {/* Input section */}
+          {entry.toolInput && (
+            <div style={{ marginTop: "8px" }}>
               <div
-                className={`tool-call-content ${entry.isError ? "tool-result-error" : "tool-result-success"}`}
+                style={{ color: "#888", fontSize: "12px", marginBottom: "4px" }}
               >
-                {entry.toolResult}
+                Input
               </div>
+              <pre
+                style={{
+                  maxHeight: "150px",
+                  overflowY: "auto",
+                  backgroundColor: "#161616",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  fontSize: "13px",
+                  color: "#d4d4d4",
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {formatToolInput(entry.toolInput)}
+              </pre>
+            </div>
+          )}
+
+          {/* Result section */}
+          {entry.toolResult !== undefined && (
+            <div style={{ marginTop: "8px" }}>
+              <div
+                style={{ color: "#888", fontSize: "12px", marginBottom: "4px" }}
+              >
+                {entry.isError ? "Error" : "Output"}
+              </div>
+              <pre
+                style={{
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  backgroundColor: entry.isError ? "#2a1515" : "#161616",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  fontSize: "13px",
+                  color: entry.isError ? "#f48771" : "#d4d4d4",
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  borderLeft: entry.isError ? "3px solid #f48771" : "none",
+                }}
+              >
+                {formatToolResult(entry.toolResult)}
+              </pre>
             </div>
           )}
         </div>
@@ -475,21 +573,6 @@ export function ChatPage() {
     setIsSending(false);
   }, []);
 
-  /* ── Toggle tool call collapse ─────────────────── */
-  const toggleToolCall = useCallback((msgKey: string, toolId: number) => {
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.key !== msgKey) return m;
-        return {
-          ...m,
-          toolCalls: m.toolCalls.map((tc) =>
-            tc.id === toolId ? { ...tc, collapsed: !tc.collapsed } : tc,
-          ),
-        };
-      }),
-    );
-  }, []);
-
   /* ── Reconnect ─────────────────────────────────── */
   const handleReconnect = useCallback(() => {
     connectWs();
@@ -601,11 +684,7 @@ export function ChatPage() {
 
                       {/* Tool calls */}
                       {m.toolCalls.map((tc) => (
-                        <ToolCallCard
-                          key={tc.id}
-                          entry={tc}
-                          onToggle={() => toggleToolCall(m.key, tc.id)}
-                        />
+                        <ToolCallCard key={tc.id} entry={tc} />
                       ))}
                     </>
                   )}

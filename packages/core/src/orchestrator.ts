@@ -22,6 +22,7 @@ export class SimpleOrchestrator implements Orchestrator {
   private sessions = new Map<string, Session>();
   private turnCounters = new Map<string, number>();
   private provider: LLMProvider;
+  private visionProvider?: LLMProvider;
   private toolRegistry: ToolRegistryImpl;
   private memoryStore: MemoryStore;
   private memoryExtractor: MemoryExtractor;
@@ -31,6 +32,7 @@ export class SimpleOrchestrator implements Orchestrator {
 
   constructor(options: {
     provider: LLMProvider;
+    visionProvider?: LLMProvider;
     toolRegistry: ToolRegistryImpl;
     memoryStore: MemoryStore;
     agentConfig?: Partial<AgentConfig>;
@@ -38,6 +40,7 @@ export class SimpleOrchestrator implements Orchestrator {
     scheduler?: ToolExecutionContext["scheduler"];
   }) {
     this.provider = options.provider;
+    this.visionProvider = options.visionProvider;
     this.toolRegistry = options.toolRegistry;
     this.memoryStore = options.memoryStore;
     this.memoryExtractor = new MemoryExtractor({
@@ -111,7 +114,11 @@ export class SimpleOrchestrator implements Orchestrator {
       scheduler: this.scheduler,
     };
 
-    const loop = this.createAgentLoop();
+    const effectiveProvider =
+      hasImage(input) && this.visionProvider
+        ? this.visionProvider
+        : this.provider;
+    const loop = this.createAgentLoop(effectiveProvider);
     yield* loop.runStream(input, session.conversationId, mergedContext);
 
     // Background memory extraction: on the 1st turn and every N turns after
@@ -137,18 +144,25 @@ export class SimpleOrchestrator implements Orchestrator {
     this.sessions.delete(sessionId);
   }
 
-  private createAgentLoop(): SimpleAgentLoop {
+  private createAgentLoop(provider?: LLMProvider): SimpleAgentLoop {
+    const effectiveProvider = provider ?? this.provider;
     const contextManager = new SimpleContextManager({
       systemPrompt: this.systemPrompt,
       memoryStore: this.memoryStore,
     });
 
     return new SimpleAgentLoop({
-      provider: this.provider,
+      provider: effectiveProvider,
       toolRegistry: this.toolRegistry,
       contextManager,
       memoryStore: this.memoryStore,
       config: this.agentConfig,
     });
   }
+}
+
+/** Check whether the user input contains at least one image block */
+function hasImage(input: string | ContentBlock[]): boolean {
+  if (typeof input === "string") return false;
+  return input.some((b) => b.type === "image");
 }

@@ -50,6 +50,7 @@ export interface ToolExecutionContext {
       cron: string;
       action: string;
       enabled: boolean;
+      oneShot?: boolean;
     }): { id: string; name: string; nextRunAt?: Date };
     list(): Array<{
       id: string;

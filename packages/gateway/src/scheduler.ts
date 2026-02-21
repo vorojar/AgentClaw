@@ -18,9 +18,9 @@ interface InternalTask extends ScheduledTask {
 
 export class TaskScheduler {
   private tasks = new Map<string, InternalTask>();
-  private onTaskFire?: (task: ScheduledTask) => void;
+  private onTaskFire?: (task: ScheduledTask) => void | Promise<void>;
 
-  setOnTaskFire(callback: (task: ScheduledTask) => void): void {
+  setOnTaskFire(callback: (task: ScheduledTask) => void | Promise<void>): void {
     this.onTaskFire = callback;
   }
 

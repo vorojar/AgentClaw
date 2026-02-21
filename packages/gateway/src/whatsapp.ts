@@ -9,7 +9,6 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import qrcode from "qrcode-terminal";
 import type { AppContext } from "./bootstrap.js";
-import type { TaskScheduler } from "./scheduler.js";
 import type {
   Message,
   ContentBlock,
@@ -527,8 +526,7 @@ async function handleDocumentMessage(
  */
 export async function startWhatsAppBot(
   appCtx: AppContext,
-  scheduler?: TaskScheduler,
-): Promise<{ stop: () => void }> {
+): Promise<{ stop: () => void; broadcast: (text: string) => Promise<void> }> {
   const { join } = await import("node:path");
   const authDir = join(process.cwd(), "data", "whatsapp-auth");
 
@@ -687,23 +685,19 @@ export async function startWhatsAppBot(
   // Bind events on the initial socket
   bindEvents(sock);
 
-  // Wire up scheduled task notifications
-  if (scheduler) {
-    scheduler.setOnTaskFire((task) => {
-      for (const [jid] of chatSessionMap) {
-        botSendText(sock, jid, `⏰ 定时任务: ${task.action}`).catch((err) => {
-          console.error(`[whatsapp] Failed to notify ${jid}:`, err);
-        });
-      }
-    });
-  }
-
   console.log("[whatsapp] WhatsApp bot initializing... Scan the QR code with your phone.");
 
   return {
     stop: () => {
       stopped = true;
       sock.end(undefined);
+    },
+    broadcast: async (text: string) => {
+      for (const [jid] of chatSessionMap) {
+        await botSendText(sock, jid, text).catch((err) => {
+          console.error(`[whatsapp] Failed to broadcast to ${jid}:`, err);
+        });
+      }
     },
   };
 }

@@ -38,7 +38,7 @@ async function main(): Promise<void> {
   const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
   if (telegramToken) {
     try {
-      telegramBot = await startTelegramBot(telegramToken, ctx, ctx.scheduler);
+      telegramBot = await startTelegramBot(telegramToken, ctx);
     } catch (err) {
       console.error("[gateway] Failed to start Telegram bot:", err);
     }
@@ -49,11 +49,52 @@ async function main(): Promise<void> {
   const whatsappEnabled = process.env.WHATSAPP_ENABLED === "true";
   if (whatsappEnabled) {
     try {
-      whatsappBot = await startWhatsAppBot(ctx, ctx.scheduler);
+      whatsappBot = await startWhatsAppBot(ctx);
     } catch (err) {
       console.error("[gateway] Failed to start WhatsApp bot:", err);
     }
   }
+
+  // Scheduler: run orchestrator on task fire, broadcast results to all gateways
+  ctx.scheduler.setOnTaskFire(async (task) => {
+    console.log(
+      `[scheduler] Running task "${task.name}" through orchestrator...`,
+    );
+    try {
+      const session = await ctx.orchestrator.createSession();
+      let text = "";
+
+      for await (const event of ctx.orchestrator.processInputStream(
+        session.id,
+        task.action,
+      )) {
+        if (event.type === "response_chunk") {
+          text += (event.data as { text: string }).text;
+        }
+      }
+
+      if (!text.trim()) {
+        text = `✅ 定时任务「${task.name}」已执行完成。`;
+      }
+
+      // Broadcast to all active gateways
+      await telegramBot
+        ?.broadcast(text)
+        .catch((err) =>
+          console.error("[scheduler] Telegram broadcast failed:", err),
+        );
+      await whatsappBot
+        ?.broadcast(text)
+        .catch((err) =>
+          console.error("[scheduler] WhatsApp broadcast failed:", err),
+        );
+    } catch (err) {
+      const msg = `❌ 定时任务「${task.name}」执行失败: ${err instanceof Error ? err.message : String(err)}`;
+      console.error("[scheduler]", msg);
+      await telegramBot?.broadcast(msg).catch(() => {});
+      await whatsappBot?.broadcast(msg).catch(() => {});
+    }
+  });
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {

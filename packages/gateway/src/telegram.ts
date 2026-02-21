@@ -1,6 +1,5 @@
 import { Bot } from "grammy";
 import type { AppContext } from "./bootstrap.js";
-import type { TaskScheduler } from "./scheduler.js";
 import type {
   Message,
   ContentBlock,
@@ -106,8 +105,7 @@ function splitMessage(text: string, maxLen = 4096): string[] {
 export async function startTelegramBot(
   token: string,
   appCtx: AppContext,
-  scheduler?: TaskScheduler,
-): Promise<Bot> {
+): Promise<{ stop: () => void; broadcast: (text: string) => Promise<void> }> {
   const bot = new Bot(token);
 
   // ── /start ──────────────────────────────────────
@@ -579,18 +577,6 @@ export async function startTelegramBot(
     console.error("[telegram] Bot error:", err.message);
   });
 
-  // Wire up scheduled task notifications to Telegram
-  if (scheduler) {
-    scheduler.setOnTaskFire((task) => {
-      // Send to ALL active Telegram chats
-      for (const [chatId] of chatSessionMap) {
-        bot.api.sendMessage(chatId, `⏰ 定时任务: ${task.action}`).catch((err) => {
-          console.error(`[telegram] Failed to notify chat ${chatId}:`, err);
-        });
-      }
-    });
-  }
-
   // Start the bot
   await bot.init();
   console.log(
@@ -598,5 +584,14 @@ export async function startTelegramBot(
   );
   bot.start();
 
-  return bot;
+  return {
+    stop: () => bot.stop(),
+    broadcast: async (text: string) => {
+      for (const [chatId] of chatSessionMap) {
+        await bot.api.sendMessage(chatId, text).catch((err) => {
+          console.error(`[telegram] Failed to broadcast to ${chatId}:`, err);
+        });
+      }
+    },
+  };
 }

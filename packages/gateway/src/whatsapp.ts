@@ -657,10 +657,19 @@ export async function startWhatsAppBot(
               message.conversation ??
               message.extendedTextMessage?.text;
             if (text) {
-              // Handle /new command to reset session
-              if (text.trim() === "/new") {
+              // Handle commands
+              const trimmed = text.trim();
+              if (trimmed === "/new") {
                 chatSessionMap.delete(jid);
                 await botSendText(sock, jid, "🔄 New conversation started. Send me a message!");
+                continue;
+              }
+              if (trimmed === "/help") {
+                await botSendText(
+                  sock,
+                  jid,
+                  "👋 我是 AgentClaw — 你的 AI 助手。\n\n直接发消息即可对话，支持文字和图片。\n\n/new — 开始新对话\n/help — 显示此帮助",
+                );
                 continue;
               }
 

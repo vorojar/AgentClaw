@@ -17,8 +17,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agentclaw/types": "workspace:*",
-    "puppeteer-core": "^24.37.5"
+    "@agentclaw/types": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.4.0",

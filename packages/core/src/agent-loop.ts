@@ -337,6 +337,7 @@ export class SimpleAgentLoop implements AgentLoop {
       // Execute tool calls
       this.setState("tool_calling");
       let iterationErrorCount = 0;
+      let hasAutoComplete = false;
 
       for (const toolCall of toolCalls) {
         if (this.aborted) break;
@@ -376,6 +377,8 @@ export class SimpleAgentLoop implements AgentLoop {
           }
         }
 
+        if (result.autoComplete) hasAutoComplete = true;
+
         yield this.createEvent("tool_result", {
           name: toolCall.name,
           result,
@@ -410,6 +413,69 @@ export class SimpleAgentLoop implements AgentLoop {
         if (result.isError) iterationErrorCount++;
       }
 
+      // Drain sentFiles from context into accumulator
+      if (context?.sentFiles && context.sentFiles.length > 0) {
+        allSentFiles.push(...context.sentFiles);
+        context.sentFiles.length = 0;
+      }
+
+      // Auto-complete: tool signaled that no further LLM call is needed
+      if (hasAutoComplete && iterationErrorCount === 0) {
+        const durationMs = Date.now() - startTime;
+
+        // Build response from sent files
+        const filesMd = allSentFiles
+          .map((f) => {
+            const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(f.filename);
+            return isImage
+              ? `![${f.filename}](${f.url})`
+              : `[${f.filename}](${f.url})`;
+          })
+          .join("\n");
+        const responseText = filesMd || "Done.";
+
+        // Store assistant turn
+        const autoTurn: ConversationTurn = {
+          id: generateId(),
+          conversationId: convId,
+          role: "assistant",
+          content: responseText,
+          model: usedModel,
+          tokensIn: 0,
+          tokensOut: 0,
+          traceId: trace.id,
+          createdAt: new Date(),
+        };
+        await this.memoryStore.addTurn(convId, autoTurn);
+
+        // Persist trace
+        trace.response = responseText;
+        trace.model = usedModel;
+        trace.tokensIn = totalTokensIn;
+        trace.tokensOut = totalTokensOut;
+        trace.durationMs = durationMs;
+        try {
+          await this.memoryStore.addTrace(trace);
+        } catch (e) {
+          console.error("[agent-loop] Failed to persist trace:", e);
+        }
+
+        this.setState("idle");
+        const message: Message = {
+          id: generateId(),
+          role: "assistant",
+          content: responseText,
+          createdAt: new Date(),
+          model: usedModel,
+          tokensIn: totalTokensIn,
+          tokensOut: totalTokensOut,
+          durationMs,
+          toolCallCount: totalToolCalls,
+        };
+        yield this.createEvent("response_complete", { message });
+        return;
+      }
+
       // Track consecutive all-error iterations to avoid endless thrashing
       if (iterationErrorCount === toolCalls.length) {
         consecutiveErrors++;
@@ -421,12 +487,6 @@ export class SimpleAgentLoop implements AgentLoop {
         }
       } else {
         consecutiveErrors = 0;
-      }
-
-      // Drain sentFiles from context into accumulator
-      if (context?.sentFiles && context.sentFiles.length > 0) {
-        allSentFiles.push(...context.sentFiles);
-        context.sentFiles.length = 0;
       }
 
       // Loop back for next LLM call with tool results

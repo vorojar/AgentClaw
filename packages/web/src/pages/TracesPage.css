@@ -341,3 +341,30 @@
   overflow-y: auto;
   line-height: 1.5;
 }
+
+/* ── 复制按钮 ────────────────────────────── */
+
+.trace-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+  flex-shrink: 0;
+}
+
+.trace-copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(108, 158, 255, 0.08);
+}

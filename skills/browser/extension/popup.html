@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 280px;
+        padding: 16px;
+        font-family: system-ui, sans-serif;
+        font-size: 13px;
+      }
+      h3 {
+        margin: 0 0 12px;
+        font-size: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 4px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #1d4ed8;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        font-size: 12px;
+        color: #666;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .dot.on {
+        background: #22c55e;
+      }
+      .dot.off {
+        background: #ef4444;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>AgentClaw Browser Bridge</h3>
+
+    <label for="server">Server URL</label>
+    <input id="server" type="text" placeholder="ws://localhost:3100" />
+
+    <label for="apikey">API Key</label>
+    <input id="apikey" type="password" placeholder="Enter API key" />
+
+    <button id="save">Save</button>
+
+    <div class="status">
+      <div id="dot" class="dot off"></div>
+      <span id="statusText">Disconnected</span>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

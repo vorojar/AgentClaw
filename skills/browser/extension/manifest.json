@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "AgentClaw Browser Bridge",
+  "version": "1.0",
+  "description": "Bridge between AgentClaw and your browser",
+  "permissions": ["activeTab", "tabs", "scripting", "alarms", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

@@ -17,6 +17,7 @@ import { registerTokenLogRoutes } from "./routes/token-logs.js";
 import { registerTraceRoutes } from "./routes/traces.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 import { registerWebSocket } from "./ws.js";
+import { registerBrowserExtension } from "./routes/browser-ext.js";
 import { registerAuth } from "./auth.js";
 
 export interface ServerOptions {
@@ -58,6 +59,7 @@ export async function createServer(
 
   // Register WebSocket
   registerWebSocket(app, ctx);
+  registerBrowserExtension(app);
 
   // Serve generated files (images, documents, etc.) from data/tmp/
   const dataFilesDir = resolve(process.cwd(), "data", "tmp");

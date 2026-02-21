@@ -26,6 +26,8 @@ export interface ToolResult {
   content: string;
   isError?: boolean;
   metadata?: Record<string, unknown>;
+  /** Signal agent-loop to skip next LLM call and auto-complete the response */
+  autoComplete?: boolean;
 }
 
 /** Tool categories */

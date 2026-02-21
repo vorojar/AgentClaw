@@ -1,6 +1,7 @@
 import { execFile, execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import type { Tool, ToolResult } from "@agentclaw/types";
+import { basename } from "node:path";
+import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 const DEFAULT_TIMEOUT = 30_000;
 
@@ -127,15 +128,89 @@ export const shellInfo = {
   shell: detectedShell.shell,
 };
 
+/** Detect file paths pointing to data/tmp in a string */
+const FILE_PATH_RE =
+  /(?:[A-Za-z]:)?(?:\/[\w.@+-]+)*\/data\/tmp\/[\w.@+-]+\.(?:png|jpe?g|gif|webp|svg|bmp|mp4|mp3|wav|pdf|zip)/gi;
+
+function detectFilePaths(text: string): string[] {
+  const matches = text.match(FILE_PATH_RE) || [];
+  return [...new Set(matches)];
+}
+
+/** Execute the shell command and return a ToolResult */
+function runShell(
+  command: string,
+  timeout: number,
+  shellChoice?: string,
+): Promise<ToolResult> {
+  const useShell =
+    shellChoice === "powershell" && process.platform === "win32"
+      ? powershellConfig
+      : detectedShell;
+  const { shell, args } = useShell;
+
+  return new Promise<ToolResult>((resolve) => {
+    execFile(
+      shell,
+      args(command),
+      {
+        timeout,
+        maxBuffer: 10 * 1024 * 1024,
+        encoding: "buffer",
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8",
+          PYTHONUTF8: "1",
+        },
+      },
+      (error, stdout, stderr) => {
+        const stdoutStr = stdout ? decodeOutput(stdout) : "";
+        const stderrStr = stderr ? decodeOutput(stderr) : "";
+        const output = [stdoutStr, stderrStr].filter(Boolean).join("\n");
+
+        if (error) {
+          if (error.killed) {
+            resolve({
+              content: `Command timed out after ${timeout}ms\n${output}`,
+              isError: true,
+              metadata: { exitCode: null, timedOut: true },
+            });
+            return;
+          }
+
+          const hasOutput = stdoutStr.trim().length > 0;
+          resolve({
+            content: output || error.message,
+            isError: !hasOutput,
+            metadata: { exitCode: error.code ?? 1 },
+          });
+          return;
+        }
+
+        resolve({
+          content: output,
+          isError: false,
+          metadata: { exitCode: 0 },
+        });
+      },
+    );
+  });
+}
+
 export const shellTool: Tool = {
   name: "shell",
-  description: `Execute a ${detectedShell.name} command.${process.platform === "win32" && detectedShell.name === "bash" ? ' Use shell="powershell" for Windows-specific tasks.' : ""}`,
+  description: `Execute a ${detectedShell.name} command.${process.platform === "win32" && detectedShell.name === "bash" ? ' Use shell="powershell" for Windows-specific tasks.' : ""} Set auto_send=true to automatically deliver output files to the user.`,
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
       command: { type: "string" },
       timeout: { type: "number", default: DEFAULT_TIMEOUT },
+      auto_send: {
+        type: "boolean",
+        description:
+          "Automatically send output files to user. Skips the need for a separate send_file call.",
+      },
       ...(process.platform === "win32" && detectedShell.name === "bash"
         ? {
             shell: {
@@ -148,66 +223,40 @@ export const shellTool: Tool = {
     required: ["command"],
   },
 
-  async execute(input: Record<string, unknown>): Promise<ToolResult> {
+  async execute(
+    input: Record<string, unknown>,
+    context?: ToolExecutionContext,
+  ): Promise<ToolResult> {
     const command = input.command as string;
     const timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
     const shellChoice = input.shell as string | undefined;
+    const autoSend = input.auto_send as boolean | undefined;
 
-    // Use PowerShell directly when explicitly requested on Windows
-    const useShell =
-      shellChoice === "powershell" && process.platform === "win32"
-        ? powershellConfig
-        : detectedShell;
-    const { shell, args } = useShell;
+    const result = await runShell(command, timeout, shellChoice);
 
-    return new Promise<ToolResult>((resolve) => {
-      execFile(
-        shell,
-        args(command),
-        {
-          timeout,
-          maxBuffer: 10 * 1024 * 1024,
-          encoding: "buffer",
-          env: {
-            ...process.env,
-            PYTHONIOENCODING: "utf-8",
-            PYTHONUTF8: "1",
-          },
-        },
-        (error, stdout, stderr) => {
-          const stdoutStr = stdout ? decodeOutput(stdout) : "";
-          const stderrStr = stderr ? decodeOutput(stderr) : "";
-          const output = [stdoutStr, stderrStr].filter(Boolean).join("\n");
-
-          if (error) {
-            if (error.killed) {
-              resolve({
-                content: `Command timed out after ${timeout}ms\n${output}`,
-                isError: true,
-                metadata: { exitCode: null, timedOut: true },
-              });
-              return;
-            }
-
-            // If stdout has content, treat as success despite non-zero exit code.
-            // Many commands (e.g. PowerShell piped commands) return non-zero
-            // but still produce valid output.
-            const hasOutput = stdoutStr.trim().length > 0;
-            resolve({
-              content: output || error.message,
-              isError: !hasOutput,
-              metadata: { exitCode: error.code ?? 1 },
-            });
-            return;
+    // Auto-send: detect output files, send them, signal auto-complete
+    // Prefer paths from output (generated results); fallback to command (e.g. screenshot)
+    if (autoSend && !result.isError && context?.sendFile) {
+      let paths = detectFilePaths(result.content);
+      if (paths.length === 0) {
+        paths = detectFilePaths(command);
+      }
+      let sentCount = 0;
+      for (const filePath of paths) {
+        if (existsSync(filePath)) {
+          try {
+            await context.sendFile(filePath, basename(filePath));
+            sentCount++;
+          } catch {
+            // send failed — continue
           }
+        }
+      }
+      if (sentCount > 0) {
+        result.autoComplete = true;
+      }
+    }
 
-          resolve({
-            content: output,
-            isError: false,
-            metadata: { exitCode: 0 },
-          });
-        },
-      );
-    });
+    return result;
   },
 };

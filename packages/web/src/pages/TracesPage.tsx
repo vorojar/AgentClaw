@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  getTraces,
-  type TraceInfo,
-  type TraceStep,
-} from "../api/client";
+import { getTraces, type TraceInfo, type TraceStep } from "../api/client";
+import { getStoredApiKey } from "../auth";
 import "./TracesPage.css";
 
 const PAGE_SIZE = 20;
@@ -105,7 +102,8 @@ function LLMStep({ node }: { node: LLMNode }) {
       <div className="tl-body">
         <span className="tl-badge tl-badge-llm">LLM #{node.iteration}</span>
         <span className="tl-tokens">
-          {formatNumber(node.tokensIn)}&uarr; {formatNumber(node.tokensOut)}&darr;
+          {formatNumber(node.tokensIn)}&uarr; {formatNumber(node.tokensOut)}
+          &darr;
         </span>
       </div>
     </div>
@@ -116,13 +114,18 @@ function ToolStep({ node }: { node: ToolNode }) {
   const [expanded, setExpanded] = useState(false);
   const inputStr = node.input ? JSON.stringify(node.input) : "";
   const hasContent = !!(inputStr || node.content);
-  const statusIcon = node.content !== undefined
-    ? node.isError ? "\u2718" : "\u2714"
-    : "\u23F3";
+  const statusIcon =
+    node.content !== undefined
+      ? node.isError
+        ? "\u2718"
+        : "\u2714"
+      : "\u23F3";
 
   return (
     <div className={`tl-node tl-tool ${node.isError ? "tl-tool-error" : ""}`}>
-      <div className={`tl-dot ${node.isError ? "tl-dot-error" : "tl-dot-tool"}`} />
+      <div
+        className={`tl-dot ${node.isError ? "tl-dot-error" : "tl-dot-tool"}`}
+      />
       <div className="tl-body">
         <div
           className="tl-tool-header"
@@ -133,7 +136,9 @@ function ToolStep({ node }: { node: ToolNode }) {
           <span className="tl-badge tl-badge-tool">{node.name}</span>
           {!expanded && inputStr && (
             <span className="tl-preview">
-              {inputStr.length > 100 ? inputStr.slice(0, 100) + "\u2026" : inputStr}
+              {inputStr.length > 100
+                ? inputStr.slice(0, 100) + "\u2026"
+                : inputStr}
             </span>
           )}
           {hasContent && (
@@ -145,13 +150,19 @@ function ToolStep({ node }: { node: ToolNode }) {
             {inputStr && (
               <div className="tl-detail-section">
                 <div className="tl-detail-label">Input</div>
-                <pre className="tl-detail-pre">{JSON.stringify(node.input, null, 2)}</pre>
+                <pre className="tl-detail-pre">
+                  {JSON.stringify(node.input, null, 2)}
+                </pre>
               </div>
             )}
             {node.content && (
               <div className="tl-detail-section">
-                <div className="tl-detail-label">{node.isError ? "Error" : "Output"}</div>
-                <pre className={`tl-detail-pre ${node.isError ? "tl-detail-error" : ""}`}>
+                <div className="tl-detail-label">
+                  {node.isError ? "Error" : "Output"}
+                </div>
+                <pre
+                  className={`tl-detail-pre ${node.isError ? "tl-detail-error" : ""}`}
+                >
                   {node.content}
                 </pre>
               </div>
@@ -160,6 +171,67 @@ function ToolStep({ node }: { node: ToolNode }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** 复制 Trace API URL 到剪贴板 */
+function CopyTraceButton({ traceId }: { traceId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(
+    (e: React.MouseEvent) => {
+      // 阻止事件冒泡，避免触发卡片展开/折叠
+      e.stopPropagation();
+      const apiKey = getStoredApiKey();
+      const origin = window.location.origin;
+      const url = apiKey
+        ? `${origin}/api/traces/${traceId}?api_key=${encodeURIComponent(apiKey)}`
+        : `${origin}/api/traces/${traceId}`;
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      });
+    },
+    [traceId],
+  );
+
+  return (
+    <button
+      className="trace-copy-btn"
+      onClick={handleCopy}
+      title={copied ? "已复制" : "复制 Trace URL"}
+    >
+      {copied ? (
+        // 已复制：对勾图标
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M3 8.5L6.5 12L13 4"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        // 复制图标
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <rect
+            x="5"
+            y="5"
+            width="9"
+            height="9"
+            rx="1.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        </svg>
+      )}
+    </button>
   );
 }
 
@@ -182,9 +254,12 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
           <span className="trace-tokens">
             {formatNumber(trace.tokensIn + trace.tokensOut)} tok
           </span>
-          <span className="trace-duration">{formatDuration(trace.durationMs)}</span>
+          <span className="trace-duration">
+            {formatDuration(trace.durationMs)}
+          </span>
           <code className="model-name">{trace.model ?? "\u2014"}</code>
           <span className="trace-time">{formatTime(trace.createdAt)}</span>
+          <CopyTraceButton traceId={trace.id} />
         </div>
       </div>
 

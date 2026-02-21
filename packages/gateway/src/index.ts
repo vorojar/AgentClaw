@@ -4,6 +4,8 @@ import { createServer } from "./server.js";
 import { TaskScheduler } from "./scheduler.js";
 import { startTelegramBot } from "./telegram.js";
 import { startWhatsAppBot } from "./whatsapp.js";
+import { HeartbeatManager } from "./heartbeat.js";
+import { getWsClients } from "./ws.js";
 
 export { bootstrap } from "./bootstrap.js";
 export type { AppContext, AppRuntimeConfig } from "./bootstrap.js";
@@ -13,6 +15,8 @@ export { TaskScheduler } from "./scheduler.js";
 export type { ScheduledTask } from "./scheduler.js";
 export { startTelegramBot } from "./telegram.js";
 export { startWhatsAppBot } from "./whatsapp.js";
+export { HeartbeatManager } from "./heartbeat.js";
+export type { HeartbeatConfig, HeartbeatDeps } from "./heartbeat.js";
 
 async function main(): Promise<void> {
   const port = parseInt(process.env.PORT || "3100", 10);
@@ -55,6 +59,24 @@ async function main(): Promise<void> {
     }
   }
 
+  // Unified broadcast: send text to all active gateways (Telegram + WhatsApp + WebSocket)
+  const broadcastAll = async (text: string) => {
+    await telegramBot
+      ?.broadcast(text)
+      .catch((err) => console.error("[broadcast] Telegram failed:", err));
+    await whatsappBot
+      ?.broadcast(text)
+      .catch((err) => console.error("[broadcast] WhatsApp failed:", err));
+    // Broadcast to all WebSocket clients
+    for (const ws of getWsClients()) {
+      try {
+        ws.send(JSON.stringify({ type: "broadcast", text }));
+      } catch {
+        // client may have disconnected
+      }
+    }
+  };
+
   // Scheduler: run orchestrator on task fire, broadcast results to all gateways
   ctx.scheduler.setOnTaskFire(async (task) => {
     console.log(
@@ -77,28 +99,33 @@ async function main(): Promise<void> {
         text = `✅ 定时任务「${task.name}」已执行完成。`;
       }
 
-      // Broadcast to all active gateways
-      await telegramBot
-        ?.broadcast(text)
-        .catch((err) =>
-          console.error("[scheduler] Telegram broadcast failed:", err),
-        );
-      await whatsappBot
-        ?.broadcast(text)
-        .catch((err) =>
-          console.error("[scheduler] WhatsApp broadcast failed:", err),
-        );
+      await broadcastAll(text);
     } catch (err) {
       const msg = `❌ 定时任务「${task.name}」执行失败: ${err instanceof Error ? err.message : String(err)}`;
       console.error("[scheduler]", msg);
-      await telegramBot?.broadcast(msg).catch(() => {});
-      await whatsappBot?.broadcast(msg).catch(() => {});
+      await broadcastAll(msg);
     }
   });
+
+  // Heartbeat: periodic self-check for pending tasks/reminders
+  const heartbeat = new HeartbeatManager(
+    {
+      enabled: process.env.HEARTBEAT_ENABLED === "true",
+      intervalMinutes: parseInt(process.env.HEARTBEAT_INTERVAL || "5", 10),
+    },
+    {
+      orchestrator: ctx.orchestrator,
+      scheduler: ctx.scheduler,
+      memoryStore: ctx.memoryStore,
+      broadcast: broadcastAll,
+    },
+  );
+  heartbeat.start();
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`[gateway] Received ${signal}, shutting down...`);
+    heartbeat.stop();
     telegramBot?.stop();
     whatsappBot?.stop();
     ctx.scheduler.stopAll();

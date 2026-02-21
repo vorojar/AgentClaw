@@ -33,8 +33,17 @@ function extractToolCalls(
     .map((b) => ({ name: b.name, input: b.input }));
 }
 
+const wsClients = new Set<import("ws").WebSocket>();
+
+/** Get all active WebSocket clients for broadcasting */
+export function getWsClients(): Set<import("ws").WebSocket> {
+  return wsClients;
+}
+
 export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
   app.get("/ws", { websocket: true }, (socket, req) => {
+    wsClients.add(socket);
+    socket.on("close", () => wsClients.delete(socket));
     const sessionId = (req.query as Record<string, string>).sessionId;
 
     if (!sessionId) {

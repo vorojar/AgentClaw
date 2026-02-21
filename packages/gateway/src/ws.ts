@@ -1,6 +1,11 @@
+import { basename } from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
-import type { ContentBlock, Message } from "@agentclaw/types";
+import type {
+  ContentBlock,
+  Message,
+  ToolExecutionContext,
+} from "@agentclaw/types";
 
 function extractTextFromMessage(message: Message): string {
   if (typeof message.content === "string") return message.content;
@@ -77,10 +82,20 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           return;
         }
 
+        // Build tool execution context with sendFile support
+        const context: ToolExecutionContext = {
+          sendFile: async (filePath: string) => {
+            const filename = basename(filePath);
+            const url = `/files/${encodeURIComponent(filename)}`;
+            socket.send(JSON.stringify({ type: "file", url, filename }));
+          },
+        };
+
         // Use processInputStream for streaming events
         const eventStream = ctx.orchestrator.processInputStream(
           sessionId,
           parsed.content,
+          context,
         );
 
         // Usage stats to send with the "done" message

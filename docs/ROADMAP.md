@@ -233,6 +233,30 @@
 - [x] 最多重试 2 次，指数退避（2s、4s）
 - [x] 重试成功立即返回，无需 LLM 重新决策
 
+### 6.5 Token Optimization（Token 优化）✅
+- [x] 去掉 system prompt 中重复的工具描述（LLM 已通过 `tools` API 参数获取结构化定义）
+- [x] 动态工具筛选：7 个核心工具始终发送，8 组专业工具按用户输入关键词触发，首轮筛选后续迭代全量
+- [x] 每轮对话节省约 2000 tokens
+
+### 6.6 Skills Hot-Reload（技能热加载）✅
+- [x] `SkillRegistryImpl.watchDirectory()`：`fs.watch` 递归监听 skills 目录
+- [x] 文件新增/修改/删除自动加载/移除，300ms 去抖动
+- [x] `loadSkillFile()` 提取为独立方法，支持单文件重载
+- [x] watcher.unref() 不阻止进程退出
+
+### 6.7 Skill Self-Creation（技能自创建）✅
+- [x] `create_skill` 内置工具：LLM 可创建新技能（name / description / triggers / instructions）
+- [x] 自动生成 `skills/{name}/SKILL.md`，热加载立即生效
+- [x] System prompt 引导：完成非平凡任务后询问用户"要保存为技能吗？"
+- [x] 只保存提炼后的正确路径（不含失败尝试），写成可直接复用的配方
+- [x] 已加入动态工具筛选的专业工具列表
+
+### 6.8 Browser CDP（浏览器 CDP 模式）✅
+- [x] 浏览器工具从 puppeteer.launch() 改为 CDP 连接用户真实 Chrome/Edge
+- [x] 自动检测并连接 `127.0.0.1:9222`，连不上则自动启动 Chrome 带 `--remote-debugging-port`
+- [x] 操作用户真实浏览器：密码、cookies、扩展、登录态全部保留
+- [x] `close` 只关我们的标签页 + 断开 CDP，不关整个浏览器
+
 ---
 
 ## 竞品对比：AgentClaw vs LobsterAI（网易有道）
@@ -246,7 +270,7 @@
 | **Office 文档生成** | DOCX / XLSX / PPTX / PDF 全套内置 | 无 | LobsterAI 完胜 |
 | **视频生成** | Remotion 程序化生成视频 | 无 | LobsterAI 完胜 |
 | **IM 远程操控** | 钉钉 + 飞书 + Telegram + Discord (4个) | Telegram (1个) | LobsterAI 覆盖广（尤其国内 IM） |
-| **技能自扩展** | skill-creator 让 AI 自己创建新技能并热加载 | Skills 系统已接入但无自创建 | LobsterAI 更高级 |
+| **技能自扩展** | skill-creator 让 AI 自己创建新技能并热加载 | **create_skill 工具 + 热加载 + 用户确认 + 提炼正确路径** | **持平**（我们多了用户确认和智能提炼） |
 | **记忆系统** | 5 种记忆类型 + 置信度排序 + 可调严格度 + LLM 判断过滤 | MemoryExtractor + 向量搜索 | LobsterAI 分类更精细；AgentClaw 有向量搜索 |
 | **权限门控** | 敏感操作弹窗确认 | 无 | LobsterAI 更安全 |
 | **Artifacts 预览** | HTML / SVG / Mermaid / React 组件实时渲染 | 无 | LobsterAI 前端体验好 |
@@ -265,7 +289,7 @@
 
 1. **沙箱执行** — 让 agent 安全执行任意代码，是能力天花板的关键
 2. **Office 文档生成** — DOCX/XLSX/PPTX 高频刚需，加上就是巨大实用性提升
-3. **技能自创建** — 让 AI 自己写新技能并热加载，指数级扩展能力
+3. ~~**技能自创建**~~ ✅ 已实现（create_skill + 热加载 + 用户确认）
 4. **更多 IM 网关** — 钉钉、飞书对国内用户至关重要
 5. **权限门控** — 敏感操作需用户确认，提升安全性
 6. **Artifacts 渲染** — 前端实时预览 HTML/SVG/Mermaid/React
@@ -274,10 +298,14 @@
 
 ## Current Focus（当前重点）
 
-**Phase 6 完成！** ComfyUI 集成、Skills 激活、Planner 集成、工具重试均已实现。浏览器工具已升级为 CDP 模式（连接用户真实 Chrome）。
+**Phase 6 持续推进中。** 本轮完成：
+- Token 优化（去重 + 动态筛选，每轮省 ~2000 tokens）
+- Skills 热加载（fs.watch + 去抖动）
+- 技能自创建（create_skill + 用户确认 + 智能提炼）
+- 浏览器 CDP 模式（连接用户真实 Chrome，保留登录态）
 
-下一步优先方向（参考竞品对比）：
+下一步优先方向：
 - 沙箱执行环境
 - Office 文档生成工具（DOCX/XLSX/PPTX）
-- 技能自创建（skill-creator）
 - 更多 IM 网关（钉钉、飞书、Discord）
+- 权限门控

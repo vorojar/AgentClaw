@@ -587,6 +587,39 @@ export function ChatPage() {
         break;
       }
 
+      case "file": {
+        const fileUrl = msg.url ?? "";
+        const fileName = msg.filename ?? "file";
+        const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(fileName);
+
+        const fileContent = isImage
+          ? `![${fileName}](${fileUrl})`
+          : `[${fileName}](${fileUrl})`;
+
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === "assistant" && last.streaming) {
+            const updated = {
+              ...last,
+              content: last.content
+                ? last.content + "\n" + fileContent
+                : fileContent,
+            };
+            return [...prev.slice(0, -1), updated];
+          } else {
+            const newMsg: DisplayMessage = {
+              key: nextKey(),
+              role: "assistant",
+              content: fileContent,
+              streaming: true,
+              toolCalls: [],
+            };
+            return [...prev, newMsg];
+          }
+        });
+        break;
+      }
+
       case "done": {
         setMessages((prev) => {
           const last = prev[prev.length - 1];

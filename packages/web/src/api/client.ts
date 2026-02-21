@@ -249,12 +249,14 @@ export function deleteScheduledTask(id: string): Promise<void> {
 // ── WebSocket ───────────────────────────────────────
 
 export interface WSMessage {
-  type: "text" | "tool_call" | "tool_result" | "done" | "error";
+  type: "text" | "tool_call" | "tool_result" | "done" | "error" | "file";
   text?: string;
   toolName?: string;
   toolInput?: string;
   toolResult?: string;
   error?: string;
+  url?: string;
+  filename?: string;
   model?: string;
   tokensIn?: number;
   tokensOut?: number;

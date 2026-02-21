@@ -386,7 +386,7 @@ export class SimpleAgentLoop implements AgentLoop {
       keywords: [
         "画",
         "图片",
-        "生成图",
+        "生成",
         "图像",
         "去背景",
         "放大",
@@ -396,6 +396,10 @@ export class SimpleAgentLoop implements AgentLoop {
         "draw",
         "壁纸",
         "头像",
+        "照片",
+        "插画",
+        "海报",
+        "comfyui",
       ],
     },
     {

@@ -51,6 +51,17 @@ export async function createServer(
   // Register WebSocket
   registerWebSocket(app, ctx);
 
+  // Serve generated files (images, documents, etc.) from data/tmp/
+  const dataFilesDir = resolve(process.cwd(), "data", "tmp");
+  if (existsSync(dataFilesDir)) {
+    await app.register(fastifyStatic, {
+      root: dataFilesDir,
+      prefix: "/files/",
+      decorateReply: false,
+    });
+    console.log("[server] Serving generated files from", dataFilesDir);
+  }
+
   // Serve Web UI static files (built by @agentclaw/web)
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const webDistDir = resolve(__dirname, "../../web/dist");

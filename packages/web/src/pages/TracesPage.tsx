@@ -36,64 +36,137 @@ function parseSteps(steps: TraceStep[] | string): TraceStep[] {
   return steps ?? [];
 }
 
-function StepRow({ step }: { step: TraceStep }) {
+/** Group raw steps into a structured timeline:
+ *  - llm_call → standalone node
+ *  - tool_call + tool_result → merged into one ToolNode */
+interface LLMNode {
+  kind: "llm";
+  iteration: number;
+  tokensIn: number;
+  tokensOut: number;
+}
+
+interface ToolNode {
+  kind: "tool";
+  name: string;
+  input?: Record<string, unknown>;
+  content?: string;
+  isError?: boolean;
+}
+
+type TimelineNode = LLMNode | ToolNode;
+
+function buildTimeline(steps: TraceStep[]): TimelineNode[] {
+  const nodes: TimelineNode[] = [];
+  let i = 0;
+  while (i < steps.length) {
+    const step = steps[i];
+    if (step.type === "llm_call") {
+      nodes.push({
+        kind: "llm",
+        iteration: step.iteration ?? 0,
+        tokensIn: step.tokensIn ?? 0,
+        tokensOut: step.tokensOut ?? 0,
+      });
+      i++;
+    } else if (step.type === "tool_call") {
+      const node: ToolNode = {
+        kind: "tool",
+        name: step.name ?? "unknown",
+        input: step.input,
+      };
+      // Look ahead for matching tool_result
+      if (i + 1 < steps.length && steps[i + 1].type === "tool_result") {
+        node.content = steps[i + 1].content;
+        node.isError = steps[i + 1].isError;
+        i += 2;
+      } else {
+        i++;
+      }
+      nodes.push(node);
+    } else {
+      // orphan tool_result
+      nodes.push({
+        kind: "tool",
+        name: step.name ?? "unknown",
+        content: step.content,
+        isError: step.isError,
+      });
+      i++;
+    }
+  }
+  return nodes;
+}
+
+function LLMStep({ node }: { node: LLMNode }) {
+  return (
+    <div className="tl-node tl-llm">
+      <div className="tl-dot tl-dot-llm" />
+      <div className="tl-body">
+        <span className="tl-badge tl-badge-llm">LLM #{node.iteration}</span>
+        <span className="tl-tokens">
+          {formatNumber(node.tokensIn)}&uarr; {formatNumber(node.tokensOut)}&darr;
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ToolStep({ node }: { node: ToolNode }) {
   const [expanded, setExpanded] = useState(false);
+  const inputStr = node.input ? JSON.stringify(node.input) : "";
+  const hasContent = !!(inputStr || node.content);
+  const statusIcon = node.content !== undefined
+    ? node.isError ? "\u2718" : "\u2714"
+    : "\u23F3";
 
-  if (step.type === "llm_call") {
-    return (
-      <div className="trace-step trace-step-llm">
-        <span className="step-icon">LLM</span>
-        <span className="step-detail">
-          {formatNumber(step.tokensIn ?? 0)} in / {formatNumber(step.tokensOut ?? 0)} out
-        </span>
-      </div>
-    );
-  }
-
-  if (step.type === "tool_call") {
-    const inputStr = step.input ? JSON.stringify(step.input) : "";
-    return (
-      <div className="trace-step trace-step-call">
-        <span className="step-icon step-icon-call" onClick={() => inputStr && setExpanded(!expanded)}>
-          {expanded ? "\u25BC" : "\u25B6"} {step.name}
-        </span>
-        {!expanded && inputStr.length > 0 && (
-          <span className="step-preview">{inputStr.slice(0, 80)}{inputStr.length > 80 ? "..." : ""}</span>
-        )}
-        {expanded && (
-          <pre className="step-expanded">{JSON.stringify(step.input, null, 2)}</pre>
-        )}
-      </div>
-    );
-  }
-
-  if (step.type === "tool_result") {
-    const content = step.content ?? "";
-    return (
-      <div className={`trace-step trace-step-result ${step.isError ? "trace-step-error" : ""}`}>
-        <span
-          className="step-icon step-icon-result"
-          onClick={() => content && setExpanded(!expanded)}
+  return (
+    <div className={`tl-node tl-tool ${node.isError ? "tl-tool-error" : ""}`}>
+      <div className={`tl-dot ${node.isError ? "tl-dot-error" : "tl-dot-tool"}`} />
+      <div className="tl-body">
+        <div
+          className="tl-tool-header"
+          onClick={() => hasContent && setExpanded(!expanded)}
+          style={{ cursor: hasContent ? "pointer" : "default" }}
         >
-          {step.isError ? "\u2717" : "\u2713"} {step.name}
-        </span>
-        {!expanded && content.length > 0 && (
-          <span className="step-preview">{content.slice(0, 100)}{content.length > 100 ? "..." : ""}</span>
+          <span className="tl-status-icon">{statusIcon}</span>
+          <span className="tl-badge tl-badge-tool">{node.name}</span>
+          {!expanded && inputStr && (
+            <span className="tl-preview">
+              {inputStr.length > 100 ? inputStr.slice(0, 100) + "\u2026" : inputStr}
+            </span>
+          )}
+          {hasContent && (
+            <span className="tl-chevron">{expanded ? "\u25BC" : "\u25B6"}</span>
+          )}
+        </div>
+        {expanded && (
+          <div className="tl-detail">
+            {inputStr && (
+              <div className="tl-detail-section">
+                <div className="tl-detail-label">Input</div>
+                <pre className="tl-detail-pre">{JSON.stringify(node.input, null, 2)}</pre>
+              </div>
+            )}
+            {node.content && (
+              <div className="tl-detail-section">
+                <div className="tl-detail-label">{node.isError ? "Error" : "Output"}</div>
+                <pre className={`tl-detail-pre ${node.isError ? "tl-detail-error" : ""}`}>
+                  {node.content}
+                </pre>
+              </div>
+            )}
+          </div>
         )}
-        {expanded && <pre className="step-expanded">{content}</pre>}
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
 
 function TraceCard({ trace }: { trace: TraceInfo }) {
   const [expanded, setExpanded] = useState(false);
   const steps = parseSteps(trace.steps);
-  const skillMatch = trace.skillMatch
-    ? (() => { try { return JSON.parse(trace.skillMatch); } catch { return null; } })()
-    : null;
+  const timeline = buildTimeline(steps);
 
   return (
     <div className="card trace-card">
@@ -103,9 +176,6 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
           <span className="trace-input">{trace.userInput}</span>
         </div>
         <div className="trace-card-meta">
-          {skillMatch && (
-            <span className="badge badge-info">{skillMatch.name}</span>
-          )}
           {trace.error && (
             <span className="badge badge-error">{trace.error}</span>
           )}
@@ -113,18 +183,22 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
             {formatNumber(trace.tokensIn + trace.tokensOut)} tok
           </span>
           <span className="trace-duration">{formatDuration(trace.durationMs)}</span>
-          <code className="model-name">{trace.model ?? "—"}</code>
+          <code className="model-name">{trace.model ?? "\u2014"}</code>
           <span className="trace-time">{formatTime(trace.createdAt)}</span>
         </div>
       </div>
 
       {expanded && (
         <div className="trace-card-body">
-          {/* Steps */}
-          <div className="trace-steps">
-            {steps.map((step, i) => (
-              <StepRow key={i} step={step} />
-            ))}
+          {/* Timeline */}
+          <div className="tl-timeline">
+            {timeline.map((node, i) =>
+              node.kind === "llm" ? (
+                <LLMStep key={i} node={node} />
+              ) : (
+                <ToolStep key={i} node={node} />
+              ),
+            )}
           </div>
 
           {/* Response */}

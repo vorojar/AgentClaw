@@ -58,7 +58,8 @@
   gap: 8px;
 }
 
-/* Trace card */
+/* ── Trace card ───────────────────────────── */
+
 .trace-card {
   padding: 0;
   overflow: hidden;
@@ -126,79 +127,171 @@
   white-space: nowrap;
 }
 
-/* Expanded body */
+/* ── Expanded body ────────────────────────── */
+
 .trace-card-body {
   border-top: 1px solid var(--border);
-  padding: 12px 16px;
+  padding: 16px 16px 16px 20px;
 }
 
-.trace-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* ── Timeline ─────────────────────────────── */
+
+.tl-timeline {
+  position: relative;
+  padding-left: 20px;
 }
 
-.trace-step {
+/* Vertical connecting line */
+.tl-timeline::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--border);
+}
+
+.tl-node {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 13px;
+  gap: 10px;
+  padding: 6px 0;
 }
 
-.step-icon {
+/* Timeline dots */
+.tl-dot {
+  position: absolute;
+  left: -20px;
+  top: 10px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.tl-dot-llm {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(108, 158, 255, 0.2);
+}
+
+.tl-dot-tool {
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(52, 168, 83, 0.2);
+}
+
+.tl-dot-error {
+  background: var(--error);
+  box-shadow: 0 0 0 3px rgba(234, 67, 53, 0.2);
+}
+
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── LLM step ─────────────────────────────── */
+
+.tl-llm .tl-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tl-badge {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: 4px;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.trace-step-llm .step-icon {
-  background: rgba(108, 158, 255, 0.15);
+.tl-badge-llm {
+  background: rgba(108, 158, 255, 0.12);
   color: var(--accent);
 }
 
-.step-icon-call {
-  background: rgba(251, 188, 4, 0.15);
-  color: var(--warning);
-  cursor: pointer;
+.tl-tokens {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
-.step-icon-result {
-  cursor: pointer;
+/* ── Tool step ────────────────────────────── */
+
+.tl-tool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.trace-step-result:not(.trace-step-error) .step-icon-result {
-  background: rgba(52, 168, 83, 0.15);
+.tl-status-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.tl-tool:not(.tl-tool-error) .tl-status-icon {
   color: var(--success);
 }
 
-.trace-step-error .step-icon-result {
-  background: rgba(234, 67, 53, 0.15);
+.tl-tool-error .tl-status-icon {
   color: var(--error);
 }
 
-.step-detail {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  padding-top: 2px;
+.tl-badge-tool {
+  background: rgba(251, 188, 4, 0.12);
+  color: var(--warning);
 }
 
-.step-preview {
+.tl-preview {
   font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-top: 2px;
   min-width: 0;
+  flex: 1;
 }
 
-.step-expanded {
-  margin-top: 6px;
+.tl-chevron {
+  font-size: 9px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: transform 0.15s;
+}
+
+/* ── Tool detail (expanded) ───────────────── */
+
+.tl-detail {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tl-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tl-detail-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tl-detail-pre {
+  margin: 0;
   padding: 8px 12px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -207,21 +300,26 @@
   font-size: 12px;
   color: var(--text-secondary);
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
   max-height: 200px;
   overflow-y: auto;
-  width: 100%;
 }
 
-/* Response section */
+.tl-detail-error {
+  border-color: rgba(234, 67, 53, 0.3);
+  color: var(--error);
+}
+
+/* ── Response section ─────────────────────── */
+
 .trace-response {
-  margin-top: 12px;
-  border-top: 1px solid var(--border);
+  margin-top: 16px;
   padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .trace-section-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -230,7 +328,8 @@
 }
 
 .trace-response-text {
-  padding: 8px 12px;
+  margin: 0;
+  padding: 10px 14px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -238,6 +337,7 @@
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
+  line-height: 1.5;
 }

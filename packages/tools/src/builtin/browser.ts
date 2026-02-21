@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import type { Tool, ToolResult } from "@agentclaw/types";
 
@@ -9,6 +9,8 @@ import type { Tool, ToolResult } from "@agentclaw/types";
 // ---------------------------------------------------------------------------
 
 const MAX_CONTENT_LENGTH = 50_000;
+/** Shorter limit for auto-extracted content on open (saves tokens) */
+const MAX_OPEN_CONTENT_LENGTH = 8_000;
 const SCREENSHOT_DIR = resolve(process.cwd(), "data", "tmp");
 const DEFAULT_NAVIGATION_TIMEOUT = 30_000;
 const CDP_PORT = 9222;
@@ -63,12 +65,43 @@ function detectBrowserPath(): string | undefined {
   return undefined;
 }
 
+/** Persistent profile dir for fallback Chrome instance (preserves cookies between sessions) */
+const FALLBACK_PROFILE_DIR = resolve(process.cwd(), "data", "chrome-profile");
+
+/** Check if a Chrome/Edge process is already running */
+function isChromeRunning(): boolean {
+  try {
+    if (process.platform === "win32") {
+      const out = execSync("tasklist /FI \"IMAGENAME eq chrome.exe\" /NH", {
+        timeout: 3000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).toString();
+      if (out.includes("chrome.exe")) return true;
+      const out2 = execSync("tasklist /FI \"IMAGENAME eq msedge.exe\" /NH", {
+        timeout: 3000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).toString();
+      return out2.includes("msedge.exe");
+    }
+    // macOS / Linux
+    const out = execSync("pgrep -f '(chrome|chromium|msedge)' || true", {
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).toString();
+    return out.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Connect to the user's real Chrome/Edge via CDP.
+ * Connect to Chrome via CDP.
  *
+ * Strategy:
  * 1. Try connecting to an already-running CDP endpoint.
- * 2. If unavailable, launch Chrome with --remote-debugging-port so we
- *    attach to the user's real profile (passwords, cookies, extensions).
+ * 2. If Chrome is NOT running → launch with CDP + user's default profile (full cookies).
+ * 3. If Chrome IS running (without CDP) → launch a SEPARATE instance with CDP +
+ *    a dedicated profile dir. Cookies from bot sessions persist in this profile.
  */
 async function ensureConnected(): Promise<Browser> {
   if (browser?.connected) return browser;
@@ -83,10 +116,9 @@ async function ensureConnected(): Promise<Browser> {
     console.log("[browser] Connected to existing Chrome CDP");
     return browser;
   } catch {
-    // Not available — launch Chrome ourselves
+    // Not available — need to launch
   }
 
-  // 2. Launch Chrome with CDP enabled
   const executablePath = detectBrowserPath();
   if (!executablePath) {
     throw new Error(
@@ -94,20 +126,47 @@ async function ensureConnected(): Promise<Browser> {
     );
   }
 
-  console.log(`[browser] Launching Chrome with CDP on port ${CDP_PORT}...`);
-  const child = spawn(
-    executablePath,
-    [`--remote-debugging-port=${CDP_PORT}`],
-    { detached: true, stdio: "ignore" },
-  );
-  child.unref();
+  const chromeRunning = isChromeRunning();
 
-  // 3. Wait for CDP to become available
+  if (chromeRunning) {
+    // 3. Chrome is running without CDP → launch separate instance with dedicated profile
+    console.log(
+      "[browser] Chrome already running. Launching separate instance with dedicated profile...",
+    );
+    try {
+      mkdirSync(FALLBACK_PROFILE_DIR, { recursive: true });
+    } catch { /* may exist */ }
+
+    const child = spawn(
+      executablePath,
+      [
+        `--remote-debugging-port=${CDP_PORT}`,
+        `--user-data-dir=${FALLBACK_PROFILE_DIR}`,
+        "--no-first-run",
+        "--no-default-browser-check",
+      ],
+      { detached: true, stdio: "ignore" },
+    );
+    child.unref();
+  } else {
+    // 2. Chrome is not running → launch with CDP, inherits default profile
+    console.log("[browser] Launching Chrome with CDP on default profile...");
+    const child = spawn(
+      executablePath,
+      [`--remote-debugging-port=${CDP_PORT}`],
+      { detached: true, stdio: "ignore" },
+    );
+    child.unref();
+  }
+
+  // Wait for CDP to become available
   for (let i = 0; i < 15; i++) {
     await sleep(500);
     try {
       browser = await puppeteer.connect({ browserURL: CDP_URL });
-      console.log("[browser] Connected to Chrome CDP");
+      console.log(
+        `[browser] Connected to Chrome CDP${chromeRunning ? " (dedicated profile)" : ""}`,
+      );
       return browser;
     } catch {
       // not ready yet
@@ -115,7 +174,7 @@ async function ensureConnected(): Promise<Browser> {
   }
 
   throw new Error(
-    "无法连接到 Chrome 调试端口。如果 Chrome 已在运行，请先关闭所有 Chrome 窗口后重试。",
+    "无法连接到 Chrome 调试端口。请尝试手动关闭所有 Chrome 窗口后重试。",
   );
 }
 
@@ -145,8 +204,34 @@ async function handleOpen(
   await p.goto(url, { waitUntil: "domcontentloaded" });
   const title = await p.title();
 
+  // Automatically extract page text so LLM can read the content.
+  // Use a shorter limit to save tokens — user can call get_content for the full text.
+  let bodyText = "";
+  try {
+    bodyText = await p.evaluate(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      () => {
+        const doc = (globalThis as any).document;
+        const remove = doc.querySelectorAll(
+          "script,style,noscript,svg,iframe,nav,footer,header,[role=navigation],[role=banner],[aria-hidden=true]",
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        remove.forEach((el: any) => el.remove());
+        return doc.body?.innerText ?? "";
+      },
+    );
+    // Collapse excessive whitespace
+    bodyText = bodyText.replace(/\n{3,}/g, "\n\n").trim();
+    if (bodyText.length > MAX_OPEN_CONTENT_LENGTH) {
+      bodyText =
+        bodyText.slice(0, MAX_OPEN_CONTENT_LENGTH) + "\n\n... [truncated]";
+    }
+  } catch {
+    // page may not have a body yet
+  }
+
   return {
-    content: `Opened page: ${title}\nURL: ${p.url()}`,
+    content: `Page: ${title}\nURL: ${p.url()}\n\n${bodyText}`,
     isError: false,
     metadata: { title, url: p.url() },
   };

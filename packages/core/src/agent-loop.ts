@@ -21,7 +21,7 @@ import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
 
 const DEFAULT_CONFIG: AgentConfig = {
-  maxIterations: 10,
+  maxIterations: 5,
   systemPrompt: "",
   streaming: false,
   temperature: 0.7,
@@ -38,6 +38,8 @@ const RETRYABLE_TOOLS = new Set([
 
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 2000; // ms
+/** Stop the loop if this many consecutive iterations produce only errors */
+const MAX_CONSECUTIVE_ERRORS = 2;
 
 export class SimpleAgentLoop implements AgentLoop {
   private _state: AgentState = "idle";
@@ -121,6 +123,7 @@ export class SimpleAgentLoop implements AgentLoop {
 
     // Agent loop: think → act → observe → repeat
     let iterations = 0;
+    let consecutiveErrors = 0;
 
     while (iterations < this._config.maxIterations && !this.aborted) {
       iterations++;
@@ -279,6 +282,7 @@ export class SimpleAgentLoop implements AgentLoop {
 
       // Execute tool calls
       this.setState("tool_calling");
+      let iterationErrorCount = 0;
 
       for (const toolCall of toolCalls) {
         if (this.aborted) break;
@@ -333,6 +337,21 @@ export class SimpleAgentLoop implements AgentLoop {
           createdAt: new Date(),
         };
         await this.memoryStore.addTurn(convId, toolTurn);
+
+        if (result.isError) iterationErrorCount++;
+      }
+
+      // Track consecutive all-error iterations to avoid endless thrashing
+      if (iterationErrorCount === toolCalls.length) {
+        consecutiveErrors++;
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          console.log(
+            `[agent-loop] ${consecutiveErrors} consecutive all-error iterations, stopping early.`,
+          );
+          break;
+        }
+      } else {
+        consecutiveErrors = 0;
       }
 
       // Drain sentFiles from context into accumulator

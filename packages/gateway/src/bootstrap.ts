@@ -235,10 +235,11 @@ export async function bootstrap(): Promise<AppContext> {
 ${availableCli.length > 0 ? `- Available CLI tools: ${availableCli.join(", ")}` : ""}
 
 ## Rules
-- When the user asks to search, use the "web_search" tool.
+- When the user asks to search, use the "web_search" tool. Do NOT use the browser for simple searches.
 - When the user asks to read a file, use the "file_read" tool.
 - When the user asks to write a file, use the "file_write" tool.
 - When the user asks to fetch a URL, use the "web_fetch" tool.
+- When the user explicitly asks to use the browser (浏览器/打开网页), use ONLY the "browser" tool for the entire task. Do NOT switch to web_fetch or web_search mid-task. To search via browser, open the search URL directly: browser open url="https://www.google.com/search?q=..." — the page content is returned automatically.
 - For media processing (video, audio, image conversion/compression), prefer using the "shell" tool with ffmpeg/ffprobe directly — it's faster and uses less tokens than writing Python scripts.
 - For complex tasks (screenshots, data analysis, PDF/Excel, etc.), use the "python" tool.
 - For simple system commands (list files, check processes, network info, etc.), use the "shell" tool.

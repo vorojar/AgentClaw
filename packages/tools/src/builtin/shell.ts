@@ -95,6 +95,18 @@ function detectShell(): {
 /** Cached shell config — detected once at startup */
 const detectedShell = detectShell();
 
+/** PowerShell config for Windows — used when shell parameter is "powershell" */
+const powershellConfig = {
+  shell: "powershell.exe",
+  args: (cmd: string) => [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + cmd,
+  ],
+  name: "powershell" as const,
+};
+
 /** Exported so bootstrap.ts can read the detected shell name */
 export const shellInfo = {
   name: detectedShell.name,
@@ -103,7 +115,7 @@ export const shellInfo = {
 
 export const shellTool: Tool = {
   name: "shell",
-  description: `Execute a ${detectedShell.name} command and return its output`,
+  description: `Execute a ${detectedShell.name} command and return its output${process.platform === "win32" && detectedShell.name === "bash" ? '. Set shell to "powershell" for Windows-specific tasks (registry, Recycle Bin, system info, etc.)' : ""}`,
   category: "builtin",
   parameters: {
     type: "object",
@@ -117,6 +129,16 @@ export const shellTool: Tool = {
         description: "Timeout in milliseconds (default: 30000)",
         default: DEFAULT_TIMEOUT,
       },
+      ...(process.platform === "win32" && detectedShell.name === "bash"
+        ? {
+            shell: {
+              type: "string",
+              enum: ["bash", "powershell"],
+              description:
+                'Shell to use. Default is "bash" (Git Bash). Use "powershell" for Windows-specific tasks like Recycle Bin, registry, WMI queries, etc. When using powershell, write native PowerShell syntax directly — do NOT wrap in powershell -Command.',
+            },
+          }
+        : {}),
     },
     required: ["command"],
   },
@@ -124,8 +146,14 @@ export const shellTool: Tool = {
   async execute(input: Record<string, unknown>): Promise<ToolResult> {
     const command = input.command as string;
     const timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
+    const shellChoice = input.shell as string | undefined;
 
-    const { shell, args } = detectedShell;
+    // Use PowerShell directly when explicitly requested on Windows
+    const useShell =
+      shellChoice === "powershell" && process.platform === "win32"
+        ? powershellConfig
+        : detectedShell;
+    const { shell, args } = useShell;
 
     return new Promise<ToolResult>((resolve) => {
       execFile(

@@ -218,7 +218,9 @@ export async function bootstrap(): Promise<AppContext> {
 
   const shellDesc =
     shellInfo.name === "bash"
-      ? "bash (Git Bash). Use standard Unix/bash commands (ls, grep, cat, ffmpeg, etc.)."
+      ? process.platform === "win32"
+        ? 'bash (Git Bash) by default. Use standard Unix/bash commands (ls, grep, cat, ffmpeg, etc.). For Windows-specific tasks (Recycle Bin, registry, WMI, system info), set the shell parameter to "powershell" and write native PowerShell syntax directly.'
+        : "bash (Git Bash). Use standard Unix/bash commands (ls, grep, cat, ffmpeg, etc.)."
       : "PowerShell. Use PowerShell syntax (Get-ChildItem, $variable).";
 
   console.log(

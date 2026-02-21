@@ -32,3 +32,4 @@ npm-debug.log*
 pnpm-debug.log*
 nul
 .gitignore
+.dmux/

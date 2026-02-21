@@ -245,6 +245,106 @@ export class SQLiteMemoryStore implements MemoryStore {
     this.db.prepare("DELETE FROM memories WHERE id = ?").run(id);
   }
 
+  // ─── Usage stats ─────────────────────────────────────────────
+
+  getUsageStats(): {
+    totalIn: number;
+    totalOut: number;
+    totalCalls: number;
+    byModel: Array<{
+      model: string;
+      totalIn: number;
+      totalOut: number;
+      callCount: number;
+    }>;
+  } {
+    const rows = this.db
+      .prepare(
+        `SELECT model,
+                COUNT(*) AS call_count,
+                COALESCE(SUM(tokens_in), 0) AS total_in,
+                COALESCE(SUM(tokens_out), 0) AS total_out
+         FROM turns
+         WHERE role = 'assistant' AND model IS NOT NULL
+         GROUP BY model`,
+      )
+      .all() as Array<{
+      model: string;
+      call_count: number;
+      total_in: number;
+      total_out: number;
+    }>;
+
+    let totalIn = 0;
+    let totalOut = 0;
+    let totalCalls = 0;
+    const byModel = rows.map((r) => {
+      totalIn += r.total_in;
+      totalOut += r.total_out;
+      totalCalls += r.call_count;
+      return {
+        model: r.model,
+        totalIn: r.total_in,
+        totalOut: r.total_out,
+        callCount: r.call_count,
+      };
+    });
+
+    return { totalIn, totalOut, totalCalls, byModel };
+  }
+
+  // ─── Token logs (per-call detail) ─────────────────────────────
+
+  getTokenLogs(
+    limit = 50,
+    offset = 0,
+  ): {
+    items: Array<{
+      id: string;
+      conversationId: string;
+      model: string;
+      tokensIn: number;
+      tokensOut: number;
+      createdAt: string;
+    }>;
+    total: number;
+  } {
+    const { total } = this.db
+      .prepare(
+        `SELECT COUNT(*) AS total FROM turns WHERE role = 'assistant' AND model IS NOT NULL`,
+      )
+      .get() as { total: number };
+
+    const rows = this.db
+      .prepare(
+        `SELECT id, conversation_id, model, tokens_in, tokens_out, created_at
+         FROM turns
+         WHERE role = 'assistant' AND model IS NOT NULL
+         ORDER BY created_at DESC
+         LIMIT ? OFFSET ?`,
+      )
+      .all(limit, offset) as Array<{
+      id: string;
+      conversation_id: string;
+      model: string;
+      tokens_in: number | null;
+      tokens_out: number | null;
+      created_at: string;
+    }>;
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        conversationId: r.conversation_id,
+        model: r.model,
+        tokensIn: r.tokens_in ?? 0,
+        tokensOut: r.tokens_out ?? 0,
+        createdAt: r.created_at,
+      })),
+      total,
+    };
+  }
+
   // ─── Conversation turns ────────────────────────────────────────
 
   async addTurn(conversationId: string, turn: ConversationTurn): Promise<void> {

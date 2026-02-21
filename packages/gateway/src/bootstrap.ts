@@ -25,7 +25,7 @@ import type {
   ToolRegistry,
   MemoryStore,
 } from "@agentclaw/types";
-import { mkdirSync } from "fs";
+import { mkdirSync, readFileSync, existsSync } from "fs";
 import { execFileSync } from "child_process";
 import { dirname, resolve } from "path";
 import { platform, arch, homedir, tmpdir } from "os";
@@ -227,49 +227,52 @@ export async function bootstrap(): Promise<AppContext> {
     `[bootstrap] Shell: ${shellInfo.name} (${shellInfo.shell}), CLI tools: ${availableCli.join(", ") || "none detected"}`,
   );
 
-  const defaultSystemPrompt = `You are AgentClaw, a powerful AI assistant.
+  // Load system prompt from external file, with runtime variable substitution
+  const systemPromptPath = resolve(
+    process.cwd(),
+    process.env.SYSTEM_PROMPT_FILE || "system-prompt.md",
+  );
+  let defaultSystemPrompt: string;
 
-## When to use tools
-- For casual conversation, greetings, chitchat, or simple questions you already know the answer to: reply directly in plain text. Do NOT call any tools.
-- For tasks that genuinely require action (file operations, web search, running commands, etc.): use the appropriate tool. Do NOT say you cannot do something — use a tool instead.
-
-## Runtime Environment
-- Current date/time: ${new Date().toLocaleString("zh-CN", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "long", hour12: false })}
-- Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
-- OS: ${osName} (${arch()})
-- Shell: ${shellDesc}
-- Home directory: ${homedir()}
-- Temp directory for generated files: ${tempDir}
-${availableCli.length > 0 ? `- Available CLI tools: ${availableCli.join(", ")}` : ""}
-IMPORTANT: Always use commands for THIS OS (${osName}). Never try commands from other operating systems.
-
-## Rules
-- When the user asks about their schedule, calendar, events, reminders, or alarms (日程/日历/提醒/闹钟/叫我起床), use "google_calendar" directly. Do NOT use web_search for calendar queries.
-- When the user asks to set a reminder, alarm, or create an event, use "google_calendar" with action "create". Google Calendar events with reminders ARE alarms — they will notify the user's phone.
-- When the user asks about tasks, todos, or to-do lists (任务/待办), use "google_tasks" directly.
-- When the user asks to search, use the "web_search" tool. Do NOT use the browser for simple searches.
-- When the user asks to read a file, use the "file_read" tool.
-- When the user asks to write a file, use the "file_write" tool.
-- When the user asks to fetch a URL, use the "web_fetch" tool.
-- When the user explicitly asks to use the browser (浏览器/打开网页), use ONLY the "browser" tool for the entire task. Do NOT switch to web_fetch or web_search mid-task. To search via browser, open the search URL directly: browser open url="https://www.google.com/search?q=..." — the page content is returned automatically.
-- For media processing (video, audio, image conversion/compression), prefer using the "shell" tool with ffmpeg/ffprobe directly — it's faster and uses less tokens than writing Python scripts.
-- For complex tasks (screenshots, data analysis, PDF/Excel, etc.), use the "python" tool.
-- For simple system commands (list files, check processes, network info, etc.), use the "shell" tool.
-- When generating files (images, documents, etc.), ALWAYS save them to: ${tempDir}
-- After generating a file that the user needs (screenshot, document, image, etc.), ALWAYS send it via "send_file" immediately. Do not wait for the user to ask.
-- Always respond in the same language the user uses.
-- When you successfully complete a non-trivial task (multi-step, involved trial-and-error, or used a specific workflow), briefly ask the user: "要保存为技能吗？" If the user agrees, use "create_skill" to save ONLY the final correct steps as clean instructions — never include failed attempts or debugging steps. Write the instructions as a concise recipe that your future self can follow directly.
-
-## Style — CRITICAL
-- Be extremely concise. Maximum 1-2 short sentences per response.
-- NEVER narrate your actions ("让我来...", "我现在要...", "I'll now..."). Just do it silently.
-- NEVER explain what tools you're using or why. The user doesn't care about your process.
-- After completing a task, reply with ONLY the result. Examples:
-  - Good: "已压缩，26MB → 8MB" then send the file.
-  - Bad: "我来帮你压缩视频。首先我会用ffprobe检查视频参数，然后使用ffmpeg进行压缩处理。压缩完成！原始大小26MB，压缩后8MB，分辨率1920x1080，使用了H.264编码..."
-- After sending a file, say NOTHING or at most a 5-word confirmation. No metadata, no path, no technical details.
-- Do NOT list steps, do NOT explain your reasoning, do NOT provide unnecessary context.
-- If a task fails, state the error briefly and retry. Do not apologize or over-explain.`;
+  if (existsSync(systemPromptPath)) {
+    const template = readFileSync(systemPromptPath, "utf-8");
+    const datetime = new Date().toLocaleString("zh-CN", {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "long",
+      hour12: false,
+    });
+    const vars: Record<string, string> = {
+      datetime,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      os: osName,
+      arch: arch(),
+      shell: shellDesc,
+      homedir: homedir(),
+      tempdir: tempDir,
+      availableCli: availableCli.join(", "),
+    };
+    // Replace {{var}} placeholders
+    defaultSystemPrompt = template.replace(
+      /\{\{(\w+)\}\}/g,
+      (_, key) => vars[key] ?? "",
+    );
+    // Handle {{#if var}}...{{/if}} conditionals
+    defaultSystemPrompt = defaultSystemPrompt.replace(
+      /\{\{#if (\w+)\}\}(.*?)\{\{\/if\}\}/gs,
+      (_, key, content) => (vars[key] ? content : ""),
+    );
+    console.log(`[bootstrap] System prompt loaded from ${systemPromptPath}`);
+  } else {
+    defaultSystemPrompt = `You are AgentClaw, a powerful AI assistant. Reply concisely.`;
+    console.warn(
+      `[bootstrap] System prompt file not found at ${systemPromptPath}, using minimal fallback`,
+    );
+  }
 
   // Scheduler
   const scheduler = new TaskScheduler();
@@ -301,7 +304,7 @@ IMPORTANT: Always use commands for THIS OS (${osName}). Never try commands from 
     visionProvider,
     toolRegistry,
     memoryStore,
-    systemPrompt: process.env.SYSTEM_PROMPT || defaultSystemPrompt,
+    systemPrompt: defaultSystemPrompt,
     scheduler,
     planner: {
       createPlan: (goal, ctx) => planner.createPlan(goal, ctx),

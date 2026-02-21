@@ -8,21 +8,20 @@ export function registerConfigRoutes(
   // GET /api/stats - Usage stats
   app.get("/api/stats", async (_req, reply) => {
     try {
-      // Basic stats from memory store — aggregate from conversation turns
-      // For now, return placeholder stats since we don't have a dedicated stats tracker
+      const usage = ctx.memoryStore.getUsageStats();
       const stats = {
-        totalInputTokens: 0,
-        totalOutputTokens: 0,
+        totalInputTokens: usage.totalIn,
+        totalOutputTokens: usage.totalOut,
         totalCost: 0,
-        totalCalls: 0,
-        byModel: [] as Array<{
-          provider: string;
-          model: string;
-          totalInputTokens: number;
-          totalOutputTokens: number;
-          totalCost: number;
-          callCount: number;
-        }>,
+        totalCalls: usage.totalCalls,
+        byModel: usage.byModel.map((m) => ({
+          provider: "",
+          model: m.model,
+          totalInputTokens: m.totalIn,
+          totalOutputTokens: m.totalOut,
+          totalCost: 0,
+          callCount: m.callCount,
+        })),
       };
       return reply.send(stats);
     } catch (err: unknown) {

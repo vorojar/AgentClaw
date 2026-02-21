@@ -13,6 +13,7 @@ import { registerPlanRoutes } from "./routes/plans.js";
 import { registerMemoryRoutes } from "./routes/memories.js";
 import { registerToolRoutes } from "./routes/tools.js";
 import { registerConfigRoutes } from "./routes/config.js";
+import { registerTokenLogRoutes } from "./routes/token-logs.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 import { registerWebSocket } from "./ws.js";
 import { registerAuth } from "./auth.js";
@@ -50,6 +51,7 @@ export async function createServer(
   registerMemoryRoutes(app, ctx);
   registerToolRoutes(app, ctx);
   registerConfigRoutes(app, ctx);
+  registerTokenLogRoutes(app, ctx);
   registerTaskRoutes(app, scheduler);
 
   // Register WebSocket

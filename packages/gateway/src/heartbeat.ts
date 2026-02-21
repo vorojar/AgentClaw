@@ -95,6 +95,9 @@ ${tasksSummary}${memoriesSummary ? "\n" + memoriesSummary : ""}`;
     try {
       const session = await this.deps.orchestrator.createSession();
       let text = "";
+      let tokensIn = 0;
+      let tokensOut = 0;
+      let model = "";
 
       for await (const event of this.deps.orchestrator.processInputStream(
         session.id,
@@ -102,17 +105,24 @@ ${tasksSummary}${memoriesSummary ? "\n" + memoriesSummary : ""}`;
       )) {
         if (event.type === "response_chunk") {
           text += (event.data as { text: string }).text;
+        } else if (event.type === "response_complete") {
+          const msg = (event.data as { message: Message }).message;
+          tokensIn = msg.tokensIn ?? 0;
+          tokensOut = msg.tokensOut ?? 0;
+          model = msg.model ?? "";
         }
       }
 
       text = text.trim();
 
+      const usage = `${tokensIn} in / ${tokensOut} out${model ? ` (${model})` : ""}`;
+
       if (!text || text.includes("[无事可报]")) {
-        console.log("[heartbeat] LLM says nothing to report.");
+        console.log(`[heartbeat] LLM says nothing to report. Tokens: ${usage}`);
         return;
       }
 
-      console.log("[heartbeat] Broadcasting response...");
+      console.log(`[heartbeat] Broadcasting response... Tokens: ${usage}`);
       await this.deps.broadcast(text);
     } catch (err) {
       console.error("[heartbeat] LLM call failed:", err);

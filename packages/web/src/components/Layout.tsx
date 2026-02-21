@@ -25,6 +25,12 @@ export function Layout() {
             Memory
           </NavLink>
           <NavLink
+            to="/token-logs"
+            className={({ isActive }) => (isActive ? "active" : "")}
+          >
+            Token Logs
+          </NavLink>
+          <NavLink
             to="/settings"
             className={({ isActive }) => (isActive ? "active" : "")}
           >

@@ -228,6 +228,29 @@ export function updateConfig(
   });
 }
 
+// ── Token Logs ─────────────────────────────────────
+
+export interface TokenLogEntry {
+  id: string;
+  conversationId: string;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  createdAt: string;
+}
+
+export interface TokenLogsResponse {
+  items: TokenLogEntry[];
+  total: number;
+}
+
+export function getTokenLogs(
+  limit = 50,
+  offset = 0,
+): Promise<TokenLogsResponse> {
+  return request(`/token-logs?limit=${limit}&offset=${offset}`);
+}
+
 // ── Scheduled Tasks ─────────────────────────────────
 
 export interface ScheduledTaskInfo {

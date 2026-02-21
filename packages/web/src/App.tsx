@@ -4,6 +4,7 @@ import { ChatPage } from "./pages/ChatPage";
 import { PlansPage } from "./pages/PlansPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TokenLogsPage } from "./pages/TokenLogsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./auth";
 
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/memory" element={<MemoryPage />} />
+        <Route path="/token-logs" element={<TokenLogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

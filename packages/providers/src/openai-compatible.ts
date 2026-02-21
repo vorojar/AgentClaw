@@ -157,6 +157,8 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
     for await (const chunk of stream) {
       // Extract usage from the final chunk (sent when stream_options.include_usage is true)
+      // NOTE: OpenAI sends usage in a separate chunk AFTER finish_reason,
+      // so we must not emit "done" until the loop ends.
       if (chunk.usage) {
         tokensIn = chunk.usage.prompt_tokens ?? 0;
         tokensOut = chunk.usage.completion_tokens ?? 0;
@@ -200,16 +202,14 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
           }
         }
       }
-
-      // Check finish reason
-      if (chunk.choices[0]?.finish_reason) {
-        yield {
-          type: "done",
-          usage: { tokensIn, tokensOut },
-          model,
-        };
-      }
     }
+
+    // Emit "done" after the stream ends so the usage-only chunk has been processed
+    yield {
+      type: "done",
+      usage: { tokensIn, tokensOut },
+      model,
+    };
   }
 
   // ---- Internal conversion helpers ----

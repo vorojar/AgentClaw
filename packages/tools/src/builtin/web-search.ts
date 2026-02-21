@@ -1,77 +1,47 @@
 import type { Tool, ToolResult } from "@agentclaw/types";
 
 const DEFAULT_MAX_RESULTS = 5;
-const SEARCH_TIMEOUT = 10_000;
-const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-interface SearchResult {
+interface SerperResult {
   title: string;
-  url: string;
-  snippet: string;
+  link: string;
+  snippet?: string;
 }
 
-/** Parse Bing HTML search results */
-function parseResults(html: string, maxResults: number): SearchResult[] {
-  const results: SearchResult[] = [];
+interface SerperResponse {
+  organic?: SerperResult[];
+  answerBox?: { answer?: string; snippet?: string; title?: string };
+  knowledgeGraph?: { title?: string; description?: string };
+}
 
-  // Bing results are in <li class="b_algo"> blocks
-  // Each contains: <h2><a href="URL">TITLE</a></h2>
-  // and a caption/snippet area
-  const blockRegex =
-    /<li class="b_algo">([\s\S]*?)(?=<li class="b_algo">|<\/ol>|$)/gi;
+function formatResults(data: SerperResponse, query: string): string {
+  const lines: string[] = [];
 
-  let blockMatch: RegExpExecArray | null;
-  while ((blockMatch = blockRegex.exec(html)) !== null) {
-    if (results.length >= maxResults) break;
-
-    const block = blockMatch[1];
-
-    // Extract URL and title from <h2><a href="...">title</a></h2>
-    const linkMatch = block.match(
-      /<h2[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i,
-    );
-    if (!linkMatch) continue;
-
-    const url = linkMatch[1];
-    const title = linkMatch[2].replace(/<[^>]+>/g, "").trim();
-
-    // Extract snippet from <p> or <div class="b_caption">
-    let snippet = "";
-    const snippetMatch = block.match(
-      /<div class="b_caption"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i,
-    );
-    if (snippetMatch) {
-      snippet = snippetMatch[1]
-        .replace(/<[^>]+>/g, "")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, " ")
-        .trim();
-    }
-
-    if (title && url && !url.includes("bing.com")) {
-      results.push({ title, url, snippet });
-    }
+  // Answer box (direct answer)
+  if (data.answerBox?.answer) {
+    lines.push(`Direct answer: ${data.answerBox.answer}`, "");
+  } else if (data.answerBox?.snippet) {
+    lines.push(`Direct answer: ${data.answerBox.snippet}`, "");
   }
 
-  return results;
-}
+  // Knowledge graph
+  if (data.knowledgeGraph?.description) {
+    lines.push(
+      `${data.knowledgeGraph.title ?? ""}: ${data.knowledgeGraph.description}`,
+      "",
+    );
+  }
 
-/** Format search results into readable text */
-function formatResults(results: SearchResult[], query: string): string {
-  if (results.length === 0) {
+  // Organic results
+  const items = data.organic ?? [];
+  if (items.length === 0 && lines.length === 0) {
     return `No results found for: ${query}`;
   }
 
-  const lines = [`Search results for: ${query}`, ""];
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
+  for (let i = 0; i < items.length; i++) {
+    const r = items[i];
     lines.push(`${i + 1}. ${r.title}`);
-    lines.push(`   URL: ${r.url}`);
+    lines.push(`   ${r.link}`);
     if (r.snippet) {
       lines.push(`   ${r.snippet}`);
     }
@@ -84,7 +54,7 @@ function formatResults(results: SearchResult[], query: string): string {
 export const webSearchTool: Tool = {
   name: "web_search",
   description:
-    "Search the web using Bing. Returns search results with titles, URLs, and snippets.",
+    "Search the web using Google (via Serper API). Returns structured results with titles, URLs, and snippets.",
   category: "builtin",
   parameters: {
     type: "object",
@@ -95,7 +65,7 @@ export const webSearchTool: Tool = {
       },
       max_results: {
         type: "number",
-        description: "Maximum number of results (default: 5)",
+        description: "Maximum number of results (default: 5, max: 10)",
       },
     },
     required: ["query"],
@@ -103,67 +73,61 @@ export const webSearchTool: Tool = {
 
   async execute(input: Record<string, unknown>): Promise<ToolResult> {
     const query = input.query as string;
-    const maxResults = (input.max_results as number) ?? DEFAULT_MAX_RESULTS;
+    const maxResults = Math.min(
+      (input.max_results as number) ?? DEFAULT_MAX_RESULTS,
+      10,
+    );
 
     if (!query.trim()) {
+      return { content: "Search query cannot be empty", isError: true };
+    }
+
+    const apiKey = process.env.SERPER_API_KEY;
+    if (!apiKey) {
       return {
-        content: "Search query cannot be empty",
+        content:
+          "Web search not configured. Set SERPER_API_KEY environment variable.",
         isError: true,
       };
     }
 
-    const searchUrl = `https://cn.bing.com/search?q=${encodeURIComponent(query)}&count=${maxResults}&mkt=zh-CN`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), SEARCH_TIMEOUT);
-
     try {
-      const response = await fetch(searchUrl, {
+      const res = await fetch("https://google.serper.dev/search", {
+        method: "POST",
         headers: {
-          "User-Agent": USER_AGENT,
-          Accept: "text/html",
-          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+          "X-API-KEY": apiKey,
+          "Content-Type": "application/json",
         },
-        signal: controller.signal,
-        redirect: "follow",
+        body: JSON.stringify({
+          q: query,
+          num: maxResults,
+          hl: "zh-cn",
+        }),
       });
 
-      if (!response.ok) {
+      if (!res.ok) {
+        const body = await res.text();
         return {
-          content: `Search request failed: HTTP ${response.status} ${response.statusText}`,
+          content: `Search API error (${res.status}): ${body}`,
           isError: true,
-          metadata: { status: response.status, query },
+          metadata: { query, status: res.status },
         };
       }
 
-      const html = await response.text();
-      const results = parseResults(html, maxResults);
-      const content = formatResults(results, query);
+      const data = (await res.json()) as SerperResponse;
+      const content = formatResults(data, query);
 
       return {
         content,
-        isError: false,
-        metadata: {
-          query,
-          resultCount: results.length,
-        },
+        metadata: { query, resultCount: data.organic?.length ?? 0 },
       };
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        return {
-          content: `Search timed out after ${SEARCH_TIMEOUT}ms for query: ${query}`,
-          isError: true,
-          metadata: { query, timedOut: true },
-        };
-      }
-
       const message = err instanceof Error ? err.message : String(err);
       return {
         content: `Search failed: ${message}`,
         isError: true,
         metadata: { query },
       };
-    } finally {
-      clearTimeout(timer);
     }
   },
 };

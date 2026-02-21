@@ -81,8 +81,16 @@ async function main() {
       console.log('Tab closed.');
       break;
     }
+    case 'search': {
+      const query = rest.join(' ');
+      if (!query) { console.error('Error: search query required'); process.exit(1); }
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+      const result = await exec('open', { url: searchUrl });
+      console.log(`Searched: ${query}\nPage: ${result.title}\nURL: ${result.url}`);
+      break;
+    }
     default:
-      console.error(`Unknown action: ${action}. Use: open, screenshot, click, type, get_content, close`);
+      console.error(`Unknown action: ${action}. Use: open, search, screenshot, click, type, get_content, close`);
       process.exit(1);
   }
 }

@@ -226,13 +226,15 @@ export class SimpleAgentLoop implements AgentLoop {
       prevTokensIn = totalTokensIn;
       prevTokensOut = totalTokensOut;
 
-      // Record LLM call in trace
-      trace.steps.push({
+      // Record LLM call in trace (include text if any)
+      const llmStep: Record<string, unknown> = {
         type: "llm_call",
         iteration: iterations,
         tokensIn: iterTokensIn,
         tokensOut: iterTokensOut,
-      } as TraceStep);
+      };
+      if (fullText) llmStep.text = fullText;
+      trace.steps.push(llmStep as TraceStep);
 
       // Build tool calls from accumulated chunks
       const toolCalls: ToolUseContent[] = [];
@@ -441,8 +443,8 @@ export class SimpleAgentLoop implements AgentLoop {
           role: "assistant",
           content: responseText,
           model: usedModel,
-          tokensIn: 0,
-          tokensOut: 0,
+          tokensIn: iterTokensIn,
+          tokensOut: iterTokensOut,
           traceId: trace.id,
           createdAt: new Date(),
         };

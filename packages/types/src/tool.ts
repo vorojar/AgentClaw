@@ -39,6 +39,8 @@ export interface ToolExecutionContext {
   notifyUser?: (message: string) => Promise<void>;
   /** Send a file to the user (implemented by gateway) */
   sendFile?: (filePath: string, caption?: string) => Promise<void>;
+  /** Files sent during tool execution (populated by sendFile, consumed by agent-loop for persistence) */
+  sentFiles?: Array<{ url: string; filename: string }>;
   /** Save a piece of information to long-term memory (provided by orchestrator) */
   saveMemory?: (
     content: string,

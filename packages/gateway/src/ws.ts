@@ -83,10 +83,13 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
         }
 
         // Build tool execution context with sendFile support
+        const sentFiles: Array<{ url: string; filename: string }> = [];
         const context: ToolExecutionContext = {
+          sentFiles,
           sendFile: async (filePath: string) => {
             const filename = basename(filePath);
             const url = `/files/${encodeURIComponent(filename)}`;
+            sentFiles.push({ url, filename });
             socket.send(JSON.stringify({ type: "file", url, filename }));
           },
         };

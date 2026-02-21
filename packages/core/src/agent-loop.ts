@@ -106,6 +106,8 @@ export class SimpleAgentLoop implements AgentLoop {
     let totalTokensOut = 0;
     let totalToolCalls = 0;
     let usedModel: string | undefined;
+    // Accumulate files sent by tools (for persistence)
+    const allSentFiles: Array<{ url: string; filename: string }> = [];
 
     // 存储用户消息：ContentBlock[] 需序列化为 JSON 字符串
     const userTurn: ConversationTurn = {
@@ -227,12 +229,27 @@ export class SimpleAgentLoop implements AgentLoop {
         contentBlocks.push(tc);
       }
 
+      // When this is the final response (no tool calls), append file markdown
+      // so that sent files persist in the conversation history.
+      let storedText = fullText;
+      if (toolCalls.length === 0 && allSentFiles.length > 0) {
+        const filesMd = allSentFiles
+          .map((f) => {
+            const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(f.filename);
+            return isImage
+              ? `![${f.filename}](${f.url})`
+              : `[${f.filename}](${f.url})`;
+          })
+          .join("\n");
+        storedText = storedText ? storedText + "\n" + filesMd : filesMd;
+      }
+
       // Store assistant turn
       const assistantTurn: ConversationTurn = {
         id: generateId(),
         conversationId: convId,
         role: "assistant",
-        content: fullText,
+        content: storedText,
         toolCalls: toolCalls.length > 0 ? JSON.stringify(toolCalls) : undefined,
         model: usedModel,
         tokensIn: totalTokensIn,
@@ -247,7 +264,7 @@ export class SimpleAgentLoop implements AgentLoop {
         const message: Message = {
           id: generateId(),
           role: "assistant",
-          content: contentBlocks.length > 0 ? contentBlocks : fullText,
+          content: contentBlocks.length > 0 ? contentBlocks : storedText,
           createdAt: new Date(),
           model: usedModel,
           tokensIn: totalTokensIn,
@@ -316,6 +333,12 @@ export class SimpleAgentLoop implements AgentLoop {
           createdAt: new Date(),
         };
         await this.memoryStore.addTurn(convId, toolTurn);
+      }
+
+      // Drain sentFiles from context into accumulator
+      if (context?.sentFiles && context.sentFiles.length > 0) {
+        allSentFiles.push(...context.sentFiles);
+        context.sentFiles.length = 0;
       }
 
       // Loop back for next LLM call with tool results

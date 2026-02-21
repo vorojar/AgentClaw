@@ -4,8 +4,32 @@ import { ChatPage } from "./pages/ChatPage";
 import { PlansPage } from "./pages/PlansPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { LoginPage } from "./pages/LoginPage";
+import { AuthProvider, useAuth } from "./auth";
 
-export function App() {
+function AppRoutes() {
+  const { authRequired, apiKey, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          color: "var(--text-secondary)",
+        }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
+  if (authRequired && !apiKey) {
+    return <LoginPage />;
+  }
+
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -16,5 +40,13 @@ export function App() {
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

@@ -25,6 +25,8 @@
  *   Server sends: { type: "text"|"tool_call"|"tool_result"|"done", ... }
  */
 
+import { getStoredApiKey, clearStoredApiKey } from "../auth";
+
 const BASE = "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -32,10 +34,19 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (options?.body) {
     headers["Content-Type"] = "application/json";
   }
+  const apiKey = getStoredApiKey();
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
   const res = await fetch(`${BASE}${path}`, {
     headers,
     ...options,
   });
+  if (res.status === 401) {
+    clearStoredApiKey();
+    window.location.reload();
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`API ${res.status}: ${body}`);
@@ -273,9 +284,12 @@ export function connectWebSocket(
   close: () => void;
 } {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(
-    `${protocol}//${window.location.host}/ws?sessionId=${sessionId}`,
-  );
+  let wsUrl = `${protocol}//${window.location.host}/ws?sessionId=${sessionId}`;
+  const apiKey = getStoredApiKey();
+  if (apiKey) {
+    wsUrl += `&token=${encodeURIComponent(apiKey)}`;
+  }
+  const ws = new WebSocket(wsUrl);
 
   ws.onmessage = (event) => {
     try {

@@ -15,6 +15,7 @@ import { registerToolRoutes } from "./routes/tools.js";
 import { registerConfigRoutes } from "./routes/config.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 import { registerWebSocket } from "./ws.js";
+import { registerAuth } from "./auth.js";
 
 export interface ServerOptions {
   ctx: AppContext;
@@ -39,6 +40,9 @@ export async function createServer(
   });
 
   await app.register(websocket);
+
+  // Register authentication (no-op if API_KEY not set)
+  registerAuth(app);
 
   // Register REST routes
   registerSessionRoutes(app, ctx);

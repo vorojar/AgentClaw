@@ -237,6 +237,7 @@ export async function bootstrap(): Promise<AppContext> {
 - Home directory: ${homedir()}
 - Temp directory for generated files: ${tempDir}
 ${availableCli.length > 0 ? `- Available CLI tools: ${availableCli.join(", ")}` : ""}
+IMPORTANT: Always use commands for THIS OS (${osName}). Never try commands from other operating systems.
 
 ## Rules
 - When the user asks to search, use the "web_search" tool. Do NOT use the browser for simple searches.

@@ -14,5 +14,6 @@ export default defineConfig({
     "@agentclaw/tools",
     "@agentclaw/memory",
     "better-sqlite3",
+    "dotenv",
   ],
 });

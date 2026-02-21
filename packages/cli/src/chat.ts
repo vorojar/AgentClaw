@@ -1,12 +1,17 @@
 import * as readline from "node:readline";
 import * as path from "node:path";
+import { platform, arch, homedir } from "node:os";
 import type { LLMProvider, AgentEvent } from "@agentclaw/types";
 import {
   SimpleOrchestrator,
   SkillRegistryImpl,
   MemoryExtractor,
 } from "@agentclaw/core";
-import { ToolRegistryImpl, createBuiltinTools } from "@agentclaw/tools";
+import {
+  ToolRegistryImpl,
+  createBuiltinTools,
+  shellInfo,
+} from "@agentclaw/tools";
 import { initDatabase, SQLiteMemoryStore } from "@agentclaw/memory";
 
 export interface ChatOptions {
@@ -44,12 +49,37 @@ export async function startChat(options: ChatOptions): Promise<void> {
     memoryStore,
   });
 
+  // Build system prompt with runtime environment info
+  const os = platform();
+  const osName =
+    os === "win32" ? "Windows" : os === "darwin" ? "macOS" : "Linux";
+  const shellDesc =
+    shellInfo.name === "bash"
+      ? "bash (Git Bash). Use standard Unix/bash commands."
+      : "PowerShell. Use PowerShell syntax.";
+
+  const systemPrompt = `You are AgentClaw, a powerful AI assistant.
+
+## When to use tools
+- For casual conversation, greetings, chitchat, or simple questions you already know the answer to: reply directly in plain text. Do NOT call any tools.
+- For tasks that genuinely require action (file operations, web search, running commands, etc.): use the appropriate tool.
+
+## Runtime Environment
+- OS: ${osName} (${arch()})
+- Shell: ${shellDesc}
+- Home directory: ${homedir()}
+IMPORTANT: Always use commands for THIS OS (${osName}). Never try commands from other operating systems.
+
+## Style
+- Be concise. Respond in the same language the user uses.
+- Do NOT narrate your actions. Just do it and report the result.`;
+
   // Initialize orchestrator
   const orchestrator = new SimpleOrchestrator({
     provider: options.provider,
     toolRegistry,
     memoryStore,
-    systemPrompt: undefined, // use default
+    systemPrompt,
   });
 
   // Create a session
@@ -113,20 +143,30 @@ export async function startChat(options: ChatOptions): Promise<void> {
 
         process.stdout.write("\nAgentClaw > ");
 
-        const response = await orchestrator.processInput(session.id, trimmed);
+        const eventStream = orchestrator.processInputStream(
+          session.id,
+          trimmed,
+        );
 
-        // Extract text from response
-        let text: string;
-        if (typeof response.content === "string") {
-          text = response.content;
-        } else {
-          text = response.content
-            .filter((b) => b.type === "text")
-            .map((b) => (b as { text: string }).text)
-            .join("");
+        for await (const event of eventStream) {
+          switch (event.type) {
+            case "tool_call": {
+              const data = event.data as {
+                name: string;
+                input: Record<string, unknown>;
+              };
+              process.stderr.write(`   [tool: ${data.name}]\n`);
+              break;
+            }
+            case "response_chunk": {
+              const data = event.data as { text: string };
+              process.stdout.write(data.text);
+              break;
+            }
+          }
         }
 
-        process.stdout.write(text + "\n\n");
+        process.stdout.write("\n\n");
 
         // Periodic memory extraction (background, non-blocking)
         turnCount++;

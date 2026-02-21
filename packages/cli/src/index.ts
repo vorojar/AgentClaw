@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { loadConfig, createProvider } from "./config.js";
 import { startChat } from "./chat.js";
 

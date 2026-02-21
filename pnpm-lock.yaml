@@ -78,6 +78,9 @@ importers:
       '@agentclaw/types':
         specifier: workspace:*
         version: link:../types
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
     devDependencies:
       tsup:
         specifier: ^8.4.0

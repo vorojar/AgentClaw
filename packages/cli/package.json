@@ -22,11 +22,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agentclaw/types": "workspace:*",
     "@agentclaw/core": "workspace:*",
+    "@agentclaw/memory": "workspace:*",
     "@agentclaw/providers": "workspace:*",
     "@agentclaw/tools": "workspace:*",
-    "@agentclaw/memory": "workspace:*"
+    "@agentclaw/types": "workspace:*",
+    "dotenv": "^17.3.1"
   },
   "devDependencies": {
     "tsup": "^8.4.0",

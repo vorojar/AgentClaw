@@ -11,12 +11,21 @@ export interface CLIConfig {
   databasePath: string;
 }
 
-/** Load config from environment variables */
+/** Load config from environment variables, auto-detecting provider if not set */
 export function loadConfig(): CLIConfig {
+  let provider = process.env.AGENTCLAW_PROVIDER;
+  if (!provider) {
+    // Auto-detect from available API keys (same priority as gateway)
+    if (process.env.ANTHROPIC_API_KEY) provider = "claude";
+    else if (process.env.OPENAI_API_KEY) provider = "openai";
+    else if (process.env.GEMINI_API_KEY) provider = "gemini";
+    else provider = "ollama";
+  }
   return {
-    provider: process.env.AGENTCLAW_PROVIDER ?? "claude",
-    model: process.env.AGENTCLAW_MODEL,
-    databasePath: process.env.DATABASE_PATH ?? "./data/agentclaw.db",
+    provider,
+    model: process.env.AGENTCLAW_MODEL ?? process.env.DEFAULT_MODEL,
+    databasePath:
+      process.env.DATABASE_PATH ?? process.env.DB_PATH ?? "./data/agentclaw.db",
   };
 }
 
@@ -45,6 +54,8 @@ export function createProvider(config: CLIConfig): LLMProvider {
       }
       return new OpenAICompatibleProvider({
         apiKey,
+        baseURL: process.env.OPENAI_BASE_URL,
+        defaultModel: config.model,
         providerName: "openai",
       });
     }

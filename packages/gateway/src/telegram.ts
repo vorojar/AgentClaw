@@ -163,7 +163,7 @@ export async function startTelegramBot(
     const filePath = join(tmpDir, fileName);
     writeFileSync(filePath, buffer);
 
-    const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath}]${caption ? `\n用户附言: ${caption}` : ""}`;
+    const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
 
     // Get or create session
     let sessionId = chatSessionMap.get(chatId);
@@ -489,7 +489,7 @@ export async function startTelegramBot(
         },
         {
           type: "text",
-          text: `[用户发送了图片，已保存到 ${localImagePath}]\n${caption}`,
+          text: `[用户发送了图片，已保存到 ${localImagePath.replace(/\\/g, "/")}]\n${caption}`,
         },
       ];
 

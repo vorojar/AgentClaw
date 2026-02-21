@@ -223,7 +223,7 @@ def run_workflow(workflow, label):
         sys.exit(1)
 
     local_path = download_image(img)
-    print(f"Output saved: {local_path}")
+    print(f"Output saved: {local_path.replace(chr(92), '/')}")
     return local_path
 
 

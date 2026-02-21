@@ -44,11 +44,12 @@ export function registerAuth(app: FastifyInstance): void {
   app.addHook("onRequest", async (req: FastifyRequest, reply: FastifyReply) => {
     const url = req.url;
 
-    // Allow static assets (SPA shell) without auth
+    // Allow static assets, SPA shell, and generated files without auth
     if (
       url === "/" ||
       url === "/favicon.ico" ||
       url.startsWith("/assets/") ||
+      url.startsWith("/files/") ||
       url.startsWith("/chat") ||
       url.startsWith("/plans") ||
       url.startsWith("/memory") ||
@@ -57,12 +58,8 @@ export function registerAuth(app: FastifyInstance): void {
       return;
     }
 
-    // Protect /api/*, /ws*, /files/*
-    if (
-      url.startsWith("/api/") ||
-      url.startsWith("/ws") ||
-      url.startsWith("/files/")
-    ) {
+    // Protect /api/*, /ws*
+    if (url.startsWith("/api/") || url.startsWith("/ws")) {
       const credential = extractCredential(req);
       if (credential !== API_KEY) {
         return reply.status(401).send({ error: "Unauthorized" });

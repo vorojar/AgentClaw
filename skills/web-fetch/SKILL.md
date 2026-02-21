@@ -15,7 +15,7 @@ shell: curl -s -L "https://example.com"
 
 Fetch and extract text (remove HTML tags):
 ```
-shell: curl -s -L "https://example.com" | python3 -c "
+shell: curl -s -L "https://example.com" | python -c "
 import sys, re
 html = sys.stdin.read()
 # Remove script/style
@@ -34,5 +34,5 @@ print('\n'.join(lines[:200]))
 Tips:
 - Use `-L` to follow redirects
 - Use `-A "Mozilla/5.0"` if the site blocks bots
-- For JSON APIs, use `curl -s URL | python3 -m json.tool`
+- For JSON APIs, use `curl -s URL | python -m json.tool`
 - Truncate output if too long to avoid token waste

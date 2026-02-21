@@ -259,6 +259,7 @@ export async function bootstrap(): Promise<AppContext> {
       homedir: homedir(),
       tempdir: tempDir,
       availableCli: availableCli.join(", "),
+      isWindows: os === "win32" ? "true" : "",
     };
     // Replace {{var}} placeholders
     defaultSystemPrompt = template.replace(

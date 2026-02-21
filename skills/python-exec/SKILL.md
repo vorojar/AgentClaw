@@ -10,14 +10,13 @@ When the user asks you to run Python code or perform tasks best suited for Pytho
 
 1. For short code snippets, use shell directly:
    ```
-   shell: python3 -c "print('hello')"
+   shell: python -c "print('hello')"
    ```
-   On Windows use `python` instead of `python3`.
 
 2. For longer scripts, write to a temp file first then execute:
    ```
    file_write: data/tmp/_script.py  (write your code)
-   shell: python3 data/tmp/_script.py
+   shell: python data/tmp/_script.py
    ```
 
 3. Always use `print()` to produce output — shell captures stdout.

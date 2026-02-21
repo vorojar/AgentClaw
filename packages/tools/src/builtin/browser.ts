@@ -260,7 +260,7 @@ async function handleScreenshot(): Promise<ToolResult> {
   await page.screenshot({ path: filePath, fullPage: false });
 
   return {
-    content: `Screenshot saved to: ${filePath}`,
+    content: `Screenshot saved to: ${filePath.replace(/\\/g, "/")}`,
     isError: false,
     metadata: { filePath },
   };

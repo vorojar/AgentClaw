@@ -221,8 +221,10 @@ export class SkillRegistryImpl implements SkillRegistry {
 
         if (matchedCount === 0) return null;
 
-        // confidence = matchedCount / totalPatterns * 0.8 + 0.2
-        return (matchedCount / trigger.patterns.length) * 0.8 + 0.2;
+        // Any single keyword match gives at least 0.5 confidence.
+        // Multiple matches increase it further (max 1.0).
+        const ratio = matchedCount / trigger.patterns.length;
+        return Math.max(0.5, ratio * 0.8 + 0.2);
       }
 
       case "always":

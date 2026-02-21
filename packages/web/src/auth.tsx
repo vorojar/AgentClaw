@@ -55,9 +55,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function probe() {
       try {
-        const res = await fetch("/api/config");
+        const headers: Record<string, string> = {};
+        const storedKey = localStorage.getItem(STORAGE_KEY);
+        if (storedKey) {
+          headers["Authorization"] = `Bearer ${storedKey}`;
+        }
+        const res = await fetch("/api/config", { headers });
         if (res.status === 401) {
           setAuthRequired(true);
+          // Stored key is invalid — clear it
+          if (storedKey) {
+            clearStoredApiKey();
+            setApiKey(null);
+          }
         } else {
           setAuthRequired(false);
         }

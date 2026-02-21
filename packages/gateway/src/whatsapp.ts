@@ -319,7 +319,7 @@ async function handleImageMessage(
       },
       {
         type: "text",
-        text: `[用户发送了图片，已保存到 ${localImagePath}]\n${caption || "请描述这张图片"}`,
+        text: `[用户发送了图片，已保存到 ${localImagePath.replace(/\\/g, "/")}]\n${caption || "请描述这张图片"}`,
       },
     ];
 
@@ -443,7 +443,7 @@ async function handleDocumentMessage(
     const filePath = join(tmpDir, fileName);
     writeFileSync(filePath, fileBuffer);
 
-    const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath}]${caption ? `\n用户附言: ${caption}` : ""}`;
+    const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
 
     const sentFiles: Array<{ url: string; filename: string }> = [];
     const toolContext: ToolExecutionContext = {

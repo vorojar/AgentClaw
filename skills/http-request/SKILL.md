@@ -26,6 +26,6 @@ shell: curl -s -H "Authorization: Bearer TOKEN" https://api.example.com/data
 Tips:
 - Use `-s` (silent) to suppress progress bar
 - Use `-w "\n%{http_code}"` to get status code
-- Use `| python3 -m json.tool` to pretty-print JSON
+- Use `| python -m json.tool` to pretty-print JSON
 - For file uploads: `curl -F "file=@path/to/file" URL`
 - For timeout: `curl --connect-timeout 10 -m 30 URL`

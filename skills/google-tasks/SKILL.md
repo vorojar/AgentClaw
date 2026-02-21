@@ -10,23 +10,23 @@ Use the Google Tasks script to manage tasks:
 
 ## List tasks
 ```
-shell: python3 skills/google-tasks/scripts/gtasks.py list
+shell: python skills/google-tasks/scripts/gtasks.py list
 ```
 
 ## Create task
 ```
-shell: python3 skills/google-tasks/scripts/gtasks.py create --title "Buy groceries"
+shell: python skills/google-tasks/scripts/gtasks.py create --title "Buy groceries"
 ```
 Optional: `--notes "details"`, `--due "2025-03-01"`
 
 ## Complete task
 ```
-shell: python3 skills/google-tasks/scripts/gtasks.py complete --task-id "abc123"
+shell: python skills/google-tasks/scripts/gtasks.py complete --task-id "abc123"
 ```
 
 ## Delete task
 ```
-shell: python3 skills/google-tasks/scripts/gtasks.py delete --task-id "abc123"
+shell: python skills/google-tasks/scripts/gtasks.py delete --task-id "abc123"
 ```
 
 Requires: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN

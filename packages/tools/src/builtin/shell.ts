@@ -189,9 +189,13 @@ export const shellTool: Tool = {
               return;
             }
 
+            // If stdout has content, treat as success despite non-zero exit code.
+            // Many commands (e.g. PowerShell piped commands) return non-zero
+            // but still produce valid output.
+            const hasOutput = stdoutStr.trim().length > 0;
             resolve({
               content: output || error.message,
-              isError: true,
+              isError: !hasOutput,
               metadata: { exitCode: error.code ?? 1 },
             });
             return;

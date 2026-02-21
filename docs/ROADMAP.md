@@ -124,6 +124,16 @@
 - [x] Long message splitting (4096-char Telegram limit)（长消息自动分段：适配 Telegram 4096 字符限制）
 - [x] Error handling with session auto-recovery（错误处理 + 会话自动恢复）
 
+### 4.X WhatsApp Bot（WhatsApp 机器人）✅
+- [x] Baileys (WhatsApp Web 直连协议) 集成，QR 码扫码认证
+- [x] 仅自聊模式（self-chat only），不干扰其他对话
+- [x] 凭证持久化（data/whatsapp-auth/），重启免扫码
+- [x] 命令：/new 新会话、/help 帮助
+- [x] 文字/图片/文件/视频/音频 消息支持
+- [x] 消息去重 + bot 发送消息追踪（避免自聊无限循环）
+- [x] 断线自动重连
+- [x] broadcast API 支持定时任务结果推送
+
 ### 4.2 Cross-Gateway Tool Context（跨网关工具上下文）✅
 - [x] `ToolExecutionContext` 类型：贯穿 orchestrator → agentLoop → toolRegistry → tool 的可选上下文
 - [x] `promptUser` 回调：`ask_user` 工具在 Telegram 下正常工作（不再阻塞在 stdin）
@@ -148,7 +158,7 @@
 
 ### 4.6 Other Platform Bots（其他平台机器人）
 - [ ] Discord bot
-- [ ] WeChat bot
+- [ ] WeChat bot（微信机器人）
 
 ---
 
@@ -169,7 +179,7 @@
 
 ### 5.3 Recurring Tasks（周期任务）✅
 - [x] `schedule` 工具：让 LLM 创建 cron 定时任务（create / list / delete）
-- [x] 任务触发时自动发消息给用户（`scheduler.setOnTaskFire` + Telegram 通知）
+- [x] 任务触发时运行完整 orchestrator loop（而非仅发通知文本），结果广播到所有活跃网关（Telegram + WhatsApp）
 - [x] TaskScheduler 统一在 bootstrap 创建，通过 `ToolExecutionContext.scheduler` 注入
 
 ### 5.4 Browser Automation（浏览器操控）✅
@@ -199,8 +209,8 @@
 - [x] AgentLoop 跨多轮 LLM 调用累加 tokensIn/Out、toolCallCount、计时 durationMs，写入 Message 和 DB
 - [x] WebSocket done 消息携带 model/tokensIn/tokensOut/durationMs/toolCallCount
 - [x] REST API history 端点返回统计字段
-- [x] Telegram 回复末尾追加统计行：`— model · N tokens (in↑ out↓) · Xs · 🔧×N`
 - [x] Web UI assistant 消息底部灰色小字显示统计行（流式和历史消息均支持）
+- ~~Telegram / WhatsApp 回复末尾追加统计行~~（usage stats 已从 Telegram 和 WhatsApp 消息中移除）
 
 ---
 
@@ -259,6 +269,35 @@
 
 ---
 
+## Phase 7: Integrations — "连万物" (Connect Everything)（第七阶段：集成——连接一切）✅ 已完成
+
+**Goal**: 第三方服务深度集成 + 工具链和开发体验提升（目标：Google 服务集成 + CLI 增强 + 搜索重写 + System Prompt 增强）
+
+### 7.1 Google Integration（Google 集成）✅
+- [x] Google OAuth2 共享模块（google-auth.ts）：token 自动刷新，内存缓存
+- [x] Google Calendar 工具（google-calendar.ts）：list / create / delete 事件，支持提醒设置（reminder_minutes）
+- [x] Google Tasks 工具（google-tasks.ts）：list / create / complete / delete 任务
+- [x] 环境变量驱动：有 `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` + `GOOGLE_REFRESH_TOKEN` 时自动注册
+- [x] 授权脚本（scripts/google-auth.mjs）：一键获取 refresh_token
+
+### 7.2 CLI Enhancements（CLI 增强）✅
+- [x] 流式输出：`processInput` → `processInputStream`，逐字打印
+- [x] dotenv 集成：自动加载 .env 文件
+- [x] Provider 自动检测：与 gateway 一致的优先级（ANTHROPIC > OPENAI > GEMINI > Ollama）
+- [x] `pnpm cli` 快捷命令
+
+### 7.3 System Prompt Enhancements（System Prompt 增强）✅
+- [x] 注入当前日期时间 + 时区（LLM 知道"今天"是哪天）
+- [x] 注入 OS + Shell 信息 + 强调只用当前 OS 命令
+- [x] Google Calendar / Tasks 使用规则（日程 / 提醒 / 闹钟直接用 google_calendar，不走 web_search）
+
+### 7.4 Web Search Rewrite（Web Search 重写）✅
+- [x] 从 Bing HTML 抓取（经常失败）换为 Serper API（Google 搜索结构化 JSON）
+- [x] 支持 answerBox + knowledgeGraph + organic results
+- [x] 极省 token：结构化 JSON vs 全页文本
+
+---
+
 ## 竞品对比：AgentClaw vs LobsterAI（网易有道）
 
 > LobsterAI：网易有道开源的全场景个人助理 Agent 桌面应用（Electron），MIT 协议。
@@ -269,7 +308,7 @@
 | **沙箱隔离执行** | Alpine Linux VM (QCOW2)，进程级隔离 | 无 | LobsterAI 完胜 |
 | **Office 文档生成** | DOCX / XLSX / PPTX / PDF 全套内置 | 无 | LobsterAI 完胜 |
 | **视频生成** | Remotion 程序化生成视频 | 无 | LobsterAI 完胜 |
-| **IM 远程操控** | 钉钉 + 飞书 + Telegram + Discord (4个) | Telegram (1个) | LobsterAI 覆盖广（尤其国内 IM） |
+| **IM 远程操控** | 钉钉 + 飞书 + Telegram + Discord (4个) | Telegram + WhatsApp (2个) | LobsterAI 覆盖广（尤其国内 IM） |
 | **技能自扩展** | skill-creator 让 AI 自己创建新技能并热加载 | **create_skill 工具 + 热加载 + 用户确认 + 提炼正确路径** | **持平**（我们多了用户确认和智能提炼） |
 | **记忆系统** | 5 种记忆类型 + 置信度排序 + 可调严格度 + LLM 判断过滤 | MemoryExtractor + 向量搜索 | LobsterAI 分类更精细；AgentClaw 有向量搜索 |
 | **权限门控** | 敏感操作弹窗确认 | 无 | LobsterAI 更安全 |
@@ -280,8 +319,8 @@
 | **浏览器控制** | Playwright 自动化（独立实例） | **CDP 连接用户真实 Chrome（带登录态）** | **AgentClaw 胜** |
 | **部署形态** | Electron 桌面应用（必须本地装） | **Web + Gateway 服务（远程部署，多端访问）** | **AgentClaw 更灵活** |
 | **工具重试** | 未提及 | **指数退避重试** | **AgentClaw 胜** |
-| **定时任务** | Cron 调度 | TaskScheduler + set_reminder | 持平 |
-| **网页搜索** | Playwright 驱动 Chrome 搜索 | web_search 工具 | 持平 |
+| **定时任务** | Cron 调度 | TaskScheduler + set_reminder + **orchestrator 自动执行 + 多网关广播** | **AgentClaw 胜**（任务触发后自动执行完整 agent 循环） |
+| **网页搜索** | Playwright 驱动 Chrome 搜索 | Serper API (Google 搜索结构化 JSON) | **AgentClaw 胜**（结构化 JSON，极省 token，稳定可靠） |
 | **Planner** | create-plan 技能 | plan_task 工具 + SimplePlanner | 持平 |
 | **数据隐私** | 全本地 SQLite | 全本地 SQLite | 持平 |
 
@@ -298,14 +337,11 @@
 
 ## Current Focus（当前重点）
 
-**Phase 6 持续推进中。** 本轮完成：
-- Token 优化（去重 + 动态筛选，每轮省 ~2000 tokens）
-- Skills 热加载（fs.watch + 去抖动）
-- 技能自创建（create_skill + 用户确认 + 智能提炼）
-- 浏览器 CDP 模式（连接用户真实 Chrome，保留登录态）
+**Phase 6 已完成，Google 集成 + CLI 增强 + 搜索重写已完成。**
 
 下一步优先方向：
+- API 鉴权（WebSocket/REST API 安全防护）
+- Docker 化（一键部署）
+- .env.example（环境变量文档化）
 - 沙箱执行环境
 - Office 文档生成工具（DOCX/XLSX/PPTX）
-- 更多 IM 网关（钉钉、飞书、Discord）
-- 权限门控

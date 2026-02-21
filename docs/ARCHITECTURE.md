@@ -11,7 +11,7 @@ AgentClaw is a commander-level AI dispatch center — a 24/7 personal assistant 
 │                     User Interfaces                  │
 │                     （用户界面）                       │
 │  ┌─────────┐  ┌──────────┐  ┌─────────────────────┐│
-│  │   CLI   │  │  Web UI  │  │  Bots (TG/Discord)  ││
+│  │   CLI   │  │  Web UI  │  │  Bots (TG/WhatsApp) ││
 │  └────┬────┘  └────┬─────┘  └──────────┬──────────┘│
 │       └─────────────┼──────────────────┘            │
 │                     ▼                                │
@@ -47,7 +47,7 @@ AgentClaw is a commander-level AI dispatch center — a 24/7 personal assistant 
 ### Streaming Data Flow with Usage Statistics（流式数据流与用量统计）
 
 ```
-Provider.stream()  →  AgentLoop.runStream()  →  Orchestrator  →  Gateway(WS/TG)  →  前端
+Provider.stream()  →  AgentLoop.runStream()  →  Orchestrator  →  Gateway(WS/TG/WA)  →  前端
   done chunk 携带         累加 tokensIn/Out       透传 Message      WS done 携带       渲染灰色
   usage + model          计时 durationMs         含统计字段        统计字段/TG 追加行   统计行
 ```
@@ -163,7 +163,7 @@ LLM abstraction layer with 3 adapters covering 8+ providers:（LLM 抽象层，3
 
 Tool system with three tiers:（三层工具系统：）
 
-- **Built-in** ✅: shell, file-read, file-write, web-search, web-fetch, ask-user, remember, set-reminder, schedule, send-file, python, http-request, browser, comfyui, plan-task（内置工具：命令行、文件读写、网页搜索、网页抓取、询问用户、记忆、提醒、定时任务、发送文件、Python 执行、HTTP 请求、浏览器、ComfyUI 图片处理、任务规划）
+- **Built-in** ✅: shell, file-read, file-write, web-search (Serper API), web-fetch, ask-user, remember, set-reminder, schedule, send-file, python, http-request, browser, comfyui, plan-task, create-skill, google-calendar, google-tasks（内置工具：命令行、文件读写、网页搜索（Serper API，Google 搜索结果的结构化 JSON）、网页抓取、询问用户、记忆、提醒、定时任务、发送文件、Python 执行、HTTP 请求、浏览器、ComfyUI 图片处理、任务规划、创建技能、Google 日历、Google 任务）。Google Calendar 和 Google Tasks 工具通过 OAuth2 + REST API 直接访问用户日历和任务，需配置 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` 环境变量。web-search 使用 Serper API（Google 搜索结果的结构化 JSON），需配置 `SERPER_API_KEY`。
 - **External**: claude-code, codex — future（外部工具：Claude Code、Codex——未来计划）
 - **MCP** ✅: MCPClient (stdio + HTTP transport) + MCPManager for multi-server connections.（MCP 协议：MCPClient 支持 stdio + HTTP 传输 + MCPManager 管理多服务器连接。）Auto-discovers tools from MCP servers and adapts them to AgentClaw Tool interface.（自动从 MCP 服务器发现工具并适配为 AgentClaw Tool 接口。）
 
@@ -183,8 +183,12 @@ Persistent memory backed by SQLite:（基于 SQLite 的持久化记忆：）
 CLI interface using Node.js readline:（使用 Node.js readline 的命令行界面：）
 
 - `agentclaw` / `ac` commands（`agentclaw` / `ac` 命令）
+- Shortcut: `pnpm cli`（快捷启动：`pnpm cli`）
 - Interactive chat mode with skill matching display（交互式对话模式，显示匹配的技能）
+- Streaming output via `processInputStream` — token-by-token display as LLM responds（流式逐字输出，使用 `processInputStream`，LLM 响应时实时展示）
 - Auto-loads skills from `skills/` directory on startup（启动时自动从 `skills/` 目录加载技能）
+- Auto-loads `.env` via dotenv, auto-detects provider from available environment variables（自动通过 dotenv 加载 `.env`，并根据可用环境变量自动检测提供商）
+- OS / shell / datetime info injected into system prompt（system prompt 中注入操作系统、Shell 环境、当前时间信息）
 - Periodic memory extraction every 5 turns（每 5 轮对话自动提取长期记忆）
 - Supports `--provider` flag for 8+ LLM providers（支持 `--provider` 参数切换 8+ 个 LLM 提供商）
 
@@ -192,10 +196,12 @@ CLI interface using Node.js readline:（使用 Node.js readline 的命令行界�
 
 Background daemon powered by Fastify:（基于 Fastify 的后台守护进程：）
 
-- **Server** ✅: Fastify HTTP server with CORS + WebSocket plugin.（Fastify HTTP 服务器 + CORS + WebSocket 插件。）`bootstrap.ts` initializes all core components (provider, tools, memory, orchestrator, planner, skills).（`bootstrap.ts` 初始化所有核心组件。）
+- **Server** ✅: Fastify HTTP server with CORS + WebSocket plugin.（Fastify HTTP 服务器 + CORS + WebSocket 插件。）`bootstrap.ts` initializes all core components (provider, tools, memory, orchestrator, planner, skills). System prompt includes runtime context: OS, shell, current date/time and timezone, and available CLI tools — ensuring the LLM never tries commands for the wrong OS.（`bootstrap.ts` 初始化所有核心组件。System prompt 中注入运行环境信息：操作系统、Shell、当前日期时间与时区、可用 CLI 工具，确保 LLM 不会执行错误操作系统的命令。）
 - **REST API** ✅: 18 endpoints covering sessions (CRUD + chat + history), plans (list + detail), memories (search + delete), tools & skills (list), stats & config (get/update), scheduled tasks (CRUD).（18 个端点覆盖会话、计划、记忆、工具技能、统计配置、定时任务。）
 - **WebSocket** ✅: Real-time streaming at `/ws?sessionId=xxx`.（`/ws?sessionId=xxx` 实时流式传输。）Maps AgentEvent types to client WSMessage format (text/tool_call/tool_result/done/error).（将 AgentEvent 类型映射为客户端 WSMessage 格式。）Done message carries usage stats (model/tokensIn/tokensOut/durationMs/toolCallCount).（done 消息携带用量统计。）
-- **Scheduler** ✅: Cron-based task scheduling using `croner` library with CRUD API.（基于 croner 库的 Cron 任务调度 + CRUD API。）
+- **Telegram Bot** ✅: Grammy framework, chat→session mapping, /start /new /help commands, image/file/video/audio support, broadcast API for scheduled tasks.（Grammy 框架，chat→session 映射，支持 /start /new /help 命令，支持图片/文件/视频/音频收发，提供 broadcast API 供定时任务广播使用。）
+- **WhatsApp Bot** ✅: Baileys (direct WhatsApp Web protocol), QR code auth, self-chat mode only, /new /help commands, image/file/video/audio support, broadcast API, auto-reconnect.（baileys 库直连 WhatsApp Web 协议，QR 码扫码认证，自聊模式，支持 /new /help 命令，支持图片/文件/视频/音频收发，提供 broadcast API，断线自动重连。）
+- **Scheduler** ✅: Cron-based task scheduling. On task fire, runs full orchestrator loop (not just notification) and broadcasts results to all active gateways (Telegram + WhatsApp).（基于 Cron 的任务调度。任务触发时运行完整的 orchestrator 循环（而非仅发通知），并将结果广播至所有活跃网关（Telegram + WhatsApp）。）使用 `croner` 库 + CRUD API。
 - **Graceful shutdown**: Handles SIGINT/SIGTERM, stops scheduler and closes Fastify.（处理 SIGINT/SIGTERM，停止调度器并关闭 Fastify。）
 
 ### packages/web（Web UI 包）✅

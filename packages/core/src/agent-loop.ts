@@ -15,7 +15,8 @@ import type {
   ContextManager,
   MemoryStore,
   ConversationTurn,
-  ToolDefinition,
+  Trace,
+  TraceStep,
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
@@ -107,9 +108,23 @@ export class SimpleAgentLoop implements AgentLoop {
     let totalTokensIn = 0;
     let totalTokensOut = 0;
     let totalToolCalls = 0;
+    let prevTokensIn = 0;
+    let prevTokensOut = 0;
     let usedModel: string | undefined;
     // Accumulate files sent by tools (for persistence)
     const allSentFiles: Array<{ url: string; filename: string }> = [];
+
+    // Trace for debugging
+    const trace: Trace = {
+      id: generateId(),
+      conversationId: convId,
+      userInput: typeof input === "string" ? input : JSON.stringify(input),
+      steps: [],
+      tokensIn: 0,
+      tokensOut: 0,
+      durationMs: 0,
+      createdAt: new Date(),
+    };
 
     // 存储用户消息：ContentBlock[] 需序列化为 JSON 字符串
     const userTurn: ConversationTurn = {
@@ -130,10 +145,16 @@ export class SimpleAgentLoop implements AgentLoop {
 
       // Build context
       this.setState("thinking");
-      const { systemPrompt, messages } = await this.contextManager.buildContext(
-        convId,
-        input,
-      );
+      const { systemPrompt, messages, skillMatch } =
+        await this.contextManager.buildContext(convId, input);
+
+      // Record trace metadata on first iteration
+      if (iterations === 1) {
+        trace.systemPrompt = systemPrompt;
+        if (skillMatch) {
+          trace.skillMatch = JSON.stringify(skillMatch);
+        }
+      }
 
       // Notify thinking
       yield this.createEvent("thinking", { iteration: iterations });
@@ -146,10 +167,7 @@ export class SimpleAgentLoop implements AgentLoop {
       > = new Map();
       let toolIndex = 0;
 
-      const tools =
-        iterations === 1
-          ? this.selectTools(input)
-          : this.toolRegistry.definitions();
+      const tools = this.toolRegistry.definitions();
 
       const stream = this.provider.stream({
         messages,
@@ -202,6 +220,20 @@ export class SimpleAgentLoop implements AgentLoop {
         }
       }
 
+      // Compute per-iteration delta
+      const iterTokensIn = totalTokensIn - prevTokensIn;
+      const iterTokensOut = totalTokensOut - prevTokensOut;
+      prevTokensIn = totalTokensIn;
+      prevTokensOut = totalTokensOut;
+
+      // Record LLM call in trace
+      trace.steps.push({
+        type: "llm_call",
+        iteration: iterations,
+        tokensIn: iterTokensIn,
+        tokensOut: iterTokensOut,
+      } as TraceStep);
+
       // Build tool calls from accumulated chunks
       const toolCalls: ToolUseContent[] = [];
       for (const [, tc] of pendingToolCalls) {
@@ -234,20 +266,28 @@ export class SimpleAgentLoop implements AgentLoop {
 
       // When this is the final response (no tool calls), append file markdown
       // so that sent files persist in the conversation history.
+      // Skip files whose filename already appears in the LLM's response text.
       let storedText = fullText;
       if (toolCalls.length === 0 && allSentFiles.length > 0) {
-        const filesMd = allSentFiles
-          .map((f) => {
-            const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(f.filename);
-            return isImage
-              ? `![${f.filename}](${f.url})`
-              : `[${f.filename}](${f.url})`;
-          })
-          .join("\n");
-        storedText = storedText ? storedText + "\n" + filesMd : filesMd;
+        const newFiles = allSentFiles.filter(
+          (f) => !fullText.includes(f.filename),
+        );
+        if (newFiles.length > 0) {
+          const filesMd = newFiles
+            .map((f) => {
+              const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(
+                f.filename,
+              );
+              return isImage
+                ? `![${f.filename}](${f.url})`
+                : `[${f.filename}](${f.url})`;
+            })
+            .join("\n");
+          storedText = storedText ? storedText + "\n" + filesMd : filesMd;
+        }
       }
 
-      // Store assistant turn
+      // Store assistant turn (per-iteration tokens, not cumulative)
       const assistantTurn: ConversationTurn = {
         id: generateId(),
         conversationId: convId,
@@ -255,8 +295,9 @@ export class SimpleAgentLoop implements AgentLoop {
         content: storedText,
         toolCalls: toolCalls.length > 0 ? JSON.stringify(toolCalls) : undefined,
         model: usedModel,
-        tokensIn: totalTokensIn,
-        tokensOut: totalTokensOut,
+        tokensIn: iterTokensIn,
+        tokensOut: iterTokensOut,
+        traceId: trace.id,
         createdAt: new Date(),
       };
       await this.memoryStore.addTurn(convId, assistantTurn);
@@ -264,6 +305,19 @@ export class SimpleAgentLoop implements AgentLoop {
       // If no tool calls, we're done
       if (toolCalls.length === 0) {
         const durationMs = Date.now() - startTime;
+
+        // Finalize and persist trace
+        trace.response = storedText;
+        trace.model = usedModel;
+        trace.tokensIn = totalTokensIn;
+        trace.tokensOut = totalTokensOut;
+        trace.durationMs = durationMs;
+        try {
+          await this.memoryStore.addTrace(trace);
+        } catch (e) {
+          console.error("[agent-loop] Failed to persist trace:", e);
+        }
+
         const message: Message = {
           id: generateId(),
           role: "assistant",
@@ -292,6 +346,13 @@ export class SimpleAgentLoop implements AgentLoop {
           input: toolCall.input,
         });
 
+        // Record tool_call in trace
+        trace.steps.push({
+          type: "tool_call",
+          name: toolCall.name,
+          input: toolCall.input,
+        } as TraceStep);
+
         let result = await this.toolRegistry.execute(
           toolCall.name,
           toolCall.input,
@@ -319,6 +380,14 @@ export class SimpleAgentLoop implements AgentLoop {
           name: toolCall.name,
           result,
         });
+
+        // Record tool_result in trace
+        trace.steps.push({
+          type: "tool_result",
+          name: toolCall.name,
+          content: result.content,
+          isError: result.isError,
+        } as TraceStep);
 
         // Store tool result as a turn
         const toolResultContent: ToolResultContent = {
@@ -363,8 +432,19 @@ export class SimpleAgentLoop implements AgentLoop {
       // Loop back for next LLM call with tool results
     }
 
-    // Max iterations reached
+    // Max iterations reached — persist trace
     const durationMs = Date.now() - startTime;
+    trace.model = usedModel;
+    trace.tokensIn = totalTokensIn;
+    trace.tokensOut = totalTokensOut;
+    trace.durationMs = durationMs;
+    trace.error = "max_iterations_reached";
+    try {
+      await this.memoryStore.addTrace(trace);
+    } catch (e) {
+      console.error("[agent-loop] Failed to persist trace:", e);
+    }
+
     this.setState("idle");
     const fallbackMessage: Message = {
       id: generateId(),
@@ -405,136 +485,5 @@ export class SimpleAgentLoop implements AgentLoop {
 
   private createEvent(type: AgentEventType, data: unknown): AgentEvent {
     return { type, data, timestamp: new Date() };
-  }
-
-  /** Core tools that are always sent to the LLM */
-  private static readonly CORE_TOOLS = new Set([
-    "shell",
-    "file_read",
-    "file_write",
-    "ask_user",
-    "web_search",
-    "web_fetch",
-    "remember",
-  ]);
-
-  /** Keyword-triggered specialist tools */
-  private static readonly SPECIALIST_TOOLS: ReadonlyArray<{
-    tools: string[];
-    keywords: string[];
-  }> = [
-    {
-      tools: ["comfyui", "comfyui_generate"],
-      keywords: [
-        "画",
-        "图片",
-        "生成",
-        "图像",
-        "去背景",
-        "放大",
-        "upscale",
-        "generate",
-        "image",
-        "draw",
-        "壁纸",
-        "头像",
-        "照片",
-        "插画",
-        "海报",
-        "comfyui",
-      ],
-    },
-    {
-      tools: ["browser"],
-      keywords: [
-        "打开",
-        "浏览器",
-        "网页",
-        "网站",
-        "截图",
-        "screenshot",
-        "browse",
-        "open",
-        "click",
-      ],
-    },
-    {
-      tools: ["python"],
-      keywords: [
-        "代码",
-        "脚本",
-        "计算",
-        "分析",
-        "数据",
-        "python",
-        "code",
-        "script",
-        "截图",
-        "excel",
-        "pdf",
-        "csv",
-      ],
-    },
-    {
-      tools: ["http_request"],
-      keywords: ["api", "http", "request", "请求", "接口", "endpoint", "curl"],
-    },
-    {
-      tools: ["send_file"],
-      keywords: ["发送文件", "发给我", "send file", "文件发", "传给"],
-    },
-    {
-      tools: ["set_reminder"],
-      keywords: ["提醒", "提醒我", "remind", "reminder", "分钟后", "小时后"],
-    },
-    {
-      tools: ["schedule"],
-      keywords: ["定时", "每天", "每周", "定期", "cron", "schedule", "每小时"],
-    },
-    {
-      tools: ["plan_task"],
-      keywords: ["计划", "规划", "plan", "分解", "步骤", "复杂任务"],
-    },
-    {
-      tools: ["create_skill"],
-      keywords: ["创建技能", "保存技能", "新技能", "create skill", "save skill", "记住这个流程", "保存为配方"],
-    },
-  ];
-
-  /**
-   * Select relevant tools based on user input.
-   * Core tools are always included; specialist tools are added
-   * only when the input matches their trigger keywords.
-   */
-  private selectTools(input: string | ContentBlock[]): ToolDefinition[] {
-    // Extract text from input
-    let text: string;
-    if (typeof input === "string") {
-      text = input;
-    } else {
-      text = input
-        .map((block) => {
-          if (block.type === "text") return block.text;
-          return "";
-        })
-        .join(" ");
-    }
-    const lowerText = text.toLowerCase();
-
-    // Build set of tool names to include
-    const selectedNames = new Set(SimpleAgentLoop.CORE_TOOLS);
-
-    for (const spec of SimpleAgentLoop.SPECIALIST_TOOLS) {
-      if (spec.keywords.some((kw) => lowerText.includes(kw))) {
-        for (const toolName of spec.tools) {
-          selectedNames.add(toolName);
-        }
-      }
-    }
-
-    // Filter from full definitions
-    return this.toolRegistry
-      .definitions()
-      .filter((def) => selectedNames.has(def.name));
   }
 }

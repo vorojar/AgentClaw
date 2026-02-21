@@ -1,9 +1,6 @@
 ---
 name: coding
-description: Software development, code review, and debugging
-triggers:
-  - type: keyword
-    patterns: ["write code", "fix bug", "refactor", "implement", "debug", "code review", "编写代码", "修复bug", "重构", "实现功能", "调试"]
+description: 软件开发、代码审查、调试和重构 | Software development, code review, debugging, and refactoring
 ---
 
 You are an expert software engineer. When helping with code:

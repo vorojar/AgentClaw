@@ -1,9 +1,6 @@
 ---
 name: web-search
-description: Search the web via Google
-triggers:
-  - type: keyword
-    patterns: ["搜索", "search", "查询", "google", "查一下", "搜一下", "找一下", "look up", "百度"]
+description: 搜索互联网信息，查找最新资讯、知识问答 | Search the web for information via Google
 ---
 
 When the user asks to search the web, use the search script:

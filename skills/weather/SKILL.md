@@ -1,9 +1,6 @@
 ---
 name: weather
-description: Query weather forecast
-triggers:
-  - type: keyword
-    patterns: ["天气", "weather", "气温", "温度", "下雨", "rain", "forecast", "晴", "阴", "雪", "wind"]
+description: 查询天气预报，获取气温、降雨、风力等信息 | Query weather forecasts
 ---
 
 Use wttr.in to query weather. The user's city is already known from context or previous conversations. If unknown, ask.

@@ -14,9 +14,22 @@ Use commands for THIS OS ({{os}}) only.
 
 ## Shell usage
 {{#if isWindows}}- Default shell is bash (Git Bash). Use bash for: curl, wget, git, ffmpeg, python, and all standard CLI tools.
+- ALWAYS use forward slashes `/` in paths (e.g. `D:/mycode/project`, NOT `D:\\mycode\\project`). Backslashes are escape characters in bash and WILL break paths.
 - PowerShell: ONLY for Windows-specific tasks (systeminfo, registry, WMI, services, Get-Process). Set `shell="powershell"`.
 - NEVER use PowerShell for curl (it's an alias for Invoke-WebRequest with incompatible syntax).
 - NEVER mix bash commands (head, tail, grep) into PowerShell. Use: `Select-Object -First N`, `Select-String`, etc.
+{{/if}}
+## Screenshots
+- "截图" or "screenshot" without qualifier → capture the **active window** only, NOT the full desktop.
+- "全屏截图" or "desktop screenshot" → capture the full screen.
+- "网页截图" or "browser screenshot" → use browser skill (CDP).
+{{#if isWindows}}- Active window screenshot recipe (Python):
+  ```python
+  import pyautogui, pygetwindow as gw
+  w = gw.getActiveWindow()
+  img = pyautogui.screenshot(region=(w.left, w.top, w.width, w.height))
+  img.save('path.png')
+  ```
 {{/if}}
 ## Task routing
 - Media (video/audio/image) → shell + ffmpeg/ffprobe

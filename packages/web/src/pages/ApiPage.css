@@ -1,0 +1,91 @@
+/* ApiPage styles */
+
+.api-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.api-group {
+  padding: 16px;
+}
+
+.api-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.api-endpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.api-endpoint {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.api-endpoint:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.api-endpoint-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.api-method {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 52px;
+}
+
+.api-path {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.api-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.api-params {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Try panel */
+.api-try {
+  margin-top: 4px;
+}
+
+.api-try-btn {
+  font-size: 11px;
+  padding: 2px 10px;
+}
+
+.api-try-result {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}

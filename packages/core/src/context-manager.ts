@@ -35,7 +35,11 @@ export class SimpleContextManager implements ContextManager {
   async buildContext(
     conversationId: string,
     currentInput: string | ContentBlock[],
-  ): Promise<{ systemPrompt: string; messages: Message[] }> {
+  ): Promise<{
+    systemPrompt: string;
+    messages: Message[];
+    skillMatch?: { name: string; confidence: number };
+  }> {
     // Get conversation history
     const turns = await this.memoryStore.getHistory(
       conversationId,
@@ -46,6 +50,7 @@ export class SimpleContextManager implements ContextManager {
     const messages: Message[] = turns.map((turn) => this.turnToMessage(turn));
 
     let finalPrompt = this.systemPrompt;
+    let skillMatch: { name: string; confidence: number } | undefined;
 
     // Extract text from input for memory search query
     const searchQuery =
@@ -74,23 +79,26 @@ export class SimpleContextManager implements ContextManager {
       // Memory search failed — continue without memories
     }
 
-    // Match skills against user input
+    // Inject skill catalog so the LLM knows what skills exist
+    // The LLM uses the use_skill tool to load instructions on demand
     if (this.skillRegistry) {
       try {
-        const matches = await this.skillRegistry.match(searchQuery);
-        // Take top match with confidence > 0.3
-        const topMatch = matches.find((m) => m.confidence > 0.3);
-        if (topMatch) {
-          finalPrompt += `\n\n## Active Skill: ${topMatch.skill.name}\n${topMatch.skill.instructions}`;
+        const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
+        if (allSkills.length > 0) {
+          const catalog = allSkills
+            .map((s) => `- ${s.name}: ${s.description}`)
+            .join("\n");
+          finalPrompt += `\n\n## Available Skills\nWhen the user's request matches a skill below, call use_skill(name) to load its instructions before acting.\n${catalog}`;
         }
       } catch {
-        // Skill matching failed — continue without skills
+        // Skill catalog failed — continue without it
       }
     }
 
     return {
       systemPrompt: finalPrompt,
       messages,
+      skillMatch,
     };
   }
 

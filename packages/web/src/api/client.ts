@@ -236,6 +236,7 @@ export interface TokenLogEntry {
   model: string;
   tokensIn: number;
   tokensOut: number;
+  traceId: string | null;
   createdAt: string;
 }
 
@@ -249,6 +250,48 @@ export function getTokenLogs(
   offset = 0,
 ): Promise<TokenLogsResponse> {
   return request(`/token-logs?limit=${limit}&offset=${offset}`);
+}
+
+// ── Traces ─────────────────────────────────────────
+
+export interface TraceStep {
+  type: "llm_call" | "tool_call" | "tool_result";
+  iteration?: number;
+  tokensIn?: number;
+  tokensOut?: number;
+  name?: string;
+  input?: Record<string, unknown>;
+  content?: string;
+  isError?: boolean;
+}
+
+export interface TraceInfo {
+  id: string;
+  conversationId: string;
+  userInput: string;
+  systemPrompt?: string;
+  skillMatch?: string;
+  steps: TraceStep[] | string;
+  response?: string;
+  model?: string;
+  tokensIn: number;
+  tokensOut: number;
+  durationMs: number;
+  error?: string;
+  createdAt: string;
+}
+
+export interface TracesResponse {
+  items: TraceInfo[];
+  total: number;
+}
+
+export function getTraces(limit = 20, offset = 0): Promise<TracesResponse> {
+  return request(`/traces?limit=${limit}&offset=${offset}`);
+}
+
+export function getTrace(id: string): Promise<TraceInfo> {
+  return request(`/traces/${id}`);
 }
 
 // ── Scheduled Tasks ─────────────────────────────────

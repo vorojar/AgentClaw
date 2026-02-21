@@ -8,6 +8,7 @@ import { setReminderTool } from "./set-reminder.js";
 import { scheduleTool } from "./schedule.js";
 import { rememberTool } from "./remember.js";
 import { planTaskTool } from "./plan-task.js";
+import { useSkillTool } from "./use-skill.js";
 
 // Re-exports for backwards compatibility (other packages may import these)
 export { shellTool, shellInfo } from "./shell.js";
@@ -19,6 +20,7 @@ export { setReminderTool } from "./set-reminder.js";
 export { scheduleTool } from "./schedule.js";
 export { rememberTool } from "./remember.js";
 export { planTaskTool } from "./plan-task.js";
+export { useSkillTool } from "./use-skill.js";
 
 /** Options for configuring which conditional tools to include */
 export interface BuiltinToolsOptions {
@@ -28,6 +30,8 @@ export interface BuiltinToolsOptions {
   memory?: boolean;
   /** Enable plan_task tool (requires planner) */
   planner?: boolean;
+  /** Enable use_skill tool (requires skillRegistry) */
+  skills?: boolean;
 }
 
 /** Create built-in tools with tiered loading */
@@ -44,6 +48,9 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
   }
   if (options?.planner) {
     tools.push(planTaskTool);
+  }
+  if (options?.skills) {
+    tools.push(useSkillTool);
   }
 
   return tools;

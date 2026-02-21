@@ -40,6 +40,8 @@ export type {
   MemorySearchResult,
   MemoryStore,
   ConversationTurn,
+  TraceStep,
+  Trace,
 } from "./memory.js";
 
 export type {

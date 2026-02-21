@@ -53,7 +53,9 @@ export function registerAuth(app: FastifyInstance): void {
       url.startsWith("/chat") ||
       url.startsWith("/plans") ||
       url.startsWith("/memory") ||
-      url.startsWith("/settings")
+      url.startsWith("/settings") ||
+      url.startsWith("/traces") ||
+      url.startsWith("/token-logs")
     ) {
       return;
     }

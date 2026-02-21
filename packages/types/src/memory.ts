@@ -42,6 +42,29 @@ export interface MemorySearchResult {
   score: number;
 }
 
+/** A single step in a trace */
+export interface TraceStep {
+  type: "llm_call" | "tool_call" | "tool_result";
+  [key: string]: unknown;
+}
+
+/** A full interaction trace for debugging */
+export interface Trace {
+  id: string;
+  conversationId: string;
+  userInput: string;
+  systemPrompt?: string;
+  skillMatch?: string;
+  steps: TraceStep[];
+  response?: string;
+  model?: string;
+  tokensIn: number;
+  tokensOut: number;
+  durationMs: number;
+  error?: string;
+  createdAt: Date;
+}
+
 /** Memory store interface */
 export interface MemoryStore {
   /** Store a new memory */
@@ -69,6 +92,18 @@ export interface MemoryStore {
     conversationId: string,
     limit?: number,
   ): Promise<ConversationTurn[]>;
+
+  /** Store an interaction trace */
+  addTrace(trace: Trace): Promise<void>;
+
+  /** Get a trace by ID */
+  getTrace(id: string): Promise<Trace | null>;
+
+  /** List traces with pagination */
+  getTraces(
+    limit?: number,
+    offset?: number,
+  ): Promise<{ items: Trace[]; total: number }>;
 }
 
 /** A single conversation turn stored in memory */
@@ -84,5 +119,6 @@ export interface ConversationTurn {
   tokensOut?: number;
   durationMs?: number;
   toolCallCount?: number;
+  traceId?: string;
   createdAt: Date;
 }

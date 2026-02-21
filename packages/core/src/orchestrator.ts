@@ -120,6 +120,7 @@ export class SimpleOrchestrator implements Orchestrator {
       },
       scheduler: this.scheduler,
       planner: this.planner,
+      skillRegistry: this.skillRegistry,
     };
 
     const inputHasImage = hasImage(input);

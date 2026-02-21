@@ -1,9 +1,6 @@
 ---
 name: writing
-description: Content writing, editing, and formatting
-triggers:
-  - type: keyword
-    patterns: ["write", "draft", "edit", "proofread", "summarize", "写作", "草稿", "编辑", "校对", "总结", "翻译"]
+description: 写作、翻译、校对、总结等文字内容创作和编辑 | Content writing, translation, proofreading, and summarization
 ---
 
 You are a skilled writer. When creating or editing content:

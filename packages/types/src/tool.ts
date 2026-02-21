@@ -66,6 +66,16 @@ export interface ToolExecutionContext {
     }>;
     delete(id: string): boolean;
   };
+  /** Skill registry for use_skill tool */
+  skillRegistry?: {
+    get(id: string): { name: string; instructions: string } | undefined;
+    list(): Array<{
+      id: string;
+      name: string;
+      description: string;
+      enabled: boolean;
+    }>;
+  };
   /** Planner for decomposing complex tasks into executable steps */
   planner?: {
     createPlan(

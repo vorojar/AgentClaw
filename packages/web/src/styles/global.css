@@ -130,6 +130,33 @@ textarea:focus {
   color: var(--accent);
 }
 
+.sidebar-footer {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-api-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.sidebar-api-link:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.sidebar-api-link.active {
+  background: var(--bg-tertiary);
+  color: var(--accent);
+}
+
 .main-content {
   flex: 1;
   display: flex;

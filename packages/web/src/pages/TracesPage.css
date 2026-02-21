@@ -1,0 +1,243 @@
+/* TracesPage styles */
+
+.traces-error {
+  padding: 12px 16px;
+  background: rgba(234, 67, 53, 0.1);
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  color: var(--error);
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.traces-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.traces-total {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.traces-pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.traces-page-info {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  min-width: 60px;
+  text-align: center;
+}
+
+.traces-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.traces-empty {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 12px 0;
+}
+
+.traces-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Trace card */
+.trace-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.trace-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.trace-card-header:hover {
+  background: var(--bg-tertiary);
+}
+
+.trace-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.trace-expand {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 14px;
+}
+
+.trace-input {
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trace-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.trace-tokens {
+  font-size: 12px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.trace-duration {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.trace-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Expanded body */
+.trace-card-body {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+}
+
+.trace-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trace-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.step-icon {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.trace-step-llm .step-icon {
+  background: rgba(108, 158, 255, 0.15);
+  color: var(--accent);
+}
+
+.step-icon-call {
+  background: rgba(251, 188, 4, 0.15);
+  color: var(--warning);
+  cursor: pointer;
+}
+
+.step-icon-result {
+  cursor: pointer;
+}
+
+.trace-step-result:not(.trace-step-error) .step-icon-result {
+  background: rgba(52, 168, 83, 0.15);
+  color: var(--success);
+}
+
+.trace-step-error .step-icon-result {
+  background: rgba(234, 67, 53, 0.15);
+  color: var(--error);
+}
+
+.step-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  padding-top: 2px;
+}
+
+.step-preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-top: 2px;
+  min-width: 0;
+}
+
+.step-expanded {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+/* Response section */
+.trace-response {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.trace-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.trace-response-text {
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 150px;
+  overflow-y: auto;
+}

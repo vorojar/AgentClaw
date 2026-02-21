@@ -1,9 +1,6 @@
 ---
 name: http-request
-description: Send HTTP requests via curl
-triggers:
-  - type: keyword
-    patterns: ["curl", "http请求", "API调用", "POST请求", "GET请求", "REST", "接口"]
+description: 发送HTTP请求，调用REST API接口 | Send HTTP requests and call REST APIs via curl
 ---
 
 When the user needs to make HTTP requests, use curl via shell:

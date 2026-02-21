@@ -1,9 +1,6 @@
 ---
 name: google-calendar
-description: Manage Google Calendar events
-triggers:
-  - type: keyword
-    patterns: ["日历", "日程", "calendar", "事件", "会议", "约会", "schedule", "appointment", "今天有什么", "明天安排"]
+description: 管理Google日历，查看日程、创建会议、修改和删除事件 | Manage Google Calendar events (list, create, update, delete)
 ---
 
 Use the Google Calendar script to manage events:

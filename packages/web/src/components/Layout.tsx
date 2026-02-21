@@ -31,12 +31,28 @@ export function Layout() {
             Token Logs
           </NavLink>
           <NavLink
+            to="/traces"
+            className={({ isActive }) => (isActive ? "active" : "")}
+          >
+            Traces
+          </NavLink>
+          <NavLink
             to="/settings"
             className={({ isActive }) => (isActive ? "active" : "")}
           >
             Settings
           </NavLink>
         </nav>
+        <div className="sidebar-footer">
+          <NavLink
+            to="/api"
+            className={({ isActive }) =>
+              `sidebar-api-link${isActive ? " active" : ""}`
+            }
+          >
+            {"{ } API"}
+          </NavLink>
+        </div>
       </aside>
       <main className="main-content">
         <Outlet />

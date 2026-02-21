@@ -80,6 +80,7 @@ export interface ContextManager {
   ): Promise<{
     systemPrompt: string;
     messages: Message[];
+    skillMatch?: { name: string; confidence: number };
   }>;
 }
 

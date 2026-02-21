@@ -1,9 +1,6 @@
 ---
 name: web-fetch
-description: Fetch and read web page content
-triggers:
-  - type: keyword
-    patterns: ["网页", "抓取", "爬取", "fetch", "读取网页", "页面内容", "URL内容"]
+description: 抓取和读取网页内容，提取页面文字信息 | Fetch and extract text content from web pages
 ---
 
 When the user wants to read web page content, use curl + text extraction via shell:

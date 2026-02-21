@@ -1,9 +1,6 @@
 ---
 name: create-skill
-description: Create reusable skills
-triggers:
-  - type: keyword
-    patterns: ["创建技能", "create skill", "保存工作流", "save workflow", "新技能", "new skill"]
+description: 创建可复用的自定义技能，保存工作流为技能 | Create reusable custom skills and save workflows
 ---
 
 When the user wants to save a workflow as a reusable skill:
@@ -22,10 +19,7 @@ When the user wants to save a workflow as a reusable skill:
    ```markdown
    ---
    name: <skill-name>
-   description: <one-line description>
-   triggers:
-     - type: keyword
-       patterns: ["keyword1", "keyword2", "关键词"]
+   description: 中文描述，包含使用场景关键词 | English description with usage context
    ---
 
    <Instructions for the LLM on how to perform this task>
@@ -40,6 +34,6 @@ When the user wants to save a workflow as a reusable skill:
 
 Rules:
 - Directory name should be kebab-case
-- Triggers should include both Chinese and English keywords
+- Description should be bilingual (Chinese | English) and include usage context keywords
 - Instructions should be clear and self-contained
 - Scripts should read from args/stdin and write to stdout

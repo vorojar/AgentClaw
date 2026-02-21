@@ -625,10 +625,25 @@ export function ChatPage() {
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
+            // Deduplicate markdown image/link references
+            // (file WS event + LLM text can both inject the same ![](url))
+            let content = last.content;
+            const seen = new Set<string>();
+            content = content.replace(
+              /!?\[([^\]]*)\]\(([^)]*)\)/g,
+              (match, _alt: string, url: string) => {
+                if (seen.has(url)) return "";
+                seen.add(url);
+                return match;
+              },
+            );
+            content = content.replace(/\n{3,}/g, "\n\n").trim();
+
             return [
               ...prev.slice(0, -1),
               {
                 ...last,
+                content,
                 streaming: false,
                 model: msg.model ?? last.model,
                 tokensIn: msg.tokensIn ?? last.tokensIn,

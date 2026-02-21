@@ -535,10 +535,22 @@ export async function startWhatsAppBot(
   let sock: WASocket;
   let stopped = false;
 
+  // Silent logger — only forward errors to console
+  const noop = () => {};
+  const silentLogger = {
+    level: "error",
+    child() { return silentLogger; },
+    trace: noop, debug: noop, info: noop, warn: noop,
+    error(obj: unknown, msg?: string) {
+      console.error("[whatsapp]", msg ?? obj);
+    },
+  };
+
   function createSocket(): WASocket {
     const s = makeWASocket({
       auth: state,
       browser: Browsers.ubuntu("AgentClaw"),
+      logger: silentLogger as any,
     });
     return s;
   }

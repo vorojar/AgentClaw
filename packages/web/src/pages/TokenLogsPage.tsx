@@ -87,6 +87,7 @@ export function TokenLogsPage() {
                 <thead>
                   <tr>
                     <th>Time</th>
+                    <th>Trace</th>
                     <th>Model</th>
                     <th>Input</th>
                     <th>Output</th>
@@ -98,6 +99,11 @@ export function TokenLogsPage() {
                     <tr key={row.id}>
                       <td className="token-logs-time">
                         {formatTime(row.createdAt)}
+                      </td>
+                      <td>
+                        <code className="trace-id">
+                          {row.traceId ? row.traceId.slice(0, 8) : "—"}
+                        </code>
                       </td>
                       <td>
                         <code className="model-name">{row.model}</code>

@@ -262,7 +262,7 @@ export function parseSkillFile(filePath: string, content: string): Skill {
     name,
     description,
     path: filePath,
-    triggers,
+    ...(triggers.length > 0 ? { triggers } : {}),
     instructions,
     enabled: true,
     useCount: 0,

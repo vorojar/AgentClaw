@@ -1,9 +1,6 @@
 ---
 name: comfyui
-description: AI image generation and processing via ComfyUI
-triggers:
-  - type: keyword
-    patterns: ["画", "生成", "图片", "图", "generate", "image", "comfyui", "作图", "图像", "去背景", "抠图", "超分", "upscale", "放大"]
+description: AI图片生成和处理（文生图、图生图、去背景、放大）| AI image generation and processing (text-to-image, remove background, upscale)
 ---
 
 Use the ComfyUI script for AI image generation and processing.

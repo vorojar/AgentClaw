@@ -1,9 +1,6 @@
 ---
 name: browser
-description: Control browser via Chrome DevTools Protocol
-triggers:
-  - type: keyword
-    patterns: ["浏览器", "browser", "打开网页", "截图", "screenshot", "网页操作", "点击", "自动化", "selenium", "puppeteer", "CDP"]
+description: 通过CDP控制浏览器，打开网页、点击元素、输入文字、抓取网页内容、网页截图 | Browser automation via Chrome DevTools Protocol
 ---
 
 Control the user's real browser (with their logins/cookies) via CDP.

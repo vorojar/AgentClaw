@@ -1,9 +1,6 @@
 ---
 name: research
-description: Web research, information gathering, and analysis
-triggers:
-  - type: keyword
-    patterns: ["search for", "find information", "research", "look up", "搜索", "查找", "研究", "查一下"]
+description: 网络调研，搜索和整合多来源信息进行分析 | Web research, information gathering and cross-source analysis
 ---
 
 You are a thorough researcher. When gathering information:

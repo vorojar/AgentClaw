@@ -1,9 +1,6 @@
 ---
 name: google-tasks
-description: Manage Google Tasks
-triggers:
-  - type: keyword
-    patterns: ["任务", "待办", "todo", "task", "tasks", "清单", "代办"]
+description: 管理Google Tasks待办事项，创建、完成、删除任务 | Manage Google Tasks (create, complete, delete to-do items)
 ---
 
 Use the Google Tasks script to manage tasks:

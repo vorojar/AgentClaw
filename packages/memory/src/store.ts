@@ -6,6 +6,7 @@ import type {
   MemoryQuery,
   MemorySearchResult,
   ConversationTurn,
+  Trace,
 } from "@agentclaw/types";
 import { cosineSimilarity, SimpleBagOfWords } from "./embeddings.js";
 
@@ -305,6 +306,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       model: string;
       tokensIn: number;
       tokensOut: number;
+      traceId: string | null;
       createdAt: string;
     }>;
     total: number;
@@ -317,7 +319,7 @@ export class SQLiteMemoryStore implements MemoryStore {
 
     const rows = this.db
       .prepare(
-        `SELECT id, conversation_id, model, tokens_in, tokens_out, created_at
+        `SELECT id, conversation_id, model, tokens_in, tokens_out, trace_id, created_at
          FROM turns
          WHERE role = 'assistant' AND model IS NOT NULL
          ORDER BY created_at DESC
@@ -329,6 +331,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       model: string;
       tokens_in: number | null;
       tokens_out: number | null;
+      trace_id: string | null;
       created_at: string;
     }>;
 
@@ -339,6 +342,7 @@ export class SQLiteMemoryStore implements MemoryStore {
         model: r.model,
         tokensIn: r.tokens_in ?? 0,
         tokensOut: r.tokens_out ?? 0,
+        traceId: r.trace_id,
         createdAt: r.created_at,
       })),
       total,
@@ -353,8 +357,8 @@ export class SQLiteMemoryStore implements MemoryStore {
 
     this.db
       .prepare(
-        `INSERT INTO turns (id, conversation_id, role, content, tool_calls, tool_results, model, tokens_in, tokens_out, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO turns (id, conversation_id, role, content, tool_calls, tool_results, model, tokens_in, tokens_out, trace_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         turn.id || randomUUID(),
@@ -366,6 +370,7 @@ export class SQLiteMemoryStore implements MemoryStore {
         turn.model ?? null,
         turn.tokensIn ?? null,
         turn.tokensOut ?? null,
+        turn.traceId ?? null,
         turn.createdAt
           ? turn.createdAt.toISOString()
           : new Date().toISOString(),
@@ -410,6 +415,55 @@ export class SQLiteMemoryStore implements MemoryStore {
     return this.bow.embed(text);
   }
 
+  // ─── Traces ──────────────────────────────────────────────────
+
+  async addTrace(trace: Trace): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO traces (id, conversation_id, user_input, system_prompt, skill_match, steps, response, model, tokens_in, tokens_out, duration_ms, error, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        trace.id,
+        trace.conversationId,
+        trace.userInput,
+        trace.systemPrompt ?? null,
+        trace.skillMatch ?? null,
+        JSON.stringify(trace.steps),
+        trace.response ?? null,
+        trace.model ?? null,
+        trace.tokensIn,
+        trace.tokensOut,
+        trace.durationMs,
+        trace.error ?? null,
+        trace.createdAt.toISOString(),
+      );
+  }
+
+  async getTrace(id: string): Promise<Trace | null> {
+    const row = this.db.prepare("SELECT * FROM traces WHERE id = ?").get(id) as
+      | TraceRow
+      | undefined;
+    return row ? rowToTrace(row) : null;
+  }
+
+  async getTraces(
+    limit = 20,
+    offset = 0,
+  ): Promise<{ items: Trace[]; total: number }> {
+    const { total } = this.db
+      .prepare("SELECT COUNT(*) AS total FROM traces")
+      .get() as { total: number };
+
+    const rows = this.db
+      .prepare("SELECT * FROM traces ORDER BY created_at DESC LIMIT ? OFFSET ?")
+      .all(limit, offset) as TraceRow[];
+
+    return { items: rows.map(rowToTrace), total };
+  }
+
+  // ─── Helpers ───────────────────────────────────────────────────
+
   private ensureConversation(conversationId: string): void {
     const exists = this.db
       .prepare("SELECT 1 FROM conversations WHERE id = ?")
@@ -450,6 +504,7 @@ interface TurnRow {
   model: string | null;
   tokens_in: number | null;
   tokens_out: number | null;
+  trace_id: string | null;
   created_at: string;
 }
 
@@ -513,6 +568,40 @@ function tokenizeForOverlap(text: string): Set<string> {
   return tokens;
 }
 
+interface TraceRow {
+  id: string;
+  conversation_id: string;
+  user_input: string;
+  system_prompt: string | null;
+  skill_match: string | null;
+  steps: string;
+  response: string | null;
+  model: string | null;
+  tokens_in: number;
+  tokens_out: number;
+  duration_ms: number;
+  error: string | null;
+  created_at: string;
+}
+
+function rowToTrace(row: TraceRow): Trace {
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    userInput: row.user_input,
+    systemPrompt: row.system_prompt ?? undefined,
+    skillMatch: row.skill_match ?? undefined,
+    steps: JSON.parse(row.steps),
+    response: row.response ?? undefined,
+    model: row.model ?? undefined,
+    tokensIn: row.tokens_in,
+    tokensOut: row.tokens_out,
+    durationMs: row.duration_ms,
+    error: row.error ?? undefined,
+    createdAt: new Date(row.created_at),
+  };
+}
+
 function rowToConversationTurn(row: TurnRow): ConversationTurn {
   return {
     id: row.id,
@@ -524,6 +613,7 @@ function rowToConversationTurn(row: TurnRow): ConversationTurn {
     model: row.model ?? undefined,
     tokensIn: row.tokens_in ?? undefined,
     tokensOut: row.tokens_out ?? undefined,
+    traceId: row.trace_id ?? undefined,
     createdAt: new Date(row.created_at),
   };
 }

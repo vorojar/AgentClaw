@@ -174,6 +174,7 @@ export async function bootstrap(): Promise<AppContext> {
     gateway: true, // gateway 模式，启用 send_file/reminder/schedule
     memory: true, // 启用 remember
     planner: true, // 启用 plan_task
+    skills: true, // 启用 use_skill
   });
   for (const tool of builtinTools) {
     toolRegistry.register(tool);

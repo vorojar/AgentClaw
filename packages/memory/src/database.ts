@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS turns (
   model TEXT,
   tokens_in INTEGER,
   tokens_out INTEGER,
+  trace_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_turns_conversation ON turns(conversation_id, created_at);
@@ -35,6 +36,23 @@ CREATE TABLE IF NOT EXISTS memories (
   access_count INTEGER NOT NULL DEFAULT 0,
   metadata TEXT
 );
+
+CREATE TABLE IF NOT EXISTS traces (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  user_input TEXT NOT NULL,
+  system_prompt TEXT,
+  skill_match TEXT,
+  steps TEXT NOT NULL DEFAULT '[]',
+  response TEXT,
+  model TEXT,
+  tokens_in INTEGER DEFAULT 0,
+  tokens_out INTEGER DEFAULT 0,
+  duration_ms INTEGER DEFAULT 0,
+  error TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_traces_created ON traces(created_at DESC);
 `;
 
 /**
@@ -50,6 +68,14 @@ export function initDatabase(dbPath: string): Database.Database {
 
   // Execute schema creation
   db.exec(SCHEMA_SQL);
+
+  // Migrations: add columns to existing tables
+  const cols = db.prepare("PRAGMA table_info(turns)").all() as Array<{
+    name: string;
+  }>;
+  if (!cols.some((c) => c.name === "trace_id")) {
+    db.exec("ALTER TABLE turns ADD COLUMN trace_id TEXT");
+  }
 
   return db;
 }

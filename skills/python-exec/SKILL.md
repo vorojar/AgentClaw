@@ -1,9 +1,6 @@
 ---
 name: python-exec
-description: Execute Python code via shell
-triggers:
-  - type: keyword
-    patterns: ["python", "脚本", "计算", "数据处理", "matplotlib", "pandas", "numpy"]
+description: 执行Python代码，数据处理、科学计算、图表绘制、文件转换 | Execute Python scripts for data processing, computation, and visualization
 ---
 
 When the user asks you to run Python code or perform tasks best suited for Python:

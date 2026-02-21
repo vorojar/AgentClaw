@@ -144,10 +144,10 @@ export class SkillRegistryImpl implements SkillRegistry {
   /**
    * Find skills that match the given user input.
    *
-   * Matching rules:
-   * - keyword trigger: case-insensitive substring match of patterns against input
-   *   confidence = matchedCount / totalPatterns * 0.8 + 0.2
-   * - always trigger: always matches with confidence 0.1
+   * Matching strategy (per skill):
+   * 1. If the skill has keyword triggers and any keyword matches → use legacy logic (backward compat)
+   * 2. Otherwise compute a token-overlap score against name + description
+   *    → score > 0.15 is considered a match
    *
    * Results are sorted by confidence in descending order.
    */
@@ -158,15 +158,31 @@ export class SkillRegistryImpl implements SkillRegistry {
     for (const skill of this.skills.values()) {
       if (!skill.enabled) continue;
 
-      for (const trigger of skill.triggers) {
-        const matchResult = this.matchTrigger(trigger, inputLower);
-        if (matchResult !== null) {
+      // Path 1: legacy keyword triggers (backward compat)
+      if (skill.triggers && skill.triggers.length > 0) {
+        let bestScore: number | null = null;
+        let bestTrigger = skill.triggers[0];
+        for (const trigger of skill.triggers) {
+          const score = this.matchTrigger(trigger, inputLower);
+          if (score !== null && (bestScore === null || score > bestScore)) {
+            bestScore = score;
+            bestTrigger = trigger;
+          }
+        }
+        if (bestScore !== null) {
           matches.push({
             skill,
-            confidence: matchResult,
-            matchedTrigger: trigger,
+            confidence: bestScore,
+            matchedTrigger: bestTrigger,
           });
+          continue;
         }
+      }
+
+      // Path 2: description-based token overlap
+      const score = descriptionScore(inputLower, skill);
+      if (score > 0.15) {
+        matches.push({ skill, confidence: score });
       }
     }
 
@@ -246,4 +262,47 @@ export class SkillRegistryImpl implements SkillRegistry {
         return null;
     }
   }
+}
+
+/**
+ * Tokenize text for matching. Uses CJK bigrams (2-char sliding window)
+ * to avoid false matches on single generic characters like "截" or "图".
+ * Latin words are kept as whole tokens (2+ chars).
+ */
+function tokenizeForMatch(text: string): Set<string> {
+  const tokens = new Set<string>();
+  // Latin words (2+ chars)
+  for (const m of text.matchAll(/[a-z]{2,}/g)) {
+    tokens.add(m[0]);
+  }
+  // CJK bigrams: extract contiguous CJK runs, then slide a 2-char window
+  for (const m of text.matchAll(/[\u4e00-\u9fff]+/g)) {
+    const run = m[0];
+    if (run.length === 1) {
+      tokens.add(run); // single CJK char has no bigram, keep as-is
+    } else {
+      for (let i = 0; i < run.length - 1; i++) {
+        tokens.add(run[i] + run[i + 1]);
+      }
+    }
+  }
+  return tokens;
+}
+
+/**
+ * Compute a token-overlap score between user input and a skill's
+ * name + description. Returns a value between 0 and 1.
+ */
+function descriptionScore(inputLower: string, skill: Skill): number {
+  const corpus = `${skill.name} ${skill.description}`.toLowerCase();
+  const inputTokens = tokenizeForMatch(inputLower);
+  const corpusTokens = tokenizeForMatch(corpus);
+  if (inputTokens.size === 0 || corpusTokens.size === 0) return 0;
+
+  let hits = 0;
+  for (const t of inputTokens) {
+    if (corpusTokens.has(t)) hits++;
+  }
+  // Normalize by the smaller set to avoid penalizing short inputs
+  return hits / Math.min(inputTokens.size, corpusTokens.size);
 }

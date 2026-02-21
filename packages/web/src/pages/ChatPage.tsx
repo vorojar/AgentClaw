@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   type SessionInfo,
   type ChatMessage,
@@ -858,8 +859,43 @@ export function ChatPage() {
                                     }}
                                   />
                                 ))}
-                                <div>
-                                  {parsed.text}
+                                <div className="message-content-md">
+                                  <ReactMarkdown
+                                    components={{
+                                      img: ({ src, alt, ...props }) => (
+                                        <img
+                                          src={src}
+                                          alt={alt ?? "image"}
+                                          style={{
+                                            maxWidth: "100%",
+                                            maxHeight: "400px",
+                                            borderRadius: "8px",
+                                            marginTop: "8px",
+                                            marginBottom: "8px",
+                                            display: "block",
+                                            cursor: "pointer",
+                                          }}
+                                          onClick={() =>
+                                            src && window.open(src, "_blank")
+                                          }
+                                          {...props}
+                                        />
+                                      ),
+                                      a: ({ href, children, ...props }) => (
+                                        <a
+                                          href={href}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{ color: "#7cacf8" }}
+                                          {...props}
+                                        >
+                                          {children}
+                                        </a>
+                                      ),
+                                    }}
+                                  >
+                                    {parsed.text}
+                                  </ReactMarkdown>
                                   {m.streaming && m.toolCalls.length === 0 && (
                                     <span className="streaming-cursor" />
                                   )}

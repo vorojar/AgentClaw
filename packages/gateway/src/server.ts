@@ -72,9 +72,15 @@ export async function createServer(
       wildcard: false,
     });
 
-    // SPA fallback: serve index.html for non-API, non-file routes
+    // SPA fallback: serve index.html only for navigation requests,
+    // NOT for static assets (.js, .css, etc.) to avoid MIME type errors.
     app.setNotFoundHandler((request, reply) => {
-      if (request.url.startsWith("/api/") || request.url.startsWith("/ws")) {
+      if (
+        request.url.startsWith("/api/") ||
+        request.url.startsWith("/ws") ||
+        request.url.startsWith("/assets/") ||
+        request.url.startsWith("/files/")
+      ) {
         reply.code(404).send({ error: "Not found" });
       } else {
         reply.sendFile("index.html");

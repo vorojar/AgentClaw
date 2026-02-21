@@ -107,6 +107,20 @@ const powershellConfig = {
   name: "powershell" as const,
 };
 
+/**
+ * Decode raw bytes from child process output.
+ * Try UTF-8 first; if it contains invalid sequences (common when Windows
+ * native programs output GBK/CP936), fall back to GBK decoding.
+ */
+function decodeOutput(buf: Buffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buf);
+  } catch {
+    // GBK / GB18030 fallback for Chinese Windows
+    return new TextDecoder("gbk").decode(buf);
+  }
+}
+
 /** Exported so bootstrap.ts can read the detected shell name */
 export const shellInfo = {
   name: detectedShell.name,
@@ -115,27 +129,18 @@ export const shellInfo = {
 
 export const shellTool: Tool = {
   name: "shell",
-  description: `Execute a ${detectedShell.name} command and return its output${process.platform === "win32" && detectedShell.name === "bash" ? '. Set shell to "powershell" for Windows-specific tasks (registry, Recycle Bin, system info, etc.)' : ""}`,
+  description: `Execute a ${detectedShell.name} command.${process.platform === "win32" && detectedShell.name === "bash" ? ' Use shell="powershell" for Windows-specific tasks.' : ""}`,
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      command: {
-        type: "string",
-        description: `The ${detectedShell.name} command to execute`,
-      },
-      timeout: {
-        type: "number",
-        description: "Timeout in milliseconds (default: 30000)",
-        default: DEFAULT_TIMEOUT,
-      },
+      command: { type: "string" },
+      timeout: { type: "number", default: DEFAULT_TIMEOUT },
       ...(process.platform === "win32" && detectedShell.name === "bash"
         ? {
             shell: {
               type: "string",
               enum: ["bash", "powershell"],
-              description:
-                'Shell to use. Default is "bash" (Git Bash). Use "powershell" for Windows-specific tasks like Recycle Bin, registry, WMI queries, etc. When using powershell, write native PowerShell syntax directly — do NOT wrap in powershell -Command.',
             },
           }
         : {}),
@@ -162,7 +167,7 @@ export const shellTool: Tool = {
         {
           timeout,
           maxBuffer: 10 * 1024 * 1024,
-          encoding: "utf8",
+          encoding: "buffer",
           env: {
             ...process.env,
             PYTHONIOENCODING: "utf-8",
@@ -170,7 +175,9 @@ export const shellTool: Tool = {
           },
         },
         (error, stdout, stderr) => {
-          const output = [stdout, stderr].filter(Boolean).join("\n");
+          const stdoutStr = stdout ? decodeOutput(stdout) : "";
+          const stderrStr = stderr ? decodeOutput(stderr) : "";
+          const output = [stdoutStr, stderrStr].filter(Boolean).join("\n");
 
           if (error) {
             if (error.killed) {

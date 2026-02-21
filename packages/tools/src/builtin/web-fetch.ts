@@ -42,20 +42,13 @@ function htmlToText(html: string): string {
 
 export const webFetchTool: Tool = {
   name: "web_fetch",
-  description:
-    "Fetch content from a URL. Returns the page content as text. Supports HTML (auto-converts to readable text), JSON, and plain text.",
+  description: "Fetch URL content as text (HTML auto-converted).",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      url: {
-        type: "string",
-        description: "The URL to fetch",
-      },
-      max_length: {
-        type: "number",
-        description: "Maximum content length to return (default: 10000)",
-      },
+      url: { type: "string" },
+      max_length: { type: "number", default: 10000 },
     },
     required: ["url"],
   },

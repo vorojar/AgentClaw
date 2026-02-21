@@ -349,50 +349,21 @@ async function handleUpscale(
 export const comfyuiGenerateTool: Tool = {
   name: "comfyui",
   description:
-    "Process images using ComfyUI on the local machine. Supports three actions: " +
-    "'generate' (text-to-image), 'remove_background' (remove image background), " +
-    "and 'upscale' (4x super-resolution). " +
-    "IMPORTANT: This tool automatically sends the result image to the user. " +
-    "NEVER call send_file after using this tool, or the user will receive duplicate images.",
+    "ComfyUI image processing. Auto-sends result, do NOT call send_file after.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
       action: {
         type: "string",
-        description:
-          "The action to perform: generate, remove_background, upscale",
+        enum: ["generate", "remove_background", "upscale"],
       },
-      prompt: {
-        type: "string",
-        description:
-          "Text description of the image to generate (for 'generate' action)",
-      },
-      image_path: {
-        type: "string",
-        description:
-          "Local file path of the image to process (for 'remove_background' and 'upscale' actions)",
-      },
-      width: {
-        type: "number",
-        description: "Image width in pixels (for 'generate', default: 1024)",
-        default: 1024,
-      },
-      height: {
-        type: "number",
-        description: "Image height in pixels (for 'generate', default: 1024)",
-        default: 1024,
-      },
-      steps: {
-        type: "number",
-        description: "Number of sampling steps (for 'generate', default: 9)",
-        default: 9,
-      },
-      seed: {
-        type: "number",
-        description:
-          "Random seed for reproducibility (for 'generate', default: random)",
-      },
+      prompt: { type: "string" },
+      image_path: { type: "string" },
+      width: { type: "number", default: 1024 },
+      height: { type: "number", default: 1024 },
+      steps: { type: "number", default: 9 },
+      seed: { type: "number" },
     },
     required: ["action"],
   },

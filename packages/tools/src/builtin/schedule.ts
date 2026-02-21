@@ -2,35 +2,16 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 export const scheduleTool: Tool = {
   name: "schedule",
-  description:
-    "Create, list, or delete recurring scheduled tasks. Use this when the user wants something done on a regular schedule (e.g. 'every morning at 8am', 'every hour', 'every Monday').",
+  description: "Create, list, or delete recurring scheduled tasks.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      action: {
-        type: "string",
-        description: "The action to perform: 'create', 'list', or 'delete'",
-        enum: ["create", "list", "delete"],
-      },
-      cron: {
-        type: "string",
-        description:
-          "Cron expression for the schedule (only for 'create'). Examples: '0 8 * * *' (daily 8am), '0 */2 * * *' (every 2 hours), '0 9 * * 1' (Monday 9am)",
-      },
-      message: {
-        type: "string",
-        description:
-          "The notification message to send when the task triggers (only for 'create')",
-      },
-      name: {
-        type: "string",
-        description: "A short name for the task (only for 'create')",
-      },
-      task_id: {
-        type: "string",
-        description: "The task ID to delete (only for 'delete')",
-      },
+      action: { type: "string", enum: ["create", "list", "delete"] },
+      cron: { type: "string" },
+      message: { type: "string" },
+      name: { type: "string" },
+      task_id: { type: "string" },
     },
     required: ["action"],
   },

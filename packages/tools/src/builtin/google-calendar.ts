@@ -65,58 +65,22 @@ function daysFromNowIso(days: number): string {
 
 export const googleCalendarTool: Tool = {
   name: "google_calendar",
-  description:
-    "管理 Google 日历事件。支持查询（list）、创建（create）和删除（delete）操作。需要配置 GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET 和 GOOGLE_REFRESH_TOKEN 环境变量。",
+  description: "管理 Google 日历：查询/创建/删除事件。",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      action: {
-        type: "string",
-        description: "操作类型：list（查询事件）、create（创建事件）、delete（删除事件）",
-        enum: ["list", "create", "delete"],
-      },
-      query: {
-        type: "string",
-        description: "搜索关键词（list 时可选）",
-      },
-      time_min: {
-        type: "string",
-        description: "查询起始时间，ISO 8601 格式（list 时可选，默认为当前时间）",
-      },
-      time_max: {
-        type: "string",
-        description: "查询结束时间，ISO 8601 格式（list 时可选，默认为 7 天后）",
-      },
-      summary: {
-        type: "string",
-        description: "事件标题（create 时必填）",
-      },
-      description: {
-        type: "string",
-        description: "事件描述（create 时可选）",
-      },
-      start_time: {
-        type: "string",
-        description: "事件开始时间，ISO 8601 格式（create 时必填）",
-      },
-      end_time: {
-        type: "string",
-        description: "事件结束时间，ISO 8601 格式（create 时可选，默认为开始时间 +1 小时）",
-      },
-      all_day: {
-        type: "boolean",
-        description: "是否为全天事件（create 时可选，默认 false）",
-      },
-      reminder_minutes: {
-        type: "number",
-        description:
-          "提前多少分钟提醒（create 时可选，默认 10 分钟）。设为 0 表示事件开始时提醒。",
-      },
-      event_id: {
-        type: "string",
-        description: "事件 ID（delete 时必填）",
-      },
+      action: { type: "string", enum: ["list", "create", "delete"] },
+      query: { type: "string" },
+      time_min: { type: "string" },
+      time_max: { type: "string" },
+      summary: { type: "string" },
+      description: { type: "string" },
+      start_time: { type: "string" },
+      end_time: { type: "string" },
+      all_day: { type: "boolean", default: false },
+      reminder_minutes: { type: "number", default: 10 },
+      event_id: { type: "string" },
     },
     required: ["action"],
   },

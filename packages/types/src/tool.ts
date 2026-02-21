@@ -5,7 +5,7 @@ export interface ToolParameterSchema {
     string,
     {
       type: string;
-      description: string;
+      description?: string;
       enum?: string[];
       default?: unknown;
       items?: { type: string };

@@ -4,20 +4,13 @@ import type { Tool, ToolResult } from "@agentclaw/types";
 
 export const fileWriteTool: Tool = {
   name: "file_write",
-  description:
-    "Write content to a file at the given path, creating parent directories if needed",
+  description: "Write content to a file.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      path: {
-        type: "string",
-        description: "Absolute or relative path to the file to write",
-      },
-      content: {
-        type: "string",
-        description: "Content to write to the file",
-      },
+      path: { type: "string" },
+      content: { type: "string" },
     },
     required: ["path", "content"],
   },

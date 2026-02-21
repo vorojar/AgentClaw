@@ -3,15 +3,12 @@ import type { Tool, ToolResult } from "@agentclaw/types";
 
 export const fileReadTool: Tool = {
   name: "file_read",
-  description: "Read the contents of a file at the given path",
+  description: "Read a file.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      path: {
-        type: "string",
-        description: "Absolute or relative path to the file to read",
-      },
+      path: { type: "string" },
     },
     required: ["path"],
   },

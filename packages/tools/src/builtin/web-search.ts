@@ -53,20 +53,13 @@ function formatResults(data: SerperResponse, query: string): string {
 
 export const webSearchTool: Tool = {
   name: "web_search",
-  description:
-    "Search the web using Google (via Serper API). Returns structured results with titles, URLs, and snippets.",
+  description: "Search the web via Google.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      query: {
-        type: "string",
-        description: "Search query",
-      },
-      max_results: {
-        type: "number",
-        description: "Maximum number of results (default: 5, max: 10)",
-      },
+      query: { type: "string" },
+      max_results: { type: "number", default: 5 },
     },
     required: ["query"],
   },

@@ -8,21 +8,13 @@ const TEMP_DIR = resolve(process.cwd(), "data", "tmp");
 
 export const pythonTool: Tool = {
   name: "python",
-  description:
-    "Execute Python code and return stdout. Code runs as a top-level script — do NOT use return statements. Use print() for output. Preferred over shell for complex tasks (screenshots, image processing, PDF/Excel, data analysis, etc.). Working directory is the temp folder.",
+  description: "Execute Python code, return stdout. Use print() for output.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      code: {
-        type: "string",
-        description: "The Python code to execute",
-      },
-      timeout: {
-        type: "number",
-        description: "Timeout in milliseconds (default: 60000)",
-        default: DEFAULT_TIMEOUT,
-      },
+      code: { type: "string" },
+      timeout: { type: "number", default: DEFAULT_TIMEOUT },
     },
     required: ["code"],
   },

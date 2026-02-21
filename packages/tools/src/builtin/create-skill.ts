@@ -42,36 +42,15 @@ ${params.instructions.trim()}
 
 export const createSkillTool: Tool = {
   name: "create_skill",
-  description:
-    "Create a new reusable skill that will be automatically loaded. " +
-    "Use this to save successful workflows as recipes for future reuse. " +
-    "The skill's instructions guide the AI on how to handle matching requests.",
+  description: "Save a workflow as a reusable skill.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      name: {
-        type: "string",
-        description:
-          "Skill name, short and descriptive (e.g. 'video-compress', 'daily-news')",
-      },
-      description: {
-        type: "string",
-        description: "Brief description of what this skill does",
-      },
-      triggers: {
-        type: "array",
-        description:
-          "Keywords that activate this skill (e.g. ['压缩视频', 'video compress', '视频太大'])",
-        items: { type: "string" },
-      },
-      instructions: {
-        type: "string",
-        description:
-          "Detailed instructions for the AI when this skill is activated. " +
-          "Include specific tool calls, commands, parameters, and step-by-step recipes. " +
-          "The more specific, the faster and cheaper execution will be.",
-      },
+      name: { type: "string" },
+      description: { type: "string" },
+      triggers: { type: "array", items: { type: "string" } },
+      instructions: { type: "string" },
     },
     required: ["name", "description", "triggers", "instructions"],
   },

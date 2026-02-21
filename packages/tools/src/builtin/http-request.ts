@@ -67,36 +67,20 @@ function formatResponse(
 
 export const httpRequestTool: Tool = {
   name: "http_request",
-  description:
-    "Send an HTTP request to a URL. Supports GET, POST, PUT, DELETE, and PATCH methods with custom headers and body. Returns the status code, response headers, and body.",
+  description: "Send an HTTP request. Returns status, headers, body.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      url: {
-        type: "string",
-        description: "The URL to request",
-      },
+      url: { type: "string" },
       method: {
         type: "string",
-        description: "HTTP method (default: GET)",
         enum: ["GET", "POST", "PUT", "DELETE", "PATCH"],
         default: "GET",
       },
-      headers: {
-        type: "object",
-        description: "Request headers as key-value pairs",
-      },
-      body: {
-        type: "string",
-        description:
-          "Request body. For JSON payloads, pass a JSON-encoded string",
-      },
-      timeout: {
-        type: "number",
-        description: "Timeout in milliseconds (default: 30000)",
-        default: DEFAULT_TIMEOUT,
-      },
+      headers: { type: "object" },
+      body: { type: "string" },
+      timeout: { type: "number", default: DEFAULT_TIMEOUT },
     },
     required: ["url"],
   },

@@ -16,21 +16,13 @@ function delayToCron(delaySec: number): { cron: string; fireAt: Date } {
 
 export const setReminderTool: Tool = {
   name: "set_reminder",
-  description:
-    "Set a one-time reminder that will notify the user after a specified delay. Use this when the user asks to be reminded of something. The reminder will appear in the Scheduled Tasks list.",
+  description: "Set a one-time reminder after a delay.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      message: {
-        type: "string",
-        description: "The reminder message to send to the user",
-      },
-      delay_seconds: {
-        type: "number",
-        description:
-          "How many seconds from now to send the reminder (e.g. 60 for 1 minute, 3600 for 1 hour)",
-      },
+      message: { type: "string" },
+      delay_seconds: { type: "number" },
     },
     required: ["message", "delay_seconds"],
   },

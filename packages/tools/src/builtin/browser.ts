@@ -404,31 +404,15 @@ async function handleClose(): Promise<ToolResult> {
 export const browserTool: Tool = {
   name: "browser",
   description:
-    "Control the user's real Chrome/Edge browser via CDP. Opens pages in a new tab " +
-    "within the user's actual browser (with all their logins, cookies, passwords, extensions). " +
-    "Supports: open, screenshot, click, type, get_content, close.",
+    "Control user's real browser via CDP (with their logins/cookies).",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      action: {
-        type: "string",
-        description:
-          "The action to perform: open, screenshot, click, type, get_content, close",
-      },
-      url: {
-        type: "string",
-        description: "URL to open (for 'open' action)",
-      },
-      selector: {
-        type: "string",
-        description:
-          "CSS selector (for 'click', 'type', 'get_content' actions)",
-      },
-      text: {
-        type: "string",
-        description: "Text to type (for 'type' action)",
-      },
+      action: { type: "string", enum: ["open", "screenshot", "click", "type", "get_content", "close"] },
+      url: { type: "string" },
+      selector: { type: "string" },
+      text: { type: "string" },
     },
     required: ["action"],
   },

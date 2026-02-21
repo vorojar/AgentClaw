@@ -3,15 +3,12 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 export const askUserTool: Tool = {
   name: "ask_user",
-  description: "Ask the user a question and return their answer",
+  description: "Ask the user a question.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      question: {
-        type: "string",
-        description: "The question to ask the user",
-      },
+      question: { type: "string" },
     },
     required: ["question"],
   },

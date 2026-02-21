@@ -38,40 +38,17 @@ function formatTask(task: GoogleTask, index: number): string {
 
 export const googleTasksTool: Tool = {
   name: "google_tasks",
-  description:
-    "管理 Google Tasks 任务。支持列出任务、创建任务、标记任务为完成、删除任务。需要 Google OAuth2 环境变量（GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、GOOGLE_REFRESH_TOKEN）。",
+  description: "管理 Google Tasks：列出/创建/完成/删除任务。",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      action: {
-        type: "string",
-        description:
-          "操作类型：list（列出任务）、create（创建任务）、complete（标记完成）、delete（删除任务）",
-        enum: ["list", "create", "complete", "delete"],
-      },
-      task_list: {
-        type: "string",
-        description: "任务列表 ID，默认为 \"@default\"（主要任务列表）",
-        default: "@default",
-      },
-      title: {
-        type: "string",
-        description: "任务标题（create 操作时必填）",
-      },
-      notes: {
-        type: "string",
-        description: "任务备注（create 操作时可选）",
-      },
-      due: {
-        type: "string",
-        description:
-          "任务截止日期，RFC 3339 格式，例如 \"2024-01-15T00:00:00.000Z\"（create 操作时可选）",
-      },
-      task_id: {
-        type: "string",
-        description: "任务 ID（complete 和 delete 操作时必填）",
-      },
+      action: { type: "string", enum: ["list", "create", "complete", "delete"] },
+      task_list: { type: "string", default: "@default" },
+      title: { type: "string" },
+      notes: { type: "string" },
+      due: { type: "string" },
+      task_id: { type: "string" },
     },
     required: ["action"],
   },

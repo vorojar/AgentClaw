@@ -3,21 +3,13 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 export const planTaskTool: Tool = {
   name: "plan_task",
   description:
-    "Decompose a complex, multi-step task into a plan and execute it step by step. " +
-    "Use this when a task requires multiple distinct actions (e.g., research + analysis + writing). " +
-    "Do NOT use for simple single-step tasks.",
+    "Decompose a complex multi-step task into a plan and execute step by step.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      goal: {
-        type: "string",
-        description: "The complex task to plan and execute",
-      },
-      context: {
-        type: "string",
-        description: "Optional additional context or constraints",
-      },
+      goal: { type: "string" },
+      context: { type: "string" },
     },
     required: ["goal"],
   },

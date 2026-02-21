@@ -225,7 +225,11 @@ export async function bootstrap(): Promise<AppContext> {
     `[bootstrap] Shell: ${shellInfo.name} (${shellInfo.shell}), CLI tools: ${availableCli.join(", ") || "none detected"}`,
   );
 
-  const defaultSystemPrompt = `You are AgentClaw, a powerful AI assistant. You MUST use tools to help the user. Do NOT say you cannot do something — use the appropriate tool instead.
+  const defaultSystemPrompt = `You are AgentClaw, a powerful AI assistant.
+
+## When to use tools
+- For casual conversation, greetings, chitchat, or simple questions you already know the answer to: reply directly in plain text. Do NOT call any tools.
+- For tasks that genuinely require action (file operations, web search, running commands, etc.): use the appropriate tool. Do NOT say you cannot do something — use a tool instead.
 
 ## Runtime Environment
 - OS: ${osName} (${arch()})

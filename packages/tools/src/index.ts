@@ -8,7 +8,11 @@ export {
   fileReadTool,
   fileWriteTool,
   askUserTool,
-  webFetchTool,
-  webSearchTool,
+  sendFileTool,
+  setReminderTool,
+  scheduleTool,
+  rememberTool,
+  planTaskTool,
 } from "./builtin/index.js";
+export type { BuiltinToolsOptions } from "./builtin/index.js";
 export { MCPClient, MCPManager } from "./mcp/index.js";

@@ -170,7 +170,11 @@ export async function bootstrap(): Promise<AppContext> {
 
   // Tool registry
   const toolRegistry = new ToolRegistryImpl();
-  const builtinTools = createBuiltinTools();
+  const builtinTools = createBuiltinTools({
+    gateway: true, // gateway 模式，启用 send_file/reminder/schedule
+    memory: true, // 启用 remember
+    planner: true, // 启用 plan_task
+  });
   for (const tool of builtinTools) {
     toolRegistry.register(tool);
   }

@@ -3,66 +3,47 @@ import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file-read.js";
 import { fileWriteTool } from "./file-write.js";
 import { askUserTool } from "./ask-user.js";
-import { webFetchTool } from "./web-fetch.js";
-import { webSearchTool } from "./web-search.js";
-import { rememberTool } from "./remember.js";
+import { sendFileTool } from "./send-file.js";
 import { setReminderTool } from "./set-reminder.js";
 import { scheduleTool } from "./schedule.js";
-import { sendFileTool } from "./send-file.js";
-import { pythonTool } from "./python.js";
-import { httpRequestTool } from "./http-request.js";
-import { browserTool } from "./browser.js";
-import { comfyuiGenerateTool } from "./comfyui.js";
+import { rememberTool } from "./remember.js";
 import { planTaskTool } from "./plan-task.js";
-import { createSkillTool } from "./create-skill.js";
-import { googleCalendarTool } from "./google-calendar.js";
-import { googleTasksTool } from "./google-tasks.js";
-import { isGoogleConfigured } from "./google-auth.js";
 
+// Re-exports for backwards compatibility (other packages may import these)
 export { shellTool, shellInfo } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
 export { fileWriteTool } from "./file-write.js";
 export { askUserTool } from "./ask-user.js";
-export { webFetchTool } from "./web-fetch.js";
-export { webSearchTool } from "./web-search.js";
-export { rememberTool } from "./remember.js";
+export { sendFileTool } from "./send-file.js";
 export { setReminderTool } from "./set-reminder.js";
 export { scheduleTool } from "./schedule.js";
-export { sendFileTool } from "./send-file.js";
-export { pythonTool } from "./python.js";
-export { httpRequestTool } from "./http-request.js";
-export { browserTool } from "./browser.js";
-export { comfyuiGenerateTool } from "./comfyui.js";
+export { rememberTool } from "./remember.js";
 export { planTaskTool } from "./plan-task.js";
-export { createSkillTool } from "./create-skill.js";
-export { googleCalendarTool } from "./google-calendar.js";
-export { googleTasksTool } from "./google-tasks.js";
-export { isGoogleConfigured } from "./google-auth.js";
 
-/** Create all built-in tools */
-export function createBuiltinTools(): Tool[] {
-  const tools: Tool[] = [
-    shellTool,
-    fileReadTool,
-    fileWriteTool,
-    askUserTool,
-    webFetchTool,
-    webSearchTool,
-    rememberTool,
-    setReminderTool,
-    scheduleTool,
-    sendFileTool,
-    pythonTool,
-    httpRequestTool,
-    browserTool,
-    comfyuiGenerateTool,
-    planTaskTool,
-    createSkillTool,
-  ];
+/** Options for configuring which conditional tools to include */
+export interface BuiltinToolsOptions {
+  /** Enable send_file, set_reminder, schedule (gateway mode) */
+  gateway?: boolean;
+  /** Enable remember tool (requires memoryStore) */
+  memory?: boolean;
+  /** Enable plan_task tool (requires planner) */
+  planner?: boolean;
+}
 
-  // Google tools — only register when credentials are configured
-  if (isGoogleConfigured()) {
-    tools.push(googleCalendarTool, googleTasksTool);
+/** Create built-in tools with tiered loading */
+export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
+  // Core tools — always loaded
+  const tools: Tool[] = [shellTool, fileReadTool, fileWriteTool, askUserTool];
+
+  // Conditional tools — loaded based on configuration
+  if (options?.gateway) {
+    tools.push(sendFileTool, setReminderTool, scheduleTool);
+  }
+  if (options?.memory) {
+    tools.push(rememberTool);
+  }
+  if (options?.planner) {
+    tools.push(planTaskTool);
   }
 
   return tools;

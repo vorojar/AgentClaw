@@ -65,6 +65,8 @@ export async function startChat(options: ChatOptions): Promise<void> {
 - For tasks that genuinely require action (file operations, web search, running commands, etc.): use the appropriate tool.
 
 ## Runtime Environment
+- Current date/time: ${new Date().toLocaleString("zh-CN", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "long", hour12: false })}
+- Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 - OS: ${osName} (${arch()})
 - Shell: ${shellDesc}
 - Home directory: ${homedir()}

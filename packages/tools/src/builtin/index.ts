@@ -15,6 +15,9 @@ import { browserTool } from "./browser.js";
 import { comfyuiGenerateTool } from "./comfyui.js";
 import { planTaskTool } from "./plan-task.js";
 import { createSkillTool } from "./create-skill.js";
+import { googleCalendarTool } from "./google-calendar.js";
+import { googleTasksTool } from "./google-tasks.js";
+import { isGoogleConfigured } from "./google-auth.js";
 
 export { shellTool, shellInfo } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
@@ -32,10 +35,13 @@ export { browserTool } from "./browser.js";
 export { comfyuiGenerateTool } from "./comfyui.js";
 export { planTaskTool } from "./plan-task.js";
 export { createSkillTool } from "./create-skill.js";
+export { googleCalendarTool } from "./google-calendar.js";
+export { googleTasksTool } from "./google-tasks.js";
+export { isGoogleConfigured } from "./google-auth.js";
 
 /** Create all built-in tools */
 export function createBuiltinTools(): Tool[] {
-  return [
+  const tools: Tool[] = [
     shellTool,
     fileReadTool,
     fileWriteTool,
@@ -53,4 +59,11 @@ export function createBuiltinTools(): Tool[] {
     planTaskTool,
     createSkillTool,
   ];
+
+  // Google tools — only register when credentials are configured
+  if (isGoogleConfigured()) {
+    tools.push(googleCalendarTool, googleTasksTool);
+  }
+
+  return tools;
 }

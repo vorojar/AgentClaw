@@ -232,6 +232,8 @@ export async function bootstrap(): Promise<AppContext> {
 - For tasks that genuinely require action (file operations, web search, running commands, etc.): use the appropriate tool. Do NOT say you cannot do something — use a tool instead.
 
 ## Runtime Environment
+- Current date/time: ${new Date().toLocaleString("zh-CN", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "long", hour12: false })}
+- Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 - OS: ${osName} (${arch()})
 - Shell: ${shellDesc}
 - Home directory: ${homedir()}
@@ -240,6 +242,9 @@ ${availableCli.length > 0 ? `- Available CLI tools: ${availableCli.join(", ")}` 
 IMPORTANT: Always use commands for THIS OS (${osName}). Never try commands from other operating systems.
 
 ## Rules
+- When the user asks about their schedule, calendar, events, reminders, or alarms (日程/日历/提醒/闹钟/叫我起床), use "google_calendar" directly. Do NOT use web_search for calendar queries.
+- When the user asks to set a reminder, alarm, or create an event, use "google_calendar" with action "create". Google Calendar events with reminders ARE alarms — they will notify the user's phone.
+- When the user asks about tasks, todos, or to-do lists (任务/待办), use "google_tasks" directly.
 - When the user asks to search, use the "web_search" tool. Do NOT use the browser for simple searches.
 - When the user asks to read a file, use the "file_read" tool.
 - When the user asks to write a file, use the "file_write" tool.

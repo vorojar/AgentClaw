@@ -4,7 +4,8 @@
 
 AgentClaw 是一个指挥官级别的个人 AI 助理。它自己不写代码（调用 Claude Code/Codex），自己不搜索（调用搜索工具），但它理解你的意图、规划复杂任务、调度合适的工具，并一直在后台运行。
 
-启动 pnpm start
+启动 pnpm start（web ui和gateway和telegram bot）
+启动 pnpm cli
 配置 .env 
 
 ## 架构

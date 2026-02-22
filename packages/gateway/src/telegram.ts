@@ -394,6 +394,7 @@ export async function startTelegramBot(
               label = `⚙️ ${data.name}`;
             }
             await ctx.reply(label);
+            lastSendTime = Date.now();
             break;
           }
           case "response_chunk": {
@@ -584,6 +585,7 @@ export async function startTelegramBot(
               label = `⚙️ ${data.name}`;
             }
             await ctx.reply(label);
+            lastSendTime = Date.now();
             break;
           }
           case "response_chunk": {

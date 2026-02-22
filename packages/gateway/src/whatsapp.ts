@@ -242,6 +242,7 @@ async function handleTextMessage(
             label = `⚙️ ${data.name}`;
           }
           await botSendText(sock, jid, label);
+          lastSendTime = Date.now();
           break;
         }
         case "response_chunk": {
@@ -404,6 +405,7 @@ async function handleImageMessage(
             label = `⚙️ ${data.name}`;
           }
           await botSendText(sock, jid, label);
+          lastSendTime = Date.now();
           break;
         }
         case "response_chunk": {

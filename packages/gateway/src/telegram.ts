@@ -47,14 +47,38 @@ function stripFileMarkdown(text: string): string {
  * Create a sendFile callback for a specific chat.
  * Sends images via sendPhoto (inline preview) and other files via sendDocument.
  */
+/** Max file size (bytes) to send inline via Telegram Bot API. Larger files get a download link. */
+const MAX_SEND_SIZE = 50 * 1024 * 1024; // 50 MB
+
 function createSendFile(
   bot: Bot,
   chatId: number,
 ): (path: string, caption?: string) => Promise<void> {
   return async (filePath: string, caption?: string) => {
-    const { createReadStream } = await import("node:fs");
+    const { createReadStream, statSync } = await import("node:fs");
+    const { basename } = await import("node:path");
     const { InputFile } = await import("grammy");
     const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+    const filename = basename(filePath);
+
+    // Large files: send download link instead of inline upload
+    try {
+      const size = statSync(filePath).size;
+      if (size > MAX_SEND_SIZE) {
+        const port = process.env.PORT || "3100";
+        const host = process.env.PUBLIC_URL || `http://localhost:${port}`;
+        const fileUrl = `/files/${encodeURIComponent(filename)}`;
+        const sizeMB = (size / 1024 / 1024).toFixed(1);
+        await bot.api.sendMessage(
+          chatId,
+          `📎 ${caption || filename} (${sizeMB}MB)\n${host}${fileUrl}`,
+        );
+        return;
+      }
+    } catch {
+      // stat failed — try sending anyway
+    }
+
     const inputFile = new InputFile(createReadStream(filePath));
 
     if (IMAGE_EXTENSIONS.has(ext)) {

@@ -23,6 +23,7 @@
 - **auto_send 路径检测**：`FILE_PATH_RE` 支持反斜杠路径和 Unicode 文件名，Windows 上 yt-dlp 输出不再漏检
 - **send_file 路径解析**：尝试 `resolve()` 绝对路径兜底，修复相对路径 + Unicode 文件名找不到文件的问题
 - **yt-dlp 文件名编码**：输出文件名改用视频 ID（ASCII），避免 emoji/中文标题导致的 Windows 路径问题
+- **大文件自动转链接**：WhatsApp/Telegram 发送文件超过 50MB 时，自动改发下载链接（`PUBLIC_URL` 环境变量可配置外部地址）
 
 ### 改进
 - **System Prompt 压缩**：精简 ~400 tokens/轮（删除冗余规则、代码块、重复强调）

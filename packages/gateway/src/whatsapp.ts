@@ -110,16 +110,38 @@ async function botSendVoice(sock: WASocket, jid: string, audioPath: string): Pro
 /**
  * Create a sendFile callback for a specific WhatsApp chat.
  */
+/** Max file size (bytes) to send inline via WhatsApp. Larger files get a download link. */
+const MAX_SEND_SIZE = 50 * 1024 * 1024; // 50 MB
+
 function createSendFile(
   sock: WASocket,
   jid: string,
   sentFiles: Array<{ url: string; filename: string }>,
 ): (path: string, caption?: string) => Promise<void> {
   return async (filePath: string, caption?: string) => {
-    const { readFileSync } = await import("node:fs");
+    const { readFileSync, statSync } = await import("node:fs");
     const { basename } = await import("node:path");
     const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
     const filename = basename(filePath);
+    const fileUrl = `/files/${encodeURIComponent(filename)}`;
+
+    // Large files: send download link instead of inline upload
+    try {
+      const size = statSync(filePath).size;
+      if (size > MAX_SEND_SIZE) {
+        const port = process.env.PORT || "3100";
+        const host = process.env.PUBLIC_URL || `http://localhost:${port}`;
+        const sizeMB = (size / 1024 / 1024).toFixed(1);
+        const linkText = `📎 ${caption || filename} (${sizeMB}MB)\n${host}${fileUrl}`;
+        const sent = await sock.sendMessage(jid, { text: linkText });
+        if (sent?.key?.id) trackBotMessageId(sent.key.id);
+        sentFiles.push({ url: fileUrl, filename });
+        return;
+      }
+    } catch {
+      // stat failed — try sending anyway
+    }
+
     let sent;
 
     if (IMAGE_EXTENSIONS.has(ext)) {
@@ -142,7 +164,7 @@ function createSendFile(
     }
 
     if (sent?.key?.id) trackBotMessageId(sent.key.id);
-    sentFiles.push({ url: `/files/${encodeURIComponent(filename)}`, filename });
+    sentFiles.push({ url: fileUrl, filename });
   };
 }
 

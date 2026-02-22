@@ -149,6 +149,7 @@ export async function startTelegramBot(
     fileId: string,
     fileName: string,
     fileType: string,
+    isVoice = false,
   ) {
     // Download file
     const file = await bot.api.getFile(fileId);
@@ -252,9 +253,24 @@ export async function startTelegramBot(
         return;
       }
 
-      const chunks = splitMessage(accumulatedText);
-      for (const chunk of chunks) {
-        await replyFn(chunk);
+      if (isVoice) {
+        const { textToSpeech } = await import("./tts.js");
+        const ogg = await textToSpeech(accumulatedText);
+        if (ogg) {
+          const { createReadStream } = await import("node:fs");
+          const { InputFile } = await import("grammy");
+          await bot.api.sendVoice(chatId, new InputFile(createReadStream(ogg)));
+        } else {
+          const chunks = splitMessage(accumulatedText);
+          for (const chunk of chunks) {
+            await replyFn(chunk);
+          }
+        }
+      } else {
+        const chunks = splitMessage(accumulatedText);
+        for (const chunk of chunks) {
+          await replyFn(chunk);
+        }
       }
     } catch (err) {
       clearInterval(typingInterval);
@@ -303,7 +319,7 @@ export async function startTelegramBot(
   bot.on("message:voice", async (ctx) => {
     const voice = ctx.message.voice;
     const fileName = `voice_${Date.now()}.ogg`;
-    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), voice.file_id, fileName, "语音");
+    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), voice.file_id, fileName, "语音", true);
   });
 
   // ── Text messages ───────────────────────────────

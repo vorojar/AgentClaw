@@ -96,6 +96,17 @@ async function botSendText(sock: WASocket, jid: string, text: string): Promise<v
   if (sent?.key?.id) trackBotMessageId(sent.key.id);
 }
 
+/** Send a voice note (ptt) and track its ID */
+async function botSendVoice(sock: WASocket, jid: string, audioPath: string): Promise<void> {
+  const { readFileSync } = await import("node:fs");
+  const sent = await sock.sendMessage(jid, {
+    audio: readFileSync(audioPath),
+    mimetype: "audio/ogg; codecs=opus",
+    ptt: true,
+  });
+  if (sent?.key?.id) trackBotMessageId(sent.key.id);
+}
+
 /**
  * Create a sendFile callback for a specific WhatsApp chat.
  */
@@ -469,6 +480,7 @@ async function handleDocumentMessage(
   caption: string,
   fileName: string,
   fileType: string,
+  isVoice = false,
 ): Promise<void> {
   // Get or create session
   let sessionId = chatSessionMap.get(jid);
@@ -543,7 +555,7 @@ async function handleDocumentMessage(
     for await (const event of eventStream) {
       switch (event.type) {
         case "tool_call": {
-          await flushBuffer();
+          if (!isVoice) await flushBuffer();
           const data = event.data as {
             name: string;
             input: Record<string, unknown>;
@@ -560,15 +572,17 @@ async function handleDocumentMessage(
           } else {
             label = `⚙️ ${data.name}`;
           }
-          await botSendText(sock, jid, label);
-          lastSendTime = Date.now();
+          if (!isVoice) {
+            await botSendText(sock, jid, label);
+            lastSendTime = Date.now();
+          }
           break;
         }
         case "response_chunk": {
           const data = event.data as { text: string };
           accumulatedText += data.text;
           sendBuffer += data.text;
-          if (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+          if (!isVoice && (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL)) {
             await flushBuffer();
           }
           break;
@@ -584,12 +598,27 @@ async function handleDocumentMessage(
       }
     }
 
-    await flushBuffer();
-    await sock.sendPresenceUpdate("paused", jid).catch(() => {});
-
-    if (!accumulatedText.trim()) {
-      await botSendText(sock, jid, "(empty response)");
+    if (isVoice) {
+      const cleanedText = stripFileMarkdown(accumulatedText).trim();
+      if (cleanedText) {
+        const { textToSpeech } = await import("./tts.js");
+        const ogg = await textToSpeech(cleanedText);
+        if (ogg) {
+          await botSendVoice(sock, jid, ogg);
+        } else {
+          sendBuffer = cleanedText;
+          await flushBuffer();
+        }
+      } else {
+        await botSendText(sock, jid, "(empty response)");
+      }
+    } else {
+      await flushBuffer();
+      if (!accumulatedText.trim()) {
+        await botSendText(sock, jid, "(empty response)");
+      }
     }
+    await sock.sendPresenceUpdate("paused", jid).catch(() => {});
   } catch (err) {
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
 
@@ -745,7 +774,7 @@ export async function startWhatsAppBot(
                 message.audioMessage.mimetype?.split("/")[1]?.split(";")[0].trim() ?? "ogg";
               const fileName = `audio_${Date.now()}.${ext}`;
               await handleDocumentMessage(
-                sock, appCtx, jid, msg, "", fileName, "语音",
+                sock, appCtx, jid, msg, "", fileName, "语音", true,
               );
               continue;
             }

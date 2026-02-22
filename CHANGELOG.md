@@ -1,5 +1,14 @@
 # 更新日志
 
+## [0.3.0] - 2026-02-22
+
+### 新功能
+- **TTS 语音回复**：用户发语音时，AI 回复也以语音气泡发送（WhatsApp ptt / Telegram sendVoice）
+  - 支持 edge-tts（默认）和 vibevoice 两种 TTS 引擎（`TTS_PROVIDER` / `TTS_VOICE` 环境变量）
+  - 自动清理 markdown 格式（粗体、链接、代码块）以适配语音输出
+  - 回复超过 500 字自动 fallback 到文字消息
+  - TTS 失败时静默降级为文字回复
+
 ## [0.2.0] - 2026-02-22
 
 ### 新功能

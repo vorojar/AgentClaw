@@ -9,6 +9,7 @@ import { scheduleTool } from "./schedule.js";
 import { rememberTool } from "./remember.js";
 import { planTaskTool } from "./plan-task.js";
 import { useSkillTool } from "./use-skill.js";
+import { delegateTaskTool } from "./delegate-task.js";
 
 // Re-exports for backwards compatibility (other packages may import these)
 export { shellTool, shellInfo } from "./shell.js";
@@ -21,6 +22,7 @@ export { scheduleTool } from "./schedule.js";
 export { rememberTool } from "./remember.js";
 export { planTaskTool } from "./plan-task.js";
 export { useSkillTool } from "./use-skill.js";
+export { delegateTaskTool } from "./delegate-task.js";
 
 /** Options for configuring which conditional tools to include */
 export interface BuiltinToolsOptions {
@@ -32,6 +34,8 @@ export interface BuiltinToolsOptions {
   planner?: boolean;
   /** Enable use_skill tool (requires skillRegistry) */
   skills?: boolean;
+  /** Enable delegate_task tool (sub-agent spawning) */
+  delegate?: boolean;
 }
 
 /** Create built-in tools with tiered loading */
@@ -51,6 +55,9 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
   }
   if (options?.skills) {
     tools.push(useSkillTool);
+  }
+  if (options?.delegate) {
+    tools.push(delegateTaskTool);
   }
 
   return tools;

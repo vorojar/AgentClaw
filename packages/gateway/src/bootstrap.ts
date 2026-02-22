@@ -243,6 +243,7 @@ export async function bootstrap(): Promise<AppContext> {
     memory: true, // 启用 remember
     planner: true, // 启用 plan_task
     skills: true, // 启用 use_skill
+    delegate: true, // 启用 delegate_task（子 agent）
   });
   for (const tool of builtinTools) {
     toolRegistry.register(tool);

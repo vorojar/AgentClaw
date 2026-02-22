@@ -141,6 +141,7 @@ export class SimpleOrchestrator implements Orchestrator {
       scheduler: this.scheduler,
       planner: this.planner,
       skillRegistry: this.skillRegistry,
+      delegateTask: (task: string) => this.runSubAgent(task, context),
     };
 
     const inputHasImage = hasImage(input);
@@ -195,6 +196,55 @@ export class SimpleOrchestrator implements Orchestrator {
   setModel(model: string): void {
     if (!this.agentConfig) this.agentConfig = {};
     this.agentConfig.model = model;
+  }
+
+  /**
+   * Spawn an independent sub-agent with its own conversation context.
+   * The sub-agent shares provider/tools but has isolated history.
+   * delegateTask is NOT passed to prevent infinite recursion.
+   */
+  private async runSubAgent(
+    task: string,
+    parentContext?: ToolExecutionContext,
+  ): Promise<string> {
+    const subConvId = generateId();
+    const subContext: ToolExecutionContext = {
+      sendFile: parentContext?.sendFile,
+      sentFiles: parentContext?.sentFiles,
+      promptUser: parentContext?.promptUser,
+      notifyUser: parentContext?.notifyUser,
+      saveMemory: parentContext?.saveMemory
+        ? parentContext.saveMemory
+        : undefined,
+      scheduler: this.scheduler,
+      skillRegistry: this.skillRegistry,
+      // No delegateTask — prevents recursion
+    };
+
+    const contextManager = new SimpleContextManager({
+      systemPrompt:
+        "You are a focused sub-agent. Complete the task concisely. No greetings, no explanations — just do it and report the result.",
+      memoryStore: this.memoryStore,
+      skillRegistry: this.skillRegistry,
+      provider: this.fastProvider ?? this.provider,
+    });
+
+    const loop = new SimpleAgentLoop({
+      provider: this.provider,
+      toolRegistry: this.toolRegistry,
+      contextManager,
+      memoryStore: this.memoryStore,
+      config: { ...this.agentConfig, maxIterations: 8 },
+    });
+
+    const message = await loop.run(task, subConvId, subContext);
+
+    // Extract text from response
+    if (typeof message.content === "string") return message.content;
+    return (message.content as Array<{ type: string; text?: string }>)
+      .filter((b) => b.type === "text" && b.text)
+      .map((b) => b.text!)
+      .join("\n");
   }
 
   private createAgentLoop(provider?: LLMProvider): SimpleAgentLoop {

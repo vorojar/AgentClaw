@@ -78,6 +78,8 @@ export interface ToolExecutionContext {
       enabled: boolean;
     }>;
   };
+  /** Spawn an independent sub-agent to handle a subtask */
+  delegateTask?: (task: string) => Promise<string>;
   /** Planner for decomposing complex tasks into executable steps */
   planner?: {
     createPlan(

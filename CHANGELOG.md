@@ -11,6 +11,13 @@
 - **Shell 沙箱**：拦截不可逆破坏性命令（`rm -rf /`、`shutdown`、`format`、`mkfs`、fork bomb、`dd` 写磁盘设备等）
   - 不拦截日常工具命令（`curl|bash`、`sudo`、`pip install`、项目内 `rm -rf ./dist`）
   - `SHELL_SANDBOX=false` 环境变量可完全禁用
+- **子 Agent 委派**：`delegate_task` 工具，主 agent 可 spawn 独立子 agent 执行子任务
+  - 子 agent 拥有独立上下文（不污染主对话历史）
+  - 共享 provider、工具集和 skill，但不可递归委派
+  - 适用于并行调研、独立计算、文件生成等可隔离的任务
+
+### 改进
+- **System Prompt 压缩**：精简 ~400 tokens/轮（删除冗余规则、代码块、重复强调）
 
 ## [0.3.0] - 2026-02-22
 

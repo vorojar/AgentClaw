@@ -369,6 +369,7 @@ export function connectWebSocket(
   sessionId: string,
   onMessage: (msg: WSMessage) => void,
   onClose?: () => void,
+  onOpen?: () => void,
 ): {
   send: (content: string) => void;
   stop: () => void;
@@ -381,6 +382,8 @@ export function connectWebSocket(
     wsUrl += `&token=${encodeURIComponent(apiKey)}`;
   }
   const ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => onOpen?.();
 
   ws.onmessage = (event) => {
     try {
@@ -395,10 +398,14 @@ export function connectWebSocket(
 
   return {
     send(content: string) {
-      ws.send(JSON.stringify({ type: "message", content }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "message", content }));
+      }
     },
     stop() {
-      ws.send(JSON.stringify({ type: "stop" }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "stop" }));
+      }
     },
     close() {
       ws.close();

@@ -292,6 +292,7 @@ export function ChatPage() {
     stop: () => void;
     close: () => void;
   } | null>(null);
+  const wsGenRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<DisplayMessage[]>(messages);
@@ -350,29 +351,35 @@ export function ChatPage() {
     };
   }, [activeSessionId]);
 
-  /* WS connection — guard against stale onClose from previous WS */
+  /* WS connection — generation counter guards stale callbacks */
   const connectWs = useCallback(() => {
     if (!activeSessionId) return;
     wsRef.current?.close();
     wsRef.current = null;
+    setWsConnected(false);
     setWsDisconnected(false);
+    const gen = ++wsGenRef.current;
     const conn = connectWebSocket(
       activeSessionId,
       (msg: WSMessage) => {
-        handleWsMessage(msg);
+        if (wsGenRef.current === gen) handleWsMessage(msg);
       },
       () => {
-        // Only update state if this is still the active connection
-        if (wsRef.current === conn) {
+        if (wsGenRef.current === gen) {
           setWsConnected(false);
           setWsDisconnected(true);
           setIsSending(false);
           setActiveToolName(null);
         }
       },
+      () => {
+        if (wsGenRef.current === gen) {
+          setWsConnected(true);
+          setWsDisconnected(false);
+        }
+      },
     );
     wsRef.current = conn;
-    setWsConnected(true);
   }, [activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

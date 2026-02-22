@@ -38,7 +38,10 @@ function extractText(content: string | ContentBlock[]): string {
     .join("");
 }
 
-
+/** Strip markdown image/link references to /files/ (already delivered via send_file) */
+function stripFileMarkdown(text: string): string {
+  return text.replace(/!?\[[^\]]*\]\([^)]*\/files\/[^)]+\)\n?/g, "");
+}
 
 /**
  * Create a sendFile callback for a specific chat.
@@ -242,6 +245,8 @@ export async function startTelegramBot(
 
       clearInterval(typingInterval);
 
+      accumulatedText = stripFileMarkdown(accumulatedText);
+
       if (!accumulatedText.trim()) {
         await replyFn("(empty response)");
         return;
@@ -364,6 +369,8 @@ export async function startTelegramBot(
       const FLUSH_INTERVAL = 3000;
 
       const flushBuffer = async () => {
+        if (!buffer.trim()) return;
+        buffer = stripFileMarkdown(buffer);
         if (!buffer.trim()) return;
         const chunks = splitMessage(buffer);
         for (const chunk of chunks) {
@@ -555,6 +562,8 @@ export async function startTelegramBot(
       const FLUSH_INTERVAL = 3000;
 
       const flushBuffer = async () => {
+        if (!buffer.trim()) return;
+        buffer = stripFileMarkdown(buffer);
         if (!buffer.trim()) return;
         const chunks = splitMessage(buffer);
         for (const chunk of chunks) {

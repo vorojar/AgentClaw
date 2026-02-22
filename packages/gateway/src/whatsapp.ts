@@ -54,6 +54,10 @@ function extractText(content: string | ContentBlock[]): string {
     .join("");
 }
 
+/** Strip markdown image/link references to /files/ (already delivered via send_file) */
+function stripFileMarkdown(text: string): string {
+  return text.replace(/!?\[[^\]]*\]\([^)]*\/files\/[^)]+\)\n?/g, "");
+}
 
 /**
  * Split a long message into chunks that fit WhatsApp's display.
@@ -212,6 +216,8 @@ async function handleTextMessage(
     const FLUSH_INTERVAL = 3000;
 
     const flushBuffer = async () => {
+      if (!sendBuffer.trim()) return;
+      sendBuffer = stripFileMarkdown(sendBuffer);
       if (!sendBuffer.trim()) return;
       const chunks = splitMessage(sendBuffer);
       for (const chunk of chunks) {
@@ -376,6 +382,8 @@ async function handleImageMessage(
 
     const flushBuffer = async () => {
       if (!sendBuffer.trim()) return;
+      sendBuffer = stripFileMarkdown(sendBuffer);
+      if (!sendBuffer.trim()) return;
       const chunks = splitMessage(sendBuffer);
       for (const chunk of chunks) {
         await botSendText(sock, jid, chunk);
@@ -515,45 +523,72 @@ async function handleDocumentMessage(
     );
 
     let accumulatedText = "";
+    let sendBuffer = "";
+    let lastSendTime = Date.now();
+    let activeSkill = "";
+    const FLUSH_INTERVAL = 3000;
+
+    const flushBuffer = async () => {
+      if (!sendBuffer.trim()) return;
+      sendBuffer = stripFileMarkdown(sendBuffer);
+      if (!sendBuffer.trim()) return;
+      const chunks = splitMessage(sendBuffer);
+      for (const chunk of chunks) {
+        await botSendText(sock, jid, chunk);
+      }
+      sendBuffer = "";
+      lastSendTime = Date.now();
+    };
 
     for await (const event of eventStream) {
       switch (event.type) {
         case "tool_call": {
-          const data = event.data as { name: string; input: Record<string, unknown> };
-          const label =
-            data.name === "web_search"
-              ? `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`
-              : data.name === "bash"
-                ? `⚙️ bash`
-                : `⚙️ ${data.name}`;
+          await flushBuffer();
+          const data = event.data as {
+            name: string;
+            input: Record<string, unknown>;
+          };
+          if (data.name === "use_skill") {
+            activeSkill = (data.input.name as string) || "";
+            break;
+          }
+          let label: string;
+          if (data.name === "web_search") {
+            label = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
+          } else if (data.name === "bash") {
+            label = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
+          } else {
+            label = `⚙️ ${data.name}`;
+          }
           await botSendText(sock, jid, label);
+          lastSendTime = Date.now();
           break;
         }
         case "response_chunk": {
           const data = event.data as { text: string };
           accumulatedText += data.text;
+          sendBuffer += data.text;
+          if (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+            await flushBuffer();
+          }
           break;
         }
         case "response_complete": {
           const data = event.data as { message: Message };
           if (!accumulatedText) {
             accumulatedText = extractText(data.message.content);
+            sendBuffer = accumulatedText;
           }
           break;
         }
       }
     }
 
+    await flushBuffer();
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
 
     if (!accumulatedText.trim()) {
       await botSendText(sock, jid, "(empty response)");
-      return;
-    }
-
-    const chunks = splitMessage(accumulatedText);
-    for (const chunk of chunks) {
-      await botSendText(sock, jid, chunk);
     }
   } catch (err) {
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});

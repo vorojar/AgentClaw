@@ -23,6 +23,9 @@
 - 修复 Session 删除不级联清理 turns/traces 表，导致数据残留
 - 修复 `@types/ws` 缺失导致 gateway typecheck 失败
 - 修复对话压缩阈值判断 `>` → `>=`，确保恰好达到阈值时触发压缩
+- 修复 `handleDocumentMessage`（语音/文件）缺少 activeSkill 跟踪，导致 `use_skill` 状态泄露、bash 不显示技能名
+- 修复 send_file 已发送的文件仍以 markdown 链接重复显示为文本消息（`stripFileMarkdown` 去重）
+- 修复工具状态发送后 3 秒计时器未重置，导致首个响应 token 单字吐出
 
 ### 清理
 - 删除 7 个遗留工具文件（web-search/http-request/python/comfyui/google-*），已被 Skill 系统替代

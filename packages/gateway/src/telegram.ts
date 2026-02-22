@@ -262,7 +262,7 @@ export async function startTelegramBot(
   // ── Video messages ─────────────────────────────
   bot.on("message:video", async (ctx) => {
     const video = ctx.message.video;
-    const ext = video.mime_type?.split("/")[1] ?? "mp4";
+    const ext = video.mime_type?.split("/")[1]?.split(";")[0].trim() ?? "mp4";
     const fileName = (video as unknown as { file_name?: string }).file_name ?? `video_${Date.now()}.${ext}`;
     await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), video.file_id, fileName, "视频");
   });
@@ -277,7 +277,7 @@ export async function startTelegramBot(
   // ── Audio messages ─────────────────────────────
   bot.on("message:audio", async (ctx) => {
     const audio = ctx.message.audio;
-    const ext = audio.mime_type?.split("/")[1] ?? "mp3";
+    const ext = audio.mime_type?.split("/")[1]?.split(";")[0].trim() ?? "mp3";
     const fileName = audio.file_name ?? `audio_${Date.now()}.${ext}`;
     await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), audio.file_id, fileName, "音频");
   });

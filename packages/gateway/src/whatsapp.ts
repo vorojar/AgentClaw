@@ -299,7 +299,7 @@ async function handleImageMessage(
     // Determine MIME type from the image message
     const imgMsg = msg.message?.imageMessage;
     const mimetype = imgMsg?.mimetype ?? "image/jpeg";
-    const ext = mimetype.split("/")[1] ?? "jpg";
+    const ext = mimetype.split("/")[1]?.split(";")[0].trim() ?? "jpg";
 
     // Save to local disk
     const { mkdirSync, writeFileSync } = await import("node:fs");
@@ -642,7 +642,7 @@ export async function startWhatsAppBot(
             // ── Video message ──
             if (message.videoMessage) {
               const ext =
-                message.videoMessage.mimetype?.split("/")[1] ?? "mp4";
+                message.videoMessage.mimetype?.split("/")[1]?.split(";")[0].trim() ?? "mp4";
               const fileName = `video_${Date.now()}.${ext}`;
               const caption = message.videoMessage.caption ?? "";
               await handleDocumentMessage(
@@ -654,7 +654,7 @@ export async function startWhatsAppBot(
             // ── Audio message ──
             if (message.audioMessage) {
               const ext =
-                message.audioMessage.mimetype?.split("/")[1] ?? "ogg";
+                message.audioMessage.mimetype?.split("/")[1]?.split(";")[0].trim() ?? "ogg";
               const fileName = `audio_${Date.now()}.${ext}`;
               await handleDocumentMessage(
                 sock, appCtx, jid, msg, "", fileName, "语音",

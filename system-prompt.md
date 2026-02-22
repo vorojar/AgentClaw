@@ -37,6 +37,7 @@ Use commands for THIS OS ({{os}}) only.
 {{/if}}
 ## Task routing
 - Media (video/audio/image) → shell + ffmpeg/ffprobe
+- Speech-to-text → `python scripts/transcribe.py <file>` (timeout 120000)
 - System commands, file operations → shell
 - Generated files → save to {{tempdir}}. When the command produces a file to deliver, set `auto_send: true` on the shell call — the file will be sent automatically, no separate send_file needed.
 - Respond in the user's language.

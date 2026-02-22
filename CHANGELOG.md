@@ -16,6 +16,9 @@
   - 共享 provider、工具集和 skill，但不可递归委派
   - 适用于并行调研、独立计算、文件生成等可隔离的任务
 
+### 技能
+- **yt-dlp 技能**：下载视频/音频（YouTube、Bilibili、Twitter 等），支持格式选择、字幕嵌入、分辨率指定、Bilibili cookies
+
 ### 改进
 - **System Prompt 压缩**：精简 ~400 tokens/轮（删除冗余规则、代码块、重复强调）
 

@@ -1,5 +1,17 @@
 # 更新日志
 
+## [0.4.0] - 2026-02-22
+
+### 新功能
+- **模型 Failover 链**：配置多个 LLM API Key 时自动按优先级尝试，主 provider 失败后无缝切换备用 provider
+  - `FailoverProvider` 包装多个 provider，stream 未开始输出时 failover，已输出则抛出
+  - 失败 provider 进入 60 秒冷却期，避免反复重试
+  - `embed` 委托给第一个支持嵌入的 provider
+  - bootstrap 自动收集所有已配置 provider（Anthropic → OpenAI → Gemini），仅主 provider 使用 `DEFAULT_MODEL`
+- **Shell 沙箱**：拦截不可逆破坏性命令（`rm -rf /`、`shutdown`、`format`、`mkfs`、fork bomb、`dd` 写磁盘设备等）
+  - 不拦截日常工具命令（`curl|bash`、`sudo`、`pip install`、项目内 `rm -rf ./dist`）
+  - `SHELL_SANDBOX=false` 环境变量可完全禁用
+
 ## [0.3.0] - 2026-02-22
 
 ### 新功能

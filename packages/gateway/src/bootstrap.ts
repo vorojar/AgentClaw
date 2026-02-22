@@ -9,6 +9,7 @@ import {
   ClaudeProvider,
   OpenAICompatibleProvider,
   GeminiProvider,
+  FailoverProvider,
   generateId,
 } from "@agentclaw/providers";
 import {
@@ -55,67 +56,96 @@ export interface AppRuntimeConfig {
   skillsDir: string;
 }
 
-function createProvider(): {
+/**
+ * Collect all configured providers in priority order.
+ * The first provider uses DEFAULT_MODEL; backup providers use their own defaults.
+ */
+function collectProviders(): {
   provider: LLMProvider;
   providerName: string;
   model?: string;
 } {
+  const providers: LLMProvider[] = [];
+  const defaultModel = process.env.DEFAULT_MODEL;
+  let primaryName = "local";
+  let primaryModel: string | undefined;
+
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey) {
-    const model = process.env.DEFAULT_MODEL;
-    return {
-      provider: new ClaudeProvider({
+    const isFirst = providers.length === 0;
+    providers.push(
+      new ClaudeProvider({
         apiKey: anthropicKey,
-        defaultModel: model,
+        defaultModel: isFirst ? defaultModel : undefined,
       }),
-      providerName: "claude",
-      model,
-    };
+    );
+    if (isFirst) {
+      primaryName = "claude";
+      primaryModel = defaultModel;
+    }
   }
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
-    const model = process.env.DEFAULT_MODEL;
+    const isFirst = providers.length === 0;
     const baseURL = process.env.OPENAI_BASE_URL;
-    return {
-      provider: new OpenAICompatibleProvider({
+    providers.push(
+      new OpenAICompatibleProvider({
         apiKey: openaiKey,
         baseURL,
-        defaultModel: model,
+        defaultModel: isFirst ? defaultModel : undefined,
         providerName: "openai",
       }),
-      providerName: "openai",
-      model,
-    };
+    );
+    if (isFirst) {
+      primaryName = "openai";
+      primaryModel = defaultModel;
+    }
   }
 
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
-    const model = process.env.DEFAULT_MODEL;
-    return {
-      provider: new GeminiProvider({ apiKey: geminiKey, defaultModel: model }),
-      providerName: "gemini",
-      model,
-    };
+    const isFirst = providers.length === 0;
+    providers.push(
+      new GeminiProvider({
+        apiKey: geminiKey,
+        defaultModel: isFirst ? defaultModel : undefined,
+      }),
+    );
+    if (isFirst) {
+      primaryName = "gemini";
+      primaryModel = defaultModel;
+    }
   }
 
-  // Fallback: OpenAI-compatible with no key (e.g. local Ollama)
-  const baseURL =
-    process.env.OLLAMA_BASE_URL ||
-    process.env.LLM_BASE_URL ||
-    "http://localhost:11434/v1";
-  const model =
-    process.env.OLLAMA_MODEL || process.env.DEFAULT_MODEL || "llama3";
-  return {
-    provider: new OpenAICompatibleProvider({
-      apiKey: "ollama",
-      baseURL,
-      defaultModel: model,
-      providerName: "local",
-    }),
-    providerName: "local",
-    model,
-  };
+  // Fallback: local Ollama when no cloud key is set
+  if (providers.length === 0) {
+    const baseURL =
+      process.env.OLLAMA_BASE_URL ||
+      process.env.LLM_BASE_URL ||
+      "http://localhost:11434/v1";
+    const model = process.env.OLLAMA_MODEL || defaultModel || "llama3";
+    providers.push(
+      new OpenAICompatibleProvider({
+        apiKey: "ollama",
+        baseURL,
+        defaultModel: model,
+        providerName: "local",
+      }),
+    );
+    primaryModel = model;
+  }
+
+  const provider =
+    providers.length > 1 ? new FailoverProvider(providers) : providers[0];
+
+  if (providers.length > 1) {
+    console.log(
+      `[bootstrap] Failover chain: ${providers.map((p) => p.name).join(" → ")}`,
+    );
+  }
+
+  return { provider, providerName: primaryName, model: primaryModel };
 }
 
 export async function bootstrap(): Promise<AppContext> {
@@ -128,8 +158,8 @@ export async function bootstrap(): Promise<AppContext> {
   }
   const db = initDatabase(databasePath);
 
-  // Provider
-  const { provider, providerName, model } = createProvider();
+  // Provider (with automatic failover when multiple API keys are configured)
+  const { provider, providerName, model } = collectProviders();
 
   // Vision provider (optional, for multimodal image support)
   let visionProvider: LLMProvider | undefined;

@@ -137,6 +137,52 @@ function detectFilePaths(text: string): string[] {
   return [...new Set(matches)];
 }
 
+/**
+ * Shell sandbox — block irreversibly destructive commands.
+ * Returns an error message if blocked, or null if allowed.
+ * Disable entirely with SHELL_SANDBOX=false.
+ */
+function validateCommand(command: string): string | null {
+  if (process.env.SHELL_SANDBOX === "false") return null;
+
+  const cmd = command.trim();
+
+  // Dangerous patterns: each entry is [regex, description]
+  const BLOCKED: [RegExp, string][] = [
+    // rm -rf targeting root or system dirs
+    [/\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|(-[a-zA-Z]*f[a-zA-Z]*r))\s+\/(?:\s|$)/, "rm -rf /（根目录递归删除）"],
+    [/\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|(-[a-zA-Z]*f[a-zA-Z]*r))\s+\/(?:boot|etc|usr|var|bin|sbin|lib|proc|sys)\b/, "rm -rf 系统目录"],
+    // Windows destructive: del /s targeting system root, format, mkfs
+    [/\bdel\s+\/[sS]\s+\/[qQ]\s+[A-Za-z]:\\\s*$/, "del /s /q 驱动器根目录"],
+    [/\bformat\s+[A-Za-z]:/i, "format 磁盘"],
+    [/\bmkfs\b/, "mkfs 格式化文件系统"],
+    // System control
+    [/\bshutdown\b/, "shutdown 关机"],
+    [/\breboot\b/, "reboot 重启"],
+    [/\bhalt\b/, "halt 停机"],
+    [/\binit\s+0\b/, "init 0 关机"],
+    // Fork bomb
+    [/:\(\)\s*\{/, "fork bomb"],
+    [/\.\s*\/dev\/urandom\s*\|/, "fork/资源滥用"],
+    // dd to block devices
+    [/\bdd\b.*\bof=\/dev\/[sh]d[a-z]/, "dd 写入磁盘设备"],
+    // fdisk
+    [/\bfdisk\s+\/dev\//, "fdisk 磁盘分区"],
+    // Windows registry delete on system hives
+    [/\breg\s+delete\s+HK(LM|CR|U\\)/i, "reg delete 系统注册表"],
+    // Writing to critical Windows system paths
+    [/[>|]\s*["']?C:\\Windows\\System32/i, "写入 System32"],
+  ];
+
+  for (const [re, desc] of BLOCKED) {
+    if (re.test(cmd)) {
+      return `🛡️ 沙箱拦截：${desc}\n命令被阻止执行。如需禁用沙箱，请设置环境变量 SHELL_SANDBOX=false`;
+    }
+  }
+
+  return null;
+}
+
 /** Execute the shell command and return a ToolResult */
 function runShell(
   command: string,
@@ -246,6 +292,12 @@ export const shellTool: Tool = {
       timeout *= 1000;
     }
     const autoSend = input.auto_send as boolean | undefined;
+
+    // Shell sandbox: block destructive commands
+    const blocked = validateCommand(command);
+    if (blocked) {
+      return { content: blocked, isError: true };
+    }
 
     const result = await runShell(command, timeout, shellChoice);
 

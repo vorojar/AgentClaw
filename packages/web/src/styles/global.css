@@ -1,5 +1,8 @@
 /* AgentClaw Web UI — Global Styles */
-:root {
+
+/* Dark theme (default) */
+:root,
+[data-theme="dark"] {
   --bg-primary: #0f1117;
   --bg-secondary: #1a1d27;
   --bg-tertiary: #242837;
@@ -16,6 +19,26 @@
   --header-height: 56px;
   --radius: 8px;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+  --user-bubble: #2f3241;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* Light theme — Claude.ai inspired */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f8;
+  --bg-tertiary: #eeeff2;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --accent: #c96442;
+  --accent-hover: #b5573a;
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+  --border: #e5e5e5;
+  --user-bubble: #f0ece4;
+  --shadow: rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -133,6 +156,27 @@ textarea:focus {
 .sidebar-footer {
   padding: 8px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.sidebar-theme-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .sidebar-api-link {

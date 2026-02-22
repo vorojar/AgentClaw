@@ -1,5 +1,17 @@
 # 更新日志
 
+## [0.5.0] - 2026-02-22
+
+### 新功能
+- **Light/Dark 主题切换**：Claude.ai 风格的 light 配色（暖棕 accent、奶白背景、米色用户气泡），sidebar 底部切换按钮，localStorage 持久化
+- **代码高亮 + 复制按钮**：`react-syntax-highlighter` + `oneDark` 主题，语言标签左上角，hover 显示 Copy 按钮
+- **Stop 按钮**：生成中时发送按钮变红色方块，点击通过 WebSocket 中止 agent loop
+- **Session 标题**：首轮对话自动提取用户输入前 50 字符作为标题，sidebar 优先显示标题
+
+### 改进
+- **ToolCallCard 主题适配**：从硬编码色值迁移到 CSS 变量，Light/Dark 主题下都正常显示
+- **ThemeProvider 上下文**：全局主题管理，`data-theme` 属性驱动 CSS 变量切换
+
 ## [0.4.0] - 2026-02-22
 
 ### 新功能

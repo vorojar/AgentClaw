@@ -9,6 +9,7 @@ import {
   getHistory,
   connectWebSocket,
 } from "../api/client";
+import { CodeBlock } from "../components/CodeBlock";
 import "./ChatPage.css";
 
 /* ────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ function formatTime(iso?: string): string {
 }
 
 function formatSessionLabel(s: SessionInfo): string {
+  if (s.title) return s.title;
   try {
     const d = new Date(s.createdAt);
     return (
@@ -253,111 +255,38 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div
-      style={{
-        margin: "8px 0",
-        border: "1px solid #3a3a3a",
-        borderRadius: "8px",
-        overflow: "hidden",
-        backgroundColor: "#1e1e1e",
-      }}
-    >
-      {/* Header – always visible, clickable */}
-      <div
-        onClick={() => setExpanded(!expanded)}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLDivElement).style.backgroundColor = "#333";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.backgroundColor = "#2a2a2a";
-        }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "8px 12px",
-          cursor: "pointer",
-          backgroundColor: "#2a2a2a",
-          userSelect: "none",
-          transition: "background-color 0.15s ease",
-        }}
-      >
-        <span style={{ fontSize: "14px", flexShrink: 0 }}>
+    <div className="tool-call-card">
+      <div className="tool-call-header" onClick={() => setExpanded(!expanded)}>
+        <span className="tool-call-icon">
           {entry.toolResult !== undefined
             ? entry.isError
               ? "\u274C"
               : "\u2705"
             : "\u23F3"}
         </span>
-        <span style={{ fontWeight: 500, color: "#e0e0e0", fontSize: "13px" }}>
-          {entry.toolName}
-        </span>
-        <span
-          style={{
-            marginLeft: "auto",
-            color: "#888",
-            fontSize: "12px",
-            transition: "transform 0.2s ease",
-            display: "inline-block",
-            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
-          }}
-        >
+        <span className="tool-call-name">{entry.toolName}</span>
+        <span className={`tool-call-chevron${expanded ? " expanded" : ""}`}>
           {"\u25B6"}
         </span>
       </div>
 
-      {/* Expandable content */}
       {expanded && (
-        <div style={{ padding: "0 12px 12px" }}>
-          {/* Input section */}
+        <div className="tool-call-body">
           {entry.toolInput && (
-            <div style={{ marginTop: "8px" }}>
-              <div
-                style={{ color: "#888", fontSize: "12px", marginBottom: "4px" }}
-              >
-                Input
-              </div>
-              <pre
-                style={{
-                  maxHeight: "150px",
-                  overflowY: "auto",
-                  backgroundColor: "#161616",
-                  padding: "8px",
-                  borderRadius: "4px",
-                  fontSize: "13px",
-                  color: "#d4d4d4",
-                  margin: 0,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-              >
+            <div className="tool-call-input">
+              <div className="tool-call-section-label">Input</div>
+              <pre className="tool-call-content">
                 {formatToolInput(entry.toolInput)}
               </pre>
             </div>
           )}
-
-          {/* Result section */}
           {entry.toolResult !== undefined && (
-            <div style={{ marginTop: "8px" }}>
-              <div
-                style={{ color: "#888", fontSize: "12px", marginBottom: "4px" }}
-              >
+            <div className="tool-call-result">
+              <div className="tool-call-section-label">
                 {entry.isError ? "Error" : "Output"}
               </div>
               <pre
-                style={{
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                  backgroundColor: entry.isError ? "#2a1515" : "#161616",
-                  padding: "8px",
-                  borderRadius: "4px",
-                  fontSize: "13px",
-                  color: entry.isError ? "#f48771" : "#d4d4d4",
-                  margin: 0,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  borderLeft: entry.isError ? "3px solid #f48771" : "none",
-                }}
+                className={`tool-call-content ${entry.isError ? "tool-result-error" : "tool-result-success"}`}
               >
                 {formatToolResult(entry.toolResult)}
               </pre>
@@ -386,9 +315,11 @@ export function ChatPage() {
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   /* ── Refs ───────────────────────────────────────── */
-  const wsRef = useRef<{ send: (c: string) => void; close: () => void } | null>(
-    null,
-  );
+  const wsRef = useRef<{
+    send: (c: string) => void;
+    stop: () => void;
+    close: () => void;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<DisplayMessage[]>(messages);
@@ -702,7 +633,6 @@ export function ChatPage() {
     const text = inputValue.trim();
     if (!text || isSending || !wsRef.current) return;
 
-    // Add user message to display
     const userMsg: DisplayMessage = {
       key: nextKey(),
       role: "user",
@@ -715,14 +645,26 @@ export function ChatPage() {
     setInputValue("");
     setIsSending(true);
 
-    // Send via WebSocket
     wsRef.current.send(text);
 
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
   }, [inputValue, isSending]);
+
+  /* ── Stop generation ─────────────────────────── */
+  const handleStop = useCallback(() => {
+    if (!wsRef.current) return;
+    wsRef.current.stop();
+    setIsSending(false);
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === "assistant" && last.streaming) {
+        return [...prev.slice(0, -1), { ...last, streaming: false }];
+      }
+      return prev;
+    });
+  }, []);
 
   /* ── Keyboard handler ──────────────────────────── */
   const handleKeyDown = useCallback(
@@ -877,6 +819,7 @@ export function ChatPage() {
                                 <div className="message-content-md">
                                   <ReactMarkdown
                                     components={{
+                                      code: CodeBlock as never,
                                       img: ({ src, alt, ...props }) => (
                                         <img
                                           src={src}
@@ -901,7 +844,6 @@ export function ChatPage() {
                                           href={href}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          style={{ color: "#7cacf8" }}
                                           {...props}
                                         >
                                           {children}
@@ -959,14 +901,24 @@ export function ChatPage() {
               disabled={isSending || !wsConnected}
               rows={1}
             />
-            <button
-              className={`btn-send ${isSending ? "loading" : ""}`}
-              onClick={handleSend}
-              disabled={!canSend}
-              title="Send message"
-            >
-              {isSending ? "" : "\u2191"}
-            </button>
+            {isSending ? (
+              <button
+                className="btn-stop"
+                onClick={handleStop}
+                title="Stop generation"
+              >
+                {"\u25A0"}
+              </button>
+            ) : (
+              <button
+                className="btn-send"
+                onClick={handleSend}
+                disabled={!canSend}
+                title="Send message"
+              >
+                {"\u2191"}
+              </button>
+            )}
           </div>
         </div>
       </div>

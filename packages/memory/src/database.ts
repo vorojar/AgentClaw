@@ -78,11 +78,18 @@ export function initDatabase(dbPath: string): Database.Database {
   db.exec(SCHEMA_SQL);
 
   // Migrations: add columns to existing tables
-  const cols = db.prepare("PRAGMA table_info(turns)").all() as Array<{
+  const turnCols = db.prepare("PRAGMA table_info(turns)").all() as Array<{
     name: string;
   }>;
-  if (!cols.some((c) => c.name === "trace_id")) {
+  if (!turnCols.some((c) => c.name === "trace_id")) {
     db.exec("ALTER TABLE turns ADD COLUMN trace_id TEXT");
+  }
+
+  const sessionCols = db.prepare("PRAGMA table_info(sessions)").all() as Array<{
+    name: string;
+  }>;
+  if (!sessionCols.some((c) => c.name === "title")) {
+    db.exec("ALTER TABLE sessions ADD COLUMN title TEXT");
   }
 
   return db;

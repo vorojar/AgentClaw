@@ -422,18 +422,20 @@ export class SQLiteMemoryStore implements MemoryStore {
     conversationId: string;
     createdAt: Date;
     lastActiveAt: Date;
+    title?: string;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO sessions (id, conversation_id, created_at, last_active_at, metadata)
-       VALUES (?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO sessions (id, conversation_id, created_at, last_active_at, title, metadata)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run(
         session.id,
         session.conversationId,
         session.createdAt.toISOString(),
         session.lastActiveAt.toISOString(),
+        session.title ?? null,
         session.metadata ? JSON.stringify(session.metadata) : null,
       );
   }
@@ -443,6 +445,7 @@ export class SQLiteMemoryStore implements MemoryStore {
     conversationId: string;
     createdAt: Date;
     lastActiveAt: Date;
+    title?: string;
     metadata?: Record<string, unknown>;
   } | null> {
     const row = this.db
@@ -453,6 +456,7 @@ export class SQLiteMemoryStore implements MemoryStore {
           conversation_id: string;
           created_at: string;
           last_active_at: string;
+          title: string | null;
           metadata: string | null;
         }
       | undefined;
@@ -462,6 +466,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       conversationId: row.conversation_id,
       createdAt: new Date(row.created_at),
       lastActiveAt: new Date(row.last_active_at),
+      title: row.title ?? undefined,
       metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
     };
   }
@@ -472,6 +477,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       conversationId: string;
       createdAt: Date;
       lastActiveAt: Date;
+      title?: string;
     }>
   > {
     const rows = this.db
@@ -481,12 +487,14 @@ export class SQLiteMemoryStore implements MemoryStore {
       conversation_id: string;
       created_at: string;
       last_active_at: string;
+      title: string | null;
     }>;
     return rows.map((r) => ({
       id: r.id,
       conversationId: r.conversation_id,
       createdAt: new Date(r.created_at),
       lastActiveAt: new Date(r.last_active_at),
+      title: r.title ?? undefined,
     }));
   }
 

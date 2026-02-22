@@ -59,6 +59,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export interface SessionInfo {
   id: string;
   conversationId: string;
+  title?: string;
   createdAt: string;
   lastActiveAt: string;
 }
@@ -347,6 +348,7 @@ export function connectWebSocket(
   onClose?: () => void,
 ): {
   send: (content: string) => void;
+  stop: () => void;
   close: () => void;
 } {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -371,6 +373,9 @@ export function connectWebSocket(
   return {
     send(content: string) {
       ws.send(JSON.stringify({ type: "message", content }));
+    },
+    stop() {
+      ws.send(JSON.stringify({ type: "stop" }));
     },
     close() {
       ws.close();

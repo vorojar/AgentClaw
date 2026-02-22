@@ -92,6 +92,7 @@ export interface Session {
   conversationId: string;
   createdAt: Date;
   lastActiveAt: Date;
+  title?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -119,6 +120,9 @@ export interface Orchestrator {
 
   /** List active sessions */
   listSessions(): Promise<Session[]>;
+
+  /** Stop a running session */
+  stopSession(sessionId: string): boolean;
 
   /** Close a session */
   closeSession(sessionId: string): Promise<void>;

@@ -15,12 +15,14 @@ function serializeSession(session: {
   conversationId: string;
   createdAt: Date;
   lastActiveAt: Date;
+  title?: string;
 }) {
   return {
     id: session.id,
     conversationId: session.conversationId,
     createdAt: session.createdAt.toISOString(),
     lastActiveAt: session.lastActiveAt.toISOString(),
+    title: session.title,
   };
 }
 

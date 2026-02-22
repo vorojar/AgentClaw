@@ -22,6 +22,7 @@ const EXTRACT_EVERY_N_TURNS = 3;
 export class SimpleOrchestrator implements Orchestrator {
   private sessions = new Map<string, Session>();
   private turnCounters = new Map<string, number>();
+  private activeLoops = new Map<string, SimpleAgentLoop>();
   private provider: LLMProvider;
   private visionProvider?: LLMProvider;
   private fastProvider?: LLMProvider;
@@ -85,6 +86,7 @@ export class SimpleOrchestrator implements Orchestrator {
         conversationId: stored.conversationId,
         createdAt: stored.createdAt,
         lastActiveAt: stored.lastActiveAt,
+        title: stored.title,
         metadata: stored.metadata,
       };
       this.sessions.set(sessionId, session);
@@ -162,7 +164,12 @@ export class SimpleOrchestrator implements Orchestrator {
     }
 
     const loop = this.createAgentLoop(effectiveProvider);
-    yield* loop.runStream(input, session.conversationId, mergedContext);
+    this.activeLoops.set(sessionId, loop);
+    try {
+      yield* loop.runStream(input, session.conversationId, mergedContext);
+    } finally {
+      this.activeLoops.delete(sessionId);
+    }
 
     // Background memory extraction: on the 1st turn and every N turns after
     const count = (this.turnCounters.get(session.conversationId) ?? 0) + 1;
@@ -177,6 +184,20 @@ export class SimpleOrchestrator implements Orchestrator {
           console.error("[memory] Extraction failed:", err);
         });
     }
+
+    if (count === 1 && session.title === undefined) {
+      const rawText =
+        typeof input === "string"
+          ? input
+          : input
+              .filter(
+                (b): b is { type: "text"; text: string } => b.type === "text",
+              )
+              .map((b) => b.text)
+              .join("");
+      session.title = rawText.slice(0, 50).trim() || "New Chat";
+      this.memoryStore.saveSession(session).catch(() => {});
+    }
   }
 
   async listSessions(): Promise<Session[]> {
@@ -186,6 +207,15 @@ export class SimpleOrchestrator implements Orchestrator {
       if (stored && stored.length > 0) return stored;
     } catch {}
     return Array.from(this.sessions.values());
+  }
+
+  stopSession(sessionId: string): boolean {
+    const loop = this.activeLoops.get(sessionId);
+    if (loop) {
+      loop.stop();
+      return true;
+    }
+    return false;
   }
 
   async closeSession(sessionId: string): Promise<void> {

@@ -99,6 +99,7 @@ export interface MemoryStore {
     conversationId: string;
     createdAt: Date;
     lastActiveAt: Date;
+    title?: string;
     metadata?: Record<string, unknown>;
   }): Promise<void>;
 
@@ -108,6 +109,7 @@ export interface MemoryStore {
     conversationId: string;
     createdAt: Date;
     lastActiveAt: Date;
+    title?: string;
     metadata?: Record<string, unknown>;
   } | null>;
 
@@ -118,6 +120,7 @@ export interface MemoryStore {
       conversationId: string;
       createdAt: Date;
       lastActiveAt: Date;
+      title?: string;
     }>
   >;
 

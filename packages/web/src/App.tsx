@@ -9,6 +9,7 @@ import { TracesPage } from "./pages/TracesPage";
 import { ApiPage } from "./pages/ApiPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./auth";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 function AppRoutes() {
   const { authRequired, apiKey, loading } = useAuth();
@@ -51,8 +52,10 @@ function AppRoutes() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

@@ -1,6 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useTheme } from "./ThemeProvider";
 
 export function Layout() {
+  const { theme, toggle } = useTheme();
+
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -44,6 +47,15 @@ export function Layout() {
           </NavLink>
         </nav>
         <div className="sidebar-footer">
+          <button
+            className="sidebar-theme-toggle"
+            onClick={toggle}
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            {theme === "dark" ? "\u2600\uFE0F" : "\uD83C\uDF19"}
+          </button>
           <NavLink
             to="/api"
             className={({ isActive }) =>

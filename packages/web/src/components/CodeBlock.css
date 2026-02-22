@@ -1,0 +1,89 @@
+/* CodeBlock — syntax-highlighted code with copy button */
+
+.code-block-wrapper {
+  position: relative;
+  margin: 8px 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Language label (top-left) */
+.code-block-lang {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border-bottom-right-radius: var(--radius);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  text-transform: lowercase;
+  letter-spacing: 0.3px;
+  z-index: 1;
+}
+
+/* Copy button (top-right, visible on hover) */
+.code-block-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    color 0.15s;
+  z-index: 1;
+  user-select: none;
+}
+
+.code-block-wrapper:hover .code-block-copy {
+  opacity: 1;
+}
+
+.code-block-copy:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.code-block-copy.copied {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* SyntaxHighlighter overrides */
+.code-block-wrapper pre {
+  margin: 0 !important;
+  padding: 32px 16px 12px !important;
+  background: transparent !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  overflow-x: auto;
+}
+
+.code-block-wrapper code {
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+}
+
+/* Inline code */
+.code-block-inline {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}

@@ -248,7 +248,7 @@
 }
 
 .message-row.user .message-bubble {
-  background: var(--bg-tertiary);
+  background: var(--user-bubble);
   color: var(--text-primary);
   border-bottom-right-radius: 4px;
 }
@@ -359,6 +359,12 @@
   white-space: pre-wrap;
   word-break: break-all;
   color: var(--text-secondary);
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  padding: 8px;
+  border-radius: 4px;
+  margin: 0;
 }
 
 .tool-call-input {
@@ -476,25 +482,23 @@
   cursor: not-allowed;
 }
 
-.btn-send.loading {
-  position: relative;
+.btn-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--error);
+  color: #fff;
+  font-size: 14px;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
 }
 
-.btn-send.loading::after {
-  content: "";
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.btn-stop:hover {
+  background: #d33;
 }
 
 /* ── Connection Status ────────────────────────────── */
@@ -546,6 +550,10 @@
 }
 
 /* ── Markdown content ─────────────────────────────── */
+
+.message-content-md a {
+  color: var(--accent);
+}
 
 .message-content-md {
   white-space: normal;

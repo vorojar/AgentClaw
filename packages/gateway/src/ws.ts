@@ -68,6 +68,12 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
         return;
       }
 
+      if (parsed.type === "stop") {
+        const stopped = ctx.orchestrator.stopSession(sessionId);
+        socket.send(JSON.stringify({ type: "stopped", success: stopped }));
+        return;
+      }
+
       if (parsed.type !== "message" || !parsed.content) {
         socket.send(
           JSON.stringify({

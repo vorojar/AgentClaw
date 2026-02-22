@@ -1,0 +1,45 @@
+/* ModelSelector — compact model switcher for header */
+
+.model-selector-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.model-selector-select {
+  height: 32px;
+  padding: 0 28px 0 10px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239aa0a6' d='M3 4.5L6 8l3-3.5H3z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.model-selector-select:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.model-selector-select:focus {
+  border-color: var(--accent);
+}
+
+.model-selector-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.model-selector-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}

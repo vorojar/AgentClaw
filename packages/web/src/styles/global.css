@@ -282,3 +282,25 @@ textarea:focus {
   border-radius: var(--radius);
   padding: 16px;
 }
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    z-index: 200;
+    height: 100vh;
+    box-shadow: 4px 0 24px var(--shadow);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  .page-header {
+    padding: 0 12px;
+    font-size: 14px;
+  }
+  .page-body {
+    padding: 12px;
+  }
+}

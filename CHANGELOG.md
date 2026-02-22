@@ -7,10 +7,18 @@
 - **代码高亮 + 复制按钮**：`react-syntax-highlighter` + `oneDark` 主题，语言标签左上角，hover 显示 Copy 按钮
 - **Stop 按钮**：生成中时发送按钮变红色方块，点击通过 WebSocket 中止 agent loop
 - **Session 标题**：首轮对话自动提取用户输入前 50 字符作为标题，sidebar 优先显示标题
+- **文件上传/拖拽**：拖拽文件到聊天区或点击附件按钮上传，支持图片预览，通过 `@fastify/multipart` 处理上传
+- **消息重新生成**：最后一条 AI 回复下方显示 Regenerate 按钮，重新发送上一条用户消息
+- **浏览器通知**：agent 完成长任务时，若页面不在前台则推送浏览器通知
+- **模型切换**：聊天页 header 内嵌模型下拉框，实时切换 LLM 模型无需进入设置
+- **会话删除**：sidebar 会话列表 hover 显示删除按钮
+- **对话导出**：header 导出按钮，将对话导出为 Markdown 文件下载
+- **消息搜索**：Ctrl+F 打开搜索框，实时过滤匹配消息并滚动定位
+- **工具执行状态**：agent 调用工具时顶部显示 "Running xxx..." 状态条
 
 ### 改进
 - **ToolCallCard 主题适配**：从硬编码色值迁移到 CSS 变量，Light/Dark 主题下都正常显示
-- **ThemeProvider 上下文**：全局主题管理，`data-theme` 属性驱动 CSS 变量切换
+- **移动端响应式**：sidebar 改为固定定位滑入、输入区/消息区/工具卡片间距收紧、代码块字号缩小
 
 ## [0.4.0] - 2026-02-22
 

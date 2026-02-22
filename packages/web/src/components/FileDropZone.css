@@ -1,0 +1,58 @@
+/* FileDropZone — drag-and-drop file overlay */
+
+.file-drop-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 17, 23, 0.85);
+  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+  backdrop-filter: blur(4px);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  animation: file-drop-fadein 0.15s ease-out;
+}
+
+.file-drop-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.file-drop-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+}
+
+.file-drop-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+@keyframes file-drop-fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

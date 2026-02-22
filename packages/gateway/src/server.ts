@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
+import multipart from "@fastify/multipart";
 import websocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
@@ -18,6 +19,7 @@ import { registerTraceRoutes } from "./routes/traces.js";
 import { registerTaskRoutes } from "./routes/tasks.js";
 import { registerWebSocket } from "./ws.js";
 import { registerBrowserExtension } from "./routes/browser-ext.js";
+import { registerUploadRoutes } from "./routes/upload.js";
 import { registerAuth } from "./auth.js";
 
 export interface ServerOptions {
@@ -43,6 +45,7 @@ export async function createServer(
   });
 
   await app.register(websocket);
+  await app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024 } });
 
   // Register authentication (no-op if API_KEY not set)
   registerAuth(app);
@@ -57,7 +60,8 @@ export async function createServer(
   registerTraceRoutes(app, ctx);
   registerTaskRoutes(app, scheduler);
 
-  // Register WebSocket
+  // Register upload & WebSocket
+  await registerUploadRoutes(app);
   registerWebSocket(app, ctx);
   registerBrowserExtension(app);
 

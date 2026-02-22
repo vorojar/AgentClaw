@@ -324,6 +324,29 @@ export function deleteScheduledTask(id: string): Promise<void> {
   return request(`/tasks/${id}`, { method: "DELETE" });
 }
 
+// ── Upload ─────────────────────────────────────────
+
+export async function uploadFile(
+  file: File,
+): Promise<{ url: string; filename: string; path: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const apiKey = getStoredApiKey();
+  const headers: Record<string, string> = {};
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ── WebSocket ───────────────────────────────────────
 
 export interface WSMessage {

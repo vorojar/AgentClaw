@@ -6,16 +6,24 @@ import {
   type WSMessage,
   listSessions,
   createSession,
+  closeSession,
   getHistory,
   connectWebSocket,
+  uploadFile,
 } from "../api/client";
 import { CodeBlock } from "../components/CodeBlock";
+import { FileDropZone } from "../components/FileDropZone";
+import { ModelSelector } from "../components/ModelSelector";
+import { SearchDialog } from "../components/SearchDialog";
+import { exportAsMarkdown } from "../utils/export";
+import {
+  notifyIfHidden,
+  requestNotificationPermission,
+} from "../utils/notifications";
 import "./ChatPage.css";
 
 /* ────────────────────────────────────────────────────
-   Types for the internal message model.
-   We extend beyond plain ChatMessage to support
-   streaming text and tool-call cards inline.
+   Types
    ──────────────────────────────────────────────────── */
 
 interface ToolCallEntry {
@@ -28,17 +36,13 @@ interface ToolCallEntry {
 }
 
 interface DisplayMessage {
-  /** Unique key for React rendering */
   key: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   model?: string;
   createdAt?: string;
-  /** Whether this message is still being streamed */
   streaming: boolean;
-  /** Tool calls associated with this assistant turn */
   toolCalls: ToolCallEntry[];
-  /** Usage statistics */
   tokensIn?: number;
   tokensOut?: number;
   durationMs?: number;
@@ -79,7 +83,6 @@ function formatSessionLabel(s: SessionInfo): string {
 }
 
 function chatMessageToDisplay(m: ChatMessage): DisplayMessage {
-  // Parse tool calls from assistant messages
   const toolCalls: ToolCallEntry[] = [];
   if (m.role === "assistant" && m.toolCalls) {
     try {
@@ -116,24 +119,17 @@ function chatMessageToDisplay(m: ChatMessage): DisplayMessage {
   };
 }
 
-/**
- * Convert raw history turns into DisplayMessages.
- * Merges tool-result turns into the preceding assistant message's toolCalls,
- * and filters out raw "tool" messages from display.
- */
 function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
   const result: DisplayMessage[] = [];
 
   for (const m of history) {
     if (m.role === "tool") {
-      // Merge tool results into the last assistant message
       const lastMsg = result[result.length - 1];
       if (
         lastMsg &&
         lastMsg.role === "assistant" &&
         lastMsg.toolCalls.length > 0
       ) {
-        // Parse tool results
         try {
           const results = JSON.parse(m.toolResults || m.content) as Array<{
             toolUseId?: string;
@@ -141,7 +137,6 @@ function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
             isError?: boolean;
           }>;
           for (const tr of results) {
-            // Find the matching tool call by index (no result yet)
             const tc = lastMsg.toolCalls.find(
               (t) => t.toolResult === undefined,
             );
@@ -154,7 +149,7 @@ function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
           // ignore
         }
       }
-      continue; // Don't add tool messages as separate bubbles
+      continue;
     }
 
     result.push(chatMessageToDisplay(m));
@@ -162,12 +157,6 @@ function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
 
   return result;
 }
-
-/* ────────────────────────────────────────────────────
-   Helper: parse message content for multimodal blocks
-   If content is JSON-encoded ContentBlock[], extract
-   text and images separately for proper rendering.
-   ──────────────────────────────────────────────────── */
 
 interface ParsedContent {
   text: string;
@@ -196,10 +185,6 @@ function parseMessageContent(content: string): ParsedContent {
   return { text: content, images: [] };
 }
 
-/* ────────────────────────────────────────────────────
-   Helpers: format tool input / result
-   ──────────────────────────────────────────────────── */
-
 function formatToolInput(input: string): string {
   try {
     const parsed = JSON.parse(input);
@@ -226,7 +211,6 @@ function formatToolResult(result: string): string {
   }
 }
 
-/** Format usage stats into a compact display string */
 function formatUsageStats(msg: DisplayMessage): string | null {
   const parts: string[] = [];
   if (msg.model) parts.push(msg.model);
@@ -247,8 +231,6 @@ function formatUsageStats(msg: DisplayMessage): string | null {
 
 /* ────────────────────────────────────────────────────
    Component: ToolCallCard
-   Collapsible card with fixed-height scrollable content,
-   similar to ChatGPT / Claude code-execution result blocks.
    ──────────────────────────────────────────────────── */
 
 function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
@@ -299,7 +281,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
 }
 
 /* ────────────────────────────────────────────────────
-   Component: ChatPage (default export)
+   Component: ChatPage
    ──────────────────────────────────────────────────── */
 
 export function ChatPage() {
@@ -313,6 +295,12 @@ export function ChatPage() {
   const [wsConnected, setWsConnected] = useState(false);
   const [wsDisconnected, setWsDisconnected] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeToolName, setActiveToolName] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<
+    Array<{ file: File; preview?: string }>
+  >([]);
+  const [lastUserText, setLastUserText] = useState<string | null>(null);
 
   /* ── Refs ───────────────────────────────────────── */
   const wsRef = useRef<{
@@ -324,11 +312,16 @@ export function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<DisplayMessage[]>(messages);
   const toolCallIdRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Keep messagesRef in sync
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  /* ── Request notification permission on mount ──── */
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   /* ── Scroll to bottom ──────────────────────────── */
   const scrollToBottom = useCallback(() => {
@@ -341,6 +334,18 @@ export function ChatPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  /* ── Keyboard shortcuts ─────────────────────────── */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   /* ── Load sessions on mount ────────────────────── */
   useEffect(() => {
     let cancelled = false;
@@ -348,7 +353,6 @@ export function ChatPage() {
     async function init() {
       try {
         let list = await listSessions();
-
         if (cancelled) return;
 
         if (list.length === 0) {
@@ -359,7 +363,6 @@ export function ChatPage() {
 
         setSessions(list);
 
-        // Auto-select the most recent session
         const sorted = [...list].sort(
           (a, b) =>
             new Date(b.lastActiveAt).getTime() -
@@ -406,7 +409,6 @@ export function ChatPage() {
   const connectWs = useCallback(() => {
     if (!activeSessionId) return;
 
-    // Close previous connection
     wsRef.current?.close();
     setWsDisconnected(false);
 
@@ -416,10 +418,10 @@ export function ChatPage() {
         handleWsMessage(msg);
       },
       () => {
-        // onClose
         setWsConnected(false);
         setWsDisconnected(true);
         setIsSending(false);
+        setActiveToolName(null);
       },
     );
 
@@ -429,7 +431,6 @@ export function ChatPage() {
 
   useEffect(() => {
     connectWs();
-
     return () => {
       wsRef.current?.close();
       wsRef.current = null;
@@ -440,25 +441,25 @@ export function ChatPage() {
   const handleWsMessage = useCallback((msg: WSMessage) => {
     switch (msg.type) {
       case "text": {
+        setActiveToolName(null);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
-            // Append to existing streaming message
-            const updated = {
-              ...last,
-              content: last.content + (msg.text ?? ""),
-            };
-            return [...prev.slice(0, -1), updated];
+            return [
+              ...prev.slice(0, -1),
+              { ...last, content: last.content + (msg.text ?? "") },
+            ];
           } else {
-            // Start a new assistant message
-            const newMsg: DisplayMessage = {
-              key: nextKey(),
-              role: "assistant",
-              content: msg.text ?? "",
-              streaming: true,
-              toolCalls: [],
-            };
-            return [...prev, newMsg];
+            return [
+              ...prev,
+              {
+                key: nextKey(),
+                role: "assistant",
+                content: msg.text ?? "",
+                streaming: true,
+                toolCalls: [],
+              },
+            ];
           }
         });
         break;
@@ -472,35 +473,36 @@ export function ChatPage() {
           toolInput: msg.toolInput ?? "",
           collapsed: true,
         };
+        setActiveToolName(msg.toolName ?? null);
 
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
-            const updated = {
-              ...last,
-              toolCalls: [...last.toolCalls, entry],
-            };
-            return [...prev.slice(0, -1), updated];
+            return [
+              ...prev.slice(0, -1),
+              { ...last, toolCalls: [...last.toolCalls, entry] },
+            ];
           } else {
-            // Create new assistant message with tool call
-            const newMsg: DisplayMessage = {
-              key: nextKey(),
-              role: "assistant",
-              content: "",
-              streaming: true,
-              toolCalls: [entry],
-            };
-            return [...prev, newMsg];
+            return [
+              ...prev,
+              {
+                key: nextKey(),
+                role: "assistant",
+                content: "",
+                streaming: true,
+                toolCalls: [entry],
+              },
+            ];
           }
         });
         break;
       }
 
       case "tool_result": {
+        setActiveToolName(null);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.toolCalls.length > 0) {
-            // Update the most recent tool call that doesn't have a result yet
             const toolCalls = [...last.toolCalls];
             for (let i = toolCalls.length - 1; i >= 0; i--) {
               if (toolCalls[i].toolResult === undefined) {
@@ -523,7 +525,6 @@ export function ChatPage() {
         const fileUrl = msg.url ?? "";
         const fileName = msg.filename ?? "file";
         const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(fileName);
-
         const fileContent = isImage
           ? `![${fileName}](${fileUrl})`
           : `[${fileName}](${fileUrl})`;
@@ -531,33 +532,36 @@ export function ChatPage() {
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
-            const updated = {
-              ...last,
-              content: last.content
-                ? last.content + "\n" + fileContent
-                : fileContent,
-            };
-            return [...prev.slice(0, -1), updated];
+            return [
+              ...prev.slice(0, -1),
+              {
+                ...last,
+                content: last.content
+                  ? last.content + "\n" + fileContent
+                  : fileContent,
+              },
+            ];
           } else {
-            const newMsg: DisplayMessage = {
-              key: nextKey(),
-              role: "assistant",
-              content: fileContent,
-              streaming: true,
-              toolCalls: [],
-            };
-            return [...prev, newMsg];
+            return [
+              ...prev,
+              {
+                key: nextKey(),
+                role: "assistant",
+                content: fileContent,
+                streaming: true,
+                toolCalls: [],
+              },
+            ];
           }
         });
         break;
       }
 
       case "done": {
+        setActiveToolName(null);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
-            // Deduplicate markdown image/link references
-            // (file WS event + LLM text can both inject the same ![](url))
             let content = last.content;
             const seen = new Set<string>();
             content = content.replace(
@@ -569,6 +573,11 @@ export function ChatPage() {
               },
             );
             content = content.replace(/\n{3,}/g, "\n\n").trim();
+
+            // Browser notification
+            if (content) {
+              notifyIfHidden("AgentClaw", content);
+            }
 
             return [
               ...prev.slice(0, -1),
@@ -591,7 +600,6 @@ export function ChatPage() {
       }
 
       case "error": {
-        // If session was lost (e.g. gateway restart), auto-create a new one
         if (msg.error?.includes("Session not found")) {
           createSession()
             .then((newSession) => {
@@ -602,7 +610,6 @@ export function ChatPage() {
           return;
         }
 
-        // Append an error display
         const errMsg: DisplayMessage = {
           key: nextKey(),
           role: "system",
@@ -611,7 +618,6 @@ export function ChatPage() {
           toolCalls: [],
         };
         setMessages((prev) => {
-          // If the last message is a streaming assistant, mark it done
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
             return [
@@ -623,46 +629,111 @@ export function ChatPage() {
           return [...prev, errMsg];
         });
         setIsSending(false);
+        setActiveToolName(null);
         break;
       }
     }
   }, []);
 
   /* ── Send message ──────────────────────────────── */
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = inputValue.trim();
-    if (!text || isSending || !wsRef.current) return;
+    if ((!text && pendingFiles.length === 0) || isSending || !wsRef.current)
+      return;
+
+    // Upload pending files and build content
+    let contentToSend = text;
+    const imageUrls: string[] = [];
+
+    if (pendingFiles.length > 0) {
+      for (const pf of pendingFiles) {
+        try {
+          const result = await uploadFile(pf.file);
+          if (/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(pf.file.name)) {
+            imageUrls.push(result.url);
+          }
+          contentToSend += `\n[Uploaded: ${pf.file.name}](${result.url})`;
+        } catch (err) {
+          console.error("Upload failed:", err);
+        }
+      }
+      setPendingFiles([]);
+    }
+
+    // Build display content with image previews
+    let displayContent = text;
+    for (const url of imageUrls) {
+      displayContent += `\n![](${url})`;
+    }
 
     const userMsg: DisplayMessage = {
       key: nextKey(),
       role: "user",
-      content: text,
+      content: displayContent || contentToSend,
       createdAt: new Date().toISOString(),
       streaming: false,
       toolCalls: [],
     };
     setMessages((prev) => [...prev, userMsg]);
     setInputValue("");
+    setLastUserText(contentToSend);
     setIsSending(true);
 
-    wsRef.current.send(text);
+    wsRef.current.send(contentToSend);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [inputValue, isSending]);
+  }, [inputValue, isSending, pendingFiles]);
 
   /* ── Stop generation ─────────────────────────── */
   const handleStop = useCallback(() => {
     if (!wsRef.current) return;
     wsRef.current.stop();
     setIsSending(false);
+    setActiveToolName(null);
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last && last.role === "assistant" && last.streaming) {
         return [...prev.slice(0, -1), { ...last, streaming: false }];
       }
       return prev;
+    });
+  }, []);
+
+  /* ── Regenerate last response ──────────────────── */
+  const handleRegenerate = useCallback(() => {
+    if (isSending || !wsRef.current || !lastUserText) return;
+
+    // Remove last assistant message(s)
+    setMessages((prev) => {
+      const idx = prev.length - 1;
+      if (idx >= 0 && prev[idx].role === "assistant") {
+        return prev.slice(0, idx);
+      }
+      return prev;
+    });
+
+    setIsSending(true);
+    wsRef.current.send(lastUserText);
+  }, [isSending, lastUserText]);
+
+  /* ── File handling ─────────────────────────────── */
+  const handleFiles = useCallback((files: File[]) => {
+    const newFiles = files.map((file) => {
+      const preview = file.type.startsWith("image/")
+        ? URL.createObjectURL(file)
+        : undefined;
+      return { file, preview };
+    });
+    setPendingFiles((prev) => [...prev, ...newFiles]);
+  }, []);
+
+  const removePendingFile = useCallback((index: number) => {
+    setPendingFiles((prev) => {
+      const removed = prev[index];
+      if (removed?.preview) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
     });
   }, []);
 
@@ -699,10 +770,48 @@ export function ChatPage() {
     }
   }, []);
 
+  /* ── Delete session ────────────────────────────── */
+  const handleDeleteSession = useCallback(
+    async (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      try {
+        await closeSession(id);
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+        if (activeSessionId === id) {
+          setActiveSessionId(null);
+          setMessages([]);
+        }
+      } catch (err) {
+        console.error("Failed to delete session:", err);
+      }
+    },
+    [activeSessionId],
+  );
+
   /* ── Switch session ────────────────────────────── */
   const handleSelectSession = useCallback((id: string) => {
     setActiveSessionId(id);
     setIsSending(false);
+    setActiveToolName(null);
+  }, []);
+
+  /* ── Export conversation ────────────────────────── */
+  const handleExport = useCallback(() => {
+    const activeSession = sessions.find((s) => s.id === activeSessionId);
+    exportAsMarkdown(
+      messages.filter((m) => m.role !== "system"),
+      activeSession?.title,
+    );
+  }, [messages, sessions, activeSessionId]);
+
+  /* ── Search navigate ────────────────────────────── */
+  const handleSearchNavigate = useCallback((messageKey: string) => {
+    const el = document.querySelector(`[data-msg-key="${messageKey}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("message-highlight");
+      setTimeout(() => el.classList.remove("message-highlight"), 2000);
+    }
   }, []);
 
   /* ── Reconnect ─────────────────────────────────── */
@@ -712,7 +821,16 @@ export function ChatPage() {
 
   /* ── Render ─────────────────────────────────────── */
   const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const canSend = inputValue.trim().length > 0 && !isSending && wsConnected;
+  const canSend =
+    (inputValue.trim().length > 0 || pendingFiles.length > 0) &&
+    !isSending &&
+    wsConnected;
+  const showRegenerate =
+    !isSending &&
+    lastUserText &&
+    messages.length > 0 &&
+    messages[messages.length - 1].role === "assistant" &&
+    !messages[messages.length - 1].streaming;
 
   return (
     <div className="chat-page">
@@ -740,188 +858,287 @@ export function ChatPage() {
               <span className="session-item-label">
                 {formatSessionLabel(s)}
               </span>
+              <span
+                className="session-item-delete"
+                onClick={(e) => handleDeleteSession(e, s.id)}
+                title="Delete"
+              >
+                {"\u00D7"}
+              </span>
             </button>
           ))}
         </div>
       </aside>
 
       {/* Chat Area */}
-      <div className="chat-area">
-        {/* Header */}
-        <div className="chat-header">
-          {!sidebarOpen && (
-            <button
-              className="btn-toggle-sidebar"
-              onClick={() => setSidebarOpen(true)}
-              title="Show sessions"
-            >
-              &#9776;
-            </button>
-          )}
-          <span className="chat-header-title">Chat</span>
-          {activeSession && (
-            <span className="chat-header-session-id">
-              {activeSession.id.slice(0, 8)}
-            </span>
-          )}
-        </div>
-
-        {/* Disconnected banner */}
-        {wsDisconnected && (
-          <div className="connection-banner">
-            <span>Connection lost.</span>
-            <button onClick={handleReconnect}>Reconnect</button>
-          </div>
-        )}
-
-        {/* Messages */}
-        {messages.length === 0 && !loadingHistory ? (
-          <div className="chat-empty-state">
-            <div className="chat-empty-state-icon">&#128172;</div>
-            <h2>How can I help you today?</h2>
-            <p>Send a message to start a conversation.</p>
-          </div>
-        ) : (
-          <div className="messages-container">
-            <div className="messages-list">
-              {messages.map((m) => (
-                <div key={m.key}>
-                  {/* Error / system messages use special styling */}
-                  {m.role === "system" && m.content ? (
-                    <div className="message-error">
-                      <span className="message-error-icon">&#9888;</span>
-                      <span>{m.content}</span>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Regular message content */}
-                      {m.content &&
-                        (() => {
-                          const parsed = parseMessageContent(m.content);
-                          return (
-                            <div className={`message-row ${m.role}`}>
-                              <div className="message-bubble">
-                                {/* Render images inline */}
-                                {parsed.images.map((img, i) => (
-                                  <img
-                                    key={i}
-                                    src={`data:${img.mediaType};base64,${img.data}`}
-                                    alt="user image"
-                                    style={{
-                                      maxWidth: "100%",
-                                      maxHeight: "300px",
-                                      borderRadius: "8px",
-                                      marginBottom: parsed.text ? "8px" : 0,
-                                      display: "block",
-                                    }}
-                                  />
-                                ))}
-                                <div className="message-content-md">
-                                  <ReactMarkdown
-                                    components={{
-                                      code: CodeBlock as never,
-                                      img: ({ src, alt, ...props }) => (
-                                        <img
-                                          src={src}
-                                          alt={alt ?? "image"}
-                                          style={{
-                                            maxWidth: "100%",
-                                            maxHeight: "400px",
-                                            borderRadius: "8px",
-                                            marginTop: "8px",
-                                            marginBottom: "8px",
-                                            display: "block",
-                                            cursor: "pointer",
-                                          }}
-                                          onClick={() =>
-                                            src && window.open(src, "_blank")
-                                          }
-                                          {...props}
-                                        />
-                                      ),
-                                      a: ({ href, children, ...props }) => (
-                                        <a
-                                          href={href}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          {...props}
-                                        >
-                                          {children}
-                                        </a>
-                                      ),
-                                    }}
-                                  >
-                                    {parsed.text}
-                                  </ReactMarkdown>
-                                  {m.streaming && m.toolCalls.length === 0 && (
-                                    <span className="streaming-cursor" />
-                                  )}
-                                </div>
-                                {(m.createdAt ||
-                                  (m.role === "assistant" && !m.streaming)) && (
-                                  <div className="message-meta">
-                                    {formatTime(m.createdAt)}
-                                    {m.role === "assistant" &&
-                                    formatUsageStats(m)
-                                      ? ` \u00b7 ${formatUsageStats(m)}`
-                                      : m.model
-                                        ? ` \u00b7 ${m.model}`
-                                        : ""}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                      {/* Tool calls */}
-                      {m.toolCalls.map((tc) => (
-                        <ToolCallCard key={tc.id} entry={tc} />
-                      ))}
-                    </>
-                  )}
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
-        )}
-
-        {/* Input Area */}
-        <div className="chat-input-area">
-          <div className="chat-input-wrapper">
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                isSending ? "Waiting for response..." : "Type a message..."
-              }
-              disabled={isSending || !wsConnected}
-              rows={1}
-            />
-            {isSending ? (
+      <FileDropZone onFiles={handleFiles} disabled={!wsConnected}>
+        <div className="chat-area">
+          {/* Header */}
+          <div className="chat-header">
+            {!sidebarOpen && (
               <button
-                className="btn-stop"
-                onClick={handleStop}
-                title="Stop generation"
+                className="btn-toggle-sidebar"
+                onClick={() => setSidebarOpen(true)}
+                title="Show sessions"
               >
-                {"\u25A0"}
-              </button>
-            ) : (
-              <button
-                className="btn-send"
-                onClick={handleSend}
-                disabled={!canSend}
-                title="Send message"
-              >
-                {"\u2191"}
+                &#9776;
               </button>
             )}
+            <span className="chat-header-title">
+              {activeSession?.title || "Chat"}
+            </span>
+            <ModelSelector className="chat-header-model" />
+            <div className="chat-header-actions">
+              <button
+                className="btn-header-action"
+                onClick={() => setSearchOpen(true)}
+                title="Search (Ctrl+F)"
+              >
+                {"\uD83D\uDD0D"}
+              </button>
+              <button
+                className="btn-header-action"
+                onClick={handleExport}
+                title="Export"
+                disabled={messages.length === 0}
+              >
+                {"\u2B07"}
+              </button>
+            </div>
+          </div>
+
+          {/* Search dialog */}
+          {searchOpen && (
+            <SearchDialog
+              messages={messages}
+              onNavigate={handleSearchNavigate}
+              onClose={() => setSearchOpen(false)}
+            />
+          )}
+
+          {/* Disconnected banner */}
+          {wsDisconnected && (
+            <div className="connection-banner">
+              <span>Connection lost.</span>
+              <button onClick={handleReconnect}>Reconnect</button>
+            </div>
+          )}
+
+          {/* Tool execution status */}
+          {activeToolName && (
+            <div className="tool-status-bar">
+              <span className="tool-status-spinner" />
+              <span>Running {activeToolName}...</span>
+            </div>
+          )}
+
+          {/* Messages */}
+          {messages.length === 0 && !loadingHistory ? (
+            <div className="chat-empty-state">
+              <div className="chat-empty-state-icon">&#128172;</div>
+              <h2>How can I help you today?</h2>
+              <p>Send a message to start a conversation.</p>
+            </div>
+          ) : (
+            <div className="messages-container">
+              <div className="messages-list">
+                {messages.map((m, idx) => (
+                  <div key={m.key} data-msg-key={m.key}>
+                    {m.role === "system" && m.content ? (
+                      <div className="message-error">
+                        <span className="message-error-icon">&#9888;</span>
+                        <span>{m.content}</span>
+                      </div>
+                    ) : (
+                      <>
+                        {m.content &&
+                          (() => {
+                            const parsed = parseMessageContent(m.content);
+                            return (
+                              <div className={`message-row ${m.role}`}>
+                                <div className="message-bubble">
+                                  {parsed.images.map((img, i) => (
+                                    <img
+                                      key={i}
+                                      src={`data:${img.mediaType};base64,${img.data}`}
+                                      alt="user image"
+                                      style={{
+                                        maxWidth: "100%",
+                                        maxHeight: "300px",
+                                        borderRadius: "8px",
+                                        marginBottom: parsed.text ? "8px" : 0,
+                                        display: "block",
+                                      }}
+                                    />
+                                  ))}
+                                  <div className="message-content-md">
+                                    <ReactMarkdown
+                                      components={{
+                                        code: CodeBlock as never,
+                                        img: ({ src, alt, ...props }) => (
+                                          <img
+                                            src={src}
+                                            alt={alt ?? "image"}
+                                            style={{
+                                              maxWidth: "100%",
+                                              maxHeight: "400px",
+                                              borderRadius: "8px",
+                                              marginTop: "8px",
+                                              marginBottom: "8px",
+                                              display: "block",
+                                              cursor: "pointer",
+                                            }}
+                                            onClick={() =>
+                                              src && window.open(src, "_blank")
+                                            }
+                                            {...props}
+                                          />
+                                        ),
+                                        a: ({ href, children, ...props }) => (
+                                          <a
+                                            href={href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            {...props}
+                                          >
+                                            {children}
+                                          </a>
+                                        ),
+                                      }}
+                                    >
+                                      {parsed.text}
+                                    </ReactMarkdown>
+                                    {m.streaming &&
+                                      m.toolCalls.length === 0 && (
+                                        <span className="streaming-cursor" />
+                                      )}
+                                  </div>
+                                  {(m.createdAt ||
+                                    (m.role === "assistant" &&
+                                      !m.streaming)) && (
+                                    <div className="message-meta">
+                                      {formatTime(m.createdAt)}
+                                      {m.role === "assistant" &&
+                                      formatUsageStats(m)
+                                        ? ` \u00b7 ${formatUsageStats(m)}`
+                                        : m.model
+                                          ? ` \u00b7 ${m.model}`
+                                          : ""}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                        {/* Tool calls */}
+                        {m.toolCalls.map((tc) => (
+                          <ToolCallCard key={tc.id} entry={tc} />
+                        ))}
+
+                        {/* Regenerate button on last assistant message */}
+                        {showRegenerate &&
+                          idx === messages.length - 1 &&
+                          m.role === "assistant" && (
+                            <div className="regenerate-row">
+                              <button
+                                className="btn-regenerate"
+                                onClick={handleRegenerate}
+                              >
+                                {"\u21BB"} Regenerate
+                              </button>
+                            </div>
+                          )}
+                      </>
+                    )}
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+          )}
+
+          {/* Pending file previews */}
+          {pendingFiles.length > 0 && (
+            <div className="pending-files">
+              {pendingFiles.map((pf, i) => (
+                <div key={i} className="pending-file-item">
+                  {pf.preview ? (
+                    <img
+                      src={pf.preview}
+                      alt={pf.file.name}
+                      className="pending-file-preview"
+                    />
+                  ) : (
+                    <span className="pending-file-name">{pf.file.name}</span>
+                  )}
+                  <button
+                    className="pending-file-remove"
+                    onClick={() => removePendingFile(i)}
+                  >
+                    {"\u00D7"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input Area */}
+          <div className="chat-input-area">
+            <div className="chat-input-wrapper">
+              <button
+                className="btn-attach"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!wsConnected}
+                title="Attach file"
+              >
+                {"\uD83D\uDCCE"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleFiles(Array.from(e.target.files));
+                    e.target.value = "";
+                  }
+                }}
+              />
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  isSending ? "Waiting for response..." : "Type a message..."
+                }
+                disabled={isSending || !wsConnected}
+                rows={1}
+              />
+              {isSending ? (
+                <button
+                  className="btn-stop"
+                  onClick={handleStop}
+                  title="Stop generation"
+                >
+                  {"\u25A0"}
+                </button>
+              ) : (
+                <button
+                  className="btn-send"
+                  onClick={handleSend}
+                  disabled={!canSend}
+                  title="Send message"
+                >
+                  {"\u2191"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </FileDropZone>
     </div>
   );
 }

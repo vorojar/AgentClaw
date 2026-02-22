@@ -24,6 +24,7 @@
     "@agentclaw/tools": "workspace:^",
     "@agentclaw/types": "workspace:*",
     "@fastify/cors": "^11.2.0",
+    "@fastify/multipart": "^9.4.0",
     "@fastify/static": "^9.0.0",
     "@fastify/websocket": "^11.2.0",
     "@whiskeysockets/baileys": "7.0.0-rc.9",

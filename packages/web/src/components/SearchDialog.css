@@ -1,0 +1,117 @@
+/* SearchDialog — Ctrl+F style search bar */
+
+.search-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+  pointer-events: none;
+}
+
+.search-dialog-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px var(--shadow);
+  pointer-events: auto;
+  animation: search-dialog-slidein 0.15s ease-out;
+}
+
+.search-dialog-input {
+  width: 260px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.search-dialog-input:focus {
+  border-color: var(--accent);
+}
+
+.search-dialog-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-dialog-count {
+  min-width: 40px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-align: center;
+  user-select: none;
+}
+
+.search-dialog-nav {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.search-dialog-nav:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.search-dialog-nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.search-dialog-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.search-dialog-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+@keyframes search-dialog-slidein {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

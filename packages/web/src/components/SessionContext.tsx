@@ -16,9 +16,9 @@ interface SessionContextValue {
   sessions: SessionInfo[];
   activeSessionId: string | null;
   sidebarOpen: boolean;
-  searchOpen: boolean;
+  searchQuery: string;
   setSidebarOpen: (v: boolean) => void;
-  setSearchOpen: (v: boolean | ((p: boolean) => boolean)) => void;
+  setSearchQuery: (v: string) => void;
   handleNewChat: () => Promise<void>;
   handleDeleteSession: (id: string) => Promise<void>;
   handleSelectSession: (id: string) => void;
@@ -36,7 +36,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   /* Load sessions on mount */
   useEffect(() => {
@@ -106,9 +106,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         sessions,
         activeSessionId,
         sidebarOpen,
-        searchOpen,
+        searchQuery,
         setSidebarOpen,
-        setSearchOpen,
+        setSearchQuery,
         handleNewChat,
         handleDeleteSession,
         handleSelectSession,

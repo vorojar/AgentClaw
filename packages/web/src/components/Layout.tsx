@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionContext";
@@ -9,7 +10,6 @@ import {
   IconTokens,
   IconSettings,
   IconApi,
-  IconPlus,
   IconSearch,
   IconPanelLeft,
   IconSun,
@@ -43,13 +43,15 @@ export function Layout() {
     sessions,
     activeSessionId,
     sidebarOpen,
-    searchOpen,
+    searchQuery,
     setSidebarOpen,
-    setSearchOpen,
+    setSearchQuery,
     handleNewChat,
     handleDeleteSession,
     handleSelectSession,
   } = useSession();
+
+  const [searchVisible, setSearchVisible] = useState(false);
 
   const isChat = location.pathname === "/chat" || location.pathname === "/";
 
@@ -77,12 +79,42 @@ export function Layout() {
           </button>
           <button
             className="sidebar-search-btn"
-            onClick={() => setSearchOpen((v: boolean) => !v)}
-            title="Search (Ctrl+F)"
+            onClick={() => {
+              setSearchVisible((v) => !v);
+              if (searchVisible) setSearchQuery("");
+            }}
+            title="Search sessions"
           >
             <IconSearch size={16} />
           </button>
         </div>
+
+        {/* Session search input */}
+        {searchVisible && isChat && (
+          <div className="sidebar-search-box">
+            <input
+              autoFocus
+              type="text"
+              placeholder="Search sessions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setSearchQuery("");
+                  setSearchVisible(false);
+                }
+              }}
+            />
+            {searchQuery && (
+              <button
+                className="sidebar-search-clear"
+                onClick={() => setSearchQuery("")}
+              >
+                <IconX size={12} />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="sidebar-nav">
@@ -119,36 +151,46 @@ export function Layout() {
         </nav>
 
         {/* Session list (when on chat) */}
-        {isChat && sessions.length > 0 && (
-          <>
-            <div className="sidebar-divider">
-              <span>Recent</span>
-            </div>
-            <div className="sidebar-sessions">
-              {sessions.map((s) => (
-                <button
-                  key={s.id}
-                  className={`sidebar-session-item${s.id === activeSessionId ? " active" : ""}`}
-                  onClick={() => handleSelectSession(s.id)}
-                >
-                  <span className="sidebar-session-label">
-                    {formatSessionLabel(s)}
-                  </span>
-                  <span
-                    className="sidebar-session-delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSession(s.id);
-                    }}
-                    title="Delete"
-                  >
-                    <IconX size={14} />
-                  </span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        {isChat &&
+          sessions.length > 0 &&
+          (() => {
+            const q = searchQuery.toLowerCase();
+            const filtered = q
+              ? sessions.filter((s) =>
+                  formatSessionLabel(s).toLowerCase().includes(q),
+                )
+              : sessions;
+            return (
+              <>
+                <div className="sidebar-divider">
+                  <span>{q ? `Results (${filtered.length})` : "Recent"}</span>
+                </div>
+                <div className="sidebar-sessions">
+                  {filtered.map((s) => (
+                    <button
+                      key={s.id}
+                      className={`sidebar-session-item${s.id === activeSessionId ? " active" : ""}`}
+                      onClick={() => handleSelectSession(s.id)}
+                    >
+                      <span className="sidebar-session-label">
+                        {formatSessionLabel(s)}
+                      </span>
+                      <span
+                        className="sidebar-session-delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSession(s.id);
+                        }}
+                        title="Delete"
+                      >
+                        <IconX size={14} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
 
         {/* Footer */}
         <div className="sidebar-footer">

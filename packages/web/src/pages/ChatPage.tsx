@@ -10,7 +10,6 @@ import {
 } from "../api/client";
 import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
-import { SearchDialog } from "../components/SearchDialog";
 import { useSession } from "../components/SessionContext";
 import {
   IconMenu,
@@ -266,14 +265,8 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
 /* ── ChatPage ─────────────────────────────────────── */
 
 export function ChatPage() {
-  const {
-    sessions,
-    activeSessionId,
-    sidebarOpen,
-    searchOpen,
-    setSidebarOpen,
-    setSearchOpen,
-  } = useSession();
+  const { sessions, activeSessionId, sidebarOpen, setSidebarOpen } =
+    useSession();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -315,18 +308,6 @@ export function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
-
-  /* Keyboard shortcuts */
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault();
-        setSearchOpen((v: boolean) => !v);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [setSearchOpen]);
 
   /* Load history */
   useEffect(() => {
@@ -684,15 +665,6 @@ export function ChatPage() {
     );
   }, [messages, sessions, activeSessionId]);
 
-  const handleSearchNavigate = useCallback((messageKey: string) => {
-    const el = document.querySelector(`[data-msg-key="${messageKey}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("message-highlight");
-      setTimeout(() => el.classList.remove("message-highlight"), 2000);
-    }
-  }, []);
-
   const handleReconnect = useCallback(() => {
     connectWs();
   }, [connectWs]);
@@ -738,15 +710,6 @@ export function ChatPage() {
             </button>
           </div>
         </div>
-
-        {/* Search dialog */}
-        {searchOpen && (
-          <SearchDialog
-            messages={messages}
-            onNavigate={handleSearchNavigate}
-            onClose={() => setSearchOpen(false)}
-          />
-        )}
 
         {/* Disconnected banner */}
         {wsDisconnected && (

@@ -206,10 +206,24 @@ async function handleTextMessage(
     );
 
     let accumulatedText = "";
+    let sendBuffer = "";
+    let lastSendTime = Date.now();
+    const FLUSH_INTERVAL = 3000;
+
+    const flushBuffer = async () => {
+      if (!sendBuffer.trim()) return;
+      const chunks = splitMessage(sendBuffer);
+      for (const chunk of chunks) {
+        await botSendText(sock, jid, chunk);
+      }
+      sendBuffer = "";
+      lastSendTime = Date.now();
+    };
 
     for await (const event of eventStream) {
       switch (event.type) {
         case "tool_call": {
+          await flushBuffer();
           const data = event.data as {
             name: string;
             input: Record<string, unknown>;
@@ -224,28 +238,28 @@ async function handleTextMessage(
         case "response_chunk": {
           const data = event.data as { text: string };
           accumulatedText += data.text;
+          sendBuffer += data.text;
+          if (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+            await flushBuffer();
+          }
           break;
         }
         case "response_complete": {
           const data = event.data as { message: Message };
           if (!accumulatedText) {
             accumulatedText = extractText(data.message.content);
+            sendBuffer = accumulatedText;
           }
           break;
         }
       }
     }
 
+    await flushBuffer();
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
 
     if (!accumulatedText.trim()) {
       await botSendText(sock, jid, "(empty response)");
-      return;
-    }
-
-    const chunks = splitMessage(accumulatedText);
-    for (const chunk of chunks) {
-      await botSendText(sock, jid, chunk);
     }
   } catch (err) {
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
@@ -345,10 +359,24 @@ async function handleImageMessage(
     );
 
     let accumulatedText = "";
+    let sendBuffer = "";
+    let lastSendTime = Date.now();
+    const FLUSH_INTERVAL = 3000;
+
+    const flushBuffer = async () => {
+      if (!sendBuffer.trim()) return;
+      const chunks = splitMessage(sendBuffer);
+      for (const chunk of chunks) {
+        await botSendText(sock, jid, chunk);
+      }
+      sendBuffer = "";
+      lastSendTime = Date.now();
+    };
 
     for await (const event of eventStream) {
       switch (event.type) {
         case "tool_call": {
+          await flushBuffer();
           const data = event.data as {
             name: string;
             input: Record<string, unknown>;
@@ -363,28 +391,28 @@ async function handleImageMessage(
         case "response_chunk": {
           const data = event.data as { text: string };
           accumulatedText += data.text;
+          sendBuffer += data.text;
+          if (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+            await flushBuffer();
+          }
           break;
         }
         case "response_complete": {
           const data = event.data as { message: Message };
           if (!accumulatedText) {
             accumulatedText = extractText(data.message.content);
+            sendBuffer = accumulatedText;
           }
           break;
         }
       }
     }
 
+    await flushBuffer();
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
 
     if (!accumulatedText.trim()) {
       await botSendText(sock, jid, "(empty response)");
-      return;
-    }
-
-    const chunks = splitMessage(accumulatedText);
-    for (const chunk of chunks) {
-      await botSendText(sock, jid, chunk);
     }
   } catch (err) {
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});

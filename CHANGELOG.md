@@ -1,5 +1,22 @@
 # 更新日志
 
+## [0.2.0] - 2026-02-22
+
+### 新功能
+- **对话历史压缩**：超过 20 轮后自动摘要旧对话，减少 token 消耗（`compressAfter` 可配置）
+- **Fast Provider 路由**：简短聊天自动路由到轻量模型（`FAST_API_KEY` / `FAST_MODEL` 环境变量配置）
+- **MCP 服务器加载**：通过 `data/mcp-servers.json` 配置外部 MCP 工具，支持 stdio 和 HTTP 传输
+- **Session 持久化**：会话信息写入 SQLite，重启后可恢复；`MemoryStore` 接口新增 session CRUD 方法
+
+### 改进
+- **流式推送重构**（Telegram/WhatsApp）：用事件循环内 buffer flush 替代 `setInterval` 轮询，消除竞态；双触发条件（`\n\n` 段落断点 + 3 秒超时）
+- **Shell 输出截断**：双重截断（exec 层 20K + 返回层头尾各 3K），防止长输出撑爆上下文
+- **Shell timeout 自动纠正**：检测到 `<1000` 的超时值自动乘以 1000（防止 LLM 传秒而非毫秒）
+
+### 修复
+- 修复 `@types/ws` 缺失导致 gateway typecheck 失败
+- 修复对话压缩阈值判断 `>` → `>=`，确保恰好达到阈值时触发压缩
+
 ## [0.1.0] - 2026-02-22
 
 首次发布。

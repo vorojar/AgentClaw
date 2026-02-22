@@ -346,10 +346,24 @@ export async function startTelegramBot(
       );
 
       let accumulatedText = "";
+      let buffer = "";
+      let lastSendTime = Date.now();
+      const FLUSH_INTERVAL = 3000;
+
+      const flushBuffer = async () => {
+        if (!buffer.trim()) return;
+        const chunks = splitMessage(buffer);
+        for (const chunk of chunks) {
+          await ctx.reply(chunk);
+        }
+        buffer = "";
+        lastSendTime = Date.now();
+      };
 
       for await (const event of eventStream) {
         switch (event.type) {
           case "tool_call": {
+            await flushBuffer();
             const data = event.data as {
               name: string;
               input: Record<string, unknown>;
@@ -364,12 +378,17 @@ export async function startTelegramBot(
           case "response_chunk": {
             const data = event.data as { text: string };
             accumulatedText += data.text;
+            buffer += data.text;
+            if (buffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+              await flushBuffer();
+            }
             break;
           }
           case "response_complete": {
             const data = event.data as { message: Message };
             if (!accumulatedText) {
               accumulatedText = extractText(data.message.content);
+              buffer = accumulatedText;
             }
             break;
           }
@@ -377,16 +396,10 @@ export async function startTelegramBot(
       }
 
       clearInterval(typingInterval);
+      await flushBuffer();
 
       if (!accumulatedText.trim()) {
         await ctx.reply("(empty response)");
-        return;
-      }
-
-      // Split and send
-      const chunks = splitMessage(accumulatedText);
-      for (const chunk of chunks) {
-        await ctx.reply(chunk);
       }
     } catch (err) {
       clearInterval(typingInterval);
@@ -514,10 +527,24 @@ export async function startTelegramBot(
       );
 
       let accumulatedText = "";
+      let buffer = "";
+      let lastSendTime = Date.now();
+      const FLUSH_INTERVAL = 3000;
+
+      const flushBuffer = async () => {
+        if (!buffer.trim()) return;
+        const chunks = splitMessage(buffer);
+        for (const chunk of chunks) {
+          await ctx.reply(chunk);
+        }
+        buffer = "";
+        lastSendTime = Date.now();
+      };
 
       for await (const event of eventStream) {
         switch (event.type) {
           case "tool_call": {
+            await flushBuffer();
             const data = event.data as {
               name: string;
               input: Record<string, unknown>;
@@ -532,12 +559,17 @@ export async function startTelegramBot(
           case "response_chunk": {
             const data = event.data as { text: string };
             accumulatedText += data.text;
+            buffer += data.text;
+            if (buffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+              await flushBuffer();
+            }
             break;
           }
           case "response_complete": {
             const data = event.data as { message: Message };
             if (!accumulatedText) {
               accumulatedText = extractText(data.message.content);
+              buffer = accumulatedText;
             }
             break;
           }
@@ -545,16 +577,10 @@ export async function startTelegramBot(
       }
 
       clearInterval(typingInterval);
+      await flushBuffer();
 
       if (!accumulatedText.trim()) {
         await ctx.reply("(empty response)");
-        return;
-      }
-
-      // Split and send
-      const chunks = splitMessage(accumulatedText);
-      for (const chunk of chunks) {
-        await ctx.reply(chunk);
       }
     } catch (err) {
       clearInterval(typingInterval);

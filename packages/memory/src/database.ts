@@ -37,6 +37,14 @@ CREATE TABLE IF NOT EXISTS memories (
   metadata TEXT
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_active_at TEXT NOT NULL DEFAULT (datetime('now')),
+  metadata TEXT
+);
+
 CREATE TABLE IF NOT EXISTS traces (
   id TEXT PRIMARY KEY,
   conversation_id TEXT NOT NULL,

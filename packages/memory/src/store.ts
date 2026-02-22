@@ -415,6 +415,87 @@ export class SQLiteMemoryStore implements MemoryStore {
     return this.bow.embed(text);
   }
 
+  // ─── Sessions ────────────────────────────────────────────────
+
+  async saveSession(session: {
+    id: string;
+    conversationId: string;
+    createdAt: Date;
+    lastActiveAt: Date;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO sessions (id, conversation_id, created_at, last_active_at, metadata)
+       VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        session.id,
+        session.conversationId,
+        session.createdAt.toISOString(),
+        session.lastActiveAt.toISOString(),
+        session.metadata ? JSON.stringify(session.metadata) : null,
+      );
+  }
+
+  async getSessionById(
+    id: string,
+  ): Promise<{
+    id: string;
+    conversationId: string;
+    createdAt: Date;
+    lastActiveAt: Date;
+    metadata?: Record<string, unknown>;
+  } | null> {
+    const row = this.db
+      .prepare("SELECT * FROM sessions WHERE id = ?")
+      .get(id) as
+      | {
+          id: string;
+          conversation_id: string;
+          created_at: string;
+          last_active_at: string;
+          metadata: string | null;
+        }
+      | undefined;
+    if (!row) return null;
+    return {
+      id: row.id,
+      conversationId: row.conversation_id,
+      createdAt: new Date(row.created_at),
+      lastActiveAt: new Date(row.last_active_at),
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+    };
+  }
+
+  async listSessions(): Promise<
+    Array<{
+      id: string;
+      conversationId: string;
+      createdAt: Date;
+      lastActiveAt: Date;
+    }>
+  > {
+    const rows = this.db
+      .prepare("SELECT * FROM sessions ORDER BY last_active_at DESC")
+      .all() as Array<{
+      id: string;
+      conversation_id: string;
+      created_at: string;
+      last_active_at: string;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      conversationId: r.conversation_id,
+      createdAt: new Date(r.created_at),
+      lastActiveAt: new Date(r.last_active_at),
+    }));
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+  }
+
   // ─── Traces ──────────────────────────────────────────────────
 
   async addTrace(trace: Trace): Promise<void> {

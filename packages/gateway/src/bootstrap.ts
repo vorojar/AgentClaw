@@ -15,6 +15,7 @@ import {
   ToolRegistryImpl,
   createBuiltinTools,
   shellInfo,
+  MCPManager,
 } from "@agentclaw/tools";
 import { initDatabase, SQLiteMemoryStore } from "@agentclaw/memory";
 import type {
@@ -48,6 +49,8 @@ export interface AppRuntimeConfig {
   model?: string;
   visionProvider?: string;
   visionModel?: string;
+  fastProvider?: string;
+  fastModel?: string;
   databasePath: string;
   skillsDir: string;
 }
@@ -168,6 +171,41 @@ export async function bootstrap(): Promise<AppContext> {
     );
   }
 
+  // Fast provider (optional, for simple chat routing)
+  let fastProvider: LLMProvider | undefined;
+  let fastProviderName: string | undefined;
+  let fastModelName: string | undefined;
+  const fastApiKey = process.env.FAST_API_KEY;
+  if (fastApiKey) {
+    const fastBaseURL = process.env.FAST_BASE_URL;
+    const fastModel = process.env.FAST_MODEL;
+    const fastProviderType = process.env.FAST_PROVIDER || "openai";
+
+    if (fastProviderType === "claude") {
+      fastProvider = new ClaudeProvider({
+        apiKey: fastApiKey,
+        defaultModel: fastModel,
+      });
+    } else if (fastProviderType === "gemini") {
+      fastProvider = new GeminiProvider({
+        apiKey: fastApiKey,
+        defaultModel: fastModel,
+      });
+    } else {
+      fastProvider = new OpenAICompatibleProvider({
+        apiKey: fastApiKey,
+        baseURL: fastBaseURL,
+        defaultModel: fastModel,
+        providerName: "fast",
+      });
+    }
+    fastProviderName = fastProviderType;
+    fastModelName = fastModel;
+    console.log(
+      `[bootstrap] Fast provider: ${fastProviderType}, model: ${fastModel ?? "default"}`,
+    );
+  }
+
   // Tool registry
   const toolRegistry = new ToolRegistryImpl();
   const builtinTools = createBuiltinTools({
@@ -178,6 +216,45 @@ export async function bootstrap(): Promise<AppContext> {
   });
   for (const tool of builtinTools) {
     toolRegistry.register(tool);
+  }
+
+  // MCP servers (optional)
+  const mcpManager = new MCPManager();
+  const mcpConfigPath = resolve(process.cwd(), "data", "mcp-servers.json");
+  if (existsSync(mcpConfigPath)) {
+    try {
+      const mcpConfigs = JSON.parse(
+        readFileSync(mcpConfigPath, "utf-8"),
+      ) as Array<{
+        name: string;
+        transport: "stdio" | "http";
+        command?: string;
+        args?: string[];
+        url?: string;
+        env?: Record<string, string>;
+      }>;
+      for (const config of mcpConfigs) {
+        try {
+          const tools = await mcpManager.addServer(config);
+          for (const tool of tools) {
+            toolRegistry.register(tool);
+          }
+          console.log(
+            `[bootstrap] MCP server "${config.name}" connected: ${tools.length} tools`,
+          );
+        } catch (err) {
+          console.error(
+            `[bootstrap] MCP server "${config.name}" failed:`,
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[bootstrap] Failed to load MCP config:",
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   // Memory store
@@ -308,6 +385,7 @@ export async function bootstrap(): Promise<AppContext> {
   const orchestrator = new SimpleOrchestrator({
     provider,
     visionProvider,
+    fastProvider,
     toolRegistry,
     memoryStore,
     systemPrompt: defaultSystemPrompt,
@@ -324,6 +402,8 @@ export async function bootstrap(): Promise<AppContext> {
     model,
     visionProvider: visionProviderName,
     visionModel: visionModelName,
+    fastProvider: fastProviderName,
+    fastModel: fastModelName,
     databasePath,
     skillsDir,
   };

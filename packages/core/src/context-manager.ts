@@ -19,17 +19,20 @@ export class SimpleContextManager implements ContextManager {
   private memoryStore: MemoryStore;
   private skillRegistry?: SkillRegistry;
   private maxHistoryTurns: number;
+  private compressAfter: number;
 
   constructor(options: {
     systemPrompt?: string;
     memoryStore: MemoryStore;
     skillRegistry?: SkillRegistry;
     maxHistoryTurns?: number;
+    compressAfter?: number;
   }) {
     this.systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
     this.memoryStore = options.memoryStore;
     this.skillRegistry = options.skillRegistry;
     this.maxHistoryTurns = options.maxHistoryTurns ?? 50;
+    this.compressAfter = options.compressAfter ?? 20;
   }
 
   async buildContext(
@@ -40,14 +43,35 @@ export class SimpleContextManager implements ContextManager {
     messages: Message[];
     skillMatch?: { name: string; confidence: number };
   }> {
-    // Get conversation history
+    // 获取对话历史
     const turns = await this.memoryStore.getHistory(
       conversationId,
       this.maxHistoryTurns,
     );
 
-    // Convert turns to Messages, rebuilding tool_use and tool_result content blocks
-    const messages: Message[] = turns.map((turn) => this.turnToMessage(turn));
+    let messages: Message[];
+    if (turns.length >= this.compressAfter) {
+      const oldTurns = turns.slice(0, turns.length - this.compressAfter);
+      const recentTurns = turns.slice(turns.length - this.compressAfter);
+      const summary = this.compressTurns(oldTurns);
+      messages = [
+        {
+          id: "summary",
+          role: "user",
+          content: summary,
+          createdAt: oldTurns[0].createdAt,
+        },
+        {
+          id: "summary-ack",
+          role: "assistant",
+          content: "Understood, I have the conversation context.",
+          createdAt: oldTurns[0].createdAt,
+        },
+        ...recentTurns.map((turn) => this.turnToMessage(turn)),
+      ];
+    } else {
+      messages = turns.map((turn) => this.turnToMessage(turn));
+    }
 
     let finalPrompt = this.systemPrompt;
     let skillMatch: { name: string; confidence: number } | undefined;
@@ -100,6 +124,42 @@ export class SimpleContextManager implements ContextManager {
       messages,
       skillMatch,
     };
+  }
+
+  private compressTurns(turns: ConversationTurn[]): string {
+    const lines: string[] = ["[Earlier conversation summary]"];
+    for (const turn of turns) {
+      if (turn.role === "user") {
+        const text =
+          turn.content.length > 100
+            ? turn.content.slice(0, 100) + "..."
+            : turn.content;
+        lines.push(`User: ${text}`);
+      } else if (turn.role === "assistant") {
+        const text =
+          turn.content.length > 100
+            ? turn.content.slice(0, 100) + "..."
+            : turn.content;
+        lines.push(`Assistant: ${text}`);
+      } else if (turn.role === "tool") {
+        try {
+          const blocks = JSON.parse(turn.content);
+          if (Array.isArray(blocks)) {
+            for (const b of blocks) {
+              if (b.type === "tool_result") {
+                lines.push(
+                  `Tool ${b.toolUseId}: ${b.isError ? "error" : "ok"}`,
+                );
+              }
+            }
+          }
+        } catch {
+          // skip
+        }
+      }
+    }
+    const summary = lines.join("\n");
+    return summary.length > 2000 ? summary.slice(0, 2000) + "\n..." : summary;
   }
 
   /** Rebuild a full Message (with ContentBlock[]) from a stored ConversationTurn */

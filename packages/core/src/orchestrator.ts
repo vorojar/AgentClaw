@@ -24,6 +24,7 @@ export class SimpleOrchestrator implements Orchestrator {
   private turnCounters = new Map<string, number>();
   private provider: LLMProvider;
   private visionProvider?: LLMProvider;
+  private fastProvider?: LLMProvider;
   private toolRegistry: ToolRegistryImpl;
   private memoryStore: MemoryStore;
   private memoryExtractor: MemoryExtractor;
@@ -36,6 +37,7 @@ export class SimpleOrchestrator implements Orchestrator {
   constructor(options: {
     provider: LLMProvider;
     visionProvider?: LLMProvider;
+    fastProvider?: LLMProvider;
     toolRegistry: ToolRegistryImpl;
     memoryStore: MemoryStore;
     agentConfig?: Partial<AgentConfig>;
@@ -46,6 +48,7 @@ export class SimpleOrchestrator implements Orchestrator {
   }) {
     this.provider = options.provider;
     this.visionProvider = options.visionProvider;
+    this.fastProvider = options.fastProvider;
     this.toolRegistry = options.toolRegistry;
     this.memoryStore = options.memoryStore;
     this.memoryExtractor = new MemoryExtractor({
@@ -67,11 +70,27 @@ export class SimpleOrchestrator implements Orchestrator {
       lastActiveAt: new Date(),
     };
     this.sessions.set(session.id, session);
+    await this.memoryStore.saveSession(session);
     return session;
   }
 
   async getSession(sessionId: string): Promise<Session | undefined> {
-    return this.sessions.get(sessionId);
+    // 先查内存缓存
+    let session = this.sessions.get(sessionId);
+    if (session) return session;
+    const stored = await this.memoryStore.getSessionById(sessionId);
+    if (stored) {
+      session = {
+        id: stored.id,
+        conversationId: stored.conversationId,
+        createdAt: stored.createdAt,
+        lastActiveAt: stored.lastActiveAt,
+        metadata: stored.metadata,
+      };
+      this.sessions.set(sessionId, session);
+      return session;
+    }
+    return undefined;
   }
 
   async processInput(
@@ -100,12 +119,13 @@ export class SimpleOrchestrator implements Orchestrator {
     input: string | ContentBlock[],
     context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent> {
-    const session = this.sessions.get(sessionId);
+    const session = await this.getSession(sessionId);
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
     }
 
     session.lastActiveAt = new Date();
+    this.memoryStore.saveSession(session).catch(() => {});
 
     // Merge orchestrator-provided callbacks into the context
     const memoryStore = this.memoryStore;
@@ -124,15 +144,20 @@ export class SimpleOrchestrator implements Orchestrator {
     };
 
     const inputHasImage = hasImage(input);
-    const effectiveProvider =
-      inputHasImage && this.visionProvider
-        ? this.visionProvider
-        : this.provider;
+    let effectiveProvider: LLMProvider;
 
-    if (inputHasImage) {
+    if (inputHasImage && this.visionProvider) {
+      effectiveProvider = this.visionProvider;
       console.log(
-        `[orchestrator] Image detected in input. visionProvider=${this.visionProvider ? "yes" : "NO"} → using ${effectiveProvider.name}`,
+        `[orchestrator] Image detected → using ${effectiveProvider.name}`,
       );
+    } else if (this.fastProvider && isSimpleChat(input)) {
+      effectiveProvider = this.fastProvider;
+      console.log(
+        `[orchestrator] Simple chat → using fast provider ${effectiveProvider.name}`,
+      );
+    } else {
+      effectiveProvider = this.provider;
     }
 
     const loop = this.createAgentLoop(effectiveProvider);
@@ -154,11 +179,17 @@ export class SimpleOrchestrator implements Orchestrator {
   }
 
   async listSessions(): Promise<Session[]> {
+    // 优先从 SQLite 获取完整列表
+    try {
+      const stored = await this.memoryStore.listSessions();
+      if (stored && stored.length > 0) return stored;
+    } catch {}
     return Array.from(this.sessions.values());
   }
 
   async closeSession(sessionId: string): Promise<void> {
     this.sessions.delete(sessionId);
+    await this.memoryStore.deleteSession(sessionId);
   }
 
   private createAgentLoop(provider?: LLMProvider): SimpleAgentLoop {
@@ -183,4 +214,19 @@ export class SimpleOrchestrator implements Orchestrator {
 function hasImage(input: string | ContentBlock[]): boolean {
   if (typeof input === "string") return false;
   return input.some((b) => b.type === "image");
+}
+
+/** Check if input is simple chat (short text, no file paths or code indicators) */
+function isSimpleChat(input: string | ContentBlock[]): boolean {
+  const text =
+    typeof input === "string"
+      ? input
+      : input
+          .filter((b): b is { type: "text"; text: string } => b.type === "text")
+          .map((b) => b.text)
+          .join("");
+  // Short messages without technical indicators
+  if (text.length > 200) return false;
+  if (/[{}\[\]`]|https?:\/\/|data\/|\/[a-z]/i.test(text)) return false;
+  return true;
 }

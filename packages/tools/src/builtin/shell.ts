@@ -168,10 +168,18 @@ function runShell(
         const stderrStr = stderr ? decodeOutput(stderr) : "";
         const output = [stdoutStr, stderrStr].filter(Boolean).join("\n");
 
+        // 截断过长输出，节省 token
+        const MAX_OUTPUT_CHARS = 20_000;
+        const truncatedOutput =
+          output.length > MAX_OUTPUT_CHARS
+            ? output.slice(0, MAX_OUTPUT_CHARS) +
+              `\n... [truncated, ${output.length - MAX_OUTPUT_CHARS} chars omitted]`
+            : output;
+
         if (error) {
           if (error.killed) {
             resolve({
-              content: `Command timed out after ${timeout}ms\n${output}`,
+              content: `Command timed out after ${timeout}ms\n${truncatedOutput}`,
               isError: true,
               metadata: { exitCode: null, timedOut: true },
             });
@@ -180,7 +188,7 @@ function runShell(
 
           const hasOutput = stdoutStr.trim().length > 0;
           resolve({
-            content: output || error.message,
+            content: truncatedOutput || error.message,
             isError: !hasOutput,
             metadata: { exitCode: error.code ?? 1 },
           });
@@ -188,7 +196,7 @@ function runShell(
         }
 
         resolve({
-          content: output,
+          content: truncatedOutput,
           isError: false,
           metadata: { exitCode: 0 },
         });
@@ -228,11 +236,27 @@ export const shellTool: Tool = {
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
     const command = input.command as string;
-    const timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
+    let timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
     const shellChoice = input.shell as string | undefined;
+
+    if (timeout > 0 && timeout < 1000) {
+      console.log(
+        `[shell] Auto-corrected timeout: ${timeout}ms → ${timeout * 1000}ms`,
+      );
+      timeout *= 1000;
+    }
     const autoSend = input.auto_send as boolean | undefined;
 
     const result = await runShell(command, timeout, shellChoice);
+
+    const MAX_CONTENT = 8000;
+    if (result.content.length > MAX_CONTENT) {
+      const total = result.content.length;
+      result.content =
+        result.content.slice(0, 3000) +
+        `\n...(truncated ${total} chars, showing first 3000 and last 3000)...\n` +
+        result.content.slice(-3000);
+    }
 
     // Auto-send: detect output files, send them, signal auto-complete
     // Prefer paths from output (generated results); fallback to command (e.g. screenshot)

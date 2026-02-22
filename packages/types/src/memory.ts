@@ -93,6 +93,37 @@ export interface MemoryStore {
     limit?: number,
   ): Promise<ConversationTurn[]>;
 
+  /** Save or update a session */
+  saveSession(session: {
+    id: string;
+    conversationId: string;
+    createdAt: Date;
+    lastActiveAt: Date;
+    metadata?: Record<string, unknown>;
+  }): Promise<void>;
+
+  /** Get a session by ID */
+  getSessionById(id: string): Promise<{
+    id: string;
+    conversationId: string;
+    createdAt: Date;
+    lastActiveAt: Date;
+    metadata?: Record<string, unknown>;
+  } | null>;
+
+  /** List all sessions ordered by last active */
+  listSessions(): Promise<
+    Array<{
+      id: string;
+      conversationId: string;
+      createdAt: Date;
+      lastActiveAt: Date;
+    }>
+  >;
+
+  /** Delete a session */
+  deleteSession(id: string): Promise<void>;
+
   /** Store an interaction trace */
   addTrace(trace: Trace): Promise<void>;
 

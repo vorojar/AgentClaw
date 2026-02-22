@@ -1,0 +1,39 @@
+# 更新日志
+
+## [0.1.0] - 2026-02-22
+
+首次发布。
+
+### 核心
+- Agent 循环（思考-行动-观察）支持流式 LLM 输出
+- 多供应商适配：Claude、OpenAI 兼容（DeepSeek/Kimi/Qwen/Doubao）、Gemini
+- 视觉模型自动路由（图片输入时切换 visionProvider）
+- 上下文管理器：记忆注入 + 技能目录
+- 记忆提取器：自动从对话中抽取事实
+- 规划器：通过 plan_task 工具分解任务
+
+### 工具
+- 核心工具（4个）：shell, file_read, file_write, ask_user
+- 条件工具（6个）：send_file, set_reminder, schedule, remember, plan_task, use_skill
+- 分层加载：Gateway 加载全部工具，CLI 仅加载核心工具
+
+### 技能
+- 13 个技能：browser, coding, comfyui, create-skill, google-calendar, google-tasks, http-request, python-exec, research, weather, web-fetch, web-search, writing
+- LLM 自主判断是否需要技能，通过 use_skill 工具 + 系统提示词目录驱动
+
+### 网关
+- Fastify HTTP/WS 服务，API Key 认证
+- Telegram 机器人（图片/文档/视频/音频/语音）
+- WhatsApp 机器人（仅自聊，QR 扫码认证，Baileys）
+- 定时任务调度器（cron 提醒）
+- REST API：会话、消息、Traces、Token 日志、配置、记忆
+
+### Web 前端
+- React 19 + Vite
+- 聊天页（流式响应、文件展示）
+- Traces 页（LLM/工具执行时间线）
+- Token 日志、记忆、设置、API 页面
+
+### 修复
+- 修复 MIME 类型文件名泄露 bug：`audio/ogg; codecs=opus` 的参数不再混入文件名
+- 语音转文字改用 faster-whisper（`scripts/transcribe.py`），输出到 `data/tmp/`

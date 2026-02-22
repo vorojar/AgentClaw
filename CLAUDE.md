@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 语言要求
 
 - **必须使用中文回答所有问题**，严格执行，无例外。
+- **你写的代码，我会让Codex review**
 
 ## 构建与运行
 

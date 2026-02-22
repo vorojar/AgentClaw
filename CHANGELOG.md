@@ -9,6 +9,10 @@
 - **Session 持久化**：会话信息写入 SQLite，重启后可恢复；`MemoryStore` 接口新增 session CRUD 方法
 
 ### 改进
+- **use_skill 不消耗迭代预算**：skill 指令加载不计入 `maxIterations`，实际工作轮次不被挤占
+- **maxIterations 提升至 10**：复杂任务（多 skill 组合）不再轻易触发 `max_iterations_reached`
+- **工具名 shell → bash**：更准确反映实际使用的 shell 类型
+- **工具状态展示优化**（Telegram/WhatsApp）：`use_skill` 静默不推送；bash 显示当前技能名（`⚙️ bash: comfyui`）；搜索显示查询词（`🔍 query...`）
 - **对话压缩改用 LLM 真摘要**：调用 LLM 生成 3-5 条 bullet point 摘要（优先用 fastProvider），带缓存，失败回退截断
 - **Model 运行时切换**：`PUT /api/config` 修改 model 即时生效，无需重启（provider 切换仍需重启）
 - **流式推送重构**（Telegram/WhatsApp）：用事件循环内 buffer flush 替代 `setInterval` 轮询，消除竞态；双触发条件（`\n\n` 段落断点 + 3 秒超时）

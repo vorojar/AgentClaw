@@ -208,6 +208,7 @@ async function handleTextMessage(
     let accumulatedText = "";
     let sendBuffer = "";
     let lastSendTime = Date.now();
+    let activeSkill = "";
     const FLUSH_INTERVAL = 3000;
 
     const flushBuffer = async () => {
@@ -228,10 +229,18 @@ async function handleTextMessage(
             name: string;
             input: Record<string, unknown>;
           };
-          const label =
-            data.name === "web_search"
-              ? `🔍 正在搜索: ${(data.input as { query?: string }).query ?? data.name}...`
-              : `⚙️ 正在执行: ${data.name}...`;
+          if (data.name === "use_skill") {
+            activeSkill = (data.input.name as string) || "";
+            break;
+          }
+          let label: string;
+          if (data.name === "web_search") {
+            label = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
+          } else if (data.name === "bash") {
+            label = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
+          } else {
+            label = `⚙️ ${data.name}`;
+          }
           await botSendText(sock, jid, label);
           break;
         }
@@ -361,6 +370,7 @@ async function handleImageMessage(
     let accumulatedText = "";
     let sendBuffer = "";
     let lastSendTime = Date.now();
+    let activeSkill = "";
     const FLUSH_INTERVAL = 3000;
 
     const flushBuffer = async () => {
@@ -381,10 +391,18 @@ async function handleImageMessage(
             name: string;
             input: Record<string, unknown>;
           };
-          const label =
-            data.name === "web_search"
-              ? `🔍 正在搜索: ${(data.input as { query?: string }).query ?? data.name}...`
-              : `⚙️ 正在执行: ${data.name}...`;
+          if (data.name === "use_skill") {
+            activeSkill = (data.input.name as string) || "";
+            break;
+          }
+          let label: string;
+          if (data.name === "web_search") {
+            label = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
+          } else if (data.name === "bash") {
+            label = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
+          } else {
+            label = `⚙️ ${data.name}`;
+          }
           await botSendText(sock, jid, label);
           break;
         }
@@ -500,7 +518,12 @@ async function handleDocumentMessage(
       switch (event.type) {
         case "tool_call": {
           const data = event.data as { name: string; input: Record<string, unknown> };
-          const label = `⚙️ 正在执行: ${data.name}...`;
+          const label =
+            data.name === "web_search"
+              ? `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`
+              : data.name === "bash"
+                ? `⚙️ bash`
+                : `⚙️ ${data.name}`;
           await botSendText(sock, jid, label);
           break;
         }

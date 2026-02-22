@@ -206,7 +206,7 @@ function runShell(
 }
 
 export const shellTool: Tool = {
-  name: "shell",
+  name: "bash",
   description: `Execute a ${detectedShell.name} command.${process.platform === "win32" && detectedShell.name === "bash" ? ' Use shell="powershell" for Windows-specific tasks.' : ""} Set auto_send=true to automatically deliver output files to the user.`,
   category: "builtin",
   parameters: {

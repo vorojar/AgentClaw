@@ -22,7 +22,7 @@ import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
 
 const DEFAULT_CONFIG: AgentConfig = {
-  maxIterations: 5,
+  maxIterations: 10,
   systemPrompt: "",
   streaming: false,
   temperature: 0.7,
@@ -490,6 +490,11 @@ export class SimpleAgentLoop implements AgentLoop {
         }
       } else {
         consecutiveErrors = 0;
+      }
+
+      // use_skill is just loading instructions — don't count against iteration budget
+      if (toolCalls.every((tc) => tc.name === "use_skill")) {
+        iterations--;
       }
 
       // Loop back for next LLM call with tool results

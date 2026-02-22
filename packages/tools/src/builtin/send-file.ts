@@ -27,9 +27,16 @@ export const sendFileTool: Tool = {
       };
     }
 
-    // Check file exists
+    // Check file exists — try original path, then resolved absolute path
     const { existsSync } = await import("node:fs");
-    if (!existsSync(filePath)) {
+    const { resolve } = await import("node:path");
+    const resolvedPath = resolve(filePath);
+    const effectivePath = existsSync(filePath)
+      ? filePath
+      : existsSync(resolvedPath)
+        ? resolvedPath
+        : null;
+    if (!effectivePath) {
       return {
         content: `File not found: ${filePath}`,
         isError: true,
@@ -37,9 +44,9 @@ export const sendFileTool: Tool = {
     }
 
     try {
-      await context.sendFile(filePath, caption);
+      await context.sendFile(effectivePath, caption);
       return {
-        content: `File sent: ${filePath}`,
+        content: `File sent: ${effectivePath}`,
         isError: false,
       };
     } catch (err) {

@@ -128,13 +128,14 @@ export const shellInfo = {
   shell: detectedShell.shell,
 };
 
-/** Detect file paths pointing to data/tmp in a string */
+/** Detect file paths pointing to data/tmp in a string (supports / and \ separators, Unicode filenames) */
 const FILE_PATH_RE =
-  /(?:[A-Za-z]:)?(?:\/[\w.@+-]+)*\/data\/tmp\/[\w.@+-]+\.(?:png|jpe?g|gif|webp|svg|bmp|mp4|mp3|wav|pdf|zip)/gi;
+  /(?:[A-Za-z]:)?(?:[/\\][^\s/\\:*?"<>|]+)*[/\\]data[/\\]tmp[/\\][^\s/\\:*?"<>|]+\.(?:png|jpe?g|gif|webp|svg|bmp|mp4|mkv|mp3|wav|ogg|flac|pdf|zip|tar\.gz)/gi;
 
 function detectFilePaths(text: string): string[] {
   const matches = text.match(FILE_PATH_RE) || [];
-  return [...new Set(matches)];
+  // Normalize backslashes to forward slashes for consistent file access
+  return [...new Set(matches.map((p) => p.replace(/\\/g, "/")))];
 }
 
 /**

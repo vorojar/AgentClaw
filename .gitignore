@@ -33,3 +33,5 @@ pnpm-debug.log*
 nul
 .gitignore
 .dmux/
+task.md
+.gitignore

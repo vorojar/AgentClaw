@@ -24,6 +24,7 @@
 - **send_file 路径解析**：尝试 `resolve()` 绝对路径兜底，修复相对路径 + Unicode 文件名找不到文件的问题
 - **yt-dlp 文件名编码**：输出文件名改用视频 ID（ASCII），避免 emoji/中文标题导致的 Windows 路径问题
 - **大文件自动转链接**：WhatsApp/Telegram 发送文件超过 50MB 时，自动改发下载链接（`PUBLIC_URL` 环境变量可配置外部地址）
+- **流式消息碎片化**：修复工具执行后首个 token 单字发送的问题——flush 超时改为从 buffer 开始累积时计算，而非从上次发送时计算
 
 ### 改进
 - **System Prompt 压缩**：精简 ~400 tokens/轮（删除冗余规则、代码块、重复强调）

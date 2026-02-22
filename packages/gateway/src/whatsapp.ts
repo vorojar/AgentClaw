@@ -244,7 +244,7 @@ async function handleTextMessage(
 
     let accumulatedText = "";
     let sendBuffer = "";
-    let lastSendTime = Date.now();
+    let bufferStartTime = 0;
     let activeSkill = "";
     const FLUSH_INTERVAL = 3000;
 
@@ -257,7 +257,7 @@ async function handleTextMessage(
         await botSendText(sock, jid, chunk);
       }
       sendBuffer = "";
-      lastSendTime = Date.now();
+      bufferStartTime = 0;
     };
 
     for await (const event of eventStream) {
@@ -281,14 +281,14 @@ async function handleTextMessage(
             label = `⚙️ ${data.name}`;
           }
           await botSendText(sock, jid, label);
-          lastSendTime = Date.now();
           break;
         }
         case "response_chunk": {
           const data = event.data as { text: string };
           accumulatedText += data.text;
+          if (!sendBuffer) bufferStartTime = Date.now();
           sendBuffer += data.text;
-          if (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+          if (sendBuffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)) {
             await flushBuffer();
           }
           break;
@@ -409,7 +409,7 @@ async function handleImageMessage(
 
     let accumulatedText = "";
     let sendBuffer = "";
-    let lastSendTime = Date.now();
+    let bufferStartTime = 0;
     let activeSkill = "";
     const FLUSH_INTERVAL = 3000;
 
@@ -422,7 +422,7 @@ async function handleImageMessage(
         await botSendText(sock, jid, chunk);
       }
       sendBuffer = "";
-      lastSendTime = Date.now();
+      bufferStartTime = 0;
     };
 
     for await (const event of eventStream) {
@@ -446,14 +446,14 @@ async function handleImageMessage(
             label = `⚙️ ${data.name}`;
           }
           await botSendText(sock, jid, label);
-          lastSendTime = Date.now();
           break;
         }
         case "response_chunk": {
           const data = event.data as { text: string };
           accumulatedText += data.text;
+          if (!sendBuffer) bufferStartTime = Date.now();
           sendBuffer += data.text;
-          if (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+          if (sendBuffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)) {
             await flushBuffer();
           }
           break;
@@ -558,7 +558,7 @@ async function handleDocumentMessage(
 
     let accumulatedText = "";
     let sendBuffer = "";
-    let lastSendTime = Date.now();
+    let bufferStartTime = 0;
     let activeSkill = "";
     const FLUSH_INTERVAL = 3000;
 
@@ -571,7 +571,7 @@ async function handleDocumentMessage(
         await botSendText(sock, jid, chunk);
       }
       sendBuffer = "";
-      lastSendTime = Date.now();
+      bufferStartTime = 0;
     };
 
     for await (const event of eventStream) {
@@ -596,15 +596,15 @@ async function handleDocumentMessage(
           }
           if (!isVoice) {
             await botSendText(sock, jid, label);
-            lastSendTime = Date.now();
           }
           break;
         }
         case "response_chunk": {
           const data = event.data as { text: string };
           accumulatedText += data.text;
+          if (!sendBuffer) bufferStartTime = Date.now();
           sendBuffer += data.text;
-          if (!isVoice && (sendBuffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL)) {
+          if (!isVoice && (sendBuffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL))) {
             await flushBuffer();
           }
           break;

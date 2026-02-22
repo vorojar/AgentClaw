@@ -404,7 +404,7 @@ export async function startTelegramBot(
 
       let accumulatedText = "";
       let buffer = "";
-      let lastSendTime = Date.now();
+      let bufferStartTime = 0;
       let activeSkill = "";
       const FLUSH_INTERVAL = 3000;
 
@@ -417,7 +417,7 @@ export async function startTelegramBot(
           await ctx.reply(chunk);
         }
         buffer = "";
-        lastSendTime = Date.now();
+        bufferStartTime = 0;
       };
 
       for await (const event of eventStream) {
@@ -441,14 +441,14 @@ export async function startTelegramBot(
               label = `⚙️ ${data.name}`;
             }
             await ctx.reply(label);
-            lastSendTime = Date.now();
             break;
           }
           case "response_chunk": {
             const data = event.data as { text: string };
             accumulatedText += data.text;
+            if (!buffer) bufferStartTime = Date.now();
             buffer += data.text;
-            if (buffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+            if (buffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)) {
               await flushBuffer();
             }
             break;
@@ -597,7 +597,7 @@ export async function startTelegramBot(
 
       let accumulatedText = "";
       let buffer = "";
-      let lastSendTime = Date.now();
+      let bufferStartTime = 0;
       let activeSkill = "";
       const FLUSH_INTERVAL = 3000;
 
@@ -610,7 +610,7 @@ export async function startTelegramBot(
           await ctx.reply(chunk);
         }
         buffer = "";
-        lastSendTime = Date.now();
+        bufferStartTime = 0;
       };
 
       for await (const event of eventStream) {
@@ -634,14 +634,14 @@ export async function startTelegramBot(
               label = `⚙️ ${data.name}`;
             }
             await ctx.reply(label);
-            lastSendTime = Date.now();
             break;
           }
           case "response_chunk": {
             const data = event.data as { text: string };
             accumulatedText += data.text;
+            if (!buffer) bufferStartTime = Date.now();
             buffer += data.text;
-            if (buffer.includes("\n\n") || Date.now() - lastSendTime > FLUSH_INTERVAL) {
+            if (buffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)) {
               await flushBuffer();
             }
             break;

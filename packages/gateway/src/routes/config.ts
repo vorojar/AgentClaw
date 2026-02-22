@@ -45,24 +45,18 @@ export function registerConfigRoutes(
     }
   });
 
-  // PUT /api/config - Update config
+  // PUT /api/config - Update config (only model can be changed at runtime)
   app.put<{
     Body: {
-      provider?: string;
       model?: string;
-      databasePath?: string;
-      skillsDir?: string;
     };
   }>("/api/config", async (req, reply) => {
     try {
       const updates = req.body;
-      if (updates.provider !== undefined)
-        ctx.config.provider = updates.provider;
-      if (updates.model !== undefined) ctx.config.model = updates.model;
-      if (updates.databasePath !== undefined)
-        ctx.config.databasePath = updates.databasePath;
-      if (updates.skillsDir !== undefined)
-        ctx.config.skillsDir = updates.skillsDir;
+      if (updates.model !== undefined) {
+        ctx.config.model = updates.model;
+        (ctx.orchestrator as any).setModel(updates.model);
+      }
 
       return reply.send({
         provider: ctx.config.provider,

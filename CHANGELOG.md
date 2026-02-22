@@ -9,13 +9,20 @@
 - **Session 持久化**：会话信息写入 SQLite，重启后可恢复；`MemoryStore` 接口新增 session CRUD 方法
 
 ### 改进
+- **对话压缩改用 LLM 真摘要**：调用 LLM 生成 3-5 条 bullet point 摘要（优先用 fastProvider），带缓存，失败回退截断
+- **Model 运行时切换**：`PUT /api/config` 修改 model 即时生效，无需重启（provider 切换仍需重启）
 - **流式推送重构**（Telegram/WhatsApp）：用事件循环内 buffer flush 替代 `setInterval` 轮询，消除竞态；双触发条件（`\n\n` 段落断点 + 3 秒超时）
 - **Shell 输出截断**：双重截断（exec 层 20K + 返回层头尾各 3K），防止长输出撑爆上下文
 - **Shell timeout 自动纠正**：检测到 `<1000` 的超时值自动乘以 1000（防止 LLM 传秒而非毫秒）
 
 ### 修复
+- 修复 Session 删除不级联清理 turns/traces 表，导致数据残留
 - 修复 `@types/ws` 缺失导致 gateway typecheck 失败
 - 修复对话压缩阈值判断 `>` → `>=`，确保恰好达到阈值时触发压缩
+
+### 清理
+- 删除 7 个遗留工具文件（web-search/http-request/python/comfyui/google-*），已被 Skill 系统替代
+- 移除 Web UI 中永远为 0 的成本显示（Total Cost 卡片和表格列）
 
 ## [0.1.0] - 2026-02-22
 

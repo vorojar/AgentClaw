@@ -5,6 +5,7 @@ import type {
   MemoryStore,
   ConversationTurn,
   SkillRegistry,
+  LLMProvider,
 } from "@agentclaw/types";
 
 const DEFAULT_SYSTEM_PROMPT = `You are AgentClaw, a powerful AI assistant.
@@ -18,19 +19,23 @@ export class SimpleContextManager implements ContextManager {
   private systemPrompt: string;
   private memoryStore: MemoryStore;
   private skillRegistry?: SkillRegistry;
+  private provider?: LLMProvider;
   private maxHistoryTurns: number;
   private compressAfter: number;
+  private summaryCache = new Map<string, string>();
 
   constructor(options: {
     systemPrompt?: string;
     memoryStore: MemoryStore;
     skillRegistry?: SkillRegistry;
+    provider?: LLMProvider;
     maxHistoryTurns?: number;
     compressAfter?: number;
   }) {
     this.systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
     this.memoryStore = options.memoryStore;
     this.skillRegistry = options.skillRegistry;
+    this.provider = options.provider;
     this.maxHistoryTurns = options.maxHistoryTurns ?? 50;
     this.compressAfter = options.compressAfter ?? 20;
   }
@@ -53,7 +58,7 @@ export class SimpleContextManager implements ContextManager {
     if (turns.length >= this.compressAfter) {
       const oldTurns = turns.slice(0, turns.length - this.compressAfter);
       const recentTurns = turns.slice(turns.length - this.compressAfter);
-      const summary = this.compressTurns(oldTurns);
+      const summary = await this.compressTurns(conversationId, oldTurns);
       messages = [
         {
           id: "summary",
@@ -126,40 +131,72 @@ export class SimpleContextManager implements ContextManager {
     };
   }
 
-  private compressTurns(turns: ConversationTurn[]): string {
-    const lines: string[] = ["[Earlier conversation summary]"];
+  private async compressTurns(
+    conversationId: string,
+    turns: ConversationTurn[],
+  ): Promise<string> {
+    const cacheKey = `${conversationId}:${turns.length}`;
+    const cached = this.summaryCache.get(cacheKey);
+    if (cached) return cached;
+
+    // Build raw transcript for LLM summarization
+    const transcript = this.buildTranscript(turns);
+
+    // Try LLM summarization
+    if (this.provider) {
+      try {
+        const resp = await this.provider.chat({
+          messages: [
+            {
+              id: "sum",
+              role: "user",
+              content: transcript,
+              createdAt: new Date(),
+            },
+          ],
+          systemPrompt:
+            "Summarize this conversation in 3-5 bullet points. Keep key facts, decisions, and user preferences. Reply in the same language the user used. Be concise (under 500 chars).",
+          maxTokens: 300,
+        });
+        const text =
+          typeof resp.message.content === "string" ? resp.message.content : "";
+        const summary = `[Earlier conversation summary]\n${text}`;
+        this.summaryCache.set(cacheKey, summary);
+        return summary;
+      } catch {
+        // LLM failed, fall through to truncation
+      }
+    }
+
+    // Fallback: simple truncation
+    const summary = `[Earlier conversation summary]\n${transcript}`;
+    const result =
+      summary.length > 2000 ? summary.slice(0, 2000) + "\n..." : summary;
+    this.summaryCache.set(cacheKey, result);
+    return result;
+  }
+
+  private buildTranscript(turns: ConversationTurn[]): string {
+    const lines: string[] = [];
     for (const turn of turns) {
       if (turn.role === "user") {
         const text =
-          turn.content.length > 100
-            ? turn.content.slice(0, 100) + "..."
+          turn.content.length > 200
+            ? turn.content.slice(0, 200) + "..."
             : turn.content;
         lines.push(`User: ${text}`);
       } else if (turn.role === "assistant") {
         const text =
-          turn.content.length > 100
-            ? turn.content.slice(0, 100) + "..."
+          turn.content.length > 200
+            ? turn.content.slice(0, 200) + "..."
             : turn.content;
         lines.push(`Assistant: ${text}`);
-      } else if (turn.role === "tool") {
-        try {
-          const blocks = JSON.parse(turn.content);
-          if (Array.isArray(blocks)) {
-            for (const b of blocks) {
-              if (b.type === "tool_result") {
-                lines.push(
-                  `Tool ${b.toolUseId}: ${b.isError ? "error" : "ok"}`,
-                );
-              }
-            }
-          }
-        } catch {
-          // skip
-        }
       }
     }
-    const summary = lines.join("\n");
-    return summary.length > 2000 ? summary.slice(0, 2000) + "\n..." : summary;
+    const transcript = lines.join("\n");
+    return transcript.length > 4000
+      ? transcript.slice(0, 4000) + "\n..."
+      : transcript;
   }
 
   /** Rebuild a full Message (with ContentBlock[]) from a stored ConversationTurn */

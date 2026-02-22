@@ -438,9 +438,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       );
   }
 
-  async getSessionById(
-    id: string,
-  ): Promise<{
+  async getSessionById(id: string): Promise<{
     id: string;
     conversationId: string;
     createdAt: Date;
@@ -493,6 +491,17 @@ export class SQLiteMemoryStore implements MemoryStore {
   }
 
   async deleteSession(id: string): Promise<void> {
+    const row = this.db
+      .prepare("SELECT conversation_id FROM sessions WHERE id = ?")
+      .get(id) as { conversation_id: string } | undefined;
+    if (row) {
+      this.db
+        .prepare("DELETE FROM turns WHERE conversation_id = ?")
+        .run(row.conversation_id);
+      this.db
+        .prepare("DELETE FROM traces WHERE conversation_id = ?")
+        .run(row.conversation_id);
+    }
     this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
   }
 

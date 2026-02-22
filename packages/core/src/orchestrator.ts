@@ -192,12 +192,18 @@ export class SimpleOrchestrator implements Orchestrator {
     await this.memoryStore.deleteSession(sessionId);
   }
 
+  setModel(model: string): void {
+    if (!this.agentConfig) this.agentConfig = {};
+    this.agentConfig.model = model;
+  }
+
   private createAgentLoop(provider?: LLMProvider): SimpleAgentLoop {
     const effectiveProvider = provider ?? this.provider;
     const contextManager = new SimpleContextManager({
       systemPrompt: this.systemPrompt,
       memoryStore: this.memoryStore,
       skillRegistry: this.skillRegistry,
+      provider: this.fastProvider ?? this.provider,
     });
 
     return new SimpleAgentLoop({

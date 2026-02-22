@@ -39,6 +39,8 @@ export interface AgentConfig {
   systemPrompt: string;
   /** Whether to stream responses */
   streaming: boolean;
+  /** Override model name (passed to provider per-request) */
+  model?: string;
   /** Temperature for LLM calls */
   temperature?: number;
   /** Maximum tokens for LLM response */

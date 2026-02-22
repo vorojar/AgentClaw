@@ -173,6 +173,7 @@ export class SimpleAgentLoop implements AgentLoop {
         messages,
         systemPrompt,
         tools,
+        model: this._config.model,
         temperature: this._config.temperature,
         maxTokens: this._config.maxTokens,
       });

@@ -29,10 +29,6 @@ function formatNumber(n: number): string {
   return n.toLocaleString();
 }
 
-function formatCost(n: number): string {
-  return `$${n.toFixed(4)}`;
-}
-
 export function SettingsPage() {
   const [config, setConfig] = useState<AppConfigInfo | null>(null);
   const [stats, setStats] = useState<UsageStatsInfo | null>(null);
@@ -219,12 +215,6 @@ export function SettingsPage() {
             <div className="stats-overview">
               <div className="stat-item">
                 <span className="stat-value">
-                  {formatCost(stats.totalCost)}
-                </span>
-                <span className="stat-label">Total Cost</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-value">
                   {formatNumber(stats.totalCalls)}
                 </span>
                 <span className="stat-label">Total Calls</span>
@@ -253,7 +243,6 @@ export function SettingsPage() {
                       <th>Calls</th>
                       <th>Input Tokens</th>
                       <th>Output Tokens</th>
-                      <th>Cost</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -266,7 +255,6 @@ export function SettingsPage() {
                         <td>{formatNumber(row.callCount)}</td>
                         <td>{formatNumber(row.totalInputTokens)}</td>
                         <td>{formatNumber(row.totalOutputTokens)}</td>
-                        <td>{formatCost(row.totalCost)}</td>
                       </tr>
                     ))}
                   </tbody>

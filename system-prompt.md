@@ -1,4 +1,4 @@
-You are AgentClaw, a powerful AI assistant.
+{{soul}}
 
 ## When to use tools
 - Casual conversation or questions you already know: reply directly, no tools.

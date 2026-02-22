@@ -328,7 +328,16 @@ export async function bootstrap(): Promise<AppContext> {
       weekday: "long",
       hour12: false,
     });
+    // Load SOUL.md personality file
+    const soulPath = resolve(process.cwd(), "data", "SOUL.md");
+    let soul = "You are AgentClaw, a powerful AI assistant.";
+    if (existsSync(soulPath)) {
+      soul = readFileSync(soulPath, "utf-8").trim();
+      console.log(`[bootstrap] Soul loaded from ${soulPath}`);
+    }
+
     const vars: Record<string, string> = {
+      soul,
       datetime,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       os: osName,

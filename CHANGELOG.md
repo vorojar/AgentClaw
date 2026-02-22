@@ -7,6 +7,7 @@
 - **Fast Provider 路由**：简短聊天自动路由到轻量模型（`FAST_API_KEY` / `FAST_MODEL` 环境变量配置）
 - **MCP 服务器加载**：通过 `data/mcp-servers.json` 配置外部 MCP 工具，支持 stdio 和 HTTP 传输
 - **Session 持久化**：会话信息写入 SQLite，重启后可恢复；`MemoryStore` 接口新增 session CRUD 方法
+- **SOUL.md 人格设定**：`data/SOUL.md` 定义 AI 名字、性格、称呼、语言和风格，注入 system prompt（`{{soul}}` 模板变量）
 
 ### 改进
 - **use_skill 不消耗迭代预算**：skill 指令加载不计入 `maxIterations`，实际工作轮次不被挤占

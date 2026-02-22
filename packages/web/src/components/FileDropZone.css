@@ -2,8 +2,11 @@
 
 .file-drop-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .file-drop-overlay {

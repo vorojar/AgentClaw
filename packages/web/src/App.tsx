@@ -10,6 +10,7 @@ import { ApiPage } from "./pages/ApiPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./auth";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { SessionProvider } from "./components/SessionContext";
 
 function AppRoutes() {
   const { authRequired, apiKey, loading } = useAuth();
@@ -35,18 +36,20 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/chat" replace />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/plans" element={<PlansPage />} />
-        <Route path="/memory" element={<MemoryPage />} />
-        <Route path="/token-logs" element={<TokenLogsPage />} />
-        <Route path="/traces" element={<TracesPage />} />
-        <Route path="/api" element={<ApiPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
-    </Routes>
+    <SessionProvider>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/plans" element={<PlansPage />} />
+          <Route path="/memory" element={<MemoryPage />} />
+          <Route path="/token-logs" element={<TokenLogsPage />} />
+          <Route path="/traces" element={<TracesPage />} />
+          <Route path="/api" element={<ApiPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+      </Routes>
+    </SessionProvider>
   );
 }
 

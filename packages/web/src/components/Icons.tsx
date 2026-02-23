@@ -253,6 +253,25 @@ export function IconMoon({ size }: { size?: number }) {
   );
 }
 
+export function IconSkills({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </I>
+  );
+}
+
+export function IconChevronDown({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <polyline points="6 9 12 15 18 9" />
+    </I>
+  );
+}
+
 export function IconEdit({ size }: { size?: number }) {
   return (
     <I size={size}>

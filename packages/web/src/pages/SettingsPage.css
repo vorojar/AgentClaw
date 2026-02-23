@@ -33,6 +33,15 @@
   gap: 10px;
 }
 
+.settings-section-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-section-clickable:hover {
+  color: var(--accent);
+}
+
 .settings-count {
   font-size: 12px;
   font-weight: 500;
@@ -40,6 +49,18 @@
   background: var(--bg-tertiary);
   padding: 2px 8px;
   border-radius: 10px;
+}
+
+.settings-chevron {
+  margin-left: auto;
+  transition: transform 0.2s;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.settings-chevron.expanded {
+  transform: rotate(180deg);
 }
 
 .settings-add-btn {
@@ -161,7 +182,69 @@
   border-radius: 4px;
 }
 
-/* Tools list */
+/* System info merged into stats */
+.stats-system-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.stats-sys-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.stats-sys-label {
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.stats-sys-item code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+/* Tools badges (collapsed view) */
+.tools-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tool-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.tool-badge-builtin {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tool-badge-mcp {
+  border-color: #a855f7;
+  color: #a855f7;
+}
+
+/* Tools list (expanded view) */
 .tools-list {
   display: flex;
   flex-direction: column;
@@ -194,48 +277,7 @@
   color: var(--text-secondary);
 }
 
-/* Skills list */
-.skills-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.skill-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius);
-  gap: 16px;
-}
-
-.skill-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.skill-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.skill-description {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.skill-toggle-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
+/* Toggle (used by scheduled tasks form) */
 .skill-toggle {
   width: 36px;
   height: 20px;
@@ -267,84 +309,6 @@
 
 .skill-toggle.enabled .skill-toggle-knob {
   transform: translateX(16px);
-}
-
-.skill-toggle-label {
-  font-size: 12px;
-  color: var(--text-muted);
-  min-width: 20px;
-}
-
-/* Skill import panel */
-.import-panel {
-  padding: 12px;
-  margin-bottom: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-tertiary);
-}
-
-.import-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.import-row:last-child {
-  margin-bottom: 0;
-}
-
-.import-row input[type="text"] {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 13px;
-}
-
-.import-row button,
-.upload-btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--accent);
-  color: white;
-  cursor: pointer;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.import-row button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.upload-btn {
-  display: inline-block;
-  text-align: center;
-}
-
-/* Skill delete button */
-.skill-delete-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.skill-item:hover .skill-delete-btn {
-  opacity: 1;
-}
-
-.skill-delete-btn:hover {
-  color: #ef4444;
 }
 
 /* Task form */
@@ -435,39 +399,8 @@
   border-radius: 4px;
 }
 
-/* Badge muted (shared with other pages, safe to duplicate) */
+/* Badge muted */
 .badge-muted {
   background: rgba(95, 99, 104, 0.15);
   color: var(--text-muted);
-}
-
-/* System info */
-.system-info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.system-info-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.system-info-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  min-width: 140px;
-  flex-shrink: 0;
-}
-
-.system-info-value {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-  padding: 4px 10px;
-  border-radius: 4px;
-  word-break: break-all;
 }

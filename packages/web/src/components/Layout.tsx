@@ -9,6 +9,7 @@ import {
   IconTraces,
   IconTokens,
   IconSettings,
+  IconSkills,
   IconApi,
   IconSearch,
   IconPanelLeft,
@@ -147,6 +148,12 @@ export function Layout() {
             className={({ isActive }) => (isActive ? "active" : "")}
           >
             <IconTokens size={16} /> Token Logs
+          </NavLink>
+          <NavLink
+            to="/skills"
+            className={({ isActive }) => (isActive ? "active" : "")}
+          >
+            <IconSkills size={16} /> Skills
           </NavLink>
         </nav>
 

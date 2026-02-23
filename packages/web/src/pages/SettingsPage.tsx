@@ -1,23 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   getConfig,
-  updateConfig,
   getStats,
   listTools,
-  listSkills,
-  updateSkillEnabled,
-  importSkillFromGithub,
-  importSkillFromZip,
-  deleteSkill,
   listScheduledTasks,
   createScheduledTask,
   deleteScheduledTask,
   type AppConfigInfo,
   type UsageStatsInfo,
   type ToolInfo,
-  type SkillInfo,
   type ScheduledTaskInfo,
 } from "../api/client";
+import { IconChevronDown } from "../components/Icons";
 import "./SettingsPage.css";
 
 function formatTime(iso: string | undefined): string {
@@ -37,21 +31,12 @@ export function SettingsPage() {
   const [config, setConfig] = useState<AppConfigInfo | null>(null);
   const [stats, setStats] = useState<UsageStatsInfo | null>(null);
   const [tools, setTools] = useState<ToolInfo[]>([]);
-  const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [tasks, setTasks] = useState<ScheduledTaskInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Config editing
-  const [editProvider, setEditProvider] = useState("");
-  const [editModel, setEditModel] = useState("");
-  const [configSaving, setConfigSaving] = useState(false);
-  const [configDirty, setConfigDirty] = useState(false);
-
-  // Skill import
-  const [importOpen, setImportOpen] = useState(false);
-  const [importUrl, setImportUrl] = useState("");
-  const [importing, setImporting] = useState(false);
+  // Tools collapse
+  const [toolsExpanded, setToolsExpanded] = useState(false);
 
   // New task form
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -70,22 +55,16 @@ export function SettingsPage() {
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const [configData, statsData, toolsData, skillsData, tasksData] =
-        await Promise.all([
-          getConfig(),
-          getStats(),
-          listTools(),
-          listSkills(),
-          listScheduledTasks(),
-        ]);
+      const [configData, statsData, toolsData, tasksData] = await Promise.all([
+        getConfig(),
+        getStats(),
+        listTools(),
+        listScheduledTasks(),
+      ]);
       setConfig(configData);
       setStats(statsData);
       setTools(toolsData);
-      setSkills(skillsData);
       setTasks(tasksData);
-      setEditProvider(configData.provider);
-      setEditModel(configData.model ?? "");
-      setConfigDirty(false);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
@@ -97,32 +76,6 @@ export function SettingsPage() {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
-
-  const handleProviderChange = (value: string) => {
-    setEditProvider(value);
-    setConfigDirty(true);
-  };
-
-  const handleModelChange = (value: string) => {
-    setEditModel(value);
-    setConfigDirty(true);
-  };
-
-  const handleSaveConfig = async () => {
-    try {
-      setConfigSaving(true);
-      const updated = await updateConfig({
-        provider: editProvider,
-        model: editModel || undefined,
-      });
-      setConfig(updated);
-      setConfigDirty(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save config");
-    } finally {
-      setConfigSaving(false);
-    }
-  };
 
   const handleCreateTask = async () => {
     if (!newTaskName.trim() || !newTaskCron.trim() || !newTaskAction.trim()) {
@@ -166,56 +119,6 @@ export function SettingsPage() {
     }
   };
 
-  const handleImportGithub = async () => {
-    if (!importUrl.trim()) return;
-    setImporting(true);
-    try {
-      await importSkillFromGithub(importUrl.trim());
-      setImportUrl("");
-      setImportOpen(false);
-      const updated = await listSkills();
-      setSkills(updated);
-    } catch (err) {
-      setError(
-        "Import failed: " + (err instanceof Error ? err.message : String(err)),
-      );
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      await importSkillFromZip(file);
-      setImportOpen(false);
-      const updated = await listSkills();
-      setSkills(updated);
-    } catch (err) {
-      setError(
-        "Import failed: " + (err instanceof Error ? err.message : String(err)),
-      );
-    } finally {
-      setImporting(false);
-      // Reset file input so same file can be re-selected
-      e.target.value = "";
-    }
-  };
-
-  const handleDeleteSkill = async (skill: SkillInfo) => {
-    if (!confirm(`Delete skill "${skill.name}"?`)) return;
-    try {
-      await deleteSkill(skill.id);
-      setSkills((prev) => prev.filter((s) => s.id !== skill.id));
-    } catch (err) {
-      setError(
-        "Delete failed: " + (err instanceof Error ? err.message : String(err)),
-      );
-    }
-  };
-
   if (loading) {
     return (
       <>
@@ -233,41 +136,7 @@ export function SettingsPage() {
       <div className="page-body">
         {error && <div className="settings-error">{error}</div>}
 
-        {/* Provider Configuration */}
-        <section className="card settings-section">
-          <h2 className="settings-section-title">Provider Configuration</h2>
-          <div className="settings-form">
-            <div className="settings-field">
-              <label className="settings-label">Provider</label>
-              <input
-                type="text"
-                value={editProvider}
-                onChange={(e) => handleProviderChange(e.target.value)}
-                placeholder="e.g. openai, anthropic"
-              />
-            </div>
-            <div className="settings-field">
-              <label className="settings-label">Model</label>
-              <input
-                type="text"
-                value={editModel}
-                onChange={(e) => handleModelChange(e.target.value)}
-                placeholder="e.g. gpt-4, claude-3-opus"
-              />
-            </div>
-            <div className="settings-form-actions">
-              <button
-                className="btn-primary"
-                onClick={handleSaveConfig}
-                disabled={!configDirty || configSaving}
-              >
-                {configSaving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Usage Statistics */}
+        {/* Usage Statistics + System Info */}
         {stats && (
           <section className="card settings-section">
             <h2 className="settings-section-title">Usage Statistics</h2>
@@ -297,7 +166,6 @@ export function SettingsPage() {
                 <table className="stats-table">
                   <thead>
                     <tr>
-                      <th>Provider</th>
                       <th>Model</th>
                       <th>Calls</th>
                       <th>Input Tokens</th>
@@ -307,7 +175,6 @@ export function SettingsPage() {
                   <tbody>
                     {stats.byModel.map((row, i) => (
                       <tr key={i}>
-                        <td>{row.provider}</td>
                         <td>
                           <code className="model-name">{row.model}</code>
                         </td>
@@ -320,18 +187,51 @@ export function SettingsPage() {
                 </table>
               </div>
             )}
+
+            {/* System Info (merged) */}
+            {config && (
+              <div className="stats-system-info">
+                <span className="stats-sys-item">
+                  <span className="stats-sys-label">DB</span>
+                  <code>{config.databasePath}</code>
+                </span>
+                <span className="stats-sys-item">
+                  <span className="stats-sys-label">Skills</span>
+                  <code>{config.skillsDir}</code>
+                </span>
+              </div>
+            )}
           </section>
         )}
 
-        {/* Tools */}
+        {/* Tools (collapsible) */}
         <section className="card settings-section">
-          <h2 className="settings-section-title">
+          <h2
+            className="settings-section-title settings-section-clickable"
+            onClick={() => setToolsExpanded((v) => !v)}
+          >
             Tools
             <span className="settings-count">{tools.length}</span>
+            <span
+              className={`settings-chevron${toolsExpanded ? " expanded" : ""}`}
+            >
+              <IconChevronDown size={16} />
+            </span>
           </h2>
-          {tools.length === 0 ? (
-            <div className="settings-empty">No tools registered</div>
-          ) : (
+          {!toolsExpanded && tools.length > 0 && (
+            <div className="tools-badges">
+              {tools.map((tool) => (
+                <span
+                  key={tool.name}
+                  className={`tool-badge tool-badge-${tool.category}`}
+                  title={tool.description}
+                >
+                  {tool.name}
+                </span>
+              ))}
+            </div>
+          )}
+          {toolsExpanded && (
             <div className="tools-list">
               {tools.map((tool) => (
                 <div key={tool.name} className="tool-item">
@@ -340,103 +240,6 @@ export function SettingsPage() {
                     <span className="badge badge-info">{tool.category}</span>
                   </div>
                   <div className="tool-description">{tool.description}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Skills */}
-        <section className="card settings-section">
-          <h2 className="settings-section-title">
-            Skills
-            <span className="settings-count">{skills.length}</span>
-            <button
-              className="btn-primary settings-add-btn"
-              onClick={() => setImportOpen((v) => !v)}
-            >
-              {importOpen ? "Cancel" : "+ Import"}
-            </button>
-          </h2>
-
-          {importOpen && (
-            <div className="import-panel">
-              <div className="import-row">
-                <input
-                  type="text"
-                  placeholder="GitHub URL (https://github.com/user/skill-name)"
-                  value={importUrl}
-                  onChange={(e) => setImportUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleImportGithub()}
-                />
-                <button
-                  onClick={handleImportGithub}
-                  disabled={importing || !importUrl.trim()}
-                >
-                  {importing ? "Importing..." : "Clone"}
-                </button>
-              </div>
-              <div className="import-row">
-                <label className="upload-btn">
-                  Upload .zip
-                  <input
-                    type="file"
-                    accept=".zip"
-                    onChange={handleImportZip}
-                    hidden
-                  />
-                </label>
-              </div>
-            </div>
-          )}
-
-          {skills.length === 0 ? (
-            <div className="settings-empty">No skills available</div>
-          ) : (
-            <div className="skills-list">
-              {skills.map((skill) => (
-                <div key={skill.id} className="skill-item">
-                  <div className="skill-info">
-                    <span className="skill-name">{skill.name}</span>
-                    <span className="skill-description">
-                      {skill.description}
-                    </span>
-                  </div>
-                  <div className="skill-toggle-wrapper">
-                    <span
-                      className={`skill-toggle ${skill.enabled ? "enabled" : "disabled"}`}
-                      onClick={async () => {
-                        try {
-                          await updateSkillEnabled(skill.id, !skill.enabled);
-                          setSkills((prev) =>
-                            prev.map((s) =>
-                              s.id === skill.id
-                                ? { ...s, enabled: !s.enabled }
-                                : s,
-                            ),
-                          );
-                        } catch (err) {
-                          setError(
-                            err instanceof Error
-                              ? err.message
-                              : "Failed to toggle skill",
-                          );
-                        }
-                      }}
-                    >
-                      <span className="skill-toggle-knob" />
-                    </span>
-                    <span className="skill-toggle-label">
-                      {skill.enabled ? "On" : "Off"}
-                    </span>
-                    <button
-                      className="skill-delete-btn"
-                      onClick={() => handleDeleteSkill(skill)}
-                      title="Delete skill"
-                    >
-                      ×
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -577,23 +380,6 @@ export function SettingsPage() {
             </div>
           )}
         </section>
-
-        {/* System Info */}
-        {config && (
-          <section className="card settings-section">
-            <h2 className="settings-section-title">System Info</h2>
-            <div className="system-info-list">
-              <div className="system-info-row">
-                <span className="system-info-label">Database Path</span>
-                <code className="system-info-value">{config.databasePath}</code>
-              </div>
-              <div className="system-info-row">
-                <span className="system-info-label">Skills Directory</span>
-                <code className="system-info-value">{config.skillsDir}</code>
-              </div>
-            </div>
-          </section>
-        )}
       </div>
     </>
   );

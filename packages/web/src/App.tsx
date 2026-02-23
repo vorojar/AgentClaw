@@ -4,6 +4,7 @@ import { ChatPage } from "./pages/ChatPage";
 import { PlansPage } from "./pages/PlansPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { SkillsPage } from "./pages/SkillsPage";
 import { TokenLogsPage } from "./pages/TokenLogsPage";
 import { TracesPage } from "./pages/TracesPage";
 import { ApiPage } from "./pages/ApiPage";
@@ -46,6 +47,7 @@ function AppRoutes() {
           <Route path="/token-logs" element={<TokenLogsPage />} />
           <Route path="/traces" element={<TracesPage />} />
           <Route path="/api" element={<ApiPage />} />
+          <Route path="/skills" element={<SkillsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>

@@ -12,6 +12,9 @@
 - **会话懒创建**：刷新页面不再自动创建空会话，仅在用户发送第一条消息时按需创建（`ensureSession`），避免空会话堆积
 - **会话列表刷新可靠性**：移除 SessionContext 中所有自动创建逻辑，刷新时正确加载并选中最近活跃会话
 
+### 修复（续）
+- **Browser type 支持 contentEditable**：`type` 命令改用 `document.execCommand('insertText')` 处理富文本编辑器（如 X/Twitter 发推框），解决 `el.value` 对 contentEditable 元素无效的问题
+
 ### 移除
 - **Plans 页面**：移除前端 Plans 页面、侧边栏入口和后端 API 路由（plan_task 在对话中执行，独立页面无实际用途）
 

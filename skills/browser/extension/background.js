@@ -224,6 +224,11 @@ async function cmdType({ selector, text }) {
       if (!el) throw new Error(`Element not found: ${sel}`);
       el.focus();
 
+      const isContentEditable =
+        el.isContentEditable ||
+        (el.getAttribute && el.getAttribute("contenteditable") === "true");
+      const isInput = el.tagName === "INPUT" || el.tagName === "TEXTAREA";
+
       const enterOpts = {
         key: "Enter",
         code: "Enter",
@@ -233,7 +238,7 @@ async function cmdType({ selector, text }) {
       const dispatchEnter = () => {
         el.dispatchEvent(new KeyboardEvent("keydown", enterOpts));
         el.dispatchEvent(new KeyboardEvent("keypress", enterOpts));
-        if (el.form) {
+        if (isInput && el.form) {
           try {
             el.form.requestSubmit();
           } catch {
@@ -242,26 +247,26 @@ async function cmdType({ selector, text }) {
         }
       };
 
-      // Pure newline → just press Enter, don't touch el.value
+      // Pure newline → just press Enter
       if (txt === "\n" || txt === "\r\n") {
         dispatchEnter();
         return true;
       }
 
-      // Text ending with newline → type text then press Enter
-      if (txt.endsWith("\n") || txt.endsWith("\r\n")) {
-        const content = txt.replace(/\r?\n$/, "");
+      const endsWithNewline = txt.endsWith("\n") || txt.endsWith("\r\n");
+      const content = endsWithNewline ? txt.replace(/\r?\n$/, "") : txt;
+
+      if (isContentEditable) {
+        // contentEditable: use execCommand to trigger framework event listeners
+        el.textContent = "";
+        document.execCommand("insertText", false, content);
+      } else {
         el.value = content;
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
-        dispatchEnter();
-        return true;
       }
 
-      // Normal text without newline → original behavior
-      el.value = txt;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
+      if (endsWithNewline) dispatchEnter();
       return true;
     },
     args: [selector, text],

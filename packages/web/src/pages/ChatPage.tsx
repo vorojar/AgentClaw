@@ -213,8 +213,27 @@ function formatUsageStats(msg: DisplayMessage): string | null {
 
 /* ── ToolCallCard ─────────────────────────────────── */
 
+function toolCallLabel(name: string, input: string): string {
+  try {
+    const obj = JSON.parse(input);
+    if (name === "bash" && obj.command) {
+      const cmd = String(obj.command);
+      return `bash: ${cmd.length > 80 ? cmd.slice(0, 80) + "..." : cmd}`;
+    }
+    if (name === "use_skill" && obj.name) return `use_skill: ${obj.name}`;
+    if (name === "file_read" && obj.path) return `file_read: ${obj.path}`;
+    if (name === "file_write" && obj.path) return `file_write: ${obj.path}`;
+    if (name === "send_file" && obj.filename)
+      return `send_file: ${obj.filename}`;
+  } catch {
+    /* not JSON */
+  }
+  return name;
+}
+
 function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
   const [expanded, setExpanded] = useState(false);
+  const label = toolCallLabel(entry.toolName, entry.toolInput);
   return (
     <div className="tool-call-card">
       <div className="tool-call-header" onClick={() => setExpanded(!expanded)}>
@@ -229,7 +248,9 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
             <IconClock size={14} />
           )}
         </span>
-        <span className="tool-call-name">{entry.toolName}</span>
+        <span className="tool-call-name" title={label}>
+          {label}
+        </span>
         <span className={`tool-call-chevron${expanded ? " expanded" : ""}`}>
           <IconChevronRight size={14} />
         </span>
@@ -790,16 +811,48 @@ export function ChatPage() {
                                           {...props}
                                         />
                                       ),
-                                      a: ({ href, children, ...props }) => (
-                                        <a
-                                          href={href}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          {...props}
-                                        >
-                                          {children}
-                                        </a>
-                                      ),
+                                      a: ({ href, children, ...props }) => {
+                                        if (
+                                          href &&
+                                          /\.(mp4|mkv|webm|mov|avi)$/i.test(
+                                            href,
+                                          )
+                                        ) {
+                                          return (
+                                            <video
+                                              src={href}
+                                              controls
+                                              preload="metadata"
+                                              className="message-video"
+                                            />
+                                          );
+                                        }
+                                        if (
+                                          href &&
+                                          /\.(mp3|wav|ogg|flac|m4a)$/i.test(
+                                            href,
+                                          )
+                                        ) {
+                                          return (
+                                            <audio
+                                              src={href}
+                                              controls
+                                              preload="metadata"
+                                              className="message-audio"
+                                            />
+                                          );
+                                        }
+                                        return (
+                                          <a
+                                            href={href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            {...props}
+                                          >
+                                            {children}
+                                          </a>
+                                        );
+                                      },
                                     }}
                                   >
                                     {parsed.text}

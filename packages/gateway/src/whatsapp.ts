@@ -270,6 +270,7 @@ async function handleTextMessage(
           };
           if (data.name === "use_skill") {
             activeSkill = (data.input.name as string) || "";
+            await botSendText(sock, jid, `⚙️ use_skill: ${activeSkill}`);
             break;
           }
           let label: string;
@@ -435,6 +436,7 @@ async function handleImageMessage(
           };
           if (data.name === "use_skill") {
             activeSkill = (data.input.name as string) || "";
+            await botSendText(sock, jid, `⚙️ use_skill: ${activeSkill}`);
             break;
           }
           let label: string;

@@ -130,7 +130,7 @@ export const shellInfo = {
 
 /** Detect file paths pointing to data/tmp in a string (supports / and \ separators, Unicode filenames) */
 const FILE_PATH_RE =
-  /(?:[A-Za-z]:)?(?:[/\\][^\s/\\:*?"<>|]+)*[/\\]data[/\\]tmp[/\\][^\s/\\:*?"<>|]+\.(?:png|jpe?g|gif|webp|svg|bmp|mp4|mkv|mp3|wav|ogg|flac|pdf|zip|tar\.gz)/gi;
+  /(?:[A-Za-z]:)?(?:[/\\][^\s/\\:*?"<>|]+)*[/\\]?data[/\\]tmp[/\\][^\s/\\:*?"<>|]+\.(?:png|jpe?g|gif|webp|svg|bmp|mp4|mkv|mp3|wav|ogg|flac|pdf|zip|tar\.gz)/gi;
 
 function detectFilePaths(text: string): string[] {
   const matches = text.match(FILE_PATH_RE) || [];

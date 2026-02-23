@@ -240,6 +240,7 @@ export async function startTelegramBot(
             const data = event.data as { name: string; input: Record<string, unknown> };
             if (data.name === "use_skill") {
               activeSkill = (data.input.name as string) || "";
+              await replyFn(`⚙️ use_skill: ${activeSkill}`);
               break;
             }
             let label: string;
@@ -430,6 +431,7 @@ export async function startTelegramBot(
             };
             if (data.name === "use_skill") {
               activeSkill = (data.input.name as string) || "";
+              await ctx.reply(`⚙️ use_skill: ${activeSkill}`);
               break;
             }
             let label: string;
@@ -623,6 +625,7 @@ export async function startTelegramBot(
             };
             if (data.name === "use_skill") {
               activeSkill = (data.input.name as string) || "";
+              await ctx.reply(`⚙️ use_skill: ${activeSkill}`);
               break;
             }
             let label: string;

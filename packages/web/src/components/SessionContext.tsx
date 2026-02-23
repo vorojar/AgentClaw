@@ -77,15 +77,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleDeleteSession = useCallback(async (id: string) => {
-    try {
-      await closeSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      setActiveSessionId((prev) => (prev === id ? null : prev));
-    } catch (err) {
-      console.error("Failed to delete session:", err);
-    }
-  }, []);
+  const handleDeleteSession = useCallback(
+    async (id: string) => {
+      try {
+        await closeSession(id);
+        const remaining = sessions.filter((s) => s.id !== id);
+        setSessions(remaining);
+        if (activeSessionId === id) {
+          if (remaining.length > 0) {
+            // Switch to most recent remaining session
+            const sorted = [...remaining].sort(
+              (a, b) =>
+                new Date(b.lastActiveAt).getTime() -
+                new Date(a.lastActiveAt).getTime(),
+            );
+            setActiveSessionId(sorted[0].id);
+          } else {
+            // No sessions left — create a new one
+            const ns = await createSession();
+            setSessions([ns]);
+            setActiveSessionId(ns.id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to delete session:", err);
+      }
+    },
+    [sessions, activeSessionId],
+  );
 
   const handleSelectSession = useCallback((id: string) => {
     setActiveSessionId(id);

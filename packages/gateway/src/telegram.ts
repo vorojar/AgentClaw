@@ -53,6 +53,7 @@ const MAX_SEND_SIZE = 50 * 1024 * 1024; // 50 MB
 function createSendFile(
   bot: Bot,
   chatId: number,
+  sentFiles?: Array<{ url: string; filename: string }>,
 ): (path: string, caption?: string) => Promise<void> {
   return async (filePath: string, caption?: string) => {
     const { createReadStream, statSync } = await import("node:fs");
@@ -60,6 +61,10 @@ function createSendFile(
     const { InputFile } = await import("grammy");
     const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
     const filename = basename(filePath);
+    const url = `/files/${encodeURIComponent(filename)}`;
+
+    // Track for persistence (agent-loop will generate markdown links)
+    sentFiles?.push({ url, filename });
 
     // Large files: send download link instead of inline upload
     try {
@@ -67,11 +72,10 @@ function createSendFile(
       if (size > MAX_SEND_SIZE) {
         const port = process.env.PORT || "3100";
         const host = process.env.PUBLIC_URL || `http://localhost:${port}`;
-        const fileUrl = `/files/${encodeURIComponent(filename)}`;
         const sizeMB = (size / 1024 / 1024).toFixed(1);
         await bot.api.sendMessage(
           chatId,
-          `📎 ${caption || filename} (${sizeMB}MB)\n${host}${fileUrl}`,
+          `📎 ${caption || filename} (${sizeMB}MB)\n${host}${url}`,
         );
         return;
       }
@@ -227,7 +231,9 @@ export async function startTelegramBot(
     }, 4000);
 
     try {
+      const sentFiles: Array<{ url: string; filename: string }> = [];
       const toolContext: ToolExecutionContext = {
+        sentFiles,
         promptUser: async (question: string) => {
           await replyFn(`❓ ${question}`);
           return new Promise<string>((resolve) => {
@@ -237,7 +243,7 @@ export async function startTelegramBot(
         notifyUser: async (message: string) => {
           await bot.api.sendMessage(chatId, message);
         },
-        sendFile: createSendFile(bot, chatId),
+        sendFile: createSendFile(bot, chatId, sentFiles),
       };
 
       const eventStream = appCtx.orchestrator.processInputStream(
@@ -399,7 +405,9 @@ export async function startTelegramBot(
 
     try {
       // Build execution context with Telegram-specific callbacks
+      const sentFiles: Array<{ url: string; filename: string }> = [];
       const toolContext: ToolExecutionContext = {
+        sentFiles,
         promptUser: async (question: string) => {
           await ctx.reply(`❓ ${question}`);
           return new Promise<string>((resolve) => {
@@ -409,7 +417,7 @@ export async function startTelegramBot(
         notifyUser: async (message: string) => {
           await bot.api.sendMessage(chatId, message);
         },
-        sendFile: createSendFile(bot, chatId),
+        sendFile: createSendFile(bot, chatId, sentFiles),
       };
 
       const eventStream = appCtx.orchestrator.processInputStream(
@@ -594,7 +602,9 @@ export async function startTelegramBot(
       ];
 
       // Build execution context with Telegram-specific callbacks
+      const sentFiles: Array<{ url: string; filename: string }> = [];
       const toolContext: ToolExecutionContext = {
+        sentFiles,
         promptUser: async (question: string) => {
           await ctx.reply(`❓ ${question}`);
           return new Promise<string>((resolve) => {
@@ -604,7 +614,7 @@ export async function startTelegramBot(
         notifyUser: async (message: string) => {
           await bot.api.sendMessage(chatId, message);
         },
-        sendFile: createSendFile(bot, chatId),
+        sendFile: createSendFile(bot, chatId, sentFiles),
       };
 
       const eventStream = appCtx.orchestrator.processInputStream(

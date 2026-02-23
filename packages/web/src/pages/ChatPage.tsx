@@ -550,6 +550,14 @@ export function ChatPage() {
           : `[${fileName}](${fileUrl})`;
         setMessages((prev) => {
           const last = prev[prev.length - 1];
+          // Deduplicate: skip if this URL is already in the current assistant message
+          if (
+            last &&
+            last.role === "assistant" &&
+            last.content?.includes(fileUrl)
+          ) {
+            return prev;
+          }
           if (last && last.role === "assistant" && last.streaming) {
             return [
               ...prev.slice(0, -1),

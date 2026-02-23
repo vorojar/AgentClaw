@@ -173,6 +173,40 @@ export class SQLiteMemoryStore implements MemoryStore {
     return scored.slice(0, query.limit ?? 20);
   }
 
+  /**
+   * Find the most similar existing memory (same type, above similarity threshold).
+   * Returns the entry + score, or null if nothing similar enough exists.
+   */
+  async findSimilar(
+    content: string,
+    type: string,
+    threshold = 0.75,
+  ): Promise<{ entry: MemoryEntry; score: number } | null> {
+    const results = await this.search({
+      query: content,
+      type: type as MemoryEntry["type"],
+      limit: 5,
+      semanticWeight: 1.0,
+      recencyWeight: 0,
+      importanceWeight: 0,
+    });
+    if (results.length === 0) return null;
+
+    // Also check exact text match (normalized) as a guaranteed dedup
+    const normalized = content.toLowerCase().trim();
+    for (const r of results) {
+      if (r.entry.content.toLowerCase().trim() === normalized) {
+        return { entry: r.entry, score: 1.0 };
+      }
+    }
+
+    // Return top result if above threshold
+    if (results[0].score >= threshold) {
+      return { entry: results[0].entry, score: results[0].score };
+    }
+    return null;
+  }
+
   async get(id: string): Promise<MemoryEntry | undefined> {
     const row = this.db
       .prepare("SELECT * FROM memories WHERE id = ?")

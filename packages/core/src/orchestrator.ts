@@ -139,8 +139,17 @@ export class SimpleOrchestrator implements Orchestrator {
     const mergedContext: ToolExecutionContext = {
       ...context,
       saveMemory: async (content, type) => {
+        const memType = type ?? "fact";
+        // Dedup: skip if a similar memory already exists
+        const similar = await memoryStore.findSimilar(content, memType, 0.75);
+        if (similar) {
+          if (0.8 > similar.entry.importance) {
+            await memoryStore.update(similar.entry.id, { importance: 0.8 });
+          }
+          return;
+        }
         await memoryStore.add({
-          type: type ?? "fact",
+          type: memType,
           content,
           importance: 0.8,
         });

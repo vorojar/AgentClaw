@@ -81,6 +81,13 @@ export interface MemoryStore {
   /** Update a memory */
   update(id: string, updates: Partial<MemoryEntry>): Promise<MemoryEntry>;
 
+  /** Find the most similar existing memory (semantic dedup) */
+  findSimilar(
+    content: string,
+    type: string,
+    threshold?: number,
+  ): Promise<{ entry: MemoryEntry; score: number } | null>;
+
   /** Delete a memory */
   delete(id: string): Promise<void>;
 

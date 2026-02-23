@@ -22,6 +22,17 @@ In batch mode, **click/type auto-wait** for the selector to appear (up to 5s), s
 ```
 Note: Home page uses `tweetButtonInline`; compose page (`/compose/post`) uses `tweetButton`. For buttons, auto-wait also checks the button is not disabled (e.g. waiting for URL preview to load).
 
+### Example: Reply to first tweet on X/Twitter
+Step 1 — get first tweet content:
+```
+{"command": "node skills/browser/scripts/browser.mjs batch '[{\"action\":\"open\",\"args\":{\"url\":\"https://x.com\"}},{\"action\":\"get_content\",\"args\":{\"selector\":\"[data-testid=tweetText]\"}}]'", "timeout": 20000}
+```
+Step 2 — compose and send reply (use the content from step 1 to craft your reply):
+```
+{"command": "node skills/browser/scripts/browser.mjs batch '[{\"action\":\"click\",\"args\":{\"selector\":\"[data-testid=reply]\"}},{\"action\":\"type\",\"args\":{\"selector\":\"[data-testid=tweetTextarea_0]\",\"text\":\"Your reply here\"}},{\"action\":\"click\",\"args\":{\"selector\":\"[data-testid=tweetButton]\",\"timeout\":10000}},{\"action\":\"sleep\",\"args\":{\"ms\":2000}},{\"action\":\"screenshot\"}]'", "timeout": 30000, "auto_send": true}
+```
+Note: `querySelector` returns the first match, so `[data-testid=reply]` targets the first tweet's reply button — do NOT use `:first` (jQuery-only, invalid in CSS). Reply modal uses `tweetButton` (not `tweetButtonInline`).
+
 ### Example: Search Google and get content
 ```
 {"command": "node skills/browser/scripts/browser.mjs batch '[{\"action\":\"open\",\"args\":{\"url\":\"https://www.google.com/search?q=test\"}},{\"action\":\"get_content\",\"args\":{\"selector\":\"#search\"}}]'", "timeout": 20000}

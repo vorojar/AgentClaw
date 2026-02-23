@@ -172,7 +172,9 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           sendFile: async (filePath: string) => {
             const filename = basename(filePath);
             const url = `/files/${encodeURIComponent(filename)}`;
-            sentFiles.push({ url, filename });
+            if (!sentFiles.some((f) => f.url === url)) {
+              sentFiles.push({ url, filename });
+            }
             socket.send(JSON.stringify({ type: "file", url, filename }));
           },
         };

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#g)"/>
+  <!-- Claw: three curved talons -->
+  <g fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round">
+    <!-- Left talon -->
+    <path d="M16 18 C14 28, 18 36, 24 42"/>
+    <!-- Center talon -->
+    <path d="M32 14 C30 26, 30 34, 32 44"/>
+    <!-- Right talon -->
+    <path d="M48 18 C50 28, 46 36, 40 42"/>
+  </g>
+  <!-- Palm arc -->
+  <path d="M22 44 Q32 52 42 44" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

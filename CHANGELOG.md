@@ -13,11 +13,13 @@
 - **会话列表刷新可靠性**：移除 SessionContext 中所有自动创建逻辑，刷新时正确加载并选中最近活跃会话
 
 ### 改进
+- **Memory 语义去重**：记忆写入（自动提取 + remember 工具）从"文本完全匹配"升级为"语义相似度阈值（0.75）"去重，"User prefers to be called 主人" 和 "User prefers to be addressed as 主人" 不再重复存储；新增 `MemoryStore.findSimilar()` 方法
 - **Browser batch 模式**：新增 `batch` 命令，一次提交多步浏览器操作（open→click→type→click→screenshot），从 6 轮 LLM 调用压缩到 2 轮，速度提升 3 倍以上。batch 模式内 click/type 自动等待元素出现（5s），适配 SPA 动态渲染
 - **Browser wait_for / sleep**：新增 `wait_for`（等待选择器出现）和 `sleep`（固定等待）命令
 
 ### 修复（续）
 - **Shell 输出文件始终实时显示**：`data/tmp/` 下的文件不再依赖 `auto_send: true` 才发送 WS file 事件，截图等文件始终在 WebUI 中实时显示（`auto_send` 仅控制是否跳过 LLM 下一轮回复）
+- **图片去重**：shell 自动检测与 LLM 显式 `send_file` 同时发送同一文件时，后端 `sentFiles` 按 URL 去重避免持久化重复链接；前端 WS file 事件按 URL 去重避免重复注入 markdown 图片
 - **Browser type 支持 contentEditable**：`type` 命令改用 `document.execCommand('insertText')` 处理富文本编辑器（如 X/Twitter 发推框），解决 `el.value` 对 contentEditable 元素无效的问题
 
 ### 移除

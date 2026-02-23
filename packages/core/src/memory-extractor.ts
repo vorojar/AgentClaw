@@ -145,20 +145,17 @@ export class MemoryExtractor {
     let stored = 0;
 
     for (const memory of extracted) {
-      // Check for duplicates (simple text match)
-      const existing = await this.memoryStore.search({
-        query: memory.content,
-        type: memory.type,
-        limit: 1,
-      });
+      // Semantic dedup: skip if a similar memory already exists
+      const similar = await this.memoryStore.findSimilar(
+        memory.content,
+        memory.type,
+        0.75,
+      );
 
-      if (
-        existing.length > 0 &&
-        existing[0].entry.content.toLowerCase() === memory.content.toLowerCase()
-      ) {
-        // Update importance if higher
-        if (memory.importance > existing[0].entry.importance) {
-          await this.memoryStore.update(existing[0].entry.id, {
+      if (similar) {
+        // Update importance if the new one is higher
+        if (memory.importance > similar.entry.importance) {
+          await this.memoryStore.update(similar.entry.id, {
             importance: memory.importance,
           });
         }

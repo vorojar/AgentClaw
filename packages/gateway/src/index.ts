@@ -77,8 +77,17 @@ async function main(): Promise<void> {
     }
   };
 
-  // Scheduler: run orchestrator on task fire, broadcast results to all gateways
+  // Scheduler: one-shot reminders broadcast directly; recurring tasks run through orchestrator
   ctx.scheduler.setOnTaskFire(async (task) => {
+    if (task.oneShot) {
+      // Reminder — just broadcast the message to all channels
+      const text = `⏰ 提醒：${task.action}`;
+      console.log(`[scheduler] Reminder fired: "${task.action}"`);
+      await broadcastAll(text);
+      return;
+    }
+
+    // Recurring task — run through orchestrator
     console.log(
       `[scheduler] Running task "${task.name}" through orchestrator...`,
     );

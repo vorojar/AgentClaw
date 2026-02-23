@@ -406,7 +406,14 @@ export async function uploadFile(
 // ── WebSocket ───────────────────────────────────────
 
 export interface WSMessage {
-  type: "text" | "tool_call" | "tool_result" | "done" | "error" | "file";
+  type:
+    | "text"
+    | "tool_call"
+    | "tool_result"
+    | "done"
+    | "error"
+    | "file"
+    | "broadcast";
   text?: string;
   toolName?: string;
   toolInput?: string;

@@ -593,6 +593,30 @@ export function ChatPage() {
         setIsSending(false);
         break;
       }
+      case "broadcast": {
+        const broadcastText = msg.text ?? "";
+        if (!broadcastText) break;
+        // Show as system message in chat
+        setMessages((prev) => [
+          ...prev,
+          {
+            key: nextKey(),
+            role: "system",
+            content: broadcastText,
+            streaming: false,
+            toolCalls: [],
+          },
+        ]);
+        // Browser notification (even if page is visible for reminders)
+        if (Notification.permission === "granted") {
+          new Notification("AgentClaw", {
+            body: broadcastText.slice(0, 100),
+            icon: "/favicon.ico",
+            tag: "agentclaw-broadcast",
+          });
+        }
+        break;
+      }
       case "error": {
         if (msg.error?.includes("Session not found")) {
           createSession()

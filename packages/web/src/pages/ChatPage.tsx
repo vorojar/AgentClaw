@@ -347,6 +347,7 @@ export function ChatPage() {
     sidebarOpen,
     setSidebarOpen,
     refreshSessions,
+    ensureSession,
   } = useSession();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -375,6 +376,7 @@ export function ChatPage() {
   const messagesRef = useRef<DisplayMessage[]>(messages);
   const toolCallIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingSendRef = useRef<string | null>(null);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -441,6 +443,12 @@ export function ChatPage() {
         if (wsGenRef.current === gen) {
           setWsConnected(true);
           setWsDisconnected(false);
+          // Send pending message (first message that triggered session creation)
+          if (pendingSendRef.current && conn) {
+            const msg = pendingSendRef.current;
+            pendingSendRef.current = null;
+            conn.send(msg);
+          }
         }
       },
     );
@@ -659,8 +667,7 @@ export function ChatPage() {
   /* Send */
   const handleSend = useCallback(async () => {
     const text = inputValue.trim();
-    if ((!text && pendingFiles.length === 0) || isSending || !wsRef.current)
-      return;
+    if ((!text && pendingFiles.length === 0) || isSending) return;
 
     let contentToSend = text;
     const imageUrls: string[] = [];
@@ -694,10 +701,27 @@ export function ChatPage() {
     setInputValue("");
     setLastUserText(contentToSend);
     setIsSending(true);
-    wsRef.current.send(contentToSend);
-
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-  }, [inputValue, isSending, pendingFiles]);
+
+    if (wsRef.current) {
+      wsRef.current.send(contentToSend);
+    } else {
+      // No WS — store message, create/reconnect session; onOpen will send it
+      pendingSendRef.current = contentToSend;
+      if (!activeSessionId) {
+        await ensureSession();
+      } else {
+        connectWs();
+      }
+    }
+  }, [
+    inputValue,
+    isSending,
+    pendingFiles,
+    ensureSession,
+    activeSessionId,
+    connectWs,
+  ]);
 
   const handleStop = useCallback(() => {
     if (!wsRef.current) return;
@@ -776,9 +800,7 @@ export function ChatPage() {
   /* Render */
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const canSend =
-    (inputValue.trim().length > 0 || pendingFiles.length > 0) &&
-    !isSending &&
-    wsConnected;
+    (inputValue.trim().length > 0 || pendingFiles.length > 0) && !isSending;
   const showRegenerate =
     !isSending &&
     lastUserText &&
@@ -787,7 +809,7 @@ export function ChatPage() {
     !messages[messages.length - 1].streaming;
 
   return (
-    <FileDropZone onFiles={handleFiles} disabled={!wsConnected}>
+    <FileDropZone onFiles={handleFiles} disabled={isSending}>
       <div className="chat-page">
         {/* Header */}
         <div className="chat-header">
@@ -984,7 +1006,7 @@ export function ChatPage() {
             <button
               className="btn-attach"
               onClick={() => fileInputRef.current?.click()}
-              disabled={!wsConnected}
+              disabled={isSending}
               title="Attach file"
             >
               <IconPaperclip size={18} />
@@ -1009,7 +1031,7 @@ export function ChatPage() {
               placeholder={
                 isSending ? "Waiting for response..." : "Reply to AgentClaw..."
               }
-              disabled={isSending || !wsConnected}
+              disabled={isSending}
               rows={2}
             />
             {isSending ? (

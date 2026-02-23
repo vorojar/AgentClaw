@@ -4,7 +4,6 @@ import {
   useState,
   useEffect,
   useCallback,
-  useRef,
 } from "react";
 import {
   type SessionInfo,
@@ -23,6 +22,8 @@ interface SessionContextValue {
   handleNewChat: () => Promise<void>;
   handleDeleteSession: (id: string) => Promise<void>;
   handleSelectSession: (id: string) => void;
+  /** Create session on-demand (e.g. first message) and set as active */
+  ensureSession: () => Promise<string>;
   /** Called by ChatPage when session title updates from WS */
   refreshSessions: () => Promise<void>;
 }
@@ -38,27 +39,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const creatingRef = useRef(false);
 
-  /* Load sessions on mount */
+  /* Load sessions on mount — never auto-create */
   useEffect(() => {
     let cancelled = false;
     async function init() {
       try {
-        let list = await listSessions();
+        const list = await listSessions();
         if (cancelled) return;
-        if (list.length === 0) {
-          const ns = await createSession();
-          if (cancelled) return;
-          list = [ns];
-        }
         setSessions(list);
-        const sorted = [...list].sort(
-          (a, b) =>
-            new Date(b.lastActiveAt).getTime() -
-            new Date(a.lastActiveAt).getTime(),
-        );
-        setActiveSessionId(sorted[0].id);
+        if (list.length > 0) {
+          const sorted = [...list].sort(
+            (a, b) =>
+              new Date(b.lastActiveAt).getTime() -
+              new Date(a.lastActiveAt).getTime(),
+          );
+          setActiveSessionId(sorted[0].id);
+        }
       } catch (err) {
         console.error("Failed to load sessions:", err);
       }
@@ -68,32 +65,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, []);
-
-  /* Auto-recover: when activeSessionId is null, pick next or create new */
-  useEffect(() => {
-    if (activeSessionId !== null) return;
-    if (creatingRef.current) return;
-
-    if (sessions.length > 0) {
-      const sorted = [...sessions].sort(
-        (a, b) =>
-          new Date(b.lastActiveAt).getTime() -
-          new Date(a.lastActiveAt).getTime(),
-      );
-      setActiveSessionId(sorted[0].id);
-    } else {
-      creatingRef.current = true;
-      createSession()
-        .then((ns) => {
-          setSessions([ns]);
-          setActiveSessionId(ns.id);
-        })
-        .catch((err) => console.error("Failed to create session:", err))
-        .finally(() => {
-          creatingRef.current = false;
-        });
-    }
-  }, [activeSessionId, sessions]);
 
   const handleNewChat = useCallback(async () => {
     try {
@@ -108,16 +79,46 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const handleDeleteSession = useCallback(async (id: string) => {
     try {
       await closeSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      setActiveSessionId((prev) => (prev === id ? null : prev));
+      setSessions((prev) => {
+        const remaining = prev.filter((s) => s.id !== id);
+        return remaining;
+      });
+      setActiveSessionId((prev) => {
+        if (prev !== id) return prev;
+        // Will be resolved by the effect below
+        return null;
+      });
     } catch (err) {
       console.error("Failed to delete session:", err);
     }
   }, []);
 
+  /* When activeSessionId becomes null and sessions exist, pick the most recent */
+  useEffect(() => {
+    if (activeSessionId !== null) return;
+    if (sessions.length > 0) {
+      const sorted = [...sessions].sort(
+        (a, b) =>
+          new Date(b.lastActiveAt).getTime() -
+          new Date(a.lastActiveAt).getTime(),
+      );
+      setActiveSessionId(sorted[0].id);
+    }
+    // If sessions is empty, stay null — empty state shown
+  }, [activeSessionId, sessions]);
+
   const handleSelectSession = useCallback((id: string) => {
     setActiveSessionId(id);
   }, []);
+
+  /** Lazily create a session when the user actually sends a message */
+  const ensureSession = useCallback(async (): Promise<string> => {
+    if (activeSessionId) return activeSessionId;
+    const ns = await createSession();
+    setSessions((prev) => [ns, ...prev]);
+    setActiveSessionId(ns.id);
+    return ns.id;
+  }, [activeSessionId]);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -140,6 +141,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         handleNewChat,
         handleDeleteSession,
         handleSelectSession,
+        ensureSession,
         refreshSessions,
       }}
     >

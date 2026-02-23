@@ -9,6 +9,8 @@
 ### 修复
 - **Telegram/WhatsApp 广播持久化**：聊天目标（chatId/JID）持久化到 SQLite `chat_targets` 表，应用重启后自动恢复，提醒通知不再丢失
 - **Telegram 文件持久化**：Telegram 网关的 `sendFile` 回调补充 `sentFiles` 跟踪，生成的图片/文件会以 markdown 链接持久化到数据库，WebUI 查看同一会话时可正常显示
+- **会话懒创建**：刷新页面不再自动创建空会话，仅在用户发送第一条消息时按需创建（`ensureSession`），避免空会话堆积
+- **会话列表刷新可靠性**：移除 SessionContext 中所有自动创建逻辑，刷新时正确加载并选中最近活跃会话
 
 ## [0.7.1] - 2026-02-23
 

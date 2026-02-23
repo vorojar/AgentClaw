@@ -126,8 +126,12 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     console.log(`[gateway] Received ${signal}, shutting down...`);
     heartbeat.stop();
-    telegramBot?.stop();
-    whatsappBot?.stop();
+    try {
+      telegramBot?.stop();
+    } catch {}
+    try {
+      whatsappBot?.stop();
+    } catch {}
     ctx.scheduler.stopAll();
     await app.close();
     process.exit(0);

@@ -692,10 +692,10 @@ export async function startTelegramBot(
   console.log(
     `[telegram] Bot started: @${bot.botInfo.username} (${bot.botInfo.id})`,
   );
-  bot.start();
+  bot.start({ drop_pending_updates: true });
 
   return {
-    stop: () => bot.stop(),
+    stop: () => bot.stop().catch(() => {}),
     broadcast: async (text: string) => {
       for (const [chatId] of chatSessionMap) {
         await bot.api.sendMessage(chatId, text).catch((err) => {

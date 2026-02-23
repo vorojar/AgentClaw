@@ -211,6 +211,60 @@ function formatUsageStats(msg: DisplayMessage): string | null {
   return parts.length > 0 ? parts.join(" \u00B7 ") : null;
 }
 
+/* ── Stable ReactMarkdown components (avoid re-mount on re-render) ── */
+
+const mdComponents = {
+  code: CodeBlock as never,
+  img: ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => (
+    <img
+      src={src}
+      alt={alt ?? "image"}
+      style={{
+        maxWidth: "100%",
+        maxHeight: "400px",
+        borderRadius: "8px",
+        marginTop: "8px",
+        marginBottom: "8px",
+        display: "block",
+        cursor: "pointer",
+      }}
+      onClick={() => src && window.open(src, "_blank")}
+      {...props}
+    />
+  ),
+  a: ({
+    href,
+    children,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+    if (href && /\.(mp4|mkv|webm|mov|avi)$/i.test(href)) {
+      return (
+        <video
+          src={href}
+          controls
+          preload="metadata"
+          className="message-video"
+        />
+      );
+    }
+    if (href && /\.(mp3|wav|ogg|flac|m4a)$/i.test(href)) {
+      return (
+        <audio
+          src={href}
+          controls
+          preload="metadata"
+          className="message-audio"
+        />
+      );
+    }
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+        {children}
+      </a>
+    );
+  },
+};
+
 /* ── ToolCallCard ─────────────────────────────────── */
 
 function toolCallLabel(name: string, input: string): string {
@@ -789,72 +843,7 @@ export function ChatPage() {
                                   />
                                 ))}
                                 <div className="message-content-md">
-                                  <ReactMarkdown
-                                    components={{
-                                      code: CodeBlock as never,
-                                      img: ({ src, alt, ...props }) => (
-                                        <img
-                                          src={src}
-                                          alt={alt ?? "image"}
-                                          style={{
-                                            maxWidth: "100%",
-                                            maxHeight: "400px",
-                                            borderRadius: "8px",
-                                            marginTop: "8px",
-                                            marginBottom: "8px",
-                                            display: "block",
-                                            cursor: "pointer",
-                                          }}
-                                          onClick={() =>
-                                            src && window.open(src, "_blank")
-                                          }
-                                          {...props}
-                                        />
-                                      ),
-                                      a: ({ href, children, ...props }) => {
-                                        if (
-                                          href &&
-                                          /\.(mp4|mkv|webm|mov|avi)$/i.test(
-                                            href,
-                                          )
-                                        ) {
-                                          return (
-                                            <video
-                                              src={href}
-                                              controls
-                                              preload="metadata"
-                                              className="message-video"
-                                            />
-                                          );
-                                        }
-                                        if (
-                                          href &&
-                                          /\.(mp3|wav|ogg|flac|m4a)$/i.test(
-                                            href,
-                                          )
-                                        ) {
-                                          return (
-                                            <audio
-                                              src={href}
-                                              controls
-                                              preload="metadata"
-                                              className="message-audio"
-                                            />
-                                          );
-                                        }
-                                        return (
-                                          <a
-                                            href={href}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            {...props}
-                                          >
-                                            {children}
-                                          </a>
-                                        );
-                                      },
-                                    }}
-                                  >
+                                  <ReactMarkdown components={mdComponents}>
                                     {parsed.text}
                                   </ReactMarkdown>
                                   {m.streaming && m.toolCalls.length === 0 && (

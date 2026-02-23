@@ -545,15 +545,44 @@ textarea:focus {
 
 /* ── Mobile responsive ───────────────────────────── */
 
+/* Backdrop (hidden on desktop, visible on mobile) */
+.sidebar-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
     z-index: 200;
     height: 100vh;
     box-shadow: 4px 0 24px var(--shadow);
+    transform: translateX(0);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
   }
   .sidebar.collapsed {
-    width: 0;
+    width: var(--sidebar-width);
+    transform: translateX(calc(-1 * var(--sidebar-width) - 1px));
+    pointer-events: none;
+    border-right: none;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 199;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
   .page-header {
     padding: 0 12px;

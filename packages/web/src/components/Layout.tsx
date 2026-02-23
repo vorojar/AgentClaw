@@ -226,6 +226,14 @@ export function Layout() {
         </div>
       </aside>
 
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main content */}
       <main className="main-content">
         <Outlet />

@@ -596,18 +596,14 @@ export function ChatPage() {
       case "broadcast": {
         const broadcastText = msg.text ?? "";
         if (!broadcastText) break;
-        // Show as system message in chat
-        setMessages((prev) => [
-          ...prev,
-          {
-            key: nextKey(),
-            role: "system",
-            content: broadcastText,
-            streaming: false,
-            toolCalls: [],
-          },
-        ]);
-        // Browser notification (even if page is visible for reminders)
+        // Toast notification (visible on any page)
+        const w = window as unknown as {
+          toast?: { info: (title: string, desc?: string) => void };
+        };
+        if (w.toast) {
+          w.toast.info("AgentClaw", broadcastText);
+        }
+        // Browser notification (always, even if page is visible)
         if (Notification.permission === "granted") {
           new Notification("AgentClaw", {
             body: broadcastText.slice(0, 100),

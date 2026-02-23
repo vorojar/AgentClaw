@@ -4,6 +4,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import {
   type SessionInfo,
@@ -37,6 +38,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const creatingRef = useRef(false);
 
   /* Load sessions on mount */
   useEffect(() => {
@@ -67,6 +69,32 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  /* Auto-recover: when activeSessionId is null, pick next or create new */
+  useEffect(() => {
+    if (activeSessionId !== null) return;
+    if (creatingRef.current) return;
+
+    if (sessions.length > 0) {
+      const sorted = [...sessions].sort(
+        (a, b) =>
+          new Date(b.lastActiveAt).getTime() -
+          new Date(a.lastActiveAt).getTime(),
+      );
+      setActiveSessionId(sorted[0].id);
+    } else {
+      creatingRef.current = true;
+      createSession()
+        .then((ns) => {
+          setSessions([ns]);
+          setActiveSessionId(ns.id);
+        })
+        .catch((err) => console.error("Failed to create session:", err))
+        .finally(() => {
+          creatingRef.current = false;
+        });
+    }
+  }, [activeSessionId, sessions]);
+
   const handleNewChat = useCallback(async () => {
     try {
       const ns = await createSession();
@@ -77,34 +105,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleDeleteSession = useCallback(
-    async (id: string) => {
-      try {
-        await closeSession(id);
-        const remaining = sessions.filter((s) => s.id !== id);
-        setSessions(remaining);
-        if (activeSessionId === id) {
-          if (remaining.length > 0) {
-            // Switch to most recent remaining session
-            const sorted = [...remaining].sort(
-              (a, b) =>
-                new Date(b.lastActiveAt).getTime() -
-                new Date(a.lastActiveAt).getTime(),
-            );
-            setActiveSessionId(sorted[0].id);
-          } else {
-            // No sessions left — create a new one
-            const ns = await createSession();
-            setSessions([ns]);
-            setActiveSessionId(ns.id);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to delete session:", err);
-      }
-    },
-    [sessions, activeSessionId],
-  );
+  const handleDeleteSession = useCallback(async (id: string) => {
+    try {
+      await closeSession(id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      setActiveSessionId((prev) => (prev === id ? null : prev));
+    } catch (err) {
+      console.error("Failed to delete session:", err);
+    }
+  }, []);
 
   const handleSelectSession = useCallback((id: string) => {
     setActiveSessionId(id);

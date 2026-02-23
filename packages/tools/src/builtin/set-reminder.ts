@@ -34,13 +34,6 @@ export const setReminderTool: Tool = {
     const message = input.message as string;
     const delaySec = input.delay_seconds as number;
 
-    if (!context?.notifyUser) {
-      return {
-        content: "Notification system is not available in this context.",
-        isError: true,
-      };
-    }
-
     if (delaySec <= 0 || delaySec > 86400) {
       return {
         content: "Delay must be between 1 and 86400 seconds (24 hours).",
@@ -50,8 +43,8 @@ export const setReminderTool: Tool = {
 
     const fireAt = new Date(Date.now() + delaySec * 1000);
 
-    // If scheduler is available, register as a one-shot task so it shows in Web UI
-    if (context.scheduler) {
+    // Preferred: use scheduler (gateway mode) — broadcasts to all channels on fire
+    if (context?.scheduler) {
       const { cron } = delayToCron(delaySec);
       const task = context.scheduler.create({
         name: `⏰ ${message.slice(0, 30)}`,
@@ -67,17 +60,24 @@ export const setReminderTool: Tool = {
       };
     }
 
-    // Fallback: use setTimeout if no scheduler (e.g. CLI mode)
-    const notifyUser = context.notifyUser;
-    setTimeout(() => {
-      notifyUser(`⏰ 提醒：${message}`).catch((err) => {
-        console.error("[set_reminder] Failed to notify user:", err);
-      });
-    }, delaySec * 1000);
+    // Fallback: use setTimeout + notifyUser (e.g. CLI mode)
+    if (context?.notifyUser) {
+      const notifyUser = context.notifyUser;
+      setTimeout(() => {
+        notifyUser(`⏰ 提醒：${message}`).catch((err) => {
+          console.error("[set_reminder] Failed to notify user:", err);
+        });
+      }, delaySec * 1000);
+
+      return {
+        content: `Reminder set. Will notify at ${fireAt.toLocaleTimeString()}: "${message}"`,
+        isError: false,
+      };
+    }
 
     return {
-      content: `Reminder set. Will notify at ${fireAt.toLocaleTimeString()}: "${message}"`,
-      isError: false,
+      content: "Neither scheduler nor notification system is available.",
+      isError: true,
     };
   },
 };

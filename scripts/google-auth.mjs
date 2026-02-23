@@ -15,9 +15,8 @@ import { exec } from "node:child_process";
 import { platform } from "node:os";
 import * as readline from "node:readline";
 
-const CLIENT_ID =
-  "REDACTED";
-const CLIENT_SECRET = "REDACTED";
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const REDIRECT_URI = "http://localhost:9876/callback";
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar",

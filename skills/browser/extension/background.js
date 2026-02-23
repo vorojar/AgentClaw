@@ -257,8 +257,8 @@ async function cmdType({ selector, text }) {
       const content = endsWithNewline ? txt.replace(/\r?\n$/, "") : txt;
 
       if (isContentEditable) {
-        // contentEditable: use execCommand to trigger framework event listeners
-        el.textContent = "";
+        // contentEditable: use execCommand so Draft.js/Slate/ProseMirror pick it up
+        document.execCommand("selectAll", false, null);
         document.execCommand("insertText", false, content);
       } else {
         el.value = content;

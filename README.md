@@ -17,7 +17,7 @@ AgentClaw（指挥官）
   ├── 条件工具 (send_file, set_reminder, schedule, remember, plan_task, use_skill)
   ├── 记忆 (对话历史 + 长期记忆 + 自动压缩)
   ├── 规划器 (任务分解 → 步骤依赖 → 执行监控)
-  └── 技能 x14 (coding, research, browser, yt-dlp, comfyui...)
+  └── 技能 x19 (coding, research, browser, pdf, email, yt-dlp...)
 ```
 
 ## 技术栈
@@ -43,7 +43,7 @@ agentclaw/
 │   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp Bot + 定时调度
 │   ├── cli/         — 终端交互式对话
 │   └── web/         — React 19 + Vite 前端
-├── skills/          — 14 个技能定义 (SKILL.md)
+├── skills/          — 19 个技能定义 (SKILL.md)
 ├── docs/            — 架构文档 + 路线图
 └── data/            — 运行时数据 (gitignored)
 ```
@@ -145,7 +145,7 @@ npm run cli
 
 ## 技能系统
 
-LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。14 个内置技能：
+LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在 Web UI 中启用/禁用单个技能，以及从 GitHub 或 zip 导入社区技能。19 个内置技能：
 
 | 技能 | 说明 |
 |------|------|
@@ -153,15 +153,20 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。14 个内
 | `coding` | 软件开发、代码审查、调试 |
 | `comfyui` | AI 图片生成（文生图、去背景、放大） |
 | `create-skill` | 创建自定义技能 |
+| `docx` | 创建/编辑/分析 Word 文档 |
 | `google-calendar` | 管理 Google 日历 |
 | `google-tasks` | 管理 Google Tasks 待办 |
 | `http-request` | 发送 HTTP 请求、调用 API |
+| `imap-smtp-email` | 收发邮件、搜索邮件、附件 |
+| `pdf` | PDF 提取文字/表格、合并拆分、创建 |
+| `pptx` | 创建/编辑 PowerPoint 演示文稿 |
 | `python-exec` | 执行 Python 代码、数据处理、图表 |
 | `research` | 网络调研、多源信息分析 |
 | `weather` | 查询天气预报 |
 | `web-fetch` | 抓取网页内容 |
 | `web-search` | 搜索互联网信息 |
 | `writing` | 写作、翻译、校对、总结 |
+| `xlsx` | 创建/编辑/分析 Excel 表格 |
 | `yt-dlp` | 下载视频/音频 (YouTube/Bilibili/Twitter) |
 
 ## MCP 集成
@@ -185,6 +190,8 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。14 个内
 | `TTS_PROVIDER` / `TTS_VOICE` | 否 | TTS 引擎配置 |
 | `SHELL_SANDBOX` | 否 | 设为 false 禁用 Shell 沙箱 |
 | `PUBLIC_URL` | 否 | 大文件下载链接的外部地址 |
+| `EMAIL_IMAP_HOST` / `EMAIL_SMTP_HOST` | 否 | 邮件服务器 (启用 email 技能) |
+| `EMAIL_USER` / `EMAIL_PASSWORD` | 否 | 邮箱账号和应用专用密码 |
 
 ## Web UI
 
@@ -194,7 +201,7 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。14 个内
 - **Traces** — LLM/工具执行时间线
 - **Token 日志** — 用量统计
 - **记忆** — 浏览/搜索/管理长期记忆
-- **设置** — 提供商配置、工具/技能列表
+- **设置** — 提供商配置、工具/技能列表、技能开关、技能导入 (GitHub/zip)
 
 ## 文档
 

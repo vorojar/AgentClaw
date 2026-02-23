@@ -416,9 +416,13 @@ export class SimpleAgentLoop implements AgentLoop {
         if (result.isError) iterationErrorCount++;
       }
 
-      // Drain sentFiles from context into accumulator
+      // Drain sentFiles from context into accumulator (dedup by URL)
       if (context?.sentFiles && context.sentFiles.length > 0) {
-        allSentFiles.push(...context.sentFiles);
+        for (const f of context.sentFiles) {
+          if (!allSentFiles.some((e) => e.url === f.url)) {
+            allSentFiles.push(f);
+          }
+        }
         context.sentFiles.length = 0;
       }
 

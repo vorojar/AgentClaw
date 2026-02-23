@@ -3,6 +3,7 @@
 ## [0.7.2] - 2026-02-23
 
 ### 新功能
+- **bilingual-subtitle skill**：视频字幕提取/翻译/烧录一体化技能，GPU 加速 Whisper（CUDA/mlx/CPU 三级降级）+ Google Translate 批量翻译 + NVENC/AMF/QSV 自动编码，支持双语 SRT、仅中文、仅原文、卡拉OK 逐词高亮模式
 - **会话重命名**：双击顶部标题即可编辑会话名称，Enter 确认、Escape 取消
 - **全局字号提升**：所有页面和组件 font-size 统一 +1px（body 基准 15px），提升整体可读性
 
@@ -19,7 +20,7 @@
 
 ### 修复（续）
 - **Shell 输出文件始终实时显示**：`data/tmp/` 下的文件不再依赖 `auto_send: true` 才发送 WS file 事件，截图等文件始终在 WebUI 中实时显示（`auto_send` 仅控制是否跳过 LLM 下一轮回复）
-- **图片去重**：shell 自动检测与 LLM 显式 `send_file` 同时发送同一文件时，后端 `sentFiles` 按 URL 去重避免持久化重复链接；前端 WS file 事件按 URL 去重避免重复注入 markdown 图片
+- **文件去重（三层）**：ws.ts `sentFiles` 按 URL 去重防止同一文件重复持久化；agent-loop `allSentFiles` 跨迭代按 URL 去重（修复 drain 清空后下轮 shell auto-detect 再次匹配的问题）；前端 WS file 事件按 URL 去重避免重复注入 markdown
 - **Browser type 支持 contentEditable**：`type` 命令改用 `document.execCommand('insertText')` 处理富文本编辑器（如 X/Twitter 发推框），解决 `el.value` 对 contentEditable 元素无效的问题
 
 ### 移除

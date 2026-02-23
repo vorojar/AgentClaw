@@ -210,6 +210,7 @@ async function handleTextMessage(
       const session = await appCtx.orchestrator.createSession();
       sessionId = session.id;
       chatSessionMap.set(jid, sessionId);
+      appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
     } catch (err) {
       console.error("[whatsapp] Failed to create session:", err);
       await botSendText(sock, jid, "❌ Failed to start session. Please try again.");
@@ -345,6 +346,7 @@ async function handleImageMessage(
       const session = await appCtx.orchestrator.createSession();
       sessionId = session.id;
       chatSessionMap.set(jid, sessionId);
+      appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
     } catch (err) {
       console.error("[whatsapp] Failed to create session:", err);
       await botSendText(sock, jid, "❌ Failed to start session. Please try again.");
@@ -513,6 +515,7 @@ async function handleDocumentMessage(
       const session = await appCtx.orchestrator.createSession();
       sessionId = session.id;
       chatSessionMap.set(jid, sessionId);
+      appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
     } catch (err) {
       console.error("[whatsapp] Failed to create session:", err);
       await botSendText(sock, jid, "❌ Failed to start session. Please try again.");
@@ -686,6 +689,19 @@ export async function startWhatsAppBot(
       console.error("[whatsapp]", msg ?? obj);
     },
   };
+
+  // Restore chat targets from database (survive restarts)
+  try {
+    const targets = appCtx.memoryStore.getChatTargets("whatsapp");
+    for (const t of targets) {
+      chatSessionMap.set(t.targetId, t.sessionId ?? "");
+    }
+    if (targets.length > 0) {
+      console.log(`[whatsapp] Restored ${targets.length} chat target(s) from database`);
+    }
+  } catch (err) {
+    console.error("[whatsapp] Failed to restore chat targets:", err);
+  }
 
   function createSocket(): WASocket {
     const s = makeWASocket({

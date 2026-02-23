@@ -135,6 +135,19 @@ export async function startTelegramBot(
 ): Promise<{ stop: () => void; broadcast: (text: string) => Promise<void> }> {
   const bot = new Bot(token);
 
+  // Restore chat targets from database (survive restarts)
+  try {
+    const targets = appCtx.memoryStore.getChatTargets("telegram");
+    for (const t of targets) {
+      chatSessionMap.set(Number(t.targetId), t.sessionId ?? "");
+    }
+    if (targets.length > 0) {
+      console.log(`[telegram] Restored ${targets.length} chat target(s) from database`);
+    }
+  } catch (err) {
+    console.error("[telegram] Failed to restore chat targets:", err);
+  }
+
   // ── /start ──────────────────────────────────────
   bot.command("start", async (ctx) => {
     await ctx.reply(
@@ -200,6 +213,7 @@ export async function startTelegramBot(
         const session = await appCtx.orchestrator.createSession();
         sessionId = session.id;
         chatSessionMap.set(chatId, sessionId);
+        appCtx.memoryStore.saveChatTarget("telegram", String(chatId), sessionId);
       } catch (err) {
         console.error("[telegram] Failed to create session:", err);
         await replyFn("❌ Failed to start session. Please try again.");
@@ -367,6 +381,7 @@ export async function startTelegramBot(
         const session = await appCtx.orchestrator.createSession();
         sessionId = session.id;
         chatSessionMap.set(chatId, sessionId);
+        appCtx.memoryStore.saveChatTarget("telegram", String(chatId), sessionId);
       } catch (err) {
         console.error("[telegram] Failed to create session:", err);
         await ctx.reply("❌ Failed to start session. Please try again.");
@@ -508,6 +523,7 @@ export async function startTelegramBot(
         const session = await appCtx.orchestrator.createSession();
         sessionId = session.id;
         chatSessionMap.set(chatId, sessionId);
+        appCtx.memoryStore.saveChatTarget("telegram", String(chatId), sessionId);
       } catch (err) {
         console.error("[telegram] Failed to create session:", err);
         await ctx.reply("❌ Failed to start session. Please try again.");

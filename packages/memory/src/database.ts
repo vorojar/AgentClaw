@@ -45,6 +45,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   metadata TEXT
 );
 
+CREATE TABLE IF NOT EXISTS chat_targets (
+  platform TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  session_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (platform, target_id)
+);
+
 CREATE TABLE IF NOT EXISTS traces (
   id TEXT PRIMARY KEY,
   conversation_id TEXT NOT NULL,

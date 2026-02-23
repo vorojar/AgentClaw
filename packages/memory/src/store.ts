@@ -400,6 +400,37 @@ export class SQLiteMemoryStore implements MemoryStore {
     return rows.map(rowToConversationTurn);
   }
 
+  // ─── Chat Targets (for broadcast persistence) ─────────────────
+
+  saveChatTarget(platform: string, targetId: string, sessionId?: string): void {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO chat_targets (platform, target_id, session_id, created_at)
+         VALUES (?, ?, ?, datetime('now'))`,
+      )
+      .run(platform, targetId, sessionId ?? null);
+  }
+
+  getChatTargets(
+    platform: string,
+  ): Array<{ targetId: string; sessionId: string | null }> {
+    const rows = this.db
+      .prepare(
+        "SELECT target_id, session_id FROM chat_targets WHERE platform = ?",
+      )
+      .all(platform) as Array<{ target_id: string; session_id: string | null }>;
+    return rows.map((r) => ({
+      targetId: r.target_id,
+      sessionId: r.session_id,
+    }));
+  }
+
+  deleteChatTarget(platform: string, targetId: string): void {
+    this.db
+      .prepare("DELETE FROM chat_targets WHERE platform = ? AND target_id = ?")
+      .run(platform, targetId);
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────
 
   /** Generate embedding for text — uses LLM embed if available, else bag-of-words */

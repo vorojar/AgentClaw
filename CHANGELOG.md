@@ -1,5 +1,23 @@
 # 更新日志
 
+## [0.6.1] - 2026-02-23
+
+### 新功能
+- **WebUI 视频/音频播放器嵌入**：消息中的视频链接（mp4/mkv/webm/mov/avi）自动渲染为 `<video>` 播放器，音频链接（mp3/wav/ogg/flac/m4a）渲染为 `<audio>` 播放器
+- **WebUI 图片多模态支持**：上传的图片不再仅作为 URL 文本发送，WS handler 会读取文件转 base64 构建 `ContentBlock[]`，LLM 原生看到图片，与 Telegram/WhatsApp 行为统一
+- **侧边栏会话搜索**：搜索按钮改为过滤会话列表（按标题匹配），移除原来的会话内消息搜索
+- **移动端侧边栏优化**：毛玻璃遮罩（`backdrop-filter: blur`）+ iOS 风格 cubic-bezier 滑出动画 + 点击空白收回
+
+### 改进
+- **工具调用卡片标题增强**：`bash` 显示执行的命令、`use_skill` 显示技能名称、`file_read/write` 显示路径、`send_file` 显示文件名
+- **use_skill 状态显示**：Telegram/WhatsApp 现在会发送 `⚙️ use_skill: 技能名` 状态消息
+- **ReactMarkdown components 稳定化**：提取为模块级常量，避免侧边栏开关导致 video/audio 元素重载
+
+### 修复
+- **WebSocket 切换会话断连**：`wsConnected` 改为在 `onOpen` 回调中设置（而非立即设置），引入 generation counter 防止旧连接回调污染新连接状态
+- **auto_send 路径检测**：`FILE_PATH_RE` 正则支持相对路径 `data/tmp/file.mp4`（无前导分隔符），修复 yt-dlp 下载后不自动发送的问题
+- **Telegram bot 重启冲突**：`bot.start({ drop_pending_updates: true })` 避免与旧实例冲突，`bot.stop()` 加 catch 防止 shutdown 崩溃
+
 ## [0.6.0] - 2026-02-22
 
 ### 重构

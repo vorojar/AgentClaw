@@ -425,6 +425,7 @@ export async function bootstrap(): Promise<AppContext> {
   });
 
   // Orchestrator
+  const tmpDir = resolve(process.cwd(), "data", "tmp");
   const orchestrator = new SimpleOrchestrator({
     provider,
     visionProvider,
@@ -438,6 +439,7 @@ export async function bootstrap(): Promise<AppContext> {
       executeNext: (planId) => planner.executeNext(planId),
     },
     skillRegistry,
+    tmpDir,
   });
 
   const config: AppRuntimeConfig = {

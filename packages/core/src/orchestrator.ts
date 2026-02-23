@@ -15,6 +15,8 @@ import { generateId } from "@agentclaw/providers";
 import { SimpleAgentLoop } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 import { MemoryExtractor } from "./memory-extractor.js";
+import { readdirSync, unlinkSync } from "fs";
+import { join } from "path";
 
 /** How many user turns between automatic memory extraction runs */
 const EXTRACT_EVERY_N_TURNS = 3;
@@ -34,6 +36,7 @@ export class SimpleOrchestrator implements Orchestrator {
   private scheduler?: ToolExecutionContext["scheduler"];
   private planner?: ToolExecutionContext["planner"];
   private skillRegistry?: SkillRegistryImpl;
+  private tmpDir?: string;
 
   constructor(options: {
     provider: LLMProvider;
@@ -46,6 +49,7 @@ export class SimpleOrchestrator implements Orchestrator {
     scheduler?: ToolExecutionContext["scheduler"];
     planner?: ToolExecutionContext["planner"];
     skillRegistry?: SkillRegistryImpl;
+    tmpDir?: string;
   }) {
     this.provider = options.provider;
     this.visionProvider = options.visionProvider;
@@ -61,6 +65,7 @@ export class SimpleOrchestrator implements Orchestrator {
     this.scheduler = options.scheduler;
     this.planner = options.planner;
     this.skillRegistry = options.skillRegistry;
+    this.tmpDir = options.tmpDir;
   }
 
   async createSession(): Promise<Session> {
@@ -169,6 +174,8 @@ export class SimpleOrchestrator implements Orchestrator {
       yield* loop.runStream(input, session.conversationId, mergedContext);
     } finally {
       this.activeLoops.delete(sessionId);
+      // Clean up temp Python scripts after agent loop completes
+      this.cleanupTmpScripts();
     }
 
     // Background memory extraction: on the 1st turn and every N turns after
@@ -275,6 +282,21 @@ export class SimpleOrchestrator implements Orchestrator {
       .filter((b) => b.type === "text" && b.text)
       .map((b) => b.text!)
       .join("\n");
+  }
+
+  /** Remove *.py temp scripts from tmpDir (fire-and-forget) */
+  private cleanupTmpScripts(): void {
+    if (!this.tmpDir) return;
+    try {
+      const files = readdirSync(this.tmpDir);
+      for (const f of files) {
+        if (f.endsWith(".py")) {
+          try {
+            unlinkSync(join(this.tmpDir, f));
+          } catch {}
+        }
+      }
+    } catch {}
   }
 
   private createAgentLoop(provider?: LLMProvider): SimpleAgentLoop {

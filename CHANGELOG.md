@@ -1,5 +1,12 @@
 # 更新日志
 
+## [0.7.1] - 2026-02-23
+
+### 改进
+- **Settings 页面优化**：移除 Provider Configuration（.env 已管理）；Usage Statistics 去掉 Provider 列并合并 System Info；Tools 改为折叠式 badge 布局
+- **Skills 独立页面**：从 Settings 拆分为独立 `/skills` 路由，2 列卡片网格布局，支持搜索/导入/开关/删除，侧边栏新增 Skills 导航
+- **临时文件自动清理**：每次对话结束后自动删除 `data/tmp/*.py` 临时脚本，避免无限累积
+
 ## [0.7.0] - 2026-02-23
 
 ### 新功能

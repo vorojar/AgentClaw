@@ -18,8 +18,9 @@ In batch mode, **click/type auto-wait** for the selector to appear (up to 5s), s
 
 ### Example: Post on X/Twitter
 ```
-{"command": "node skills/browser/scripts/browser.mjs batch '[{\"action\":\"open\",\"args\":{\"url\":\"https://x.com\"}},{\"action\":\"click\",\"args\":{\"selector\":\"[data-testid=tweetTextarea_0]\"}},{\"action\":\"type\",\"args\":{\"selector\":\"[data-testid=tweetTextarea_0]\",\"text\":\"Hello world!\"}},{\"action\":\"click\",\"args\":{\"selector\":\"[data-testid=tweetButton]\"}},{\"action\":\"screenshot\"}]'", "timeout": 30000, "auto_send": true}
+{"command": "node skills/browser/scripts/browser.mjs batch '[{\"action\":\"open\",\"args\":{\"url\":\"https://x.com\"}},{\"action\":\"click\",\"args\":{\"selector\":\"[data-testid=tweetTextarea_0]\"}},{\"action\":\"type\",\"args\":{\"selector\":\"[data-testid=tweetTextarea_0]\",\"text\":\"Hello world!\"}},{\"action\":\"click\",\"args\":{\"selector\":\"[data-testid=tweetButtonInline]\",\"timeout\":10000}},{\"action\":\"screenshot\"}]'", "timeout": 30000, "auto_send": true}
 ```
+Note: Home page uses `tweetButtonInline`; compose page (`/compose/post`) uses `tweetButton`. For buttons, auto-wait also checks the button is not disabled (e.g. waiting for URL preview to load).
 
 ### Example: Search Google and get content
 ```

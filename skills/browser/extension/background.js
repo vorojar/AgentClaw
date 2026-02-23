@@ -324,7 +324,15 @@ async function waitForSelector(selector, timeout = 5000) {
     const tab = await getActiveTab();
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: (sel) => !!document.querySelector(sel),
+      func: (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return false;
+        // For buttons: also wait until enabled (e.g. X disables send while loading URL preview)
+        if (el.tagName === "BUTTON" || el.getAttribute("role") === "button") {
+          return !el.disabled && el.getAttribute("aria-disabled") !== "true";
+        }
+        return true;
+      },
       args: [selector],
     });
     if (results[0]?.result) return;

@@ -53,7 +53,8 @@ export function Layout() {
 
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const isChat = location.pathname === "/chat" || location.pathname === "/";
+  const isChat =
+    location.pathname === "/" || location.pathname.startsWith("/chat");
 
   return (
     <div className="app-layout">
@@ -118,10 +119,7 @@ export function Layout() {
 
         {/* Navigation */}
         <nav className="sidebar-nav">
-          <NavLink
-            to="/chat"
-            className={({ isActive }) => (isActive ? "active" : "")}
-          >
+          <NavLink to="/chat" className={() => (isChat ? "active" : "")}>
             <IconChat size={16} /> Chat
           </NavLink>
           <NavLink

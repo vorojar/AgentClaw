@@ -4,7 +4,9 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   type SessionInfo,
   listSessions,
@@ -19,7 +21,7 @@ interface SessionContextValue {
   searchQuery: string;
   setSidebarOpen: (v: boolean) => void;
   setSearchQuery: (v: string) => void;
-  handleNewChat: () => Promise<void>;
+  handleNewChat: () => void;
   handleDeleteSession: (id: string) => Promise<void>;
   handleSelectSession: (id: string) => void;
   /** Create session on-demand (e.g. first message) and set as active */
@@ -34,13 +36,23 @@ export function useSession() {
   return useContext(SessionContext);
 }
 
+/** Extract session ID from URL pathname like /chat/abc123 */
+function sessionIdFromPath(pathname: string): string | null {
+  const m = pathname.match(/^\/chat\/(.+)$/);
+  return m ? m[1] : null;
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
+    sessionIdFromPath(window.location.pathname),
+  );
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  /* Load sessions on mount — never auto-create */
+  /* Load sessions on mount */
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -48,14 +60,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const list = await listSessions();
         if (cancelled) return;
         setSessions(list);
-        if (list.length > 0) {
-          const sorted = [...list].sort(
-            (a, b) =>
-              new Date(b.lastActiveAt).getTime() -
-              new Date(a.lastActiveAt).getTime(),
-          );
-          setActiveSessionId(sorted[0].id);
-        }
       } catch (err) {
         console.error("Failed to load sessions:", err);
       }
@@ -64,61 +68,64 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleNewChat = useCallback(async () => {
-    try {
-      const ns = await createSession();
-      setSessions((prev) => [ns, ...prev]);
-      setActiveSessionId(ns.id);
-    } catch (err) {
-      console.error("Failed to create session:", err);
-    }
-  }, []);
-
-  const handleDeleteSession = useCallback(async (id: string) => {
-    try {
-      await closeSession(id);
-      setSessions((prev) => {
-        const remaining = prev.filter((s) => s.id !== id);
-        return remaining;
-      });
-      setActiveSessionId((prev) => {
-        if (prev !== id) return prev;
-        // Will be resolved by the effect below
-        return null;
-      });
-    } catch (err) {
-      console.error("Failed to delete session:", err);
-    }
-  }, []);
-
-  /* When activeSessionId becomes null and sessions exist, pick the most recent */
+  /* Sync activeSessionId when user navigates with browser back/forward */
   useEffect(() => {
-    if (activeSessionId !== null) return;
-    if (sessions.length > 0) {
-      const sorted = [...sessions].sort(
-        (a, b) =>
-          new Date(b.lastActiveAt).getTime() -
-          new Date(a.lastActiveAt).getTime(),
-      );
-      setActiveSessionId(sorted[0].id);
-    }
-    // If sessions is empty, stay null — empty state shown
-  }, [activeSessionId, sessions]);
+    if (!location.pathname.startsWith("/chat")) return;
+    const urlId = sessionIdFromPath(location.pathname);
+    setActiveSessionId(urlId);
+  }, [location.pathname]);
 
-  const handleSelectSession = useCallback((id: string) => {
-    setActiveSessionId(id);
-  }, []);
+  /** New Chat = navigate to /chat (no session ID) */
+  const handleNewChat = useCallback(() => {
+    setActiveSessionId(null);
+    navigate("/chat");
+  }, [navigate]);
+
+  const handleDeleteSession = useCallback(
+    async (id: string) => {
+      try {
+        await closeSession(id);
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+        if (activeSessionId === id) {
+          setActiveSessionId(null);
+          navigate("/chat");
+        }
+      } catch (err) {
+        console.error("Failed to delete session:", err);
+      }
+    },
+    [activeSessionId, navigate],
+  );
+
+  const handleSelectSession = useCallback(
+    (id: string) => {
+      setActiveSessionId(id);
+      navigate(`/chat/${id}`);
+    },
+    [navigate],
+  );
 
   /** Lazily create a session when the user actually sends a message */
+  const ensurePromiseRef = useRef<Promise<string> | null>(null);
+
   const ensureSession = useCallback(async (): Promise<string> => {
     if (activeSessionId) return activeSessionId;
-    const ns = await createSession();
-    setSessions((prev) => [ns, ...prev]);
-    setActiveSessionId(ns.id);
-    return ns.id;
-  }, [activeSessionId]);
+    if (ensurePromiseRef.current) return ensurePromiseRef.current;
+    ensurePromiseRef.current = (async () => {
+      try {
+        const ns = await createSession();
+        setSessions((prev) => [ns, ...prev]);
+        setActiveSessionId(ns.id);
+        navigate(`/chat/${ns.id}`, { replace: true });
+        return ns.id;
+      } finally {
+        ensurePromiseRef.current = null;
+      }
+    })();
+    return ensurePromiseRef.current;
+  }, [activeSessionId, navigate]);
 
   const refreshSessions = useCallback(async () => {
     try {

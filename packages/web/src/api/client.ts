@@ -65,7 +65,7 @@ export interface SessionInfo {
 }
 
 export function createSession(): Promise<SessionInfo> {
-  return request("/sessions", { method: "POST" });
+  return request("/sessions", { method: "POST", body: "{}" });
 }
 
 export function listSessions(): Promise<SessionInfo[]> {

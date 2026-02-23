@@ -1,5 +1,20 @@
 # 更新日志
 
+## [0.7.4] - 2026-02-24
+
+### 新功能
+- **URL 路由驱动会话**：`/chat` 为新对话空界面，`/chat/{sessionId}` 加载指定会话，支持浏览器前进/后退、刷新保持、直接分享链接
+
+### 修复
+- **New Chat 按钮 415 错误**：`createSession()` POST 无 body 导致 Fastify 报 Unsupported Media Type，按钮点击无响应
+- **New Chat 零请求**：改为本地清空（`setActiveSessionId(null)`），不再发 POST+history+WS 三连请求，会话延迟到发首条消息时创建
+- **新会话消息闪跳**：`ensureSession` 改变 activeSessionId 后 loadHistory effect 覆盖乐观消息，加 `skipHistoryRef` 跳过空历史加载
+- **New Chat 后 Connection Lost**：WS 关闭时 `wsGenRef` 未递增导致旧 onClose 回调触发断连横幅
+- **移动端按钮持久高亮**：加 `-webkit-tap-highlight-color: transparent` + `@media (hover: none)` 重置 sticky hover
+- **移动端 300ms 点击延迟**：button/a/input 加 `touch-action: manipulation`
+- **会话并发创建**：`handleNewChat` 加互斥锁，`ensureSession` 加共享 Promise 去重
+- **CDN 缓存旧资源**：`index.html` 加 `Cache-Control: no-cache` 头，Cloudflare 等 CDN 不再缓存过期的 HTML
+
 ## [0.7.3] - 2026-02-23
 
 ### 改进

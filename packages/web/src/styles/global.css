@@ -45,6 +45,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -77,6 +78,13 @@ button {
   font-size: 15px;
   padding: 8px 16px;
   transition: background 0.15s;
+  touch-action: manipulation;
+}
+
+a,
+input,
+textarea {
+  touch-action: manipulation;
 }
 
 input,
@@ -591,5 +599,75 @@ textarea:focus {
   }
   .page-body {
     padding: 12px;
+  }
+}
+
+/* ── Touch feedback (:active) ────────────────────── */
+
+.sidebar-new-chat:active {
+  background: var(--border);
+  color: var(--text-primary);
+}
+.sidebar-session-item:active {
+  background: var(--border);
+}
+.sidebar-nav a:active {
+  background: var(--border);
+}
+.sidebar-footer-link:active {
+  background: var(--border);
+}
+
+/* ── Disable sticky :hover on touch devices ──────── */
+
+@media (hover: none) {
+  .sidebar-new-chat:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-color: var(--border);
+  }
+  .sidebar-search-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+  }
+  .sidebar-collapse-btn:hover {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .sidebar-session-item:hover {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  .sidebar-session-item.active:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+  }
+  .sidebar-nav a:hover {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  .sidebar-nav a.active:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+  }
+  .sidebar-footer-link:hover {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .sidebar-footer-link.active:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+  }
+  .sidebar-theme-btn:hover {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .btn-icon:hover:not(:disabled) {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  /* Show delete button on touch (no hover available) */
+  .sidebar-session-delete {
+    opacity: 1;
   }
 }

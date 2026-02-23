@@ -81,6 +81,12 @@ export async function createServer(
       root: webDistDir,
       prefix: "/",
       wildcard: false,
+      setHeaders(res, pathName) {
+        // index.html must never be cached (references hashed asset filenames)
+        if (pathName.endsWith("index.html") || pathName.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+      },
     });
 
     // SPA fallback: serve index.html only for navigation requests,
@@ -94,6 +100,7 @@ export async function createServer(
       ) {
         reply.code(404).send({ error: "Not found" });
       } else {
+        reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
         reply.sendFile("index.html");
       }
     });

@@ -377,6 +377,7 @@ export function ChatPage() {
   const toolCallIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingSendRef = useRef<string | null>(null);
+  const skipHistoryRef = useRef(false);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -397,7 +398,17 @@ export function ChatPage() {
 
   /* Load history */
   useEffect(() => {
-    if (!activeSessionId) return;
+    if (!activeSessionId) {
+      setMessages([]);
+      setIsSending(false);
+      setActiveToolName(null);
+      return;
+    }
+    // Skip loading empty history for sessions just created by ensureSession
+    if (skipHistoryRef.current) {
+      skipHistoryRef.current = false;
+      return;
+    }
     let cancelled = false;
     async function loadHistory() {
       setLoadingHistory(true);
@@ -420,12 +431,13 @@ export function ChatPage() {
 
   /* WS connection — generation counter guards stale callbacks */
   const connectWs = useCallback(() => {
-    if (!activeSessionId) return;
+    // Always invalidate old WS callbacks first
+    const gen = ++wsGenRef.current;
     wsRef.current?.close();
     wsRef.current = null;
     setWsConnected(false);
     setWsDisconnected(false);
-    const gen = ++wsGenRef.current;
+    if (!activeSessionId) return;
     const conn = connectWebSocket(
       activeSessionId,
       (msg: WSMessage) => {
@@ -718,6 +730,7 @@ export function ChatPage() {
       // No WS — store message, create/reconnect session; onOpen will send it
       pendingSendRef.current = contentToSend;
       if (!activeSessionId) {
+        skipHistoryRef.current = true;
         await ensureSession();
       } else {
         connectWs();

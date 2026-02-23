@@ -12,6 +12,10 @@
 - **会话懒创建**：刷新页面不再自动创建空会话，仅在用户发送第一条消息时按需创建（`ensureSession`），避免空会话堆积
 - **会话列表刷新可靠性**：移除 SessionContext 中所有自动创建逻辑，刷新时正确加载并选中最近活跃会话
 
+### 改进
+- **Browser batch 模式**：新增 `batch` 命令，一次提交多步浏览器操作（open→click→type→click→screenshot），从 6 轮 LLM 调用压缩到 2 轮，速度提升 3 倍以上。batch 模式内 click/type 自动等待元素出现（5s），适配 SPA 动态渲染
+- **Browser wait_for / sleep**：新增 `wait_for`（等待选择器出现）和 `sleep`（固定等待）命令
+
 ### 修复（续）
 - **Browser type 支持 contentEditable**：`type` 命令改用 `document.execCommand('insertText')` 处理富文本编辑器（如 X/Twitter 发推框），解决 `el.value` 对 contentEditable 元素无效的问题
 

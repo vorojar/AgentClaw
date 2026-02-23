@@ -34,7 +34,7 @@ async function exec(action, args = {}) {
 async function main() {
   const [,, action, ...rest] = process.argv;
   if (!action) {
-    console.error('Usage: node browser.mjs <open|screenshot|click|type|get_content|close> [args...]');
+    console.error('Usage: node browser.mjs <open|screenshot|click|type|get_content|close|batch|wait_for|sleep> [args...]');
     process.exit(1);
   }
 
@@ -79,6 +79,45 @@ async function main() {
     case 'close': {
       await exec('close');
       console.log('Tab closed.');
+      break;
+    }
+    case 'batch': {
+      const json = rest[0];
+      if (!json) { console.error('Error: JSON array of steps required'); process.exit(1); }
+      let steps;
+      try { steps = JSON.parse(json); } catch { console.error('Error: invalid JSON'); process.exit(1); }
+      const result = await exec('batch', { steps });
+      for (const r of result.results) {
+        const tag = r.ok ? 'OK' : 'FAIL';
+        let detail = '';
+        if (r.action === 'screenshot' && r.base64) {
+          mkdirSync(SCREENSHOT_DIR, { recursive: true });
+          const fp = resolve(SCREENSHOT_DIR, `browser_screenshot_${Date.now()}.png`);
+          writeFileSync(fp, Buffer.from(r.base64, 'base64'));
+          detail = `saved ${fp.replace(/\\/g, '/')}`;
+        } else if (r.action === 'open') {
+          detail = `${r.title} | ${r.url}`;
+        } else if (r.action === 'get_content') {
+          detail = (r.text || '').slice(0, 500);
+        } else if (r.error) {
+          detail = r.error;
+        }
+        console.log(`[${r.step}/${steps.length}] ${r.action} → ${tag}${detail ? ' | ' + detail : ''}`);
+      }
+      break;
+    }
+    case 'wait_for': {
+      const selector = rest[0];
+      const timeout = rest[1] ? parseInt(rest[1]) : undefined;
+      if (!selector) { console.error('Error: selector required'); process.exit(1); }
+      await exec('wait_for', { selector, timeout });
+      console.log(`Found: ${selector}`);
+      break;
+    }
+    case 'sleep': {
+      const ms = parseInt(rest[0]) || 1000;
+      await exec('sleep', { ms });
+      console.log(`Slept ${ms}ms`);
       break;
     }
     case 'search': {

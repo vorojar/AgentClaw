@@ -138,6 +138,13 @@ async function handleCommand(action, args) {
       return await cmdGetContent(args);
     case "close":
       return await cmdClose();
+    case "wait_for":
+      return await cmdWaitFor(args);
+    case "sleep":
+      await new Promise((r) => setTimeout(r, args.ms || 1000));
+      return { slept: args.ms || 1000 };
+    case "batch":
+      return await cmdBatch(args);
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -305,6 +312,60 @@ async function cmdClose() {
   const tab = await getActiveTab();
   await chrome.tabs.remove(tab.id);
   return { closed: true };
+}
+
+// ---------------------------------------------------------------------------
+// Wait for element & batch execution
+// ---------------------------------------------------------------------------
+
+async function waitForSelector(selector, timeout = 5000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const tab = await getActiveTab();
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: (sel) => !!document.querySelector(sel),
+      args: [selector],
+    });
+    if (results[0]?.result) return;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error(`Timeout waiting for: ${selector}`);
+}
+
+async function cmdWaitFor({ selector, timeout }) {
+  if (!selector) throw new Error("Selector required");
+  await waitForSelector(selector, timeout || 5000);
+  return { found: selector };
+}
+
+async function cmdBatch({ steps }) {
+  if (!Array.isArray(steps) || steps.length === 0)
+    throw new Error("steps must be a non-empty array");
+  const results = [];
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    try {
+      // Auto-wait for selector before click/type (SPA-friendly)
+      if (
+        step.args?.selector &&
+        (step.action === "click" || step.action === "type")
+      ) {
+        await waitForSelector(step.args.selector, step.args.timeout || 5000);
+      }
+      const result = await handleCommand(step.action, step.args || {});
+      results.push({ step: i + 1, action: step.action, ok: true, ...result });
+    } catch (err) {
+      results.push({
+        step: i + 1,
+        action: step.action,
+        ok: false,
+        error: err.message,
+      });
+      break;
+    }
+  }
+  return { results };
 }
 
 // ---------------------------------------------------------------------------

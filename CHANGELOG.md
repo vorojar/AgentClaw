@@ -1,5 +1,12 @@
 # 更新日志
 
+## [0.7.3] - 2026-02-23
+
+### 改进
+- **yt-dlp `--no-warnings`**：所有 yt-dlp 命令模板加 `--no-warnings`，避免弱模型把成功操作的 WARNING 误判为失败
+- **yt-dlp `--write-auto-subs`**：下载字幕命令增加 `--write-auto-subs`，同时拉取人工上传和自动生成的 CC 字幕
+- **bilingual-subtitle CC 快路径**：新增 Step 1 先尝试下载 CC 字幕（`--write-auto-subs --convert-subs srt`），有 CC 字幕时跳过 Whisper；`sub-langs` 修正为 `'en,zh*'` 以匹配 `zh-Hans`/`zh-Hant`
+
 ## [0.7.2] - 2026-02-23
 
 ### 新功能

@@ -36,15 +36,22 @@ All output files go to `data/tmp/`. Always use `auto_send: true` on the final sh
 
 ## Download from URL
 
-### Subtitles / summary only → download audio (small & fast, Whisper only needs audio)
+### Step 1: Try CC subtitles first (fastest — skip Whisper if available)
 ```
-{"command": "yt-dlp -x --audio-format mp3 --audio-quality 0 -o 'data/tmp/%(id)s.%(ext)s' 'URL'", "timeout": 300000}
+{"command": "yt-dlp --no-warnings --write-auto-subs --write-subs --sub-langs 'en,zh*' --skip-download --convert-subs srt -o 'data/tmp/%(id)s' 'URL'", "timeout": 60000}
+```
+If SRT files are downloaded (e.g. `data/tmp/ID.en.srt`), use them directly — no need to run Whisper.
+If output says "There are no subtitles", fall back to Step 2.
+
+### Step 2a: Subtitles / summary only → download audio (Whisper only needs audio)
+```
+{"command": "yt-dlp --no-warnings -x --audio-format mp3 --audio-quality 0 -o 'data/tmp/%(id)s.%(ext)s' 'URL'", "timeout": 300000}
 ```
 Then run process.py on the mp3 file with `--srt-only`.
 
-### Burn subtitles into video → download video (need video source for encoding)
+### Step 2b: Burn subtitles into video → download video (need video source for encoding)
 ```
-{"command": "yt-dlp -f 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b' --merge-output-format mp4 -o 'data/tmp/%(id)s.%(ext)s' 'URL'", "timeout": 300000}
+{"command": "yt-dlp --no-warnings -f 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b' --merge-output-format mp4 -o 'data/tmp/%(id)s.%(ext)s' 'URL'", "timeout": 300000}
 ```
 Then run process.py on the mp4 file without `--srt-only`.
 

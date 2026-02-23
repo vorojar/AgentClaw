@@ -4,6 +4,7 @@
 
 ### 新功能
 - **会话重命名**：双击顶部标题即可编辑会话名称，Enter 确认、Escape 取消
+- **全局字号提升**：所有页面和组件 font-size 统一 +1px（body 基准 15px），提升整体可读性
 
 ### 修复
 - **Telegram/WhatsApp 广播持久化**：聊天目标（chatId/JID）持久化到 SQLite `chat_targets` 表，应用重启后自动恢复，提醒通知不再丢失

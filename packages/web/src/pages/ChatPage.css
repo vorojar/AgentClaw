@@ -21,7 +21,7 @@
 }
 
 .chat-header-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
@@ -31,7 +31,7 @@
 }
 
 .chat-header-title-input {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   background: var(--bg-secondary);
@@ -86,7 +86,7 @@
 }
 
 .chat-empty-state p {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 /* Message row */
@@ -121,7 +121,7 @@
   max-width: 85%;
   padding: 12px 16px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -142,19 +142,19 @@
 .message-row.system .message-bubble {
   background: rgba(108, 158, 255, 0.08);
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   border: 1px solid rgba(108, 158, 255, 0.15);
 }
 
 .message-row.tool .message-bubble {
   background: transparent;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   padding-left: 0;
 }
 
 .message-meta {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   margin-top: 4px;
 }
@@ -210,7 +210,7 @@
 
 .tool-call-name {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--accent);
   flex: 1;
@@ -222,14 +222,14 @@
 .tool-call-body {
   padding: 12px 14px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   border-top: 1px solid var(--border);
   overflow-x: auto;
 }
 
 .tool-call-section-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -416,14 +416,14 @@
   padding: 8px 16px;
   background: rgba(234, 67, 53, 0.12);
   color: var(--error);
-  font-size: 13px;
+  font-size: 14px;
   border-bottom: 1px solid rgba(234, 67, 53, 0.25);
 }
 
 .connection-banner button {
   background: var(--error);
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   padding: 4px 12px;
 }
 
@@ -443,7 +443,7 @@
   border: 1px solid rgba(234, 67, 53, 0.25);
   border-radius: var(--radius);
   color: var(--error);
-  font-size: 13px;
+  font-size: 14px;
   animation: messageIn 0.25s ease;
 }
 
@@ -507,7 +507,7 @@
 
 .message-content-md code {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .message-content-md :not(pre) > code {
@@ -544,7 +544,7 @@
   padding: 6px 16px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   animation: messageIn 0.2s ease;
 }
@@ -577,7 +577,7 @@
   gap: 6px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 14px;
   padding: 4px 10px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
@@ -613,7 +613,7 @@
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
@@ -692,10 +692,10 @@
   }
   .tool-call-body {
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .message-content-md pre {
-    font-size: 12px;
+    font-size: 13px;
   }
   .chat-empty-state h2 {
     font-size: 20px;

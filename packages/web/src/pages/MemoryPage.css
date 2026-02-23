@@ -23,7 +23,7 @@
   border-radius: var(--radius);
   color: var(--text-primary);
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   cursor: pointer;
   min-width: 140px;
@@ -40,13 +40,13 @@
 }
 
 .memory-sort-label {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
 .memory-sort-btn {
   padding: 4px 12px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .memory-sort-btn.active {
@@ -57,7 +57,7 @@
 
 .memory-count {
   margin-left: auto;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -68,7 +68,7 @@
   justify-content: center;
   height: 200px;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .memory-error {
@@ -78,7 +78,7 @@
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .memory-list {
@@ -106,7 +106,7 @@
 }
 
 .memory-importance {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--warning);
   letter-spacing: 1px;
 }
@@ -124,23 +124,23 @@
 }
 
 .memory-confirm-text {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--error);
   font-weight: 500;
 }
 
 .memory-delete-btn {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .memory-cancel-btn {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .memory-content {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-primary);
   line-height: 1.6;
   word-break: break-word;
@@ -149,7 +149,7 @@
 .memory-card-meta {
   display: flex;
   gap: 16px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   flex-wrap: wrap;
 }

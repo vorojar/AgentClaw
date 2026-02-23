@@ -8,7 +8,7 @@
 .model-selector-select {
   height: 32px;
   padding: 0 28px 0 10px;
-  font-size: 13px;
+  font-size: 14px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
   background: var(--bg-tertiary);

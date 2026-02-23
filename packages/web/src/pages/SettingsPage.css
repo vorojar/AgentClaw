@@ -6,7 +6,7 @@
   justify-content: center;
   height: 200px;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .settings-error {
@@ -16,7 +16,7 @@
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .settings-section {
@@ -24,7 +24,7 @@
 }
 
 .settings-section-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 16px;
@@ -43,7 +43,7 @@
 }
 
 .settings-count {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
   background: var(--bg-tertiary);
@@ -66,11 +66,11 @@
 .settings-add-btn {
   margin-left: auto;
   padding: 4px 14px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .settings-empty {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-muted);
   padding: 12px 0;
 }
@@ -95,7 +95,7 @@
 }
 
 .settings-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -125,14 +125,14 @@
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 700;
   color: var(--accent);
   font-family: var(--font-mono);
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -146,7 +146,7 @@
 .stats-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .stats-table th {
@@ -155,7 +155,7 @@
   font-weight: 600;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -176,7 +176,7 @@
 
 .model-name {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   background: var(--bg-primary);
   padding: 2px 6px;
   border-radius: 4px;
@@ -196,19 +196,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .stats-sys-label {
   font-weight: 500;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
 .stats-sys-item code {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   background: var(--bg-tertiary);
   padding: 2px 8px;
@@ -227,7 +227,7 @@
   display: inline-block;
   padding: 4px 10px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--font-mono);
   background: var(--bg-tertiary);
   color: var(--text-secondary);
@@ -266,14 +266,14 @@
 }
 
 .tool-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   font-family: var(--font-mono);
   color: var(--text-primary);
 }
 
 .tool-description {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
@@ -350,7 +350,7 @@
 }
 
 .task-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
 }
@@ -368,21 +368,21 @@
 }
 
 .task-confirm-text {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--error);
   font-weight: 500;
 }
 
 .task-action-btn {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .task-item-details {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
@@ -393,7 +393,7 @@
 
 .task-item-details code {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   background: var(--bg-primary);
   padding: 1px 5px;
   border-radius: 4px;

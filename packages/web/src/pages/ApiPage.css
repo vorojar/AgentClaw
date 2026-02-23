@@ -11,7 +11,7 @@
 }
 
 .api-group-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 12px;
@@ -40,14 +40,14 @@
 
 .api-method {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   min-width: 52px;
 }
 
 .api-path {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   background: var(--bg-primary);
   padding: 2px 6px;
@@ -55,12 +55,12 @@
 }
 
 .api-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
 .api-params {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
@@ -71,7 +71,7 @@
 }
 
 .api-try-btn {
-  font-size: 11px;
+  font-size: 12px;
   padding: 2px 10px;
 }
 
@@ -82,7 +82,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-all;

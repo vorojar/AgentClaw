@@ -6,7 +6,7 @@
   justify-content: center;
   height: 200px;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .skills-page-error {
@@ -16,7 +16,7 @@
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -28,14 +28,14 @@
   color: var(--error);
   text-decoration: underline;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .skills-page-empty {
   text-align: center;
   color: var(--text-muted);
   padding: 48px 0;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* Toolbar */
@@ -61,7 +61,7 @@
   border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
   width: 240px;
   max-width: 100%;
 }
@@ -72,14 +72,14 @@
 }
 
 .skills-summary {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .skills-import-btn {
   padding: 8px 18px;
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -109,7 +109,7 @@
   border: 1px solid var(--border);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .skills-import-row button,
@@ -120,7 +120,7 @@
   background: var(--accent);
   color: white;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -195,7 +195,7 @@
 }
 
 .skill-card-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   font-family: var(--font-mono);
@@ -212,7 +212,7 @@
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: 18px;
+  font-size: 19px;
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
@@ -229,7 +229,7 @@
 }
 
 .skill-card-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.4;
 }

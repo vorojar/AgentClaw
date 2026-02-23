@@ -7,7 +7,7 @@
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .token-logs-section {
@@ -22,7 +22,7 @@
 }
 
 .token-logs-total {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   font-weight: 500;
 }
@@ -34,7 +34,7 @@
 }
 
 .token-logs-page-info {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   font-family: var(--font-mono);
   min-width: 60px;
@@ -47,17 +47,17 @@
   justify-content: center;
   height: 200px;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .token-logs-empty {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-muted);
   padding: 12px 0;
 }
 
 .token-logs-time {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   white-space: nowrap;
 }

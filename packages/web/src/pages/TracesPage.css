@@ -7,7 +7,7 @@
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .traces-toolbar {
@@ -18,7 +18,7 @@
 }
 
 .traces-total {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   font-weight: 500;
 }
@@ -30,7 +30,7 @@
 }
 
 .traces-page-info {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   font-family: var(--font-mono);
   min-width: 60px;
@@ -43,11 +43,11 @@
   justify-content: center;
   height: 200px;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .traces-empty {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-muted);
   padding: 12px 0;
 }
@@ -87,14 +87,14 @@
 }
 
 .trace-expand {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   flex-shrink: 0;
   width: 14px;
 }
 
 .trace-input {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -109,20 +109,20 @@
 }
 
 .trace-tokens {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--accent);
   font-family: var(--font-mono);
   font-weight: 500;
 }
 
 .trace-duration {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   font-family: var(--font-mono);
 }
 
 .trace-time {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -202,7 +202,7 @@
 
 .tl-badge {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 4px;
@@ -216,7 +216,7 @@
 
 .tl-tokens {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -230,7 +230,7 @@
 }
 
 .tl-status-icon {
-  font-size: 12px;
+  font-size: 13px;
   flex-shrink: 0;
   width: 16px;
   text-align: center;
@@ -250,7 +250,7 @@
 }
 
 .tl-preview {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -260,7 +260,7 @@
 }
 
 .tl-chevron {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   flex-shrink: 0;
   margin-left: auto;
@@ -283,7 +283,7 @@
 }
 
 .tl-detail-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -297,7 +297,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
@@ -319,7 +319,7 @@
 }
 
 .trace-section-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -333,7 +333,7 @@
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;

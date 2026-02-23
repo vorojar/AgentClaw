@@ -29,7 +29,7 @@
   width: 260px;
   height: 32px;
   padding: 0 10px;
-  font-size: 14px;
+  font-size: 15px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
@@ -47,7 +47,7 @@
 
 .search-dialog-count {
   min-width: 40px;
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--font-mono);
   color: var(--text-muted);
   text-align: center;
@@ -61,7 +61,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
@@ -89,7 +89,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-muted);
   background: transparent;
   border: none;

@@ -311,9 +311,9 @@ export const shellTool: Tool = {
         result.content.slice(-3000);
     }
 
-    // Auto-send: detect output files, send them, signal auto-complete
-    // Prefer paths from output (generated results); fallback to command (e.g. screenshot)
-    if (autoSend && !result.isError && context?.sendFile) {
+    // Always send detected output files to frontend (inline display via WS file event).
+    // autoComplete (skip next LLM turn) only when auto_send is explicitly set.
+    if (!result.isError && context?.sendFile) {
       let paths = detectFilePaths(result.content);
       if (paths.length === 0) {
         paths = detectFilePaths(command);
@@ -329,7 +329,7 @@ export const shellTool: Tool = {
           }
         }
       }
-      if (sentCount > 0) {
+      if (autoSend && sentCount > 0) {
         result.autoComplete = true;
       }
     }

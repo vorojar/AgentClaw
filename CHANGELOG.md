@@ -17,6 +17,7 @@
 - **Browser wait_for / sleep**：新增 `wait_for`（等待选择器出现）和 `sleep`（固定等待）命令
 
 ### 修复（续）
+- **Shell 输出文件始终实时显示**：`data/tmp/` 下的文件不再依赖 `auto_send: true` 才发送 WS file 事件，截图等文件始终在 WebUI 中实时显示（`auto_send` 仅控制是否跳过 LLM 下一轮回复）
 - **Browser type 支持 contentEditable**：`type` 命令改用 `document.execCommand('insertText')` 处理富文本编辑器（如 X/Twitter 发推框），解决 `el.value` 对 contentEditable 元素无效的问题
 
 ### 移除

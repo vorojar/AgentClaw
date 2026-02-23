@@ -620,6 +620,7 @@ export function ChatPage() {
         if (w.toast) {
           w.toast.info("AgentClaw", broadcastText);
         }
+        new Audio("/tada.wav").play().catch(() => {});
         // Browser notification (always, even if page is visible)
         if (Notification.permission === "granted") {
           new Notification("AgentClaw", {

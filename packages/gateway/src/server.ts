@@ -3,6 +3,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import compress from "@fastify/compress";
 import fastifyStatic from "@fastify/static";
 import multipart from "@fastify/multipart";
 import websocket from "@fastify/websocket";
@@ -37,6 +38,7 @@ export async function createServer(
   });
 
   // Register plugins
+  await app.register(compress);
   await app.register(cors, {
     origin: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

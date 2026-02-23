@@ -1,4 +1,6 @@
-import { basename } from "node:path";
+import { basename, join, extname } from "node:path";
+import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
 import type {
@@ -6,6 +8,72 @@ import type {
   Message,
   ToolExecutionContext,
 } from "@agentclaw/types";
+
+const IMAGE_EXTS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".svg",
+]);
+const MIME_MAP: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".svg": "image/svg+xml",
+};
+const UPLOAD_RE = /\[Uploaded:\s*[^\]]*\]\(\/files\/([^)]+)\)/g;
+
+/**
+ * Parse user message: if it contains uploaded image URLs, convert to ContentBlock[]
+ * with base64 ImageContent so the LLM can see the images natively.
+ */
+async function parseUserContent(
+  text: string,
+): Promise<string | ContentBlock[]> {
+  const matches = [...text.matchAll(UPLOAD_RE)];
+  const imageMatches = matches.filter((m) => {
+    const filename = decodeURIComponent(m[1]);
+    return IMAGE_EXTS.has(extname(filename).toLowerCase());
+  });
+  if (imageMatches.length === 0) return text;
+
+  const blocks: ContentBlock[] = [];
+
+  // Add image blocks
+  for (const m of imageMatches) {
+    const filename = decodeURIComponent(m[1]);
+    const filePath = join(process.cwd(), "data", "tmp", filename);
+    if (!existsSync(filePath)) continue;
+    try {
+      const buf = await readFile(filePath);
+      const ext = extname(filename).toLowerCase();
+      blocks.push({
+        type: "image",
+        data: buf.toString("base64"),
+        mediaType: MIME_MAP[ext] ?? "image/jpeg",
+      });
+    } catch {
+      // skip unreadable files
+    }
+  }
+
+  // Add text (strip image upload markers, keep other text)
+  const cleanText = text
+    .replace(UPLOAD_RE, "")
+    .replace(/\n{3,}/g, "\n")
+    .trim();
+  if (cleanText) {
+    blocks.push({ type: "text", text: cleanText });
+  }
+
+  return blocks.length > 0 ? blocks : text;
+}
 
 function extractTextFromMessage(message: Message): string {
   if (typeof message.content === "string") return message.content;
@@ -109,10 +177,13 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           },
         };
 
+        // Convert uploaded images to multimodal ContentBlock[]
+        const userContent = await parseUserContent(parsed.content);
+
         // Use processInputStream for streaming events
         const eventStream = ctx.orchestrator.processInputStream(
           sessionId,
-          parsed.content,
+          userContent,
           context,
         );
 

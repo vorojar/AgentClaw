@@ -35,15 +35,6 @@ export function IconChat({ size }: { size?: number }) {
   );
 }
 
-export function IconPlans({ size }: { size?: number }) {
-  return (
-    <I size={size}>
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M9 12l2 2 4-4" />
-    </I>
-  );
-}
-
 export function IconMemory({ size }: { size?: number }) {
   return (
     <I size={size}>

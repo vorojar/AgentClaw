@@ -59,13 +59,6 @@ const API_GROUPS: ApiGroup[] = [
     ],
   },
   {
-    name: "Plans",
-    endpoints: [
-      { method: "GET", path: "/api/plans", desc: "List plans" },
-      { method: "GET", path: "/api/plans/:id", desc: "Get plan detail" },
-    ],
-  },
-  {
     name: "Memory",
     endpoints: [
       {

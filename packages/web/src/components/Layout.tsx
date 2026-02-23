@@ -4,7 +4,6 @@ import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionContext";
 import {
   IconChat,
-  IconPlans,
   IconMemory,
   IconTraces,
   IconTokens,
@@ -124,12 +123,6 @@ export function Layout() {
             className={({ isActive }) => (isActive ? "active" : "")}
           >
             <IconChat size={16} /> Chat
-          </NavLink>
-          <NavLink
-            to="/plans"
-            className={({ isActive }) => (isActive ? "active" : "")}
-          >
-            <IconPlans size={16} /> Plans
           </NavLink>
           <NavLink
             to="/memory"

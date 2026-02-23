@@ -7,8 +7,6 @@
  *   DELETE /api/sessions/:id          — Close session
  *   POST   /api/sessions/:id/chat     — Send message (returns full response)
  *   GET    /api/sessions/:id/history  — Get conversation history
- *   GET    /api/plans                 — List plans
- *   GET    /api/plans/:id             — Get plan detail
  *   GET    /api/memories              — Search memories
  *   GET    /api/tools                 — List tools
  *   GET    /api/skills                — List skills
@@ -119,31 +117,6 @@ export function getHistory(
 ): Promise<ChatMessage[]> {
   const qs = limit ? `?limit=${limit}` : "";
   return request(`/sessions/${sessionId}/history${qs}`);
-}
-
-// ── Plans ───────────────────────────────────────────
-
-export interface PlanInfo {
-  id: string;
-  goal: string;
-  status: string;
-  steps: Array<{
-    id: string;
-    description: string;
-    status: string;
-    result?: string;
-    error?: string;
-  }>;
-  createdAt: string;
-  completedAt?: string;
-}
-
-export function listPlans(): Promise<PlanInfo[]> {
-  return request("/plans");
-}
-
-export function getPlan(id: string): Promise<PlanInfo> {
-  return request(`/plans/${id}`);
 }
 
 // ── Memory ──────────────────────────────────────────

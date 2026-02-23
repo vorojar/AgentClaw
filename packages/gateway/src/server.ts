@@ -10,7 +10,6 @@ import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
 import { TaskScheduler } from "./scheduler.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
-import { registerPlanRoutes } from "./routes/plans.js";
 import { registerMemoryRoutes } from "./routes/memories.js";
 import { registerToolRoutes } from "./routes/tools.js";
 import { registerConfigRoutes } from "./routes/config.js";
@@ -52,7 +51,6 @@ export async function createServer(
 
   // Register REST routes
   registerSessionRoutes(app, ctx);
-  registerPlanRoutes(app, ctx);
   registerMemoryRoutes(app, ctx);
   registerToolRoutes(app, ctx);
   registerConfigRoutes(app, ctx);

@@ -7,6 +7,7 @@ import {
   createSession,
   connectWebSocket,
   uploadFile,
+  renameSession,
 } from "../api/client";
 import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
@@ -340,8 +341,13 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
 /* ── ChatPage ─────────────────────────────────────── */
 
 export function ChatPage() {
-  const { sessions, activeSessionId, sidebarOpen, setSidebarOpen } =
-    useSession();
+  const {
+    sessions,
+    activeSessionId,
+    sidebarOpen,
+    setSidebarOpen,
+    refreshSessions,
+  } = useSession();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -354,6 +360,9 @@ export function ChatPage() {
     Array<{ file: File; preview?: string }>
   >([]);
   const [lastUserText, setLastUserText] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const wsRef = useRef<{
     send: (c: string) => void;
@@ -791,9 +800,43 @@ export function ChatPage() {
               <IconMenu size={18} />
             </button>
           )}
-          <span className="chat-header-title">
-            {activeSession?.title || "Chat"}
-          </span>
+          {editingTitle ? (
+            <input
+              ref={titleInputRef}
+              className="chat-header-title-input"
+              value={editTitleValue}
+              onChange={(e) => setEditTitleValue(e.target.value)}
+              onBlur={() => {
+                const trimmed = editTitleValue.trim();
+                setEditingTitle(false);
+                if (
+                  trimmed &&
+                  activeSessionId &&
+                  trimmed !== activeSession?.title
+                ) {
+                  renameSession(activeSessionId, trimmed)
+                    .then(() => refreshSessions())
+                    .catch((err) => console.error("Failed to rename:", err));
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                if (e.key === "Escape") setEditingTitle(false);
+              }}
+            />
+          ) : (
+            <span
+              className="chat-header-title"
+              onDoubleClick={() => {
+                setEditTitleValue(activeSession?.title || "");
+                setEditingTitle(true);
+                setTimeout(() => titleInputRef.current?.select(), 0);
+              }}
+              title="Double-click to rename"
+            >
+              {activeSession?.title || "Chat"}
+            </span>
+          )}
           <div className="chat-header-actions">
             <button
               className="btn-icon"

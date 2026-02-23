@@ -78,6 +78,14 @@ export function closeSession(id: string): Promise<void> {
   return request(`/sessions/${id}`, { method: "DELETE" });
 }
 
+export function renameSession(id: string, title: string): Promise<SessionInfo> {
+  return request(`/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+}
+
 // ── Chat ────────────────────────────────────────────
 
 export interface ChatMessage {

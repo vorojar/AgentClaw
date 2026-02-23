@@ -2,6 +2,9 @@
 
 ## [0.7.2] - 2026-02-23
 
+### 新功能
+- **会话重命名**：双击顶部标题即可编辑会话名称，Enter 确认、Escape 取消
+
 ### 修复
 - **Telegram/WhatsApp 广播持久化**：聊天目标（chatId/JID）持久化到 SQLite `chat_targets` 表，应用重启后自动恢复，提醒通知不再丢失
 - **Telegram 文件持久化**：Telegram 网关的 `sendFile` 回调补充 `sentFiles` 跟踪，生成的图片/文件会以 markdown 链接持久化到数据库，WebUI 查看同一会话时可正常显示

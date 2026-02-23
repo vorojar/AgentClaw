@@ -79,6 +79,28 @@ export function registerSessionRoutes(
     },
   );
 
+  // PATCH /api/sessions/:id - Rename session
+  app.patch<{ Params: { id: string }; Body: { title: string } }>(
+    "/api/sessions/:id",
+    async (req, reply) => {
+      try {
+        const session = await ctx.orchestrator.getSession(req.params.id);
+        if (!session) {
+          return reply.status(404).send({ error: "Session not found" });
+        }
+        const { title } = req.body;
+        if (typeof title !== "string") {
+          return reply.status(400).send({ error: "Missing title" });
+        }
+        await ctx.memoryStore.saveSession({ ...session, title });
+        return reply.send(serializeSession({ ...session, title }));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
+
   // POST /api/sessions/:id/chat - Send message
   app.post<{ Params: { id: string }; Body: { content: string } }>(
     "/api/sessions/:id/chat",

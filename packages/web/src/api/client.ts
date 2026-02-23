@@ -188,6 +188,60 @@ export function listSkills(): Promise<SkillInfo[]> {
   return request("/skills");
 }
 
+export function updateSkillEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<{ id: string; enabled: boolean }> {
+  return request(`/skills/${encodeURIComponent(id)}/enabled`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+// ── Skill Import / Delete ──────────────────────────
+
+export function importSkillFromGithub(
+  url: string,
+): Promise<{ success: boolean; skill: SkillInfo }> {
+  return request("/skills/import/github", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+}
+
+export async function importSkillFromZip(
+  file: File,
+): Promise<{ success: boolean; skill: SkillInfo }> {
+  // Cannot use request() — it auto-sets Content-Type: application/json.
+  // FormData needs the browser to set the boundary automatically.
+  const formData = new FormData();
+  formData.append("file", file);
+  const headers: Record<string, string> = {};
+  const apiKey = getStoredApiKey();
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+  const res = await fetch(`${BASE}/skills/import/zip`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+  if (res.status === 401) {
+    clearStoredApiKey();
+    window.location.reload();
+    throw new Error("Unauthorized");
+  }
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`API ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+export function deleteSkill(id: string): Promise<{ success: boolean }> {
+  return request(`/skills/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 // ── Stats & Config ──────────────────────────────────
 
 export interface UsageStatsInfo {

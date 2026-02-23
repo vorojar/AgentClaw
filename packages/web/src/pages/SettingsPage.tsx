@@ -5,6 +5,10 @@ import {
   getStats,
   listTools,
   listSkills,
+  updateSkillEnabled,
+  importSkillFromGithub,
+  importSkillFromZip,
+  deleteSkill,
   listScheduledTasks,
   createScheduledTask,
   deleteScheduledTask,
@@ -43,6 +47,11 @@ export function SettingsPage() {
   const [editModel, setEditModel] = useState("");
   const [configSaving, setConfigSaving] = useState(false);
   const [configDirty, setConfigDirty] = useState(false);
+
+  // Skill import
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   // New task form
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -154,6 +163,56 @@ export function SettingsPage() {
       setError(err instanceof Error ? err.message : "Failed to delete task");
     } finally {
       setDeletingTaskId(null);
+    }
+  };
+
+  const handleImportGithub = async () => {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    try {
+      await importSkillFromGithub(importUrl.trim());
+      setImportUrl("");
+      setImportOpen(false);
+      const updated = await listSkills();
+      setSkills(updated);
+    } catch (err) {
+      setError(
+        "Import failed: " + (err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      await importSkillFromZip(file);
+      setImportOpen(false);
+      const updated = await listSkills();
+      setSkills(updated);
+    } catch (err) {
+      setError(
+        "Import failed: " + (err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      setImporting(false);
+      // Reset file input so same file can be re-selected
+      e.target.value = "";
+    }
+  };
+
+  const handleDeleteSkill = async (skill: SkillInfo) => {
+    if (!confirm(`Delete skill "${skill.name}"?`)) return;
+    try {
+      await deleteSkill(skill.id);
+      setSkills((prev) => prev.filter((s) => s.id !== skill.id));
+    } catch (err) {
+      setError(
+        "Delete failed: " + (err instanceof Error ? err.message : String(err)),
+      );
     }
   };
 
@@ -292,7 +351,45 @@ export function SettingsPage() {
           <h2 className="settings-section-title">
             Skills
             <span className="settings-count">{skills.length}</span>
+            <button
+              className="btn-primary settings-add-btn"
+              onClick={() => setImportOpen((v) => !v)}
+            >
+              {importOpen ? "Cancel" : "+ Import"}
+            </button>
           </h2>
+
+          {importOpen && (
+            <div className="import-panel">
+              <div className="import-row">
+                <input
+                  type="text"
+                  placeholder="GitHub URL (https://github.com/user/skill-name)"
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleImportGithub()}
+                />
+                <button
+                  onClick={handleImportGithub}
+                  disabled={importing || !importUrl.trim()}
+                >
+                  {importing ? "Importing..." : "Clone"}
+                </button>
+              </div>
+              <div className="import-row">
+                <label className="upload-btn">
+                  Upload .zip
+                  <input
+                    type="file"
+                    accept=".zip"
+                    onChange={handleImportZip}
+                    hidden
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
           {skills.length === 0 ? (
             <div className="settings-empty">No skills available</div>
           ) : (
@@ -308,12 +405,37 @@ export function SettingsPage() {
                   <div className="skill-toggle-wrapper">
                     <span
                       className={`skill-toggle ${skill.enabled ? "enabled" : "disabled"}`}
+                      onClick={async () => {
+                        try {
+                          await updateSkillEnabled(skill.id, !skill.enabled);
+                          setSkills((prev) =>
+                            prev.map((s) =>
+                              s.id === skill.id
+                                ? { ...s, enabled: !s.enabled }
+                                : s,
+                            ),
+                          );
+                        } catch (err) {
+                          setError(
+                            err instanceof Error
+                              ? err.message
+                              : "Failed to toggle skill",
+                          );
+                        }
+                      }}
                     >
                       <span className="skill-toggle-knob" />
                     </span>
                     <span className="skill-toggle-label">
                       {skill.enabled ? "On" : "Off"}
                     </span>
+                    <button
+                      className="skill-delete-btn"
+                      onClick={() => handleDeleteSkill(skill)}
+                      title="Delete skill"
+                    >
+                      ×
+                    </button>
                   </div>
                 </div>
               ))}

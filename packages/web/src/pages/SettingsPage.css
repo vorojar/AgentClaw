@@ -275,6 +275,78 @@
   min-width: 20px;
 }
 
+/* Skill import panel */
+.import-panel {
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+}
+
+.import-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.import-row:last-child {
+  margin-bottom: 0;
+}
+
+.import-row input[type="text"] {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.import-row button,
+.upload-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.import-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-btn {
+  display: inline-block;
+  text-align: center;
+}
+
+/* Skill delete button */
+.skill-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.skill-item:hover .skill-delete-btn {
+  opacity: 1;
+}
+
+.skill-delete-btn:hover {
+  color: #ef4444;
+}
+
 /* Task form */
 .task-form {
   display: flex;

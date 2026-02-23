@@ -403,6 +403,9 @@ export async function bootstrap(): Promise<AppContext> {
   // Skill registry
   const skillsDir = process.env.SKILLS_DIR || "./skills/";
   const skillRegistry = new SkillRegistryImpl();
+  skillRegistry.setSettingsPath(
+    resolve(process.cwd(), "data", "skill-settings.json"),
+  );
   await skillRegistry.loadFromDirectory(skillsDir);
 
   // Planner

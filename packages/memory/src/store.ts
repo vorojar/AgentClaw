@@ -503,11 +503,20 @@ export class SQLiteMemoryStore implements MemoryStore {
       .prepare("SELECT conversation_id FROM sessions WHERE id = ?")
       .get(id) as { conversation_id: string } | undefined;
     if (row) {
+      // Nullify memory references before deleting turns (FK constraint)
+      this.db
+        .prepare(
+          "UPDATE memories SET source_turn_id = NULL WHERE source_turn_id IN (SELECT id FROM turns WHERE conversation_id = ?)",
+        )
+        .run(row.conversation_id);
       this.db
         .prepare("DELETE FROM turns WHERE conversation_id = ?")
         .run(row.conversation_id);
       this.db
         .prepare("DELETE FROM traces WHERE conversation_id = ?")
+        .run(row.conversation_id);
+      this.db
+        .prepare("DELETE FROM conversations WHERE id = ?")
         .run(row.conversation_id);
     }
     this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);

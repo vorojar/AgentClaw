@@ -1,5 +1,19 @@
 # 更新日志
 
+## [0.7.0] - 2026-02-23
+
+### 新功能
+- **5 个新技能**：`docx`（Word 文档）、`xlsx`（Excel 表格）、`pptx`（PowerPoint 演示文稿）、`pdf`（PDF 处理）、`imap-smtp-email`（收发邮件），均通过 Python 脚本实现
+- **技能开关**：Web UI 设置页可启用/禁用单个技能，状态持久化到 `data/skill-settings.json`，重启后自动恢复
+- **技能导入**：支持从 GitHub URL 克隆或上传 .zip 安装新技能，Web UI 设置页提供导入面板和删除按钮
+- **技能删除**：`DELETE /api/skills/:id` 端点 + 前端删除确认
+
+### API
+- `PUT /api/skills/:id/enabled` — 切换技能启用/禁用
+- `POST /api/skills/import/github` — 从 GitHub 导入技能
+- `POST /api/skills/import/zip` — 上传 zip 导入技能
+- `DELETE /api/skills/:id` — 删除技能
+
 ## [0.6.1] - 2026-02-23
 
 ### 新功能

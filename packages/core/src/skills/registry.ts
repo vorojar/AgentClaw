@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { watch, type FSWatcher } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -21,6 +21,51 @@ export class SkillRegistryImpl implements SkillRegistry {
   private watcher: FSWatcher | null = null;
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> =
     new Map();
+  private settingsPath: string | null = null;
+
+  /**
+   * Set the path for persisting skill enabled/disabled settings.
+   * Must be called before loadFromDirectory so settings are applied after loading.
+   */
+  setSettingsPath(filePath: string): void {
+    this.settingsPath = filePath;
+  }
+
+  /**
+   * Load persisted skill enabled/disabled settings from the JSON file.
+   * Called automatically at the end of loadFromDirectory.
+   */
+  private async loadSettings(): Promise<void> {
+    if (!this.settingsPath) return;
+    try {
+      const content = await readFile(this.settingsPath, "utf-8");
+      const settings = JSON.parse(content) as Record<string, boolean>;
+      for (const [id, enabled] of Object.entries(settings)) {
+        const skill = this.skills.get(id);
+        if (skill) skill.enabled = enabled;
+      }
+    } catch {
+      // File doesn't exist yet — use defaults (all enabled)
+    }
+  }
+
+  /**
+   * Persist skill enabled/disabled settings to the JSON file.
+   * Only saves disabled skills (enabled is the default).
+   */
+  private saveSettings(): void {
+    if (!this.settingsPath) return;
+    const settings: Record<string, boolean> = {};
+    for (const [id, skill] of this.skills) {
+      if (!skill.enabled) settings[id] = false;
+    }
+    try {
+      mkdirSync(path.dirname(this.settingsPath), { recursive: true });
+      writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2));
+    } catch (err) {
+      console.warn(`[skills] Failed to save settings: ${err}`);
+    }
+  }
 
   /**
    * Load all skills from a directory.
@@ -49,6 +94,9 @@ export class SkillRegistryImpl implements SkillRegistry {
       const skillFilePath = path.join(dirPath, entry.name, "SKILL.md");
       await this.loadSkillFile(skillFilePath);
     }
+
+    // Apply persisted enabled/disabled settings after all skills are loaded
+    await this.loadSettings();
 
     this.watchDirectory(dirPath);
   }
@@ -207,12 +255,13 @@ export class SkillRegistryImpl implements SkillRegistry {
   }
 
   /**
-   * Enable or disable a skill.
+   * Enable or disable a skill, and persist the change.
    */
   setEnabled(id: string, enabled: boolean): void {
     const skill = this.skills.get(id);
     if (skill) {
       skill.enabled = enabled;
+      this.saveSettings();
     }
   }
 

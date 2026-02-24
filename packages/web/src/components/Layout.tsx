@@ -16,6 +16,7 @@ import {
   IconMoon,
   IconX,
   IconEdit,
+  IconMenu,
 } from "./Icons";
 
 function formatSessionLabel(s: {
@@ -53,6 +54,15 @@ export function Layout() {
 
   const [searchVisible, setSearchVisible] = useState(false);
 
+  const isMobile =
+    typeof matchMedia !== "undefined" &&
+    matchMedia("(max-width: 768px)").matches;
+
+  /** Close sidebar on mobile after navigating */
+  const closeSidebarOnMobile = () => {
+    if (isMobile) setSidebarOpen(false);
+  };
+
   const isChat =
     location.pathname === "/" || location.pathname.startsWith("/chat");
 
@@ -74,7 +84,13 @@ export function Layout() {
 
         {/* New Chat + Search */}
         <div className="sidebar-actions">
-          <button className="sidebar-new-chat" onClick={handleNewChat}>
+          <button
+            className="sidebar-new-chat"
+            onClick={() => {
+              handleNewChat();
+              closeSidebarOnMobile();
+            }}
+          >
             <IconEdit size={16} />
             <span>New Chat</span>
           </button>
@@ -119,30 +135,38 @@ export function Layout() {
 
         {/* Navigation */}
         <nav className="sidebar-nav">
-          <NavLink to="/chat" className={() => (isChat ? "active" : "")}>
+          <NavLink
+            to="/chat"
+            className={() => (isChat ? "active" : "")}
+            onClick={closeSidebarOnMobile}
+          >
             <IconChat size={16} /> Chat
           </NavLink>
           <NavLink
             to="/memory"
             className={({ isActive }) => (isActive ? "active" : "")}
+            onClick={closeSidebarOnMobile}
           >
             <IconMemory size={16} /> Memory
           </NavLink>
           <NavLink
             to="/traces"
             className={({ isActive }) => (isActive ? "active" : "")}
+            onClick={closeSidebarOnMobile}
           >
             <IconTraces size={16} /> Traces
           </NavLink>
           <NavLink
             to="/token-logs"
             className={({ isActive }) => (isActive ? "active" : "")}
+            onClick={closeSidebarOnMobile}
           >
             <IconTokens size={16} /> Token Logs
           </NavLink>
           <NavLink
             to="/skills"
             className={({ isActive }) => (isActive ? "active" : "")}
+            onClick={closeSidebarOnMobile}
           >
             <IconSkills size={16} /> Skills
           </NavLink>
@@ -168,7 +192,10 @@ export function Layout() {
                     <button
                       key={s.id}
                       className={`sidebar-session-item${s.id === activeSessionId ? " active" : ""}`}
-                      onClick={() => handleSelectSession(s.id)}
+                      onClick={() => {
+                        handleSelectSession(s.id);
+                        closeSidebarOnMobile();
+                      }}
                     >
                       <span className="sidebar-session-label">
                         {formatSessionLabel(s)}
@@ -197,6 +224,7 @@ export function Layout() {
             className={({ isActive }) =>
               `sidebar-footer-link${isActive ? " active" : ""}`
             }
+            onClick={closeSidebarOnMobile}
           >
             <IconSettings size={16} /> Settings
           </NavLink>
@@ -206,6 +234,7 @@ export function Layout() {
               className={({ isActive }) =>
                 `sidebar-footer-link${isActive ? " active" : ""}`
               }
+              onClick={closeSidebarOnMobile}
             >
               <IconApi size={16} /> API
             </NavLink>
@@ -234,6 +263,15 @@ export function Layout() {
 
       {/* Main content */}
       <main className="main-content">
+        {!sidebarOpen && !isChat && (
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setSidebarOpen(true)}
+            title="Open sidebar"
+          >
+            <IconMenu size={18} />
+          </button>
+        )}
         <Outlet />
       </main>
     </div>

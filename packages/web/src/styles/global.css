@@ -552,6 +552,11 @@ textarea:focus {
   padding: 16px;
 }
 
+/* ── Floating menu button for non-chat pages ─────── */
+.mobile-menu-btn {
+  display: none;
+}
+
 /* ── Mobile responsive ───────────────────────────── */
 
 /* Backdrop (hidden on desktop, visible on mobile) */
@@ -599,6 +604,24 @@ textarea:focus {
   }
   .page-body {
     padding: 12px;
+  }
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 100;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--shadow);
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

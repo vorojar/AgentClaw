@@ -10,6 +10,8 @@
 - **Stop 按钮无效**：点击停止后服务端仍在发 text chunk 导致创建新 assistant 消息，加 `stoppedRef` 在 `done` 到达前忽略所有流式事件
 - **手机回车误发送**：触控设备（`pointer: coarse`）Enter 键改为换行，通过发送按钮发送；桌面端保持 Enter 发送
 - **手机侧边栏自动弹出**：窄屏（≤768px）默认关闭侧边栏
+- **手机侧边栏导航不关闭**：点击 Skills / Traces / Token Logs / Memory / Settings / 会话列表后自动收起侧边栏
+- **非 Chat 页面无侧边栏入口**：侧边栏关闭时在左上角显示浮动汉堡菜单按钮
 
 ## [0.7.4] - 2026-02-24
 

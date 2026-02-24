@@ -251,27 +251,22 @@ function HtmlPreviewOverlay({
   }, [onClose]);
 
   return (
-    <div className="html-overlay" onClick={onClose}>
-      <div className="html-overlay-content" onClick={(e) => e.stopPropagation()}>
-        <div className="html-overlay-toolbar">
-          <button className="html-overlay-back" onClick={onClose}>← Back</button>
-          <span className="html-overlay-title">{filename}</span>
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="html-overlay-open"
-          >
-            Open ↗
-          </a>
-        </div>
-        <iframe
-          src={href}
-          sandbox="allow-scripts allow-same-origin"
-          className="html-overlay-iframe"
-          title="HTML preview"
-        />
+    <div className="html-overlay">
+      <div className="html-overlay-toolbar">
+        <button className="html-overlay-btn" onClick={onClose} title="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+        </button>
+        <span className="html-overlay-title">{filename}</span>
+        <a href={href} target="_blank" rel="noopener noreferrer" className="html-overlay-btn" title="Open in new tab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
       </div>
+      <iframe
+        src={href}
+        sandbox="allow-scripts allow-same-origin"
+        className="html-overlay-iframe"
+        title="HTML preview"
+      />
     </div>
   );
 }

@@ -622,55 +622,46 @@
   font-weight: 600;
 }
 
-/* ── HTML Preview Overlay ── */
+/* ── HTML Preview Overlay (fullscreen) ── */
 
 .html-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.15s ease;
-}
-
-.html-overlay-content {
-  width: 92vw;
-  height: 90vh;
-  max-width: 1200px;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: fadeIn 0.15s ease;
 }
 
 .html-overlay-toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 8px 12px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.html-overlay-back {
+.html-overlay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   background: none;
-  border: 1px solid var(--border);
+  border: none;
   color: var(--text-secondary);
-  padding: 4px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 13px;
   transition:
     background 0.15s,
     color 0.15s;
+  text-decoration: none;
 }
 
-.html-overlay-back:hover {
+.html-overlay-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
@@ -683,20 +674,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.html-overlay-open {
-  color: var(--accent);
-  text-decoration: none;
-  font-size: 13px;
-  padding: 4px 12px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  transition: background 0.15s;
-}
-
-.html-overlay-open:hover {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  text-align: center;
 }
 
 .html-overlay-iframe {

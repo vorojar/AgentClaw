@@ -31,6 +31,8 @@ import {
   notifyIfHidden,
   requestNotificationPermission,
 } from "../utils/notifications";
+import { JsonView, darkStyles } from "react-json-view-lite";
+import "react-json-view-lite/dist/index.css";
 import "./ChatPage.css";
 
 /* ── Types ────────────────────────────────────────── */
@@ -174,48 +176,30 @@ function parseMessageContent(content: string): ParsedContent {
   return { text: content, images: [] };
 }
 
-function formatToolInput(input: string): string {
-  try {
-    return JSON.stringify(JSON.parse(input), null, 2);
-  } catch {
-    return input;
-  }
-}
-
-function formatToolResult(result: string): string {
-  try {
-    const parsed = JSON.parse(result);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((item: Record<string, unknown>) =>
-          item.content ? String(item.content) : JSON.stringify(item, null, 2),
-        )
-        .join("\n");
-    }
-    return JSON.stringify(parsed, null, 2);
-  } catch {
-    return result;
-  }
-}
-
-/** Detect if a string is likely JSON */
-function isJsonString(s: string): boolean {
+/** Try to parse JSON, return parsed object or null */
+function tryParseJson(s: string): unknown | null {
   const t = s.trimStart();
-  return (
-    (t.startsWith("{") || t.startsWith("[")) &&
-    (() => {
-      try {
-        JSON.parse(s);
-        return true;
-      } catch {
-        return false;
-      }
-    })()
-  );
+  if (!t.startsWith("{") && !t.startsWith("[")) return null;
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
 }
 
-/** Detect if a string contains markdown formatting */
-const MD_RE = /^#{1,6}\s|^\s*[-*]\s|\*\*|__|\[.+\]\(.+\)|```/m;
+/** Parse tool result string — extract content from wrapper arrays */
+function parseToolResult(result: string): { json: unknown } | { text: string } {
+  const parsed = tryParseJson(result);
+  if (parsed === null) return { text: result };
+  if (Array.isArray(parsed)) {
+    // [{content: "..."}] wrapper → extract text
+    const texts = parsed.map((item: Record<string, unknown>) =>
+      item.content ? String(item.content) : JSON.stringify(item, null, 2),
+    );
+    return { text: texts.join("\n") };
+  }
+  return { json: parsed };
+}
 
 function formatUsageStats(msg: DisplayMessage): string | null {
   const parts: string[] = [];
@@ -306,30 +290,26 @@ function toolCallLabel(name: string, input: string): string {
 }
 
 function ToolResultContent({
-  content,
+  result,
   isError,
 }: {
-  content: string;
+  result: string;
   isError?: boolean;
 }) {
   if (isError) {
-    return <pre className="tool-call-content tool-result-error">{content}</pre>;
+    return <pre className="tool-call-content tool-result-error">{result}</pre>;
   }
-  if (isJsonString(content)) {
+  const parsed = parseToolResult(result);
+  if ("json" in parsed) {
     return (
-      <CodeBlock className="language-json">
-        {JSON.stringify(JSON.parse(content), null, 2)}
-      </CodeBlock>
-    );
-  }
-  if (MD_RE.test(content)) {
-    return (
-      <div className="tool-call-content tool-result-success tool-result-md">
-        <ReactMarkdown components={mdComponents}>{content}</ReactMarkdown>
+      <div className="tool-call-json">
+        <JsonView data={parsed.json as object} style={darkStyles} />
       </div>
     );
   }
-  return <pre className="tool-call-content tool-result-success">{content}</pre>;
+  return (
+    <pre className="tool-call-content tool-result-success">{parsed.text}</pre>
+  );
 }
 
 function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
@@ -361,9 +341,16 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
           {entry.toolInput && (
             <div className="tool-call-input">
               <div className="tool-call-section-label">INPUT</div>
-              <CodeBlock className="language-json">
-                {formatToolInput(entry.toolInput)}
-              </CodeBlock>
+              {(() => {
+                const json = tryParseJson(entry.toolInput);
+                return json ? (
+                  <div className="tool-call-json">
+                    <JsonView data={json as object} style={darkStyles} />
+                  </div>
+                ) : (
+                  <pre className="tool-call-content">{entry.toolInput}</pre>
+                );
+              })()}
             </div>
           )}
           {entry.toolResult !== undefined && (
@@ -372,7 +359,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
                 {entry.isError ? "ERROR" : "OUTPUT"}
               </div>
               <ToolResultContent
-                content={formatToolResult(entry.toolResult)}
+                result={entry.toolResult}
                 isError={entry.isError}
               />
             </div>

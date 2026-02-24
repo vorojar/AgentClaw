@@ -241,12 +241,24 @@
   white-space: pre-wrap;
   word-break: break-all;
   color: var(--text-secondary);
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
   background: var(--bg-primary);
   padding: 8px;
   border-radius: 4px;
   margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.tool-call-json {
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  padding: 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
 }
 
 .tool-call-input {

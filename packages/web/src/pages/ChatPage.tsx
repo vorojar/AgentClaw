@@ -198,6 +198,25 @@ function formatToolResult(result: string): string {
   }
 }
 
+/** Detect if a string is likely JSON */
+function isJsonString(s: string): boolean {
+  const t = s.trimStart();
+  return (
+    (t.startsWith("{") || t.startsWith("[")) &&
+    (() => {
+      try {
+        JSON.parse(s);
+        return true;
+      } catch {
+        return false;
+      }
+    })()
+  );
+}
+
+/** Detect if a string contains markdown formatting */
+const MD_RE = /^#{1,6}\s|^\s*[-*]\s|\*\*|__|\[.+\]\(.+\)|```/m;
+
 function formatUsageStats(msg: DisplayMessage): string | null {
   const parts: string[] = [];
   if (msg.model) parts.push(msg.model);
@@ -286,6 +305,33 @@ function toolCallLabel(name: string, input: string): string {
   return name;
 }
 
+function ToolResultContent({
+  content,
+  isError,
+}: {
+  content: string;
+  isError?: boolean;
+}) {
+  if (isError) {
+    return <pre className="tool-call-content tool-result-error">{content}</pre>;
+  }
+  if (isJsonString(content)) {
+    return (
+      <CodeBlock className="language-json">
+        {JSON.stringify(JSON.parse(content), null, 2)}
+      </CodeBlock>
+    );
+  }
+  if (MD_RE.test(content)) {
+    return (
+      <div className="tool-call-content tool-result-success tool-result-md">
+        <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
+      </div>
+    );
+  }
+  return <pre className="tool-call-content tool-result-success">{content}</pre>;
+}
+
 function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
   const [expanded, setExpanded] = useState(false);
   const label = toolCallLabel(entry.toolName, entry.toolInput);
@@ -314,22 +360,21 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
         <div className="tool-call-body">
           {entry.toolInput && (
             <div className="tool-call-input">
-              <div className="tool-call-section-label">Input</div>
-              <pre className="tool-call-content">
+              <div className="tool-call-section-label">INPUT</div>
+              <CodeBlock className="language-json">
                 {formatToolInput(entry.toolInput)}
-              </pre>
+              </CodeBlock>
             </div>
           )}
           {entry.toolResult !== undefined && (
             <div className="tool-call-result">
               <div className="tool-call-section-label">
-                {entry.isError ? "Error" : "Output"}
+                {entry.isError ? "ERROR" : "OUTPUT"}
               </div>
-              <pre
-                className={`tool-call-content ${entry.isError ? "tool-result-error" : "tool-result-success"}`}
-              >
-                {formatToolResult(entry.toolResult)}
-              </pre>
+              <ToolResultContent
+                content={formatToolResult(entry.toolResult)}
+                isError={entry.isError}
+              />
             </div>
           )}
         </div>

@@ -298,6 +298,44 @@
 
 ---
 
+## Phase 8: Developer Experience — "更好用" (Better DX)
+
+**Goal**: 前端体验提升 + 外部 Agent 集成 + 网络稳定性（目标：Artifacts 预览 + Claude Code 集成 + 工具调用可视化 + 连接可靠性）
+
+### 8.1 Artifacts Preview（Artifacts 预览）✅
+- [x] CodeBlock 组件支持 HTML / SVG / Mermaid 代码块实时预览（Preview/Code 切换按钮）
+- [x] HTML/SVG 用 iframe sandbox 渲染，Mermaid 通过动态 `import()` 按需加载（独立 chunk）
+- [x] HTML 文件链接（`/files/*.html`）在聊天中显示为紧凑卡片，点击弹出全屏 overlay（createPortal）
+- [x] Overlay 工具栏：← 返回图标 + 居中文件名 + ↗ 新标签页图标，ESC 关闭
+
+### 8.2 Claude Code Integration（Claude Code CLI 集成）✅
+- [x] `claude_code` 工具：委托编码任务给 Claude Code CLI（`claude -p --dangerously-skip-permissions --output-format stream-json --verbose`）
+- [x] 流式输出：Claude Code 的文本通过 `streamText` 回调实时推送到用户聊天气泡
+- [x] 精简摘要：工具完成后返回 compact summary + `autoComplete: true` 跳过外层 LLM 总结，大幅节省 token
+- [x] 自动 sendFile：`data/tmp` 或 `data/temp` 下生成的文件自动发送给用户
+- [x] System prompt 路由：编码任务路由到 `claude_code` 而非 `file_write`
+
+### 8.3 Tool Call Visualization（工具调用可视化）✅
+- [x] JSON INPUT/OUTPUT：`react-json-view-lite` 可折叠树形展示，自动适配亮/暗主题
+- [x] Markdown OUTPUT：`claude_code` 等工具用 `ReactMarkdown` + `remark-gfm` 渲染表格/列表/代码
+- [x] 行内代码保持 inline（`toolMdComponents`），不走 CodeBlock
+- [x] INPUT/OUTPUT 标签右侧 hover 显示 Copy 按钮一键复制整段
+
+### 8.4 Connection Reliability（连接可靠性）✅
+- [x] Fastify `keepAliveTimeout` 从 5s 增至 120s（解决 Cloudflare Tunnel 503）
+- [x] WS 服务端 ping/pong 每 30s（解决长推理断连）
+- [x] WS 客户端断连 3s 自动重连
+- [x] `/files/` 加 `Cache-Control: max-age=7d, immutable`（VPN/Tunnel 慢路径缓存）
+- [x] `/files/` 静态路由同时服务 `data/tmp` 和 `data/temp`
+
+### 8.5 Mobile UX（移动端体验）✅
+- [x] 触控设备 Enter 键改为换行，通过发送按钮发送
+- [x] 窄屏（≤768px）默认关闭侧边栏
+- [x] 点击侧边栏导航项/会话后自动收起侧边栏
+- [x] `PageHeader` 组件统一处理非 Chat 页面的侧边栏入口
+
+---
+
 ## 竞品对比：AgentClaw vs LobsterAI（网易有道）
 
 > LobsterAI：网易有道开源的全场景个人助理 Agent 桌面应用（Electron），MIT 协议。
@@ -312,7 +350,7 @@
 | **技能自扩展** | skill-creator 让 AI 自己创建新技能并热加载 | **create_skill 工具 + 热加载 + 用户确认 + 提炼正确路径** | **持平**（我们多了用户确认和智能提炼） |
 | **记忆系统** | 5 种记忆类型 + 置信度排序 + 可调严格度 + LLM 判断过滤 | MemoryExtractor + 向量搜索 | LobsterAI 分类更精细；AgentClaw 有向量搜索 |
 | **权限门控** | 敏感操作弹窗确认 | 无 | LobsterAI 更安全 |
-| **Artifacts 预览** | HTML / SVG / Mermaid / React 组件实时渲染 | 无 | LobsterAI 前端体验好 |
+| **Artifacts 预览** | HTML / SVG / Mermaid / React 组件实时渲染 | **HTML / SVG / Mermaid 代码块预览 + HTML 文件全屏 overlay 渲染** | **持平**（LobsterAI 多 React 组件） |
 | **LLM 提供商数量** | 11 个（含 DeepSeek/Kimi/智谱/通义等国产） | 4 个（Claude/OpenAI/Gemini/Ollama） | LobsterAI 数量多 |
 | **AI 引擎灵活度** | 绑定 Claude Agent SDK（agent 循环依赖 Anthropic） | **自研 AgentLoop，任意 Provider 跑完整 agent 循环** | **AgentClaw 胜** |
 | **图片生成/处理** | 无 | **ComfyUI 文生图 + 去背景 + 4x 放大** | **AgentClaw 胜** |
@@ -331,17 +369,17 @@
 3. ~~**技能自创建**~~ ✅ 已实现（create_skill + 热加载 + 用户确认）
 4. **更多 IM 网关** — 钉钉、飞书对国内用户至关重要
 5. **权限门控** — 敏感操作需用户确认，提升安全性
-6. **Artifacts 渲染** — 前端实时预览 HTML/SVG/Mermaid/React
+6. ~~**Artifacts 渲染**~~ ✅ 已实现（HTML/SVG/Mermaid 代码块预览 + HTML 文件全屏 overlay）
 
 ---
 
 ## Current Focus（当前重点）
 
-**Phase 6 已完成，Google 集成 + CLI 增强 + 搜索重写已完成。**
+**Phase 8 已完成：Artifacts 预览 + Claude Code 集成 + 工具调用可视化 + 移动端优化。**
 
 下一步优先方向：
-- API 鉴权（WebSocket/REST API 安全防护）
-- Docker 化（一键部署）
-- .env.example（环境变量文档化）
-- 沙箱执行环境
+- React 组件实时预览（需 JSX 编译器，补齐 Artifacts 最后一块）
+- 沙箱执行环境（安全执行任意代码，能力天花板）
 - Office 文档生成工具（DOCX/XLSX/PPTX）
+- Docker 化（一键部署）
+- 更多 IM 网关（Discord / 钉钉 / 飞书）

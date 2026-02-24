@@ -591,6 +591,10 @@ textarea:focus {
     -webkit-backdrop-filter: blur(4px);
     animation: fadeIn 0.25s ease;
   }
+  /* Skip fade-in when opened via drag gesture — manual backdrop already visible */
+  [data-sidebar-drag] .sidebar-backdrop {
+    animation: none;
+  }
   @keyframes fadeIn {
     from {
       opacity: 0;

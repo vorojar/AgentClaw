@@ -232,7 +232,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const progress = offset / sidebarW;
       sidebar.style.transform = `translateX(${offset - sidebarW}px)`;
       sidebar.style.pointerEvents = "none";
-      if (backdrop) backdrop.style.opacity = String(progress * 0.4);
+      if (backdrop) backdrop.style.opacity = String(progress);
     }
 
     function onTouchEnd(e: TouchEvent) {
@@ -252,19 +252,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const bd = backdrop;
 
       if (progress > SNAP_RATIO) {
-        // Snap open: animate to translateX(0), then clear inline for React
+        // Snap open: remove manual backdrop immediately,
+        // suppress React backdrop animation to prevent flash
+        if (bd) bd.remove();
+        document.documentElement.dataset.sidebarDrag = "";
         el.style.transform = "translateX(0)";
         setSidebarOpenWithHistory(true);
         setTimeout(() => {
           el.style.transform = "";
+          delete document.documentElement.dataset.sidebarDrag;
         }, TRANSITION_MS + 50);
-        if (bd) {
-          bd.style.transition = `opacity ${TRANSITION_MS}ms`;
-          bd.style.opacity = "0.4";
-          setTimeout(() => bd.remove(), TRANSITION_MS);
-        }
       } else {
-        // Snap back: animate to collapsed position, then clear inline for CSS class
+        // Snap back: fade out manual backdrop
         el.style.transform = `translateX(${-sidebarW - 1}px)`;
         setTimeout(() => {
           el.style.transform = "";

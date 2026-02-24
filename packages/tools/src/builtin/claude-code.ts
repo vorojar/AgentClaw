@@ -19,13 +19,14 @@ async function runClaudeCode(
     "--dangerously-skip-permissions",
     "--output-format",
     "stream-json",
+    "--verbose",
   ];
-  if (cwd) args.push("--cwd", cwd);
 
   return new Promise<ToolResult>((resolve) => {
     const child = spawn("claude", args, {
       stdio: ["pipe", "pipe", "pipe"],
       timeout,
+      cwd: cwd || process.cwd(),
       env: { ...process.env },
       shell: process.platform === "win32",
     });

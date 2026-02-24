@@ -650,6 +650,7 @@
   justify-content: center;
   width: 36px;
   height: 36px;
+  padding: 0;
   background: none;
   border: none;
   color: var(--text-secondary);

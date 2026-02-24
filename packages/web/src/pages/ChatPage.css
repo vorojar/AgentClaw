@@ -229,12 +229,52 @@
 }
 
 .tool-call-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
+}
+
+.tool-section-copy {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 8px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+}
+
+.tool-call-input:hover .tool-section-copy,
+.tool-call-result:hover .tool-section-copy {
+  opacity: 1;
+}
+
+.tool-section-copy:hover {
+  color: var(--text-primary);
+}
+
+.tool-section-copy.copied {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.code-inline {
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
 }
 
 .tool-call-content {

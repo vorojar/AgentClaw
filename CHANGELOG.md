@@ -7,7 +7,7 @@
 - **claude_code 流式输出**：Claude Code 的文本实时流入用户聊天气泡（通过 `streamText` 回调直推 WS），工具完成后返回精简摘要给外层 LLM + `autoComplete` 跳过外层总结，大幅节省 token
 
 ### 改进
-- **工具调用格式化**：INPUT/OUTPUT 的 JSON 内容使用 `react-json-view-lite` 可折叠树形展示，自动适配亮/暗主题；`claude_code` 等工具的 OUTPUT 用 ReactMarkdown + `remark-gfm` 渲染表格/列表/代码，其余工具用 `<pre>` 原样显示
+- **工具调用格式化**：JSON 用 `react-json-view-lite` 可折叠树形展示（适配亮/暗主题），Markdown 用 `remark-gfm` 渲染表格等 GFM 语法（行内代码保持 inline），INPUT/OUTPUT 标签右侧 hover 显示 Copy 按钮一键复制整段
 
 ### 修复
 - **工具调用 Markdown 渲染崩溃**：`ToolResultContent` 中 `markdownComponents` 未定义，修正为 `mdComponents`

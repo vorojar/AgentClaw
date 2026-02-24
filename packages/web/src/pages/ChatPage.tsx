@@ -271,6 +271,49 @@ const mdComponents = {
   },
 };
 
+/* ── Tool result markdown components (inline code stays inline) ── */
+
+const toolMdComponents = {
+  code: ({
+    className,
+    children,
+    ...props
+  }: {
+    className?: string;
+    children?: React.ReactNode;
+    [k: string]: unknown;
+  }) => {
+    const isBlock = /language-(\w+)/.test(className || "");
+    if (isBlock)
+      return (
+        <CodeBlock className={className} {...props}>
+          {children}
+        </CodeBlock>
+      );
+    return <code className="code-inline">{children}</code>;
+  },
+};
+
+function SectionLabel({ label, text }: { label: string; text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="tool-call-section-label">
+      {label}
+      <button
+        className={`tool-section-copy${copied ? " copied" : ""}`}
+        onClick={() => {
+          navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          });
+        }}
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 /* ── ToolCallCard ─────────────────────────────────── */
 
 function toolCallLabel(name: string, input: string): string {
@@ -315,7 +358,10 @@ function ToolResultContent({
     const text = "text" in parsed ? parsed.text : result;
     return (
       <div className="tool-call-content tool-result-md">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={toolMdComponents}
+        >
           {text}
         </ReactMarkdown>
       </div>
@@ -364,7 +410,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
         <div className="tool-call-body">
           {entry.toolInput && (
             <div className="tool-call-input">
-              <div className="tool-call-section-label">INPUT</div>
+              <SectionLabel label="INPUT" text={entry.toolInput} />
               {(() => {
                 const json = tryParseJson(entry.toolInput);
                 return json ? (
@@ -379,9 +425,10 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
           )}
           {entry.toolResult !== undefined && (
             <div className="tool-call-result">
-              <div className="tool-call-section-label">
-                {entry.isError ? "ERROR" : "OUTPUT"}
-              </div>
+              <SectionLabel
+                label={entry.isError ? "ERROR" : "OUTPUT"}
+                text={entry.toolResult}
+              />
               <ToolResultContent
                 result={entry.toolResult}
                 toolName={entry.toolName}

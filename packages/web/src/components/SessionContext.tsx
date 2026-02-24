@@ -179,13 +179,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   openRef.current = sidebarOpen;
 
   useEffect(() => {
-    const EDGE = 40; // px from left edge to start tracking
-    const SNAP_RATIO = 0.35; // release past 35% of sidebar width → snap open
+    const SNAP_RATIO = 0.35; // release past 35% → snap open
+    const TRANSITION_MS = 300; // match CSS transition duration
 
     let startX = 0;
     let startY = 0;
     let dragging = false;
-    let decided = false; // horizontal vs vertical lock
+    let decided = false;
     let sidebar: HTMLElement | null = null;
     let backdrop: HTMLElement | null = null;
     let sidebarW = 260;
@@ -193,7 +193,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     function onTouchStart(e: TouchEvent) {
       if (!isMobile() || openRef.current) return;
       const t = e.touches[0];
-      if (t.clientX > EDGE) return;
+      // Allow start from left half of screen
+      if (t.clientX > window.innerWidth / 2) return;
       sidebar = document.querySelector<HTMLElement>(".sidebar");
       if (!sidebar) return;
       sidebarW = sidebar.offsetWidth || 260;
@@ -212,15 +213,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Lock direction on first significant move
       if (!decided && (dx > 10 || dy > 10)) {
         decided = true;
-        if (dy > dx) {
-          // Vertical scroll — abort
+        if (dy > dx || dx < 0) {
+          // Vertical or leftward — abort
           sidebar = null;
           return;
         }
-        // Start dragging — disable CSS transition for real-time follow
         dragging = true;
         sidebar.style.transition = "none";
-        // Create backdrop
         backdrop = document.createElement("div");
         backdrop.className = "sidebar-backdrop";
         backdrop.style.opacity = "0";
@@ -229,9 +228,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       if (!dragging) return;
 
-      // Clamp offset: 0 (fully hidden) → sidebarW (fully open)
       const offset = Math.max(0, Math.min(dx, sidebarW));
-      const progress = offset / sidebarW; // 0–1
+      const progress = offset / sidebarW;
       sidebar.style.transform = `translateX(${offset - sidebarW}px)`;
       sidebar.style.pointerEvents = "none";
       if (backdrop) backdrop.style.opacity = String(progress * 0.4);
@@ -242,30 +240,36 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         sidebar = null;
         return;
       }
+      const el = sidebar;
       const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
       const progress = Math.max(0, dx) / sidebarW;
 
       // Re-enable CSS transition for snap animation
-      sidebar.style.transition = "";
-      sidebar.style.pointerEvents = "";
+      el.style.transition = "";
+      el.style.pointerEvents = "";
 
       if (progress > SNAP_RATIO) {
-        // Snap open
-        sidebar.style.transform = "";
+        // Snap open: animate to translateX(0), then clear inline for React
+        el.style.transform = "translateX(0)";
         setSidebarOpenWithHistory(true);
-        // backdrop will be replaced by React-rendered one
+        setTimeout(() => {
+          el.style.transform = "";
+        }, TRANSITION_MS + 50);
         if (backdrop) {
+          backdrop.style.transition = `opacity ${TRANSITION_MS}ms`;
           backdrop.style.opacity = "0.4";
-          backdrop.style.transition = "opacity 0.2s";
-          setTimeout(() => backdrop?.remove(), 300);
+          setTimeout(() => backdrop?.remove(), TRANSITION_MS);
         }
       } else {
-        // Snap back (restore collapsed position)
-        sidebar.style.transform = `translateX(${-sidebarW - 1}px)`;
+        // Snap back: animate to collapsed position, then clear inline for CSS class
+        el.style.transform = `translateX(${-sidebarW - 1}px)`;
+        setTimeout(() => {
+          el.style.transform = "";
+        }, TRANSITION_MS + 50);
         if (backdrop) {
+          backdrop.style.transition = `opacity ${TRANSITION_MS}ms`;
           backdrop.style.opacity = "0";
-          backdrop.style.transition = "opacity 0.2s";
-          setTimeout(() => backdrop?.remove(), 300);
+          setTimeout(() => backdrop?.remove(), TRANSITION_MS);
         }
       }
 

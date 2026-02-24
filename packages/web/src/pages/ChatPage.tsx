@@ -263,6 +263,24 @@ const mdComponents = {
         />
       );
     }
+    if (href && /\.html?$/i.test(href) && href.startsWith("/files/")) {
+      return (
+        <div className="message-html-preview">
+          <div className="message-html-header">
+            <span>{decodeURIComponent(href.split("/").pop() || "")}</span>
+            <a href={href} target="_blank" rel="noopener noreferrer">
+              Open ↗
+            </a>
+          </div>
+          <iframe
+            src={href}
+            sandbox="allow-scripts allow-same-origin"
+            className="message-html-iframe"
+            title="HTML preview"
+          />
+        </div>
+      );
+    }
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
         {children}

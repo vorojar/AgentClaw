@@ -87,7 +87,7 @@ async function runClaudeCode(
     child.stdin!.write(prompt);
     child.stdin!.end();
 
-    child.on("close", (code) => {
+    child.on("close", async (code) => {
       if (code !== 0 && code !== null && totalChars === 0) {
         resolve({
           content: stderrBuf || `Claude Code exited with code ${code}`,
@@ -95,6 +95,21 @@ async function runClaudeCode(
           metadata: { exitCode: code },
         });
         return;
+      }
+
+      // Auto-send output files in data/tmp or data/temp to the user
+      const sendFile = context?.sendFile;
+      if (sendFile && filesChanged.length > 0) {
+        const outputRe = /[/\\]data[/\\]te?mp[/\\]/i;
+        for (const f of filesChanged) {
+          if (outputRe.test(f)) {
+            try {
+              await sendFile(f);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
       }
 
       // Return compact summary to outer LLM — the user already saw the full text

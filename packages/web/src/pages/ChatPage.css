@@ -580,6 +580,41 @@
   display: block;
 }
 
+.message-html-preview {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.message-html-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  font-size: 13px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.message-html-header a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.message-html-header a:hover {
+  text-decoration: underline;
+}
+
+.message-html-iframe {
+  width: 100%;
+  height: 480px;
+  border: none;
+  background: #fff;
+}
+
 .message-content-md pre {
   background: var(--bg-tertiary);
   padding: 12px;

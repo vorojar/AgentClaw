@@ -35,6 +35,9 @@ export async function createServer(
 
   const app = Fastify({
     logger: true,
+    // Cloudflare Tunnel reuses connections aggressively; Node.js default
+    // keepAliveTimeout (5 s) is too short, causing 502/503 on reused sockets.
+    keepAliveTimeout: 120_000,
   });
 
   // Register plugins

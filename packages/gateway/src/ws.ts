@@ -108,10 +108,31 @@ export function getWsClients(): Set<import("ws").WebSocket> {
   return wsClients;
 }
 
+/** Ping interval (ms) — keeps Cloudflare Tunnel / reverse proxies alive */
+const WS_PING_INTERVAL = 30_000;
+
 export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
   app.get("/ws", { websocket: true }, (socket, req) => {
     wsClients.add(socket);
-    socket.on("close", () => wsClients.delete(socket));
+
+    // ── Server-side ping to keep connection alive through proxies ──
+    let alive = true;
+    const pingTimer = setInterval(() => {
+      if (!alive) {
+        socket.terminate();
+        return;
+      }
+      alive = false;
+      socket.ping();
+    }, WS_PING_INTERVAL);
+    socket.on("pong", () => {
+      alive = true;
+    });
+    socket.on("close", () => {
+      clearInterval(pingTimer);
+      wsClients.delete(socket);
+    });
+
     const sessionId = (req.query as Record<string, string>).sessionId;
 
     if (!sessionId) {

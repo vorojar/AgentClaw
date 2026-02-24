@@ -449,6 +449,10 @@ export function ChatPage() {
           setWsDisconnected(true);
           setIsSending(false);
           setActiveToolName(null);
+          // Auto-reconnect after 3 s (only if this generation is still current)
+          setTimeout(() => {
+            if (wsGenRef.current === gen) connectWs();
+          }, 3000);
         }
       },
       () => {

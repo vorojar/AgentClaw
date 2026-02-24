@@ -11,6 +11,8 @@
 - **工具调用格式化**：JSON 用 `react-json-view-lite` 可折叠树形展示（适配亮/暗主题），Markdown 用 `remark-gfm` 渲染表格等 GFM 语法（行内代码保持 inline），INPUT/OUTPUT 标签右侧 hover 显示 Copy 按钮一键复制整段
 
 ### 修复
+- **claude_code 输出路径**：自动注入 `data/tmp/` 目录约束到 Claude Code prompt，防止文件生成在项目根目录导致预览按钮不显示
+- **WS 断连崩溃**：所有 `socket.send()` 替换为 `safeSend()`（readyState 检查 + try/catch），防止 socket 关闭后 send 抛异常级联崩溃；ping 超时从 1 轮（30s）放宽到 2 轮（60s），容忍长任务期间的瞬时延迟
 - **工具调用 Markdown 渲染崩溃**：`ToolResultContent` 中 `markdownComponents` 未定义，修正为 `mdComponents`
 - **Cloudflare Tunnel 503**：Fastify `keepAliveTimeout` 从默认 5s 增至 120s，防止 Tunnel 复用已关闭连接导致 502/503
 - **WS 长推理断连**：服务端每 30s 发 ping 帧保活，防止 Cloudflare Tunnel / 反代因空闲超时关闭 WebSocket

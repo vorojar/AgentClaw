@@ -1,8 +1,10 @@
 import { spawn } from "node:child_process";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 const DEFAULT_TIMEOUT = 600_000; // 10 minutes — coding tasks are long
+const OUTPUT_DIR = join(process.cwd(), "data", "tmp").replace(/\\/g, "/");
 
 /**
  * Spawn `claude` CLI in print mode with stream-json output.
@@ -83,8 +85,10 @@ async function runClaudeCode(
       stderrBuf += data.toString();
     });
 
-    // Write prompt to stdin and close
-    child.stdin!.write(prompt);
+    // Inject output directory constraint + write prompt to stdin
+    child.stdin!.write(
+      `${prompt}\n\nIMPORTANT: All generated output files MUST be saved to ${OUTPUT_DIR}/ directory. Never save files to the project root or other locations.`,
+    );
     child.stdin!.end();
 
     child.on("close", async (code) => {

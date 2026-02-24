@@ -115,18 +115,37 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
   app.get("/ws", { websocket: true }, (socket, req) => {
     wsClients.add(socket);
 
+    /** Safe send — silently drops if socket is not OPEN */
+    function safeSend(data: string): void {
+      if (socket.readyState === 1 /* OPEN */) {
+        try {
+          socket.send(data);
+        } catch {
+          /* socket closed between check and send — ignore */
+        }
+      }
+    }
+
     // ── Server-side ping to keep connection alive through proxies ──
     let alive = true;
+    let missedPongs = 0;
     const pingTimer = setInterval(() => {
       if (!alive) {
-        socket.terminate();
-        return;
+        missedPongs++;
+        // Tolerate 2 missed pongs (60s) before killing — long tasks may delay browser
+        if (missedPongs >= 2) {
+          socket.terminate();
+          return;
+        }
+      } else {
+        missedPongs = 0;
       }
       alive = false;
       socket.ping();
     }, WS_PING_INTERVAL);
     socket.on("pong", () => {
       alive = true;
+      missedPongs = 0;
     });
     socket.on("close", () => {
       clearInterval(pingTimer);
@@ -153,18 +172,18 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           typeof rawData === "string" ? rawData : rawData.toString("utf-8");
         parsed = JSON.parse(str);
       } catch {
-        socket.send(JSON.stringify({ type: "error", error: "Invalid JSON" }));
+        safeSend(JSON.stringify({ type: "error", error: "Invalid JSON" }));
         return;
       }
 
       if (parsed.type === "stop") {
         const stopped = ctx.orchestrator.stopSession(sessionId);
-        socket.send(JSON.stringify({ type: "stopped", success: stopped }));
+        safeSend(JSON.stringify({ type: "stopped", success: stopped }));
         return;
       }
 
       if (parsed.type !== "message" || !parsed.content) {
-        socket.send(
+        safeSend(
           JSON.stringify({
             type: "error",
             error: "Expected { type: 'message', content: '...' }",
@@ -177,7 +196,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
         // Verify session exists
         const session = await ctx.orchestrator.getSession(sessionId);
         if (!session) {
-          socket.send(
+          safeSend(
             JSON.stringify({
               type: "error",
               error: `Session not found: ${sessionId}`,
@@ -196,10 +215,10 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
             if (!sentFiles.some((f) => f.url === url)) {
               sentFiles.push({ url, filename });
             }
-            socket.send(JSON.stringify({ type: "file", url, filename }));
+            safeSend(JSON.stringify({ type: "file", url, filename }));
           },
           streamText: (text: string) => {
-            socket.send(JSON.stringify({ type: "text", text }));
+            safeSend(JSON.stringify({ type: "text", text }));
           },
         };
 
@@ -226,7 +245,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           switch (event.type) {
             case "tool_call": {
               const data = event.data as { name: string; input: unknown };
-              socket.send(
+              safeSend(
                 JSON.stringify({
                   type: "tool_call",
                   toolName: data.name,
@@ -243,7 +262,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
                 name: string;
                 result: { content: string };
               };
-              socket.send(
+              safeSend(
                 JSON.stringify({
                   type: "tool_result",
                   toolName: data.name,
@@ -254,7 +273,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
             }
             case "response_chunk": {
               const data = event.data as { text: string };
-              socket.send(
+              safeSend(
                 JSON.stringify({
                   type: "text",
                   text: data.text,
@@ -275,7 +294,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
             }
             case "error": {
               const data = event.data as { message?: string; error?: string };
-              socket.send(
+              safeSend(
                 JSON.stringify({
                   type: "error",
                   error: data.message || data.error || "Unknown error",
@@ -284,7 +303,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
               break;
             }
             case "thinking":
-              socket.send(JSON.stringify({ type: "thinking" }));
+              safeSend(JSON.stringify({ type: "thinking" }));
               break;
             default:
               // state_change — skip
@@ -292,11 +311,11 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           }
         }
 
-        socket.send(JSON.stringify({ type: "done", ...usageStats }));
+        safeSend(JSON.stringify({ type: "done", ...usageStats }));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        socket.send(JSON.stringify({ type: "error", error: message }));
-        socket.send(JSON.stringify({ type: "done" }));
+        safeSend(JSON.stringify({ type: "error", error: message }));
+        safeSend(JSON.stringify({ type: "done" }));
       }
     });
   });

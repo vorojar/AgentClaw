@@ -14,6 +14,9 @@ import {
   closeSession,
 } from "../api/client";
 
+const isMobile = () =>
+  typeof matchMedia !== "undefined" && matchMedia("(max-width: 768px)").matches;
+
 interface SessionContextValue {
   sessions: SessionInfo[];
   activeSessionId: string | null;
@@ -140,6 +143,69 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // ── Mobile: browser-back closes sidebar ──
+  const sidebarHistoryRef = useRef(false);
+
+  const setSidebarOpenWithHistory = useCallback(
+    (open: boolean) => {
+      setSidebarOpen(open);
+      if (!isMobile()) return;
+      if (open && !sidebarHistoryRef.current) {
+        // Push dummy entry so "back" closes sidebar instead of navigating away
+        history.pushState({ _sidebar: true }, "");
+        sidebarHistoryRef.current = true;
+      } else if (!open && sidebarHistoryRef.current) {
+        // Closed by code (backdrop / nav item) — pop our entry
+        sidebarHistoryRef.current = false;
+        history.back();
+      }
+    },
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  useEffect(() => {
+    function onPopState() {
+      if (sidebarHistoryRef.current) {
+        sidebarHistoryRef.current = false;
+        setSidebarOpen(false);
+      }
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Mobile: swipe-right from left edge to open sidebar ──
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    function onTouchStart(e: TouchEvent) {
+      const t = e.touches[0];
+      if (t.clientX < 24 && isMobile()) {
+        startX = t.clientX;
+        startY = t.clientY;
+        tracking = true;
+      }
+    }
+    function onTouchEnd(e: TouchEvent) {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const dy = Math.abs(t.clientY - startY);
+      if (dx > 50 && dy < dx) {
+        setSidebarOpenWithHistory(true);
+      }
+    }
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [setSidebarOpenWithHistory]);
+
   return (
     <SessionContext.Provider
       value={{
@@ -147,7 +213,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         activeSessionId,
         sidebarOpen,
         searchQuery,
-        setSidebarOpen,
+        setSidebarOpen: setSidebarOpenWithHistory,
         setSearchQuery,
         handleNewChat,
         handleDeleteSession,

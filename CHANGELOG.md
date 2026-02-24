@@ -7,6 +7,7 @@
 - **claude_code 流式输出**：Claude Code 的文本实时流入用户聊天气泡（通过 `streamText` 回调直推 WS），工具完成后返回精简摘要给外层 LLM + `autoComplete` 跳过外层总结，大幅节省 token
 
 ### 改进
+- **手机端侧边栏手势**：左边缘右滑打开侧边栏；打开时浏览器返回键/手势关闭侧边栏（而非离开页面），通过 `history.pushState` 实现
 - **Artifacts 预览**：代码块支持 HTML / SVG / Mermaid 实时预览（Preview 按钮切换）；HTML 文件链接显示为紧凑卡片，点击弹出全屏 overlay 渲染（← Back + Open ↗ + ESC 关闭）；`claude_code` 生成的输出文件自动 sendFile；`/files/` 路由同时服务 `data/tmp` 和 `data/temp`
 - **工具调用格式化**：JSON 用 `react-json-view-lite` 可折叠树形展示（适配亮/暗主题），Markdown 用 `remark-gfm` 渲染表格等 GFM 语法（行内代码保持 inline），INPUT/OUTPUT 标签右侧 hover 显示 Copy 按钮一键复制整段
 

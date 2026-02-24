@@ -244,6 +244,7 @@ export async function bootstrap(): Promise<AppContext> {
     planner: true, // 启用 plan_task
     skills: true, // 启用 use_skill
     delegate: true, // 启用 delegate_task（子 agent）
+    claudeCode: true, // 启用 claude_code（Claude Code CLI）
   });
   for (const tool of builtinTools) {
     toolRegistry.register(tool);

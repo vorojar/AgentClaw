@@ -10,6 +10,7 @@ import { rememberTool } from "./remember.js";
 import { planTaskTool } from "./plan-task.js";
 import { useSkillTool } from "./use-skill.js";
 import { delegateTaskTool } from "./delegate-task.js";
+import { claudeCodeTool } from "./claude-code.js";
 
 // Re-exports for backwards compatibility (other packages may import these)
 export { shellTool, shellInfo } from "./shell.js";
@@ -23,6 +24,7 @@ export { rememberTool } from "./remember.js";
 export { planTaskTool } from "./plan-task.js";
 export { useSkillTool } from "./use-skill.js";
 export { delegateTaskTool } from "./delegate-task.js";
+export { claudeCodeTool } from "./claude-code.js";
 
 /** Options for configuring which conditional tools to include */
 export interface BuiltinToolsOptions {
@@ -36,6 +38,8 @@ export interface BuiltinToolsOptions {
   skills?: boolean;
   /** Enable delegate_task tool (sub-agent spawning) */
   delegate?: boolean;
+  /** Enable claude_code tool (Claude Code CLI integration) */
+  claudeCode?: boolean;
 }
 
 /** Create built-in tools with tiered loading */
@@ -58,6 +62,9 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
   }
   if (options?.delegate) {
     tools.push(delegateTaskTool);
+  }
+  if (options?.claudeCode) {
+    tools.push(claudeCodeTool);
   }
 
   return tools;

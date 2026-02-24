@@ -248,6 +248,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       el.style.transition = "";
       el.style.pointerEvents = "";
 
+      // Capture ref before nulling — closure needs a stable reference
+      const bd = backdrop;
+
       if (progress > SNAP_RATIO) {
         // Snap open: animate to translateX(0), then clear inline for React
         el.style.transform = "translateX(0)";
@@ -255,10 +258,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => {
           el.style.transform = "";
         }, TRANSITION_MS + 50);
-        if (backdrop) {
-          backdrop.style.transition = `opacity ${TRANSITION_MS}ms`;
-          backdrop.style.opacity = "0.4";
-          setTimeout(() => backdrop?.remove(), TRANSITION_MS);
+        if (bd) {
+          bd.style.transition = `opacity ${TRANSITION_MS}ms`;
+          bd.style.opacity = "0.4";
+          setTimeout(() => bd.remove(), TRANSITION_MS);
         }
       } else {
         // Snap back: animate to collapsed position, then clear inline for CSS class
@@ -266,10 +269,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => {
           el.style.transform = "";
         }, TRANSITION_MS + 50);
-        if (backdrop) {
-          backdrop.style.transition = `opacity ${TRANSITION_MS}ms`;
-          backdrop.style.opacity = "0";
-          setTimeout(() => backdrop?.remove(), TRANSITION_MS);
+        if (bd) {
+          bd.style.transition = `opacity ${TRANSITION_MS}ms`;
+          bd.style.opacity = "0";
+          setTimeout(() => bd.remove(), TRANSITION_MS);
         }
       }
 

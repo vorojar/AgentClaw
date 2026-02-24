@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -236,13 +237,15 @@ function HtmlPreviewCard({
         <span className="html-preview-name">{filename}</span>
         <span className="html-preview-badge">Preview</span>
       </div>
-      {open && (
-        <HtmlPreviewOverlay
-          href={href}
-          filename={filename}
-          onClose={() => setOpen(false)}
-        />
-      )}
+      {open &&
+        createPortal(
+          <HtmlPreviewOverlay
+            href={href}
+            filename={filename}
+            onClose={() => setOpen(false)}
+          />,
+          document.body,
+        )}
     </>
   );
 }

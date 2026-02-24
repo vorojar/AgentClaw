@@ -174,35 +174,115 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("popstate", onPopState);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Mobile: swipe-right from left edge to open sidebar ──
+  // ── Mobile: drag-to-reveal sidebar (follows finger) ──
+  const openRef = useRef(sidebarOpen);
+  openRef.current = sidebarOpen;
+
   useEffect(() => {
+    const EDGE = 40; // px from left edge to start tracking
+    const SNAP_RATIO = 0.35; // release past 35% of sidebar width → snap open
+
     let startX = 0;
     let startY = 0;
-    let tracking = false;
+    let dragging = false;
+    let decided = false; // horizontal vs vertical lock
+    let sidebar: HTMLElement | null = null;
+    let backdrop: HTMLElement | null = null;
+    let sidebarW = 260;
 
     function onTouchStart(e: TouchEvent) {
+      if (!isMobile() || openRef.current) return;
       const t = e.touches[0];
-      if (t.clientX < 40 && isMobile()) {
-        startX = t.clientX;
-        startY = t.clientY;
-        tracking = true;
-      }
+      if (t.clientX > EDGE) return;
+      sidebar = document.querySelector<HTMLElement>(".sidebar");
+      if (!sidebar) return;
+      sidebarW = sidebar.offsetWidth || 260;
+      startX = t.clientX;
+      startY = t.clientY;
+      dragging = false;
+      decided = false;
     }
-    function onTouchEnd(e: TouchEvent) {
-      if (!tracking) return;
-      tracking = false;
-      const t = e.changedTouches[0];
+
+    function onTouchMove(e: TouchEvent) {
+      if (sidebar === null) return;
+      const t = e.touches[0];
       const dx = t.clientX - startX;
       const dy = Math.abs(t.clientY - startY);
-      if (dx > 50 && dy < dx) {
-        setSidebarOpenWithHistory(true);
+
+      // Lock direction on first significant move
+      if (!decided && (dx > 10 || dy > 10)) {
+        decided = true;
+        if (dy > dx) {
+          // Vertical scroll — abort
+          sidebar = null;
+          return;
+        }
+        // Start dragging — disable CSS transition for real-time follow
+        dragging = true;
+        sidebar.style.transition = "none";
+        // Create backdrop
+        backdrop = document.createElement("div");
+        backdrop.className = "sidebar-backdrop";
+        backdrop.style.opacity = "0";
+        backdrop.style.animation = "none";
+        sidebar.parentElement?.appendChild(backdrop);
       }
+      if (!dragging) return;
+
+      // Clamp offset: 0 (fully hidden) → sidebarW (fully open)
+      const offset = Math.max(0, Math.min(dx, sidebarW));
+      const progress = offset / sidebarW; // 0–1
+      sidebar.style.transform = `translateX(${offset - sidebarW}px)`;
+      sidebar.style.pointerEvents = "none";
+      if (backdrop) backdrop.style.opacity = String(progress * 0.4);
     }
+
+    function onTouchEnd(e: TouchEvent) {
+      if (!dragging || !sidebar) {
+        sidebar = null;
+        return;
+      }
+      const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
+      const progress = Math.max(0, dx) / sidebarW;
+
+      // Re-enable CSS transition for snap animation
+      sidebar.style.transition = "";
+      sidebar.style.pointerEvents = "";
+
+      if (progress > SNAP_RATIO) {
+        // Snap open
+        sidebar.style.transform = "";
+        setSidebarOpenWithHistory(true);
+        // backdrop will be replaced by React-rendered one
+        if (backdrop) {
+          backdrop.style.opacity = "0.4";
+          backdrop.style.transition = "opacity 0.2s";
+          setTimeout(() => backdrop?.remove(), 300);
+        }
+      } else {
+        // Snap back (restore collapsed position)
+        sidebar.style.transform = `translateX(${-sidebarW - 1}px)`;
+        if (backdrop) {
+          backdrop.style.opacity = "0";
+          backdrop.style.transition = "opacity 0.2s";
+          setTimeout(() => backdrop?.remove(), 300);
+        }
+      }
+
+      sidebar = null;
+      backdrop = null;
+      dragging = false;
+    }
+
     document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: true });
     document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchEnd, { passive: true });
     return () => {
       document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [setSidebarOpenWithHistory]);
 

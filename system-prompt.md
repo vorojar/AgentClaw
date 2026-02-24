@@ -25,5 +25,6 @@
 - Email → `use_skill("imap-smtp-email")`.
 - Media → bash + ffmpeg/ffprobe
 - STT → `python scripts/transcribe.py <file>` (timeout 120000)
+- Coding tasks (write/fix/refactor code, create projects, multi-file changes) → `claude_code`. NOT file_write.
 - Output files → save to {{tempdir}}, set `auto_send: true`.
 - Screenshot → active window; "全屏截图" → full screen.

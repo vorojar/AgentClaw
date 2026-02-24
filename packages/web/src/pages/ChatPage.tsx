@@ -217,6 +217,65 @@ function formatUsageStats(msg: DisplayMessage): string | null {
   return parts.length > 0 ? parts.join(" \u00B7 ") : null;
 }
 
+/* ── HTML Preview Card + Overlay ── */
+
+function HtmlPreviewCard({ href, filename }: { href: string; filename: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="html-preview-card" onClick={() => setOpen(true)}>
+        <span className="html-preview-icon">&#9654;</span>
+        <span className="html-preview-name">{filename}</span>
+        <span className="html-preview-badge">Preview</span>
+      </div>
+      {open && (
+        <HtmlPreviewOverlay href={href} filename={filename} onClose={() => setOpen(false)} />
+      )}
+    </>
+  );
+}
+
+function HtmlPreviewOverlay({
+  href,
+  filename,
+  onClose,
+}: {
+  href: string;
+  filename: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="html-overlay" onClick={onClose}>
+      <div className="html-overlay-content" onClick={(e) => e.stopPropagation()}>
+        <div className="html-overlay-toolbar">
+          <button className="html-overlay-back" onClick={onClose}>← Back</button>
+          <span className="html-overlay-title">{filename}</span>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="html-overlay-open"
+          >
+            Open ↗
+          </a>
+        </div>
+        <iframe
+          src={href}
+          sandbox="allow-scripts allow-same-origin"
+          className="html-overlay-iframe"
+          title="HTML preview"
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ── Stable ReactMarkdown components (avoid re-mount on re-render) ── */
 
 const mdComponents = {
@@ -264,22 +323,8 @@ const mdComponents = {
       );
     }
     if (href && /\.html?$/i.test(href) && href.startsWith("/files/")) {
-      return (
-        <div className="message-html-preview">
-          <div className="message-html-header">
-            <span>{decodeURIComponent(href.split("/").pop() || "")}</span>
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              Open ↗
-            </a>
-          </div>
-          <iframe
-            src={href}
-            sandbox="allow-scripts allow-same-origin"
-            className="message-html-iframe"
-            title="HTML preview"
-          />
-        </div>
-      );
+      const filename = decodeURIComponent(href.split("/").pop() || "");
+      return <HtmlPreviewCard href={href} filename={filename} />;
     }
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" {...props}>

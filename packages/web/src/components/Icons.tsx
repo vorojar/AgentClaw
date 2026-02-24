@@ -271,3 +271,22 @@ export function IconEdit({ size }: { size?: number }) {
     </I>
   );
 }
+
+export function IconArrowLeft({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </I>
+  );
+}
+
+export function IconExternalLink({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </I>
+  );
+}

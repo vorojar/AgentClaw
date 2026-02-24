@@ -27,6 +27,8 @@ import {
   IconClock,
   IconChevronRight,
   IconX,
+  IconArrowLeft,
+  IconExternalLink,
 } from "../components/Icons";
 import { exportAsMarkdown } from "../utils/export";
 import {
@@ -219,7 +221,13 @@ function formatUsageStats(msg: DisplayMessage): string | null {
 
 /* ── HTML Preview Card + Overlay ── */
 
-function HtmlPreviewCard({ href, filename }: { href: string; filename: string }) {
+function HtmlPreviewCard({
+  href,
+  filename,
+}: {
+  href: string;
+  filename: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -229,7 +237,11 @@ function HtmlPreviewCard({ href, filename }: { href: string; filename: string })
         <span className="html-preview-badge">Preview</span>
       </div>
       {open && (
-        <HtmlPreviewOverlay href={href} filename={filename} onClose={() => setOpen(false)} />
+        <HtmlPreviewOverlay
+          href={href}
+          filename={filename}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   );
@@ -245,7 +257,9 @@ function HtmlPreviewOverlay({
   onClose: () => void;
 }) {
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
@@ -254,11 +268,17 @@ function HtmlPreviewOverlay({
     <div className="html-overlay">
       <div className="html-overlay-toolbar">
         <button className="html-overlay-btn" onClick={onClose} title="Close">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          <IconArrowLeft size={20} />
         </button>
         <span className="html-overlay-title">{filename}</span>
-        <a href={href} target="_blank" rel="noopener noreferrer" className="html-overlay-btn" title="Open in new tab">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="html-overlay-btn"
+          title="Open in new tab"
+        >
+          <IconExternalLink size={18} />
         </a>
       </div>
       <iframe

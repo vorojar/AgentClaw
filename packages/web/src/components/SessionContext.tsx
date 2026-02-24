@@ -182,7 +182,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     function onTouchStart(e: TouchEvent) {
       const t = e.touches[0];
-      if (t.clientX < 24 && isMobile()) {
+      if (t.clientX < 40 && isMobile()) {
         startX = t.clientX;
         startY = t.clientY;
         tracking = true;

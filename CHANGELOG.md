@@ -6,6 +6,7 @@
 - **Cloudflare Tunnel 503**：Fastify `keepAliveTimeout` 从默认 5s 增至 120s，防止 Tunnel 复用已关闭连接导致 502/503
 - **WS 长推理断连**：服务端每 30s 发 ping 帧保活，防止 Cloudflare Tunnel / 反代因空闲超时关闭 WebSocket
 - **WS 自动重连**：断连后 3s 自动重连，无需手动点击 Reconnect
+- **`/files/` 缓存**：生成文件加 `Cache-Control: max-age=7d, immutable`，加载成功后浏览器直接走缓存，避免 VPN/Tunnel 慢速链路重复下载
 
 ## [0.7.4] - 2026-02-24
 

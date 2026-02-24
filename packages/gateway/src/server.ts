@@ -75,6 +75,10 @@ export async function createServer(
     root: dataFilesDir,
     prefix: "/files/",
     decorateReply: false,
+    // Generated files use snowflake IDs — immutable, safe to cache forever.
+    // Prevents re-download through slow VPN/Tunnel paths.
+    maxAge: "7d",
+    immutable: true,
   });
   console.log("[server] Serving generated files from", dataFilesDir);
 

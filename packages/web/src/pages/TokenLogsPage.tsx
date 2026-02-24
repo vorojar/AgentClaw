@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { PageHeader } from "../components/PageHeader";
 import { getTokenLogs, type TokenLogEntry } from "../api/client";
 import "./TokenLogsPage.css";
 
@@ -47,7 +48,7 @@ export function TokenLogsPage() {
 
   return (
     <>
-      <div className="page-header">Token Logs</div>
+      <PageHeader>Token Logs</PageHeader>
       <div className="page-body">
         {error && <div className="token-logs-error">{error}</div>}
 

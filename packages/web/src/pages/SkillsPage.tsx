@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { PageHeader } from "../components/PageHeader";
 import {
   listSkills,
   updateSkillEnabled,
@@ -112,7 +113,7 @@ export function SkillsPage() {
   if (loading) {
     return (
       <>
-        <div className="page-header">Skills</div>
+        <PageHeader>Skills</PageHeader>
         <div className="page-body">
           <div className="skills-page-loading">Loading skills...</div>
         </div>
@@ -122,7 +123,7 @@ export function SkillsPage() {
 
   return (
     <>
-      <div className="page-header">Skills</div>
+      <PageHeader>Skills</PageHeader>
       <div className="page-body">
         {error && (
           <div className="skills-page-error">

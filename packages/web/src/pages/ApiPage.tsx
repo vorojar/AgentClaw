@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageHeader } from "../components/PageHeader";
 import "./ApiPage.css";
 
 interface Endpoint {
@@ -173,7 +174,7 @@ function TryPanel({ endpoint }: { endpoint: Endpoint }) {
 export function ApiPage() {
   return (
     <>
-      <div className="page-header">API Reference</div>
+      <PageHeader>API Reference</PageHeader>
       <div className="page-body">
         <div className="api-groups">
           {API_GROUPS.map((group) => (

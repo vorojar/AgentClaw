@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { PageHeader } from "../components/PageHeader";
 import { getTraces, type TraceInfo, type TraceStep } from "../api/client";
 import { getStoredApiKey } from "../auth";
 import "./TracesPage.css";
@@ -318,7 +319,7 @@ export function TracesPage() {
 
   return (
     <>
-      <div className="page-header">Traces</div>
+      <PageHeader>Traces</PageHeader>
       <div className="page-body">
         {error && <div className="traces-error">{error}</div>}
 

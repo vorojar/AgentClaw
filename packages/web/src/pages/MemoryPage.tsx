@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { PageHeader } from "../components/PageHeader";
 import { searchMemories, deleteMemory, type MemoryInfo } from "../api/client";
 import "./MemoryPage.css";
 
@@ -113,7 +114,7 @@ export function MemoryPage() {
 
   return (
     <>
-      <div className="page-header">Memory</div>
+      <PageHeader>Memory</PageHeader>
       <div className="page-body">
         <div className="memory-toolbar">
           <div className="memory-search-row">

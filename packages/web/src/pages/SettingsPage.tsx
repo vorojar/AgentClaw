@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { PageHeader } from "../components/PageHeader";
 import {
   getConfig,
   getStats,
@@ -122,7 +123,7 @@ export function SettingsPage() {
   if (loading) {
     return (
       <>
-        <div className="page-header">Settings</div>
+        <PageHeader>Settings</PageHeader>
         <div className="page-body">
           <div className="settings-loading">Loading settings...</div>
         </div>
@@ -132,7 +133,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <div className="page-header">Settings</div>
+      <PageHeader>Settings</PageHeader>
       <div className="page-body">
         {error && <div className="settings-error">{error}</div>}
 

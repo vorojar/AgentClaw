@@ -378,6 +378,7 @@ export function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingSendRef = useRef<string | null>(null);
   const skipHistoryRef = useRef(false);
+  const stoppedRef = useRef(false);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -481,6 +482,10 @@ export function ChatPage() {
 
   /* WS message handler */
   const handleWsMessage = useCallback((msg: WSMessage) => {
+    // After stop is requested, ignore streaming events until "done" arrives
+    if (stoppedRef.current && msg.type !== "done" && msg.type !== "error") {
+      return;
+    }
     switch (msg.type) {
       case "text": {
         setActiveToolName(null);
@@ -599,6 +604,7 @@ export function ChatPage() {
         break;
       }
       case "done": {
+        stoppedRef.current = false;
         setActiveToolName(null);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
@@ -751,6 +757,7 @@ export function ChatPage() {
 
   const handleStop = useCallback(() => {
     if (!wsRef.current) return;
+    stoppedRef.current = true;
     wsRef.current.stop();
     setIsSending(false);
     setActiveToolName(null);
@@ -791,9 +798,19 @@ export function ChatPage() {
     });
   }, []);
 
+  const isTouchDevice = useRef(
+    typeof matchMedia !== "undefined" &&
+      matchMedia("(pointer: coarse)").matches,
+  );
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      // Mobile: Enter = newline (send via button). Desktop: Enter = send.
+      if (
+        e.key === "Enter" &&
+        !e.shiftKey &&
+        !e.nativeEvent.isComposing &&
+        !isTouchDevice.current
+      ) {
         e.preventDefault();
         handleSend();
       }

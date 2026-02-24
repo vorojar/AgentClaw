@@ -7,6 +7,9 @@
 - **WS 长推理断连**：服务端每 30s 发 ping 帧保活，防止 Cloudflare Tunnel / 反代因空闲超时关闭 WebSocket
 - **WS 自动重连**：断连后 3s 自动重连，无需手动点击 Reconnect
 - **`/files/` 缓存**：生成文件加 `Cache-Control: max-age=7d, immutable`，加载成功后浏览器直接走缓存，避免 VPN/Tunnel 慢速链路重复下载
+- **Stop 按钮无效**：点击停止后服务端仍在发 text chunk 导致创建新 assistant 消息，加 `stoppedRef` 在 `done` 到达前忽略所有流式事件
+- **手机回车误发送**：触控设备（`pointer: coarse`）Enter 键改为换行，通过发送按钮发送；桌面端保持 Enter 发送
+- **手机侧边栏自动弹出**：窄屏（≤768px）默认关闭侧边栏
 
 ## [0.7.4] - 2026-02-24
 

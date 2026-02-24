@@ -49,7 +49,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
     sessionIdFromPath(window.location.pathname),
   );
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () =>
+      typeof matchMedia === "undefined" ||
+      !matchMedia("(max-width: 768px)").matches,
+  );
   const [searchQuery, setSearchQuery] = useState("");
 
   /* Load sessions on mount */

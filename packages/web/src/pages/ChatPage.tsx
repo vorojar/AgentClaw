@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   type ChatMessage,
   type WSMessage,
@@ -314,7 +315,9 @@ function ToolResultContent({
     const text = "text" in parsed ? parsed.text : result;
     return (
       <div className="tool-call-content tool-result-md">
-        <ReactMarkdown components={mdComponents}>{text}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+          {text}
+        </ReactMarkdown>
       </div>
     );
   }
@@ -1025,7 +1028,10 @@ export function ChatPage() {
                                   />
                                 ))}
                                 <div className="message-content-md">
-                                  <ReactMarkdown components={mdComponents}>
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={mdComponents}
+                                  >
                                     {parsed.text}
                                   </ReactMarkdown>
                                   {m.streaming && m.toolCalls.length === 0 && (

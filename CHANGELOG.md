@@ -10,6 +10,7 @@
 - **工具调用格式化**：INPUT 用 JSON 语法高亮（CodeBlock），OUTPUT 自动检测类型 — JSON 高亮、Markdown 渲染、纯文本等宽显示
 
 ### 修复
+- **工具调用 Markdown 渲染崩溃**：`ToolResultContent` 中 `markdownComponents` 未定义，修正为 `mdComponents`
 - **Cloudflare Tunnel 503**：Fastify `keepAliveTimeout` 从默认 5s 增至 120s，防止 Tunnel 复用已关闭连接导致 502/503
 - **WS 长推理断连**：服务端每 30s 发 ping 帧保活，防止 Cloudflare Tunnel / 反代因空闲超时关闭 WebSocket
 - **WS 自动重连**：断连后 3s 自动重连，无需手动点击 Reconnect

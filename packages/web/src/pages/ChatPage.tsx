@@ -325,7 +325,7 @@ function ToolResultContent({
   if (MD_RE.test(content)) {
     return (
       <div className="tool-call-content tool-result-success tool-result-md">
-        <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
+        <ReactMarkdown components={mdComponents}>{content}</ReactMarkdown>
       </div>
     );
   }

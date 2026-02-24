@@ -220,10 +220,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
         dragging = true;
         sidebar.style.transition = "none";
+        // Inline-styled backdrop (no class) to avoid CSS conflicts with React's
         backdrop = document.createElement("div");
-        backdrop.className = "sidebar-backdrop";
-        backdrop.style.opacity = "0";
-        backdrop.style.animation = "none";
+        backdrop.style.cssText =
+          "position:fixed;inset:0;z-index:199;" +
+          "background:rgba(0,0,0,0.4);" +
+          "backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);" +
+          "opacity:0;pointer-events:none;";
         sidebar.parentElement?.appendChild(backdrop);
       }
       if (!dragging) return;
@@ -244,22 +247,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
       const progress = Math.max(0, dx) / sidebarW;
 
-      // Re-enable CSS transition for snap animation
       el.style.transition = "";
       el.style.pointerEvents = "";
 
-      // Capture ref before nulling — closure needs a stable reference
       const bd = backdrop;
 
       if (progress > SNAP_RATIO) {
-        // Snap open: remove manual backdrop immediately,
-        // suppress React backdrop animation to prevent flash
-        if (bd) bd.remove();
+        // Snap open: keep manual backdrop visible, hide React's until swap
+        if (bd) {
+          bd.style.transition = `opacity 200ms`;
+          bd.style.opacity = "1";
+        }
         document.documentElement.dataset.sidebarDrag = "";
         el.style.transform = "translateX(0)";
         setSidebarOpenWithHistory(true);
+        // After transition: atomic swap — remove manual + reveal React in same tick
         setTimeout(() => {
           el.style.transform = "";
+          if (bd) bd.remove();
           delete document.documentElement.dataset.sidebarDrag;
         }, TRANSITION_MS + 50);
       } else {

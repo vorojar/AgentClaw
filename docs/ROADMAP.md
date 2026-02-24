@@ -343,8 +343,8 @@
 
 | 能力 | LobsterAI | AgentClaw | 评价 |
 |---|---|---|---|
-| **沙箱隔离执行** | Alpine Linux VM (QCOW2)，进程级隔离 | 无 | LobsterAI 完胜 |
-| **Office 文档生成** | DOCX / XLSX / PPTX / PDF 全套内置 | 无 | LobsterAI 完胜 |
+| **沙箱隔离执行** | Alpine Linux VM (QCOW2)，进程级隔离 | **命令黑名单防护**（拦截 rm -rf /、格式化、关机等） | LobsterAI 胜（进程级隔离 vs 命令黑名单） |
+| **Office 文档生成** | DOCX / XLSX / PPTX / PDF 全套内置 | **DOCX / XLSX / PPTX / PDF 全套 Skill**（python-docx/openpyxl/python-pptx/PyMuPDF） | **持平** |
 | **视频生成** | Remotion 程序化生成视频 | 无 | LobsterAI 完胜 |
 | **IM 远程操控** | 钉钉 + 飞书 + Telegram + Discord (4个) | Telegram + WhatsApp (2个) | LobsterAI 覆盖广（尤其国内 IM） |
 | **技能自扩展** | skill-creator 让 AI 自己创建新技能并热加载 | **create_skill 工具 + 热加载 + 用户确认 + 提炼正确路径** | **持平**（我们多了用户确认和智能提炼） |
@@ -364,8 +364,8 @@
 
 ### 最值得借鉴的方向（优先级排序）
 
-1. **沙箱执行** — 让 agent 安全执行任意代码，是能力天花板的关键
-2. **Office 文档生成** — DOCX/XLSX/PPTX 高频刚需，加上就是巨大实用性提升
+1. **沙箱执行** — 当前仅命令黑名单防护，需真正的容器隔离（Docker/VM）
+2. ~~**Office 文档生成**~~ ✅ 已实现（DOCX/XLSX/PPTX 三个 Skill + PDF Skill）
 3. ~~**技能自创建**~~ ✅ 已实现（create_skill + 热加载 + 用户确认）
 4. **更多 IM 网关** — 钉钉、飞书对国内用户至关重要
 5. **权限门控** — 敏感操作需用户确认，提升安全性
@@ -379,7 +379,7 @@
 
 下一步优先方向：
 - React 组件实时预览（需 JSX 编译器，补齐 Artifacts 最后一块）
-- 沙箱执行环境（安全执行任意代码，能力天花板）
-- Office 文档生成工具（DOCX/XLSX/PPTX）
-- Docker 化（一键部署）
+- 沙箱容器隔离（Docker/VM，当前仅命令黑名单防护）
+- 权限门控（敏感操作需用户确认）
+- Docker 化部署（一键部署）
 - 更多 IM 网关（Discord / 钉钉 / 飞书）

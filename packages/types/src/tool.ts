@@ -39,6 +39,8 @@ export interface ToolExecutionContext {
   promptUser?: (question: string) => Promise<string>;
   /** Send a notification to the user (fire-and-forget, for reminders etc.) */
   notifyUser?: (message: string) => Promise<void>;
+  /** Stream a text chunk directly into the user's chat bubble (bypasses outer LLM) */
+  streamText?: (text: string) => void;
   /** Send a file to the user (implemented by gateway) */
   sendFile?: (filePath: string, caption?: string) => Promise<void>;
   /** Files sent during tool execution (populated by sendFile, consumed by agent-loop for persistence) */

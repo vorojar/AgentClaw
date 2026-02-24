@@ -3,7 +3,8 @@
 ## [0.7.5] - 2026-02-24
 
 ### 新功能
-- **claude_code 工具**：集成 Claude Code CLI，通过 `claude -p --dangerously-skip-permissions --output-format stream-json` 将编码任务委托给 Claude Code，支持流式输出解析和实时通知用户进度
+- **claude_code 工具**：集成 Claude Code CLI，通过 `claude -p --dangerously-skip-permissions --output-format stream-json` 将编码任务委托给 Claude Code
+- **claude_code 流式输出**：Claude Code 的文本实时流入用户聊天气泡（通过 `streamText` 回调直推 WS），工具完成后返回精简摘要给外层 LLM + `autoComplete` 跳过外层总结，大幅节省 token
 
 ### 修复
 - **Cloudflare Tunnel 503**：Fastify `keepAliveTimeout` 从默认 5s 增至 120s，防止 Tunnel 复用已关闭连接导致 502/503

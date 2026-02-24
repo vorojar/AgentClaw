@@ -198,6 +198,9 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
             }
             socket.send(JSON.stringify({ type: "file", url, filename }));
           },
+          streamText: (text: string) => {
+            socket.send(JSON.stringify({ type: "text", text }));
+          },
         };
 
         // Convert uploaded images to multimodal ContentBlock[]

@@ -6,7 +6,8 @@ const DEFAULT_TIMEOUT = 600_000; // 10 minutes — coding tasks are long
 
 /**
  * Spawn `claude` CLI in print mode with stream-json output.
- * Parses each JSON line and forwards text/tool events to the user via notifyUser.
+ * Text is streamed directly to the user's chat via context.streamText.
+ * Returns a compact summary to the outer LLM (saves tokens).
  */
 async function runClaudeCode(
   prompt: string,
@@ -22,6 +23,8 @@ async function runClaudeCode(
     "--verbose",
   ];
 
+  const stream = context?.streamText;
+
   return new Promise<ToolResult>((resolve) => {
     const child = spawn("claude", args, {
       stdio: ["pipe", "pipe", "pipe"],
@@ -31,33 +34,44 @@ async function runClaudeCode(
       shell: process.platform === "win32",
     });
 
-    const chunks: string[] = [];
-    let lastNotify = 0;
-    const NOTIFY_INTERVAL = 2000; // throttle notifications to 2s
+    let totalChars = 0;
+    let resultSummary = "";
+    let toolCallCount = 0;
+    const filesChanged: string[] = [];
 
     const rl = createInterface({ input: child.stdout! });
     rl.on("line", (line) => {
       if (!line.trim()) return;
       try {
         const evt = JSON.parse(line);
-        // stream-json emits: {type:"assistant", message:{content:[{type:"text",text:"..."}]}}
-        //                    {type:"result", result:"...", cost:..., duration_ms:...}
+
         if (evt.type === "assistant" && evt.message?.content) {
           for (const block of evt.message.content) {
             if (block.type === "text" && block.text) {
-              chunks.push(block.text);
-              // Throttled live notification to user
-              const now = Date.now();
-              if (context?.notifyUser && now - lastNotify > NOTIFY_INTERVAL) {
-                lastNotify = now;
-                context
-                  .notifyUser(`[Claude Code] ${block.text.slice(0, 200)}`)
-                  .catch(() => {});
+              totalChars += block.text.length;
+              // Stream text directly to user's chat bubble
+              if (stream) stream(block.text);
+            }
+            if (block.type === "tool_use") {
+              toolCallCount++;
+              // Track file changes for summary
+              if (
+                block.name === "Edit" ||
+                block.name === "Write" ||
+                block.name === "NotebookEdit"
+              ) {
+                const path =
+                  block.input?.file_path || block.input?.notebook_path || "";
+                if (path && !filesChanged.includes(path)) {
+                  filesChanged.push(path);
+                }
               }
             }
           }
         } else if (evt.type === "result") {
-          if (evt.result) chunks.push(evt.result);
+          resultSummary = evt.result || "";
+          // Stream the final result text too
+          if (stream && evt.result) stream("\n\n" + evt.result);
         }
       } catch {
         // non-JSON line — ignore
@@ -74,30 +88,35 @@ async function runClaudeCode(
     child.stdin!.end();
 
     child.on("close", (code) => {
-      const output = chunks.join("") || stderrBuf || "(no output)";
-
-      // Truncate to save tokens
-      const MAX = 15_000;
-      const content =
-        output.length > MAX
-          ? output.slice(0, 6000) +
-            `\n...(truncated ${output.length} chars)...\n` +
-            output.slice(-6000)
-          : output;
-
-      if (code !== 0 && code !== null) {
+      if (code !== 0 && code !== null && totalChars === 0) {
         resolve({
-          content: stderrBuf ? `Exit code ${code}\n${content}` : content,
-          isError: chunks.length === 0,
+          content: stderrBuf || `Claude Code exited with code ${code}`,
+          isError: true,
           metadata: { exitCode: code },
         });
-      } else {
-        resolve({
-          content,
-          isError: false,
-          metadata: { exitCode: 0 },
-        });
+        return;
       }
+
+      // Return compact summary to outer LLM — the user already saw the full text
+      const parts = [`Claude Code completed (${toolCallCount} tool calls).`];
+      if (filesChanged.length > 0) {
+        parts.push(`Files changed: ${filesChanged.join(", ")}`);
+      }
+      if (resultSummary) {
+        // Keep result summary short
+        parts.push(
+          resultSummary.length > 500
+            ? resultSummary.slice(0, 500) + "..."
+            : resultSummary,
+        );
+      }
+
+      resolve({
+        content: parts.join("\n"),
+        isError: false,
+        autoComplete: true, // skip outer LLM — user already has the streamed output
+        metadata: { exitCode: 0, totalChars, toolCallCount },
+      });
     });
 
     child.on("error", (err) => {
@@ -112,7 +131,7 @@ async function runClaudeCode(
 export const claudeCodeTool: Tool = {
   name: "claude_code",
   description:
-    "Delegate a coding task to Claude Code CLI. It can read/write files, run shell commands, and make complex code changes autonomously. Use for: code generation, bug fixing, refactoring, project scaffolding, and any task that benefits from full codebase access.",
+    "Delegate a coding task to Claude Code CLI. It can read/write files, run shell commands, and make complex code changes autonomously. Use for: code generation, bug fixing, refactoring, project scaffolding, and any task that benefits from full codebase access. Output is streamed directly to the user in real-time.",
   category: "builtin",
   parameters: {
     type: "object",
@@ -143,10 +162,6 @@ export const claudeCodeTool: Tool = {
     const cwd = input.cwd as string | undefined;
     let timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
     if (timeout > 0 && timeout < 1000) timeout *= 1000;
-
-    if (context?.notifyUser) {
-      await context.notifyUser("[Claude Code] Starting...").catch(() => {});
-    }
 
     return runClaudeCode(prompt, cwd, timeout, context);
   },

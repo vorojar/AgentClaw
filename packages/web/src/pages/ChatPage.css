@@ -278,6 +278,37 @@
   color: var(--error);
 }
 
+.tool-result-md {
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.tool-result-md table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.tool-result-md th,
+.tool-result-md td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.tool-result-md th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.tool-result-md code {
+  background: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
 /* ── Streaming indicator ──────────────────────────── */
 
 .streaming-cursor {

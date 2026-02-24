@@ -12,6 +12,7 @@ import {
 import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
 import { useSession } from "../components/SessionContext";
+import { useTheme } from "../components/ThemeProvider";
 import {
   IconMenu,
   IconDownload,
@@ -31,7 +32,7 @@ import {
   notifyIfHidden,
   requestNotificationPermission,
 } from "../utils/notifications";
-import { JsonView, darkStyles } from "react-json-view-lite";
+import { JsonView, darkStyles, defaultStyles } from "react-json-view-lite";
 import "react-json-view-lite/dist/index.css";
 import "./ChatPage.css";
 
@@ -289,21 +290,39 @@ function toolCallLabel(name: string, input: string): string {
   return name;
 }
 
+/** Tools whose output is always human-readable markdown */
+const MARKDOWN_OUTPUT_TOOLS = new Set(["claude_code"]);
+
 function ToolResultContent({
   result,
+  toolName,
   isError,
 }: {
   result: string;
+  toolName: string;
   isError?: boolean;
 }) {
+  const { theme } = useTheme();
+  const jsonStyle = theme === "dark" ? darkStyles : defaultStyles;
+
   if (isError) {
     return <pre className="tool-call-content tool-result-error">{result}</pre>;
+  }
+  // Tools that always produce markdown → render it
+  if (MARKDOWN_OUTPUT_TOOLS.has(toolName)) {
+    const parsed = parseToolResult(result);
+    const text = "text" in parsed ? parsed.text : result;
+    return (
+      <div className="tool-call-content tool-result-md">
+        <ReactMarkdown components={mdComponents}>{text}</ReactMarkdown>
+      </div>
+    );
   }
   const parsed = parseToolResult(result);
   if ("json" in parsed) {
     return (
       <div className="tool-call-json">
-        <JsonView data={parsed.json as object} style={darkStyles} />
+        <JsonView data={parsed.json as object} style={jsonStyle} />
       </div>
     );
   }
@@ -314,6 +333,8 @@ function ToolResultContent({
 
 function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
   const [expanded, setExpanded] = useState(false);
+  const { theme } = useTheme();
+  const jsonStyle = theme === "dark" ? darkStyles : defaultStyles;
   const label = toolCallLabel(entry.toolName, entry.toolInput);
   return (
     <div className="tool-call-card">
@@ -345,7 +366,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
                 const json = tryParseJson(entry.toolInput);
                 return json ? (
                   <div className="tool-call-json">
-                    <JsonView data={json as object} style={darkStyles} />
+                    <JsonView data={json as object} style={jsonStyle} />
                   </div>
                 ) : (
                   <pre className="tool-call-content">{entry.toolInput}</pre>
@@ -360,6 +381,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
               </div>
               <ToolResultContent
                 result={entry.toolResult}
+                toolName={entry.toolName}
                 isError={entry.isError}
               />
             </div>

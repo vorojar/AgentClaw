@@ -7,7 +7,7 @@
 - **claude_code 流式输出**：Claude Code 的文本实时流入用户聊天气泡（通过 `streamText` 回调直推 WS），工具完成后返回精简摘要给外层 LLM + `autoComplete` 跳过外层总结，大幅节省 token
 
 ### 改进
-- **工具调用格式化**：INPUT/OUTPUT 的 JSON 内容使用 `react-json-view-lite` 可折叠树形展示（替代手写正则检测 + CodeBlock），非 JSON 内容用等宽 `<pre>` 原样显示，去掉了误判率极高的 Markdown 渲染分支
+- **工具调用格式化**：INPUT/OUTPUT 的 JSON 内容使用 `react-json-view-lite` 可折叠树形展示，自动适配亮/暗主题；`claude_code` 等工具的 OUTPUT 用 ReactMarkdown 渲染表格/列表/代码，其余工具用 `<pre>` 原样显示
 
 ### 修复
 - **工具调用 Markdown 渲染崩溃**：`ToolResultContent` 中 `markdownComponents` 未定义，修正为 `mdComponents`

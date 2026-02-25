@@ -55,7 +55,7 @@ export class SimpleContextManager implements ContextManager {
     );
 
     let messages: Message[];
-    if (turns.length >= this.compressAfter) {
+    if (turns.length > this.compressAfter) {
       const oldTurns = turns.slice(0, turns.length - this.compressAfter);
       const recentTurns = turns.slice(turns.length - this.compressAfter);
       const summary = await this.compressTurns(conversationId, oldTurns);
@@ -121,8 +121,17 @@ export class SimpleContextManager implements ContextManager {
       try {
         const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
         if (allSkills.length > 0) {
-          const names = allSkills.map((s) => s.name).join(", ");
-          finalPrompt += `\n\nSkills (call use_skill(name) to activate): ${names}`;
+          const catalog = allSkills
+            .map((s) => {
+              // Extract short Chinese label before "|" or use first 15 chars
+              const d = s.description;
+              const cn = d.includes("|")
+                ? d.split("|")[0].trim()
+                : d.slice(0, 15);
+              return `${s.name}(${cn})`;
+            })
+            .join(", ");
+          finalPrompt += `\n\nSkills (call use_skill(name) to activate): ${catalog}`;
         }
       } catch {
         // Skill catalog failed — continue without it

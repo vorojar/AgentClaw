@@ -459,7 +459,6 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   padding: 0 24px;
-  border-bottom: 1px solid var(--border);
   font-size: 17px;
   font-weight: 600;
 }

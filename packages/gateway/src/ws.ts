@@ -165,6 +165,9 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
       return;
     }
 
+    // promptUser support: resolve pending prompt when user replies
+    let pendingPrompt: ((answer: string) => void) | null = null;
+
     socket.on("message", async (rawData: Buffer | string) => {
       let parsed: { type?: string; content?: string };
       try {
@@ -179,6 +182,14 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
       if (parsed.type === "stop") {
         const stopped = ctx.orchestrator.stopSession(sessionId);
         safeSend(JSON.stringify({ type: "stopped", success: stopped }));
+        return;
+      }
+
+      if (parsed.type === "prompt_reply") {
+        if (pendingPrompt) {
+          pendingPrompt(parsed.content ?? "");
+          pendingPrompt = null;
+        }
         return;
       }
 
@@ -219,6 +230,12 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           },
           streamText: (text: string) => {
             safeSend(JSON.stringify({ type: "text", text }));
+          },
+          promptUser: (question: string) => {
+            return new Promise<string>((resolve) => {
+              pendingPrompt = resolve;
+              safeSend(JSON.stringify({ type: "prompt", question }));
+            });
           },
         };
 

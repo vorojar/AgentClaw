@@ -15,7 +15,6 @@
   display: flex;
   align-items: center;
   padding: 0 16px;
-  border-bottom: 1px solid var(--border);
   gap: 12px;
   flex-shrink: 0;
 }
@@ -221,6 +220,108 @@
 
 .message-row.user .message-meta {
   text-align: right;
+}
+
+/* ── Edit message button ─────────────────────────── */
+
+.message-bubble {
+  position: relative;
+}
+
+.btn-edit-msg {
+  position: absolute;
+  bottom: 6px;
+  left: -32px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  border: 1px solid var(--border);
+}
+
+.message-bubble:hover .btn-edit-msg {
+  opacity: 1;
+}
+
+.btn-edit-msg:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+/* ── Inline message editing ──────────────────────── */
+
+.message-bubble.editing {
+  padding: 8px;
+  width: 85%;
+  max-width: 85%;
+}
+
+.edit-msg-textarea {
+  width: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  max-height: 200px;
+}
+
+.edit-msg-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.edit-msg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btn-edit-cancel,
+.btn-edit-submit {
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-edit-cancel {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.btn-edit-cancel:hover {
+  color: var(--text-primary);
+}
+
+.btn-edit-submit {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+.btn-edit-submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-edit-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ── Tool Call Card ────────────────────────────────── */

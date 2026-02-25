@@ -213,7 +213,6 @@ function parseToolResult(result: string): { json: unknown } | { text: string } {
 
 function formatUsageStats(msg: DisplayMessage): string | null {
   const parts: string[] = [];
-  if (msg.model) parts.push(msg.model);
   const total = (msg.tokensIn ?? 0) + (msg.tokensOut ?? 0);
   if (total > 0)
     parts.push(
@@ -564,6 +563,9 @@ export function ChatPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [editingMsgKey, setEditingMsgKey] = useState<string | null>(null);
+  const [editMsgValue, setEditMsgValue] = useState("");
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -571,6 +573,7 @@ export function ChatPage() {
     send: (c: string) => void;
     stop: () => void;
     close: () => void;
+    promptReply: (c: string) => void;
   } | null>(null);
   const wsGenRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -585,6 +588,7 @@ export function ChatPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const skipHistoryRef = useRef(false);
   const stoppedRef = useRef(false);
+  const sendTimestampRef = useRef(0);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -812,6 +816,9 @@ export function ChatPage() {
       case "done": {
         stoppedRef.current = false;
         setActiveToolName(null);
+        const elapsed = sendTimestampRef.current
+          ? Date.now() - sendTimestampRef.current
+          : undefined;
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
@@ -836,7 +843,7 @@ export function ChatPage() {
                 model: msg.model ?? last.model,
                 tokensIn: msg.tokensIn ?? last.tokensIn,
                 tokensOut: msg.tokensOut ?? last.tokensOut,
-                durationMs: msg.durationMs ?? last.durationMs,
+                durationMs: elapsed ?? msg.durationMs ?? last.durationMs,
                 toolCallCount: msg.toolCallCount ?? last.toolCallCount,
               },
             ];
@@ -844,6 +851,23 @@ export function ChatPage() {
           return prev;
         });
         setIsSending(false);
+        break;
+      }
+      case "prompt": {
+        const q = msg.question ?? "";
+        setPendingPrompt(q);
+        // Show question as assistant message
+        setMessages((prev) => [
+          ...prev,
+          {
+            key: nextKey(),
+            role: "assistant",
+            content: q,
+            createdAt: new Date().toISOString(),
+            streaming: false,
+            toolCalls: [],
+          },
+        ]);
         break;
       }
       case "broadcast": {
@@ -951,6 +975,27 @@ export function ChatPage() {
   /* Send */
   const handleSend = useCallback(async () => {
     const text = inputValue.trim();
+
+    // Reply to ask_user prompt
+    if (pendingPrompt && text && wsRef.current) {
+      wsRef.current.promptReply(text);
+      setInputValue("");
+      setPendingPrompt(null);
+      // Show user reply as a message
+      setMessages((prev) => [
+        ...prev,
+        {
+          key: nextKey(),
+          role: "user",
+          content: text,
+          createdAt: new Date().toISOString(),
+          streaming: false,
+          toolCalls: [],
+        },
+      ]);
+      return;
+    }
+
     if ((!text && pendingFiles.length === 0) || isSending) return;
 
     let contentToSend = text;
@@ -984,6 +1029,7 @@ export function ChatPage() {
     setMessages((prev) => [...prev, userMsg]);
     setInputValue("");
     setLastUserText(contentToSend);
+    sendTimestampRef.current = Date.now();
     setIsSending(true);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
@@ -1029,9 +1075,40 @@ export function ChatPage() {
       if (idx >= 0 && prev[idx].role === "assistant") return prev.slice(0, idx);
       return prev;
     });
+    sendTimestampRef.current = Date.now();
     setIsSending(true);
     wsRef.current.send(lastUserText);
   }, [isSending, lastUserText]);
+
+  const handleEditSubmit = useCallback(
+    (msgKey: string) => {
+      const text = editMsgValue.trim();
+      if (!text || isSending || !wsRef.current) return;
+      // Truncate everything from this message onwards, then resend
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.key === msgKey);
+        if (idx < 0) return prev;
+        return prev.slice(0, idx);
+      });
+      setEditingMsgKey(null);
+      setEditMsgValue("");
+      // Add new user message and send
+      const userMsg: DisplayMessage = {
+        key: nextKey(),
+        role: "user",
+        content: text,
+        createdAt: new Date().toISOString(),
+        streaming: false,
+        toolCalls: [],
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setLastUserText(text);
+      sendTimestampRef.current = Date.now();
+      setIsSending(true);
+      wsRef.current!.send(text);
+    },
+    [editMsgValue, isSending],
+  );
 
   const handleFiles = useCallback((files: File[]) => {
     const newFiles = files.map((file) => {
@@ -1257,6 +1334,52 @@ export function ChatPage() {
                       {m.content &&
                         (() => {
                           const parsed = parseMessageContent(m.content);
+
+                          /* Inline editing mode for user messages */
+                          if (m.role === "user" && editingMsgKey === m.key) {
+                            return (
+                              <div className="message-row user">
+                                <div className="message-bubble editing">
+                                  <textarea
+                                    className="edit-msg-textarea"
+                                    value={editMsgValue}
+                                    onChange={(e) =>
+                                      setEditMsgValue(e.target.value)
+                                    }
+                                    autoFocus
+                                    rows={3}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Escape") {
+                                        setEditingMsgKey(null);
+                                      } else if (
+                                        e.key === "Enter" &&
+                                        !e.shiftKey
+                                      ) {
+                                        e.preventDefault();
+                                        handleEditSubmit(m.key);
+                                      }
+                                    }}
+                                  />
+                                  <div className="edit-msg-actions">
+                                    <button
+                                      className="btn-edit-cancel"
+                                      onClick={() => setEditingMsgKey(null)}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      className="btn-edit-submit"
+                                      onClick={() => handleEditSubmit(m.key)}
+                                      disabled={!editMsgValue.trim()}
+                                    >
+                                      Send
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div className={`message-row ${m.role}`}>
                               <div className="message-bubble">
@@ -1296,6 +1419,18 @@ export function ChatPage() {
                                         ? ` \u00b7 ${m.model}`
                                         : ""}
                                   </div>
+                                )}
+                                {m.role === "user" && !isSending && (
+                                  <button
+                                    className="btn-edit-msg"
+                                    onClick={() => {
+                                      setEditingMsgKey(m.key);
+                                      setEditMsgValue(parsed.text);
+                                    }}
+                                    title="Edit & resend"
+                                  >
+                                    <IconEdit size={14} />
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -1389,16 +1524,18 @@ export function ChatPage() {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder={
-                isListening
-                  ? "Listening..."
-                  : isSending
-                    ? "Waiting for response..."
-                    : "Reply to AgentClaw..."
+                pendingPrompt
+                  ? pendingPrompt
+                  : isListening
+                    ? "Listening..."
+                    : isSending
+                      ? "Waiting for response..."
+                      : "Reply to AgentClaw..."
               }
-              disabled={isSending}
+              disabled={isSending && !pendingPrompt}
               rows={2}
             />
-            {isSending ? (
+            {isSending && !pendingPrompt ? (
               <button
                 className="btn-stop"
                 onClick={handleStop}
@@ -1410,7 +1547,7 @@ export function ChatPage() {
               <button
                 className="btn-send"
                 onClick={handleSend}
-                disabled={!canSend}
+                disabled={!pendingPrompt && !canSend}
                 title="Send message"
               >
                 <IconArrowUp size={18} />

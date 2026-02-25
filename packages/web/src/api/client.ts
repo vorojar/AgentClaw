@@ -394,7 +394,8 @@ export interface WSMessage {
     | "done"
     | "error"
     | "file"
-    | "broadcast";
+    | "broadcast"
+    | "prompt";
   text?: string;
   toolName?: string;
   toolInput?: string;
@@ -407,6 +408,7 @@ export interface WSMessage {
   tokensOut?: number;
   durationMs?: number;
   toolCallCount?: number;
+  question?: string;
 }
 
 export function connectWebSocket(
@@ -418,6 +420,7 @@ export function connectWebSocket(
   send: (content: string) => void;
   stop: () => void;
   close: () => void;
+  promptReply: (content: string) => void;
 } {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   let wsUrl = `${protocol}//${window.location.host}/ws?sessionId=${sessionId}`;
@@ -453,6 +456,11 @@ export function connectWebSocket(
     },
     close() {
       ws.close();
+    },
+    promptReply(content: string) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "prompt_reply", content }));
+      }
     },
   };
 }

@@ -1,5 +1,19 @@
 # 更新日志
 
+## [0.7.11] - 2026-02-25
+
+### 新功能
+- **消息编辑重发**：hover 用户消息显示编辑按钮，点击后 inline 编辑并重发，截断后续对话重新生成
+- **ask_user 交互支持（Web）**：WS 新增 prompt/prompt_reply 协议，ask_user 工具不再卡死，问题显示为对话消息，输入框可直接回复
+
+### 改进
+- **Skill 目录恢复短描述**：纯名称列表改为 `name(中文描述)` 格式，修复 LLM 无法匹配 comfyui 等名字不自解释的 skill
+- **消息 meta 精简**：移除模型名称，改为端到端用时（发送→完成）
+- **UI 去线条**：page-header、chat-header 移除 border-bottom
+
+### 修复
+- **对话压缩边界崩溃**：`turns.length === compressAfter` 时 `oldTurns` 为空导致 `createdAt` 读取失败，条件改为严格大于
+
 ## [0.7.10] - 2026-02-25
 
 ### 新功能

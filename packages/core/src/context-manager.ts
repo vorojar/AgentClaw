@@ -43,6 +43,7 @@ export class SimpleContextManager implements ContextManager {
   async buildContext(
     conversationId: string,
     currentInput: string | ContentBlock[],
+    options?: { preSelectedSkillName?: string },
   ): Promise<{
     systemPrompt: string;
     messages: Message[];
@@ -115,15 +116,23 @@ export class SimpleContextManager implements ContextManager {
       // Memory search failed — continue without memories
     }
 
-    // Inject skill catalog so the LLM knows what skills exist
-    // The LLM uses the use_skill tool to load instructions on demand
+    // Skill injection: pre-selected skill gets instructions injected directly
     if (this.skillRegistry) {
       try {
+        const preSkillName = options?.preSelectedSkillName;
+        if (preSkillName) {
+          const skill = this.skillRegistry.get(preSkillName);
+          if (skill) {
+            finalPrompt += `\n\n[Active Skill: ${skill.name}]\n${skill.instructions}`;
+            skillMatch = { name: skill.name, confidence: 1.0 };
+          }
+        }
+
+        // Always inject skill catalog (LLM can still use use_skill for other skills)
         const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
         if (allSkills.length > 0) {
           const catalog = allSkills
             .map((s) => {
-              // Extract short Chinese label before "|" or use first 15 chars
               const d = s.description;
               const cn = d.includes("|")
                 ? d.split("|")[0].trim()

@@ -79,6 +79,7 @@ export interface ContextManager {
   buildContext(
     conversationId: string,
     currentInput: string | ContentBlock[],
+    options?: { preSelectedSkillName?: string },
   ): Promise<{
     systemPrompt: string;
     messages: Message[];

@@ -169,7 +169,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
     let pendingPrompt: ((answer: string) => void) | null = null;
 
     socket.on("message", async (rawData: Buffer | string) => {
-      let parsed: { type?: string; content?: string };
+      let parsed: { type?: string; content?: string; skillName?: string };
       try {
         const str =
           typeof rawData === "string" ? rawData : rawData.toString("utf-8");
@@ -220,6 +220,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
         const sentFiles: Array<{ url: string; filename: string }> = [];
         const context: ToolExecutionContext = {
           sentFiles,
+          preSelectedSkillName: parsed.skillName || undefined,
           sendFile: async (filePath: string) => {
             const filename = basename(filePath);
             const url = `/files/${encodeURIComponent(filename)}`;

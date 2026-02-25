@@ -82,6 +82,8 @@ export interface ToolExecutionContext {
   };
   /** Spawn an independent sub-agent to handle a subtask */
   delegateTask?: (task: string) => Promise<string>;
+  /** Pre-selected skill name from UI chips — inject instructions directly, skip use_skill round */
+  preSelectedSkillName?: string;
   /** Planner for decomposing complex tasks into executable steps */
   planner?: {
     createPlan(

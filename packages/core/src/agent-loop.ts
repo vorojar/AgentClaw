@@ -150,7 +150,9 @@ export class SimpleAgentLoop implements AgentLoop {
       // Build context
       this.setState("thinking");
       const { systemPrompt, messages, skillMatch } =
-        await this.contextManager.buildContext(convId, input);
+        await this.contextManager.buildContext(convId, input, {
+          preSelectedSkillName: context?.preSelectedSkillName,
+        });
 
       // Record trace metadata on first iteration
       if (iterations === 1) {

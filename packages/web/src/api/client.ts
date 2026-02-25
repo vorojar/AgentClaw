@@ -417,7 +417,7 @@ export function connectWebSocket(
   onClose?: () => void,
   onOpen?: () => void,
 ): {
-  send: (content: string) => void;
+  send: (content: string, skillName?: string) => void;
   stop: () => void;
   close: () => void;
   promptReply: (content: string) => void;
@@ -444,9 +444,11 @@ export function connectWebSocket(
   ws.onclose = () => onClose?.();
 
   return {
-    send(content: string) {
+    send(content: string, skillName?: string) {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "message", content }));
+        const msg: Record<string, string> = { type: "message", content };
+        if (skillName) msg.skillName = skillName;
+        ws.send(JSON.stringify(msg));
       }
     },
     stop() {

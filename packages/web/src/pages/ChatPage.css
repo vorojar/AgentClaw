@@ -574,24 +574,6 @@
   background: var(--bg-primary);
 }
 
-/* ── Skill selected bar ─────────────────────────── */
-
-.skill-selected-bar {
-  max-width: 780px;
-  margin: 0 auto 6px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.skill-selected-label {
-  font-size: 13px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  padding: 3px 10px;
-  border-radius: 12px;
-}
-
 .skill-selected-clear {
   display: flex;
   align-items: center;
@@ -697,44 +679,78 @@
   font-weight: 600;
 }
 
-.chat-input-wrapper {
+/* ── Input box (textarea on top, actions below) ─── */
+
+.chat-input-box {
   max-width: 780px;
   margin: 0 auto;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 10px 14px;
+  padding: 12px 14px 8px;
   transition: border-color 0.15s;
 }
 
-.chat-input-wrapper:focus-within {
+.chat-input-box:focus-within {
   border-color: var(--accent);
 }
 
-.chat-input-wrapper textarea {
-  flex: 1;
+.chat-input-box textarea {
+  width: 100%;
   background: transparent;
   border: none;
   color: var(--text-primary);
   font-size: 15px;
   line-height: 1.5;
   resize: none;
-  min-height: 40px;
+  min-height: 36px;
   max-height: 200px;
-  padding: 4px 0;
+  padding: 0;
   font-family: inherit;
 }
 
-.chat-input-wrapper textarea:focus {
+.chat-input-box textarea:focus {
   outline: none;
   border: none;
 }
 
-.chat-input-wrapper textarea::placeholder {
+.chat-input-box textarea::placeholder {
   color: var(--text-muted);
+}
+
+.chat-input-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.chat-input-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-input-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skill-selected-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.chat-welcome-input .chat-input-box {
+  max-width: none;
+  margin: 0;
 }
 
 /* ── Send / Stop buttons ─────────────────────────── */

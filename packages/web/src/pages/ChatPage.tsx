@@ -646,6 +646,7 @@ export function ChatPage() {
       setMessages([]);
       setIsSending(false);
       setActiveToolName(null);
+      setLoadingHistory(false);
       return;
     }
     // Skip loading empty history for sessions just created by ensureSession

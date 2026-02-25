@@ -10,6 +10,7 @@ import {
   OpenAICompatibleProvider,
   GeminiProvider,
   FailoverProvider,
+  VolcanoEmbedding,
   generateId,
 } from "@agentclaw/providers";
 import {
@@ -291,7 +292,17 @@ export async function bootstrap(): Promise<AppContext> {
 
   // Memory store
   const memoryStore = new SQLiteMemoryStore(db);
-  if (provider.embed) {
+
+  // Embedding: prefer dedicated Volcano Engine API, fallback to LLM provider
+  const volcanoEmbedKey = process.env.VOLCANO_EMBEDDING_KEY;
+  if (volcanoEmbedKey) {
+    const embedding = new VolcanoEmbedding({
+      apiKey: volcanoEmbedKey,
+      model: process.env.VOLCANO_EMBEDDING_MODEL,
+    });
+    memoryStore.setEmbedFn((texts) => embedding.embed(texts));
+    console.log("[bootstrap] Embedding: Volcano Engine (doubao)");
+  } else if (provider.embed) {
     memoryStore.setEmbedFn((texts) => provider.embed!(texts));
   }
 

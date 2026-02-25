@@ -1,5 +1,10 @@
 # 更新日志
 
+## [0.7.14] - 2026-02-25
+
+### 新功能
+- **语义向量化（Volcano Engine Embedding）**：接入火山引擎 doubao-embedding-vision 多模态 API，记忆存储和检索使用真实语义向量替代 BagOfWords fallback。环境变量 `VOLCANO_EMBEDDING_KEY` + `VOLCANO_EMBEDDING_MODEL`
+
 ## [0.7.13] - 2026-02-25
 
 ### 新功能

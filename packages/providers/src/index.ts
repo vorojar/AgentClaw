@@ -9,3 +9,7 @@ export {
 export { GeminiProvider } from "./gemini.js";
 export { SmartRouter } from "./router.js";
 export { FailoverProvider } from "./failover.js";
+export {
+  VolcanoEmbedding,
+  type VolcanoEmbeddingOptions,
+} from "./volcano-embedding.js";

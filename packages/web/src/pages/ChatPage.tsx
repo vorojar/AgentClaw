@@ -1464,6 +1464,7 @@ export function ChatPage() {
             <div className="chat-welcome-skills">
               {[
                 { label: "Image Gen", skill: "comfyui" },
+                { label: "Code", skill: "coding" },
                 { label: "Excel", skill: "xlsx" },
                 { label: "PDF", skill: "pdf" },
                 { label: "Web Search", skill: "web-search" },

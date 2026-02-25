@@ -204,17 +204,35 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     let startY = 0;
     let dragging = false;
     let decided = false;
+    let closing = false; // true = swipe-to-close, false = swipe-to-open
     let sidebar: HTMLElement | null = null;
     let backdrop: HTMLElement | null = null;
-    let sidebarW = 260;
+    let sidebarW = 300;
 
     function onTouchStart(e: TouchEvent) {
-      if (!isMobile() || openRef.current) return;
+      if (!isMobile()) return;
       const t = e.touches[0];
-      if (t.clientX > window.innerWidth / 2) return;
-      sidebar = document.querySelector<HTMLElement>(".sidebar");
-      if (!sidebar) return;
-      sidebarW = sidebar.offsetWidth || 260;
+      const isOpen = openRef.current;
+
+      if (isOpen) {
+        // Swipe-to-close: only start on the sidebar itself or its backdrop
+        sidebar = document.querySelector<HTMLElement>(".sidebar");
+        if (!sidebar) return;
+        const rect = sidebar.getBoundingClientRect();
+        if (t.clientX > rect.right + 40) {
+          sidebar = null;
+          return;
+        }
+        closing = true;
+      } else {
+        // Swipe-to-open: only left half of screen
+        if (t.clientX > window.innerWidth / 2) return;
+        sidebar = document.querySelector<HTMLElement>(".sidebar");
+        if (!sidebar) return;
+        closing = false;
+      }
+
+      sidebarW = sidebar.offsetWidth || 300;
       startX = t.clientX;
       startY = t.clientY;
       dragging = false;
@@ -227,30 +245,59 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const dx = t.clientX - startX;
       const dy = Math.abs(t.clientY - startY);
 
-      if (!decided && (dx > 10 || dy > 10)) {
+      if (!decided && (Math.abs(dx) > 10 || dy > 10)) {
         decided = true;
-        if (dy > dx || dx < 0) {
-          sidebar = null;
-          return;
+        if (closing) {
+          // Close gesture: must swipe left (dx < 0) and horizontally dominant
+          if (dy > Math.abs(dx) || dx > 0) {
+            sidebar = null;
+            return;
+          }
+        } else {
+          // Open gesture: must swipe right (dx > 0) and horizontally dominant
+          if (dy > dx || dx < 0) {
+            sidebar = null;
+            return;
+          }
         }
         dragging = true;
         sidebar.style.transition = "none";
-        backdrop = document.createElement("div");
-        backdrop.id = "drag-backdrop";
-        backdrop.style.cssText =
-          "position:fixed;inset:0;z-index:199;" +
-          "background:rgba(0,0,0,0.4);" +
-          "backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);" +
-          "opacity:0;pointer-events:none;";
-        sidebar.parentElement?.appendChild(backdrop);
+
+        if (closing) {
+          // Grab the existing React backdrop or drag-backdrop
+          backdrop =
+            document.querySelector<HTMLElement>(".sidebar-backdrop") ||
+            document.getElementById("drag-backdrop");
+          if (backdrop) backdrop.style.transition = "none";
+        } else {
+          // Create a fresh drag backdrop for open gesture
+          backdrop = document.createElement("div");
+          backdrop.id = "drag-backdrop";
+          backdrop.style.cssText =
+            "position:fixed;inset:0;z-index:199;" +
+            "background:rgba(0,0,0,0.4);" +
+            "backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);" +
+            "opacity:0;pointer-events:none;";
+          sidebar.parentElement?.appendChild(backdrop);
+        }
       }
       if (!dragging) return;
 
-      const offset = Math.max(0, Math.min(dx, sidebarW));
-      const progress = offset / sidebarW;
-      sidebar.style.transform = `translateX(${offset - sidebarW}px)`;
-      sidebar.style.pointerEvents = "none";
-      if (backdrop) backdrop.style.opacity = String(progress);
+      if (closing) {
+        // dx is negative (swiping left). Map 0..-sidebarW to progress 1..0
+        const offset = Math.max(-sidebarW, Math.min(0, dx));
+        const progress = 1 + offset / sidebarW; // 1 = fully open, 0 = fully closed
+        sidebar.style.transform = `translateX(${offset}px)`;
+        sidebar.style.pointerEvents = "none";
+        if (backdrop) backdrop.style.opacity = String(Math.max(0, progress));
+      } else {
+        // dx is positive (swiping right). Map 0..sidebarW to progress 0..1
+        const offset = Math.max(0, Math.min(dx, sidebarW));
+        const progress = offset / sidebarW;
+        sidebar.style.transform = `translateX(${offset - sidebarW}px)`;
+        sidebar.style.pointerEvents = "none";
+        if (backdrop) backdrop.style.opacity = String(progress);
+      }
     }
 
     function onTouchEnd(e: TouchEvent) {
@@ -260,37 +307,63 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       const el = sidebar;
       const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
-      const progress = Math.max(0, dx) / sidebarW;
 
       el.style.transition = "";
       el.style.pointerEvents = "";
 
       const bd = backdrop;
 
-      if (progress > SNAP_RATIO) {
-        // Snap open: manual backdrop stays alive, React's hidden via CSS
-        if (bd) {
-          bd.style.transition = `opacity 200ms`;
-          bd.style.opacity = "1";
-          bd.style.pointerEvents = "auto";
-          bd.onclick = () => setSidebarOpenWithHistory(false);
+      if (closing) {
+        const progress = Math.max(0, -dx) / sidebarW; // how far closed
+        if (progress > SNAP_RATIO) {
+          // Snap closed
+          el.style.transform = `translateX(${-sidebarW - 1}px)`;
+          setSidebarOpenWithHistory(false);
+          setTimeout(() => {
+            el.style.transform = "";
+          }, TRANSITION_MS + 50);
+          if (bd) {
+            bd.style.transition = `opacity ${TRANSITION_MS}ms`;
+            bd.style.opacity = "0";
+          }
+        } else {
+          // Bounce back open
+          el.style.transform = "translateX(0)";
+          setTimeout(() => {
+            el.style.transform = "";
+          }, TRANSITION_MS + 50);
+          if (bd) {
+            bd.style.transition = "";
+            bd.style.opacity = "1";
+          }
         }
-        document.documentElement.dataset.sidebarDrag = "";
-        el.style.transform = "translateX(0)";
-        setSidebarOpenWithHistory(true);
-        setTimeout(() => {
-          el.style.transform = "";
-        }, TRANSITION_MS + 50);
       } else {
-        // Snap back
-        el.style.transform = `translateX(${-sidebarW - 1}px)`;
-        setTimeout(() => {
-          el.style.transform = "";
-        }, TRANSITION_MS + 50);
-        if (bd) {
-          bd.style.transition = `opacity ${TRANSITION_MS}ms`;
-          bd.style.opacity = "0";
-          setTimeout(() => bd.remove(), TRANSITION_MS);
+        const progress = Math.max(0, dx) / sidebarW;
+        if (progress > SNAP_RATIO) {
+          // Snap open
+          if (bd) {
+            bd.style.transition = `opacity 200ms`;
+            bd.style.opacity = "1";
+            bd.style.pointerEvents = "auto";
+            bd.onclick = () => setSidebarOpenWithHistory(false);
+          }
+          document.documentElement.dataset.sidebarDrag = "";
+          el.style.transform = "translateX(0)";
+          setSidebarOpenWithHistory(true);
+          setTimeout(() => {
+            el.style.transform = "";
+          }, TRANSITION_MS + 50);
+        } else {
+          // Snap back closed
+          el.style.transform = `translateX(${-sidebarW - 1}px)`;
+          setTimeout(() => {
+            el.style.transform = "";
+          }, TRANSITION_MS + 50);
+          if (bd) {
+            bd.style.transition = `opacity ${TRANSITION_MS}ms`;
+            bd.style.opacity = "0";
+            setTimeout(() => bd.remove(), TRANSITION_MS);
+          }
         }
       }
 

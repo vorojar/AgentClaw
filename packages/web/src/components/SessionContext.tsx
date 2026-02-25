@@ -178,9 +178,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const openRef = useRef(sidebarOpen);
   openRef.current = sidebarOpen;
 
+  // Clean up drag backdrop when sidebar closes (by any means)
   useEffect(() => {
-    const SNAP_RATIO = 0.35; // release past 35% → snap open
-    const TRANSITION_MS = 300; // match CSS transition duration
+    if (!sidebarOpen) {
+      const bd = document.getElementById("drag-backdrop");
+      if (bd) {
+        bd.style.transition = "opacity 200ms";
+        bd.style.opacity = "0";
+        setTimeout(() => bd.remove(), 200);
+      }
+      delete document.documentElement.dataset.sidebarDrag;
+    }
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    const SNAP_RATIO = 0.35;
+    const TRANSITION_MS = 300;
 
     let startX = 0;
     let startY = 0;
@@ -193,7 +206,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     function onTouchStart(e: TouchEvent) {
       if (!isMobile() || openRef.current) return;
       const t = e.touches[0];
-      // Allow start from left half of screen
       if (t.clientX > window.innerWidth / 2) return;
       sidebar = document.querySelector<HTMLElement>(".sidebar");
       if (!sidebar) return;
@@ -210,18 +222,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const dx = t.clientX - startX;
       const dy = Math.abs(t.clientY - startY);
 
-      // Lock direction on first significant move
       if (!decided && (dx > 10 || dy > 10)) {
         decided = true;
         if (dy > dx || dx < 0) {
-          // Vertical or leftward — abort
           sidebar = null;
           return;
         }
         dragging = true;
         sidebar.style.transition = "none";
-        // Inline-styled backdrop (no class) to avoid CSS conflicts with React's
         backdrop = document.createElement("div");
+        backdrop.id = "drag-backdrop";
         backdrop.style.cssText =
           "position:fixed;inset:0;z-index:199;" +
           "background:rgba(0,0,0,0.4);" +
@@ -253,22 +263,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const bd = backdrop;
 
       if (progress > SNAP_RATIO) {
-        // Snap open: keep manual backdrop visible, hide React's until swap
+        // Snap open: manual backdrop stays alive, React's hidden via CSS
         if (bd) {
           bd.style.transition = `opacity 200ms`;
           bd.style.opacity = "1";
+          bd.style.pointerEvents = "auto";
+          bd.onclick = () => setSidebarOpenWithHistory(false);
         }
         document.documentElement.dataset.sidebarDrag = "";
         el.style.transform = "translateX(0)";
         setSidebarOpenWithHistory(true);
-        // After transition: atomic swap — remove manual + reveal React in same tick
         setTimeout(() => {
           el.style.transform = "";
-          if (bd) bd.remove();
-          delete document.documentElement.dataset.sidebarDrag;
         }, TRANSITION_MS + 50);
       } else {
-        // Snap back: fade out manual backdrop
+        // Snap back
         el.style.transform = `translateX(${-sidebarW - 1}px)`;
         setTimeout(() => {
           el.style.transform = "";

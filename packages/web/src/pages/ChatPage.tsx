@@ -268,7 +268,18 @@ function HtmlPreviewOverlay({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+
+    // Push history entry so browser back closes the overlay
+    history.pushState({ _htmlPreview: true }, "");
+    const onPop = () => onClose();
+    window.addEventListener("popstate", onPop);
+
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("popstate", onPop);
+      // Clean up dummy history entry if closed by button/Escape (not back)
+      if (history.state?._htmlPreview) history.back();
+    };
   }, [onClose]);
 
   return (

@@ -92,24 +92,49 @@ export class SimpleContextManager implements ContextManager {
             .map((b) => b.text)
             .join(" ");
 
-    // Recall relevant long-term memories and inject into system prompt
-    try {
-      const memories = await this.memoryStore.search({
-        query: searchQuery,
-        limit: 10,
-      });
-      if (memories.length > 0) {
-        const memoryLines = memories
-          .map((m) => `- [${m.entry.type}] ${m.entry.content}`)
-          .join("\n");
-        finalPrompt += `\n\nYour long-term memory (things you know about the user and previous interactions):\n${memoryLines}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`;
-      }
-    } catch {
-      // Memory search failed — continue without memories
+    // Run memory search and skill matching in parallel
+    const memoryPromise = this.memoryStore
+      .search({ query: searchQuery, limit: 10 })
+      .catch(() => [] as Array<{ entry: { type: string; content: string } }>);
+
+    const skillMatchPromise = this.skillRegistry
+      ? this.skillRegistry
+          .match(searchQuery)
+          .catch(
+            () =>
+              [] as Array<{
+                skill: {
+                  name: string;
+                  description: string;
+                  instructions: string;
+                  enabled: boolean;
+                };
+                confidence: number;
+              }>,
+          )
+      : Promise.resolve([]);
+
+    const [memories, skillMatches] = await Promise.all([
+      memoryPromise,
+      skillMatchPromise,
+    ]);
+
+    // Inject long-term memories
+    if (memories.length > 0) {
+      const memoryLines = memories
+        .map((m) => `- [${m.entry.type}] ${m.entry.content}`)
+        .join("\n");
+      finalPrompt += `\n\nYour long-term memory (things you know about the user and previous interactions):\n${memoryLines}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`;
     }
 
-    // Inject skill catalog so the LLM knows what skills exist
-    // The LLM uses the use_skill tool to load instructions on demand
+    // Pre-inject top skill if confidence is high enough
+    if (skillMatches.length > 0 && skillMatches[0].confidence > 0.5) {
+      const top = skillMatches[0];
+      finalPrompt += `\n\n## Pre-loaded Skill: ${top.skill.name}\nThe user's request likely matches this skill. Follow these instructions:\n\n${top.skill.instructions}`;
+      skillMatch = { name: top.skill.name, confidence: top.confidence };
+    }
+
+    // Always inject skill catalog (LLM can still use use_skill to pick a different one)
     if (this.skillRegistry) {
       try {
         const allSkills = this.skillRegistry.list().filter((s) => s.enabled);

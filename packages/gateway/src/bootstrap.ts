@@ -408,6 +408,9 @@ export async function bootstrap(): Promise<AppContext> {
     resolve(process.cwd(), "data", "skill-settings.json"),
   );
   await skillRegistry.loadFromDirectory(skillsDir);
+  if (provider.embed) {
+    skillRegistry.setEmbedFn((texts) => provider.embed!(texts));
+  }
 
   // Planner
   const planner = new SimplePlanner({

@@ -18,11 +18,6 @@
 {{/if}}
 ## Routing
 - Web pages → `use_skill("browser")`. No selenium/playwright/puppeteer.
-- PDF → `use_skill("pdf")`. No pandoc/wkhtmltopdf.
-- Word (.docx) → `use_skill("docx")`.
-- Excel (.xlsx) → `use_skill("xlsx")`.
-- PPT (.pptx) → `use_skill("pptx")`.
-- Email → `use_skill("imap-smtp-email")`.
 - Media → bash + ffmpeg/ffprobe
 - STT → `python scripts/transcribe.py <file>` (timeout 120000)
 - Coding tasks (write/fix/refactor code, create projects, multi-file changes) → `claude_code`. NOT file_write.

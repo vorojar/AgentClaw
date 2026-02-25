@@ -136,6 +136,10 @@ export class SimpleAgentLoop implements AgentLoop {
     };
     await this.memoryStore.addTurn(convId, userTurn);
 
+    // Track per-tool failure counts across iterations to prevent retry avalanche
+    const toolFailCounts = new Map<string, number>();
+    const MAX_TOOL_FAILURES = 2;
+
     // Agent loop: think → act → observe → repeat
     let iterations = 0;
     let consecutiveErrors = 0;
@@ -357,29 +361,47 @@ export class SimpleAgentLoop implements AgentLoop {
           input: toolCall.input,
         } as TraceStep);
 
-        let result = await this.toolRegistry.execute(
-          toolCall.name,
-          toolCall.input,
-          context,
-        );
+        // Check if this tool has already failed too many times across iterations
+        const priorFails = toolFailCounts.get(toolCall.name) ?? 0;
+        let result: Awaited<ReturnType<typeof this.toolRegistry.execute>>;
 
-        // Retry retryable tools on failure
-        if (result.isError && RETRYABLE_TOOLS.has(toolCall.name)) {
-          for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            if (this.aborted) break;
-            const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
-            console.log(
-              `[agent-loop] Retrying ${toolCall.name} (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms...`,
-            );
-            await new Promise((r) => setTimeout(r, delay));
-            if (this.aborted) break;
-            result = await this.toolRegistry.execute(
-              toolCall.name,
-              toolCall.input,
-              context,
-            );
-            if (!result.isError) break;
+        if (priorFails >= MAX_TOOL_FAILURES) {
+          result = {
+            content: `This tool has failed ${priorFails} times in this conversation. Stop retrying and tell the user what went wrong.`,
+            isError: true,
+          };
+        } else {
+          result = await this.toolRegistry.execute(
+            toolCall.name,
+            toolCall.input,
+            context,
+          );
+
+          // Retry retryable tools on failure
+          if (result.isError && RETRYABLE_TOOLS.has(toolCall.name)) {
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+              if (this.aborted) break;
+              const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
+              console.log(
+                `[agent-loop] Retrying ${toolCall.name} (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms...`,
+              );
+              await new Promise((r) => setTimeout(r, delay));
+              if (this.aborted) break;
+              result = await this.toolRegistry.execute(
+                toolCall.name,
+                toolCall.input,
+                context,
+              );
+              if (!result.isError) break;
+            }
           }
+        }
+
+        // Update per-tool failure tracking
+        if (result.isError) {
+          toolFailCounts.set(toolCall.name, priorFails + 1);
+        } else {
+          toolFailCounts.delete(toolCall.name);
         }
 
         if (result.autoComplete) hasAutoComplete = true;

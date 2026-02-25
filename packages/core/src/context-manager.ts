@@ -96,13 +96,20 @@ export class SimpleContextManager implements ContextManager {
     try {
       const memories = await this.memoryStore.search({
         query: searchQuery,
-        limit: 10,
+        limit: 5,
       });
       if (memories.length > 0) {
-        const memoryLines = memories
-          .map((m) => `- [${m.entry.type}] ${m.entry.content}`)
-          .join("\n");
-        finalPrompt += `\n\nYour long-term memory (things you know about the user and previous interactions):\n${memoryLines}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`;
+        const lines: string[] = [];
+        let totalChars = 0;
+        for (const m of memories) {
+          const line = `- [${m.entry.type}] ${m.entry.content}`;
+          if (totalChars + line.length > 2000) break;
+          lines.push(line);
+          totalChars += line.length;
+        }
+        if (lines.length > 0) {
+          finalPrompt += `\n\nYour long-term memory (things you know about the user and previous interactions):\n${lines.join("\n")}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`;
+        }
       }
     } catch {
       // Memory search failed — continue without memories
@@ -114,10 +121,8 @@ export class SimpleContextManager implements ContextManager {
       try {
         const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
         if (allSkills.length > 0) {
-          const catalog = allSkills
-            .map((s) => `- ${s.name}: ${s.description}`)
-            .join("\n");
-          finalPrompt += `\n\n## Available Skills\nWhen the user's request matches a skill below, call use_skill(name) to load its instructions before acting.\n${catalog}`;
+          const names = allSkills.map((s) => s.name).join(", ");
+          finalPrompt += `\n\nSkills (call use_skill(name) to activate): ${names}`;
         }
       } catch {
         // Skill catalog failed — continue without it

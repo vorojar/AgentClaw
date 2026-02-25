@@ -281,6 +281,25 @@ export function IconArrowLeft({ size }: { size?: number }) {
   );
 }
 
+export function IconMoreHorizontal({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" />
+      <circle cx="5" cy="12" r="1" fill="currentColor" />
+    </I>
+  );
+}
+
+export function IconTrash({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </I>
+  );
+}
+
 export function IconExternalLink({ size }: { size?: number }) {
   return (
     <I size={size}>

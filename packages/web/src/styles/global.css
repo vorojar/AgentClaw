@@ -696,8 +696,8 @@ textarea:focus {
     background: transparent;
     color: var(--text-secondary);
   }
-  /* Show delete button on touch (no hover available) */
+  /* Hide delete button on touch devices — use header menu instead */
   .sidebar-session-delete {
-    opacity: 1;
+    display: none;
   }
 }

@@ -10,6 +10,7 @@ import {
   connectWebSocket,
   uploadFile,
   renameSession,
+  closeSession,
 } from "../api/client";
 import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
@@ -30,6 +31,9 @@ import {
   IconX,
   IconArrowLeft,
   IconExternalLink,
+  IconMoreHorizontal,
+  IconEdit,
+  IconTrash,
 } from "../components/Icons";
 import { exportAsMarkdown } from "../utils/export";
 import {
@@ -548,6 +552,8 @@ export function ChatPage() {
   const [lastUserText, setLastUserText] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const wsRef = useRef<{
@@ -1013,13 +1019,48 @@ export function ChatPage() {
     [],
   );
 
+  // Close header menu on outside click
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        headerMenuRef.current &&
+        !headerMenuRef.current.contains(e.target as Node)
+      ) {
+        setHeaderMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [headerMenuOpen]);
+
   const handleExport = useCallback(() => {
     const activeSession = sessions.find((s) => s.id === activeSessionId);
     exportAsMarkdown(
       messages.filter((m) => m.role !== "system"),
       activeSession?.title,
     );
+    setHeaderMenuOpen(false);
   }, [messages, sessions, activeSessionId]);
+
+  const handleHeaderRename = useCallback(() => {
+    setHeaderMenuOpen(false);
+    const s = sessions.find((s) => s.id === activeSessionId);
+    setEditTitleValue(s?.title || "");
+    setEditingTitle(true);
+    setTimeout(() => titleInputRef.current?.select(), 0);
+  }, [sessions, activeSessionId]);
+
+  const handleHeaderDelete = useCallback(async () => {
+    setHeaderMenuOpen(false);
+    if (!activeSessionId) return;
+    try {
+      await closeSession(activeSessionId);
+      refreshSessions();
+    } catch (err) {
+      console.error("Failed to delete session:", err);
+    }
+  }, [activeSessionId, refreshSessions]);
 
   const handleReconnect = useCallback(() => {
     connectWs();
@@ -1087,15 +1128,31 @@ export function ChatPage() {
               {activeSession?.title || "Chat"}
             </span>
           )}
-          <div className="chat-header-actions">
+          <div className="chat-header-actions" ref={headerMenuRef}>
             <button
               className="btn-icon"
-              onClick={handleExport}
-              title="Export"
-              disabled={messages.length === 0}
+              onClick={() => setHeaderMenuOpen((v) => !v)}
+              title="More"
             >
-              <IconDownload size={16} />
+              <IconMoreHorizontal size={18} />
             </button>
+            {headerMenuOpen && (
+              <div className="header-dropdown">
+                <button onClick={handleHeaderRename}>
+                  <IconEdit size={14} /> Rename
+                </button>
+                <button onClick={handleExport} disabled={messages.length === 0}>
+                  <IconDownload size={14} /> Export
+                </button>
+                <button
+                  className="header-dropdown-danger"
+                  onClick={handleHeaderDelete}
+                  disabled={!activeSessionId}
+                >
+                  <IconTrash size={14} /> Delete
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

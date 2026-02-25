@@ -8,8 +8,8 @@ const OUTPUT_DIR = join(process.cwd(), "data", "tmp").replace(/\\/g, "/");
 
 /**
  * Spawn `claude` CLI in print mode with stream-json output.
- * Text is streamed directly to the user's chat via context.streamText.
- * Returns a compact summary to the outer LLM (saves tokens).
+ * Collects results silently during execution, returns a concise summary
+ * so the outer LLM can compose a proper response (and persist it).
  */
 async function runClaudeCode(
   prompt: string,
@@ -25,18 +25,15 @@ async function runClaudeCode(
     "--verbose",
   ];
 
-  const stream = context?.streamText;
-
   return new Promise<ToolResult>((resolve) => {
     const child = spawn("claude", args, {
       stdio: ["pipe", "pipe", "pipe"],
       timeout,
       cwd: cwd || process.cwd(),
-      env: { ...process.env },
+      env: { ...process.env, CLAUDECODE: undefined },
       shell: process.platform === "win32",
     });
 
-    let totalChars = 0;
     let resultSummary = "";
     let toolCallCount = 0;
     const filesChanged: string[] = [];
@@ -49,14 +46,8 @@ async function runClaudeCode(
 
         if (evt.type === "assistant" && evt.message?.content) {
           for (const block of evt.message.content) {
-            if (block.type === "text" && block.text) {
-              totalChars += block.text.length;
-              // Stream text directly to user's chat bubble
-              if (stream) stream(block.text);
-            }
             if (block.type === "tool_use") {
               toolCallCount++;
-              // Track file changes for summary
               if (
                 block.name === "Edit" ||
                 block.name === "Write" ||
@@ -72,8 +63,6 @@ async function runClaudeCode(
           }
         } else if (evt.type === "result") {
           resultSummary = evt.result || "";
-          // Stream the final result text too
-          if (stream && evt.result) stream("\n\n" + evt.result);
         }
       } catch {
         // non-JSON line — ignore
@@ -92,7 +81,7 @@ async function runClaudeCode(
     child.stdin!.end();
 
     child.on("close", async (code) => {
-      if (code !== 0 && code !== null && totalChars === 0) {
+      if (code !== 0 && code !== null && !resultSummary) {
         resolve({
           content: stderrBuf || `Claude Code exited with code ${code}`,
           isError: true,
@@ -116,13 +105,12 @@ async function runClaudeCode(
         }
       }
 
-      // Return compact summary to outer LLM — the user already saw the full text
+      // Concise result for the outer LLM to compose a proper response
       const parts = [`Claude Code completed (${toolCallCount} tool calls).`];
       if (filesChanged.length > 0) {
         parts.push(`Files changed: ${filesChanged.join(", ")}`);
       }
       if (resultSummary) {
-        // Keep result summary short
         parts.push(
           resultSummary.length > 500
             ? resultSummary.slice(0, 500) + "..."
@@ -133,8 +121,7 @@ async function runClaudeCode(
       resolve({
         content: parts.join("\n"),
         isError: false,
-        autoComplete: true, // skip outer LLM — user already has the streamed output
-        metadata: { exitCode: 0, totalChars, toolCallCount },
+        metadata: { exitCode: 0, toolCallCount },
       });
     });
 
@@ -150,7 +137,7 @@ async function runClaudeCode(
 export const claudeCodeTool: Tool = {
   name: "claude_code",
   description:
-    "Delegate a coding task to Claude Code CLI. It can read/write files, run shell commands, and make complex code changes autonomously. Use for: code generation, bug fixing, refactoring, project scaffolding, and any task that benefits from full codebase access. Output is streamed directly to the user in real-time.",
+    "Delegate a coding task to Claude Code CLI. It can read/write files, run shell commands, and make complex code changes autonomously. Use for: code generation, bug fixing, refactoring, project scaffolding, and any task that benefits from full codebase access.",
   category: "builtin",
   parameters: {
     type: "object",

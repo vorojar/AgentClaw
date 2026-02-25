@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.7.8] - 2026-02-25
+
+### 修复
+- **claude_code 嵌套会话报错**：spawn 时清除 `CLAUDECODE` 环境变量，修复从 Claude Code 会话内启动 gateway 时子进程拒绝运行
+- **claude_code 输出重复+刷新丢失**：移除伪流式 `streamText` 推送和 `autoComplete`，改由外层 LLM 正常回复并持久化
+
 ## [0.7.7] - 2026-02-25
 
 ### 改进

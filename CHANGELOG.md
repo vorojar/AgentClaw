@@ -6,6 +6,9 @@
 - **Header 操作菜单**：右上角 Export 按钮替换为 `...` 下拉菜单，包含 Rename / Export / Delete 三项操作
 - **移动端侧边栏精简**：触摸设备隐藏会话条目的 X 删除按钮，通过 Header 菜单操作替代
 
+### 修复
+- **移动端侧边栏导航失效**：`setSidebarOpenWithHistory(false)` 中 `history.back()` 异步执行会撤销 NavLink 的 `navigate()`，改为 `history.replaceState()` 同步覆盖 dummy 条目
+
 ## [0.7.6] - 2026-02-25
 
 ### 安全修复

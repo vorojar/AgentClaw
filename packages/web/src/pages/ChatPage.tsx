@@ -467,12 +467,19 @@ function ToolResultContent({
 
 function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
   const [expanded, setExpanded] = useState(false);
+  const rotationRef = useRef(0);
   const { theme } = useTheme();
   const jsonStyle = theme === "dark" ? darkStyles : defaultStyles;
   const label = toolCallLabel(entry.toolName, entry.toolInput);
+
+  const handleToggle = () => {
+    rotationRef.current += 90;
+    setExpanded(!expanded);
+  };
+
   return (
     <div className="tool-call-card">
-      <div className="tool-call-header" onClick={() => setExpanded(!expanded)}>
+      <div className="tool-call-header" onClick={handleToggle}>
         <span className="tool-call-icon">
           {entry.toolResult !== undefined ? (
             entry.isError ? (
@@ -487,7 +494,10 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
         <span className="tool-call-name" title={label}>
           {label}
         </span>
-        <span className={`tool-call-chevron${expanded ? " expanded" : ""}`}>
+        <span
+          className="tool-call-chevron"
+          style={{ transform: `rotate(${rotationRef.current}deg)` }}
+        >
           <IconChevronRight size={14} />
         </span>
       </div>

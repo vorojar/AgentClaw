@@ -257,10 +257,6 @@
   flex-shrink: 0;
 }
 
-.tool-call-chevron.expanded {
-  transform: rotate(90deg);
-}
-
 .tool-call-icon {
   display: flex;
   align-items: center;

@@ -155,9 +155,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         history.pushState({ _sidebar: true }, "");
         sidebarHistoryRef.current = true;
       } else if (!open && sidebarHistoryRef.current) {
-        // Closed by code (backdrop / nav item) — pop our entry
+        // Closed by code (backdrop / nav item) — replace dummy entry instead
+        // of history.back() which races with NavLink navigate()
         sidebarHistoryRef.current = false;
-        history.back();
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
       }
     },
     [], // eslint-disable-line react-hooks/exhaustive-deps

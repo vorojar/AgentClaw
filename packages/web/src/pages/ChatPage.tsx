@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   type ChatMessage,
   type WSMessage,
+  type SkillInfo,
   getHistory,
   createSession,
   connectWebSocket,
   uploadFile,
   renameSession,
   closeSession,
+  listSkills,
 } from "../api/client";
 import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
@@ -35,6 +38,7 @@ import {
   IconEdit,
   IconTrash,
   IconMic,
+  IconSkills,
 } from "../components/Icons";
 import { exportAsMarkdown } from "../utils/export";
 import {
@@ -559,6 +563,7 @@ export function ChatPage() {
     refreshSessions,
     ensureSession,
   } = useSession();
+  const navigate = useNavigate();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -577,11 +582,15 @@ export function ChatPage() {
   const [editingMsgKey, setEditingMsgKey] = useState<string | null>(null);
   const [editMsgValue, setEditMsgValue] = useState("");
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
+  const [skillMenuOpen, setSkillMenuOpen] = useState(false);
+  const skillMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const wsRef = useRef<{
-    send: (c: string) => void;
+    send: (c: string, skillName?: string) => void;
     stop: () => void;
     close: () => void;
     promptReply: (c: string) => void;
@@ -593,6 +602,7 @@ export function ChatPage() {
   const toolCallIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingSendRef = useRef<string | null>(null);
+  const pendingSkillRef = useRef<string | null>(null);
 
   /* ── Voice input (Web Speech API) ─── */
   const [isListening, setIsListening] = useState(false);
@@ -606,6 +616,18 @@ export function ChatPage() {
   }, [messages]);
   useEffect(() => {
     requestNotificationPermission();
+    const PINNED = ["research", "coding", "writing", "web-search", "pdf"];
+    listSkills()
+      .then((list) => {
+        const enabled = list.filter((s) => s.enabled);
+        enabled.sort((a, b) => {
+          const ai = PINNED.indexOf(a.name);
+          const bi = PINNED.indexOf(b.name);
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
+        setSkills(enabled);
+      })
+      .catch(() => {});
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -684,8 +706,10 @@ export function ChatPage() {
           // Send pending message (first message that triggered session creation)
           if (pendingSendRef.current && conn) {
             const msg = pendingSendRef.current;
+            const skill = pendingSkillRef.current;
             pendingSendRef.current = null;
-            conn.send(msg);
+            pendingSkillRef.current = null;
+            conn.send(msg, skill ?? undefined);
           }
         }
       },
@@ -1044,11 +1068,15 @@ export function ChatPage() {
     setIsSending(true);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
+    const skillToSend = selectedSkill || undefined;
+    setSelectedSkill(null);
+
     if (wsRef.current) {
-      wsRef.current.send(contentToSend);
+      wsRef.current.send(contentToSend, skillToSend);
     } else {
       // No WS — store message, create/reconnect session; onOpen will send it
       pendingSendRef.current = contentToSend;
+      pendingSkillRef.current = skillToSend ?? null;
       if (!activeSessionId) {
         skipHistoryRef.current = true;
         await ensureSession();
@@ -1060,6 +1088,7 @@ export function ChatPage() {
     inputValue,
     isSending,
     pendingFiles,
+    selectedSkill,
     ensureSession,
     activeSessionId,
     connectWs,
@@ -1184,6 +1213,21 @@ export function ChatPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [headerMenuOpen]);
 
+  // Close skill menu on outside click
+  useEffect(() => {
+    if (!skillMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        skillMenuRef.current &&
+        !skillMenuRef.current.contains(e.target as Node)
+      ) {
+        setSkillMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [skillMenuOpen]);
+
   const handleExport = useCallback(() => {
     const activeSession = sessions.find((s) => s.id === activeSessionId);
     exportAsMarkdown(
@@ -1218,6 +1262,7 @@ export function ChatPage() {
 
   /* Render */
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const isNewChat = messages.length === 0 && !loadingHistory;
   const canSend =
     (inputValue.trim().length > 0 || pendingFiles.length > 0) && !isSending;
   const showRegenerate =
@@ -1324,9 +1369,118 @@ export function ChatPage() {
 
         {/* Messages */}
         {messages.length === 0 && !loadingHistory ? (
-          <div className="chat-empty-state">
-            <h2>How can I help you today?</h2>
-            <p>Send a message to start a conversation.</p>
+          <div className="chat-welcome">
+            <h2 className="chat-welcome-title">需要我为你做些什么？</h2>
+            <div className="chat-welcome-input">
+              <div className="chat-input-wrapper">
+                <button
+                  className="btn-attach"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSending}
+                  title="Attach file"
+                >
+                  <IconPaperclip size={18} />
+                </button>
+                {skills.length > 0 && (
+                  <div className="skill-menu-anchor" ref={skillMenuRef}>
+                    <button
+                      className={`btn-skill${selectedSkill ? " active" : ""}`}
+                      onClick={() => setSkillMenuOpen((v) => !v)}
+                      disabled={isSending}
+                      title="Select skill"
+                    >
+                      <IconSkills size={18} />
+                    </button>
+                    {skillMenuOpen && (
+                      <div className="skill-popup">
+                        {skills.slice(0, 5).map((s) => (
+                          <button
+                            key={s.id}
+                            className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
+                            onClick={() => {
+                              setSelectedSkill((prev) =>
+                                prev === s.name ? null : s.name,
+                              );
+                              setSkillMenuOpen(false);
+                            }}
+                            title={s.description}
+                          >
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <textarea
+                  ref={textareaRef}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask AgentClaw..."
+                  disabled={isSending}
+                  rows={2}
+                />
+                {(window.SpeechRecognition ||
+                  window.webkitSpeechRecognition) && (
+                  <button
+                    className={`btn-voice${isListening ? " listening" : ""}`}
+                    onClick={toggleVoice}
+                    disabled={isSending}
+                    title={isListening ? "Stop voice input" : "Voice input"}
+                  >
+                    <IconMic size={18} />
+                  </button>
+                )}
+                <button
+                  className="btn-send"
+                  onClick={handleSend}
+                  disabled={!canSend}
+                  title="Send message"
+                >
+                  <IconArrowUp size={18} />
+                </button>
+              </div>
+              {selectedSkill && (
+                <div className="skill-selected-bar" style={{ marginTop: 6 }}>
+                  <span className="skill-selected-label">
+                    Skill: <strong>{selectedSkill}</strong>
+                  </span>
+                  <button
+                    className="skill-selected-clear"
+                    onClick={() => setSelectedSkill(null)}
+                  >
+                    <IconX size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="chat-welcome-skills">
+              {[
+                { label: "创建图片", skill: "comfyui" },
+                { label: "Excel表格", skill: "xlsx" },
+                { label: "PDF处理", skill: "pdf" },
+                { label: "Web搜索", skill: "web-search" },
+              ].map((item) => (
+                <button
+                  key={item.skill}
+                  className={`welcome-skill-chip${selectedSkill === item.skill ? " active" : ""}`}
+                  onClick={() =>
+                    setSelectedSkill((prev) =>
+                      prev === item.skill ? null : item.skill,
+                    )
+                  }
+                >
+                  {item.label}
+                </button>
+              ))}
+              <button
+                className="welcome-skill-chip"
+                onClick={() => navigate("/skills")}
+              >
+                更多
+              </button>
+            </div>
           </div>
         ) : (
           <div className="messages-container">
@@ -1498,76 +1652,122 @@ export function ChatPage() {
           </div>
         )}
 
-        {/* Input Area */}
-        <div className="chat-input-area">
-          <div className="chat-input-wrapper">
-            <button
-              className="btn-attach"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSending}
-              title="Attach file"
-            >
-              <IconPaperclip size={18} />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              style={{ display: "none" }}
-              onChange={(e) => {
-                if (e.target.files) {
-                  handleFiles(Array.from(e.target.files));
-                  e.target.value = "";
-                }
-              }}
-            />
-            {(window.SpeechRecognition || window.webkitSpeechRecognition) && (
+        {/* Input Area — hidden on welcome screen */}
+        {!isNewChat && (
+          <div className="chat-input-area">
+            {selectedSkill && (
+              <div className="skill-selected-bar">
+                <span className="skill-selected-label">
+                  Skill: <strong>{selectedSkill}</strong>
+                </span>
+                <button
+                  className="skill-selected-clear"
+                  onClick={() => setSelectedSkill(null)}
+                >
+                  <IconX size={14} />
+                </button>
+              </div>
+            )}
+            <div className="chat-input-wrapper">
               <button
-                className={`btn-voice${isListening ? " listening" : ""}`}
-                onClick={toggleVoice}
+                className="btn-attach"
+                onClick={() => fileInputRef.current?.click()}
                 disabled={isSending}
-                title={isListening ? "Stop voice input" : "Voice input"}
+                title="Attach file"
               >
-                <IconMic size={18} />
+                <IconPaperclip size={18} />
               </button>
-            )}
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                pendingPrompt
-                  ? pendingPrompt
-                  : isListening
-                    ? "Listening..."
-                    : isSending
-                      ? "Waiting for response..."
-                      : "Reply to AgentClaw..."
-              }
-              disabled={isSending && !pendingPrompt}
-              rows={2}
-            />
-            {isSending && !pendingPrompt ? (
-              <button
-                className="btn-stop"
-                onClick={handleStop}
-                title="Stop generation"
-              >
-                <IconSquare size={14} />
-              </button>
-            ) : (
-              <button
-                className="btn-send"
-                onClick={handleSend}
-                disabled={!pendingPrompt && !canSend}
-                title="Send message"
-              >
-                <IconArrowUp size={18} />
-              </button>
-            )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleFiles(Array.from(e.target.files));
+                    e.target.value = "";
+                  }
+                }}
+              />
+              {skills.length > 0 && (
+                <div className="skill-menu-anchor" ref={skillMenuRef}>
+                  <button
+                    className={`btn-skill${selectedSkill ? " active" : ""}`}
+                    onClick={() => setSkillMenuOpen((v) => !v)}
+                    disabled={isSending}
+                    title="Select skill"
+                  >
+                    <IconSkills size={18} />
+                  </button>
+                  {skillMenuOpen && (
+                    <div className="skill-popup">
+                      {skills.slice(0, 5).map((s) => (
+                        <button
+                          key={s.id}
+                          className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
+                          onClick={() => {
+                            setSelectedSkill((prev) =>
+                              prev === s.name ? null : s.name,
+                            );
+                            setSkillMenuOpen(false);
+                          }}
+                          title={s.description}
+                        >
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  pendingPrompt
+                    ? pendingPrompt
+                    : isListening
+                      ? "Listening..."
+                      : isSending
+                        ? "Waiting for response..."
+                        : "Reply to AgentClaw..."
+                }
+                disabled={isSending && !pendingPrompt}
+                rows={2}
+              />
+              {(window.SpeechRecognition || window.webkitSpeechRecognition) && (
+                <button
+                  className={`btn-voice${isListening ? " listening" : ""}`}
+                  onClick={toggleVoice}
+                  disabled={isSending}
+                  title={isListening ? "Stop voice input" : "Voice input"}
+                >
+                  <IconMic size={18} />
+                </button>
+              )}
+              {isSending && !pendingPrompt ? (
+                <button
+                  className="btn-stop"
+                  onClick={handleStop}
+                  title="Stop generation"
+                >
+                  <IconSquare size={14} />
+                </button>
+              ) : (
+                <button
+                  className="btn-send"
+                  onClick={handleSend}
+                  disabled={!pendingPrompt && !canSend}
+                  title="Send message"
+                >
+                  <IconArrowUp size={18} />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </FileDropZone>
   );

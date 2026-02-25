@@ -156,7 +156,7 @@ export class GeminiProvider extends BaseLLMProvider {
           yield {
             type: "tool_use_start",
             toolUse: {
-              id: generateId(),
+              id: part.functionCall.name ?? generateId(),
               name: part.functionCall.name ?? "",
               input: JSON.stringify(part.functionCall.args ?? {}),
             },
@@ -312,7 +312,7 @@ export class GeminiProvider extends BaseLLMProvider {
       if (part.functionCall) {
         blocks.push({
           type: "tool_use",
-          id: generateId(),
+          id: part.functionCall.name ?? generateId(),
           name: part.functionCall.name ?? "",
           input: (part.functionCall.args ?? {}) as Record<string, unknown>,
         });

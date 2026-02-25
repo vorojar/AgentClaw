@@ -1,5 +1,18 @@
 # 更新日志
 
+## [0.7.6] - 2026-02-25
+
+### 安全修复
+- **命令注入漏洞（RCE）**：`routes/tools.ts` 中 `execSync` 拼接用户输入改为 `execFileSync` 参数数组，消除 git clone / tar / powershell 命令注入风险
+
+### 修复
+- **Gemini 工具调用失败**：tool use ID 从随机 UUID 改为函数名，修复 `functionResponse.name` 匹配不上导致 API 拒绝
+- **deleteSession 数据不一致**：5 条 SQL 操作包裹 `db.transaction()`，中途失败自动回滚
+- **Trace JSON 解析崩溃**：`rowToTrace` 中 `JSON.parse(row.steps)` 加 try-catch，损坏数据不再导致服务崩溃
+- **ensureConversation 竞态**：CHECK-THEN-INSERT 改为 `INSERT OR IGNORE`，消除并发 PRIMARY KEY 冲突
+- **Agent stop 后仍重试**：retry 循环添加 `this.aborted` 检查，用户停止后立即中断
+- **WhatsApp LID undefined**：`lid` 为空时不再拼出 `"undefined@lid"` 误拒合法消息
+
 ## [0.7.5] - 2026-02-24
 
 ### 新功能

@@ -766,7 +766,8 @@ export async function startWhatsAppBot(
           const jid = msg.key.remoteJid;
           if (!jid || !sock.user) continue;
           const ownPN = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-          const ownLID = (sock.user as { lid?: string }).lid?.split(":")[0] + "@lid";
+          const rawLid = (sock.user as { lid?: string }).lid;
+          const ownLID = rawLid ? rawLid.split(":")[0] + "@lid" : null;
           if (jid !== ownPN && jid !== ownLID) continue;
 
           // Dedup

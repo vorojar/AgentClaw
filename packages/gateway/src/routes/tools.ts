@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   writeFileSync,
@@ -95,7 +95,7 @@ export function registerToolRoutes(
       }
 
       try {
-        execSync(`git clone --depth 1 "${url}" "${targetDir}"`, {
+        execFileSync("git", ["clone", "--depth", "1", url, targetDir], {
           timeout: 30000,
         });
       } catch (err) {
@@ -162,13 +162,12 @@ export function registerToolRoutes(
     try {
       mkdirSync(targetDir, { recursive: true });
       try {
-        execSync(`tar -xf "${tmpZip}" -C "${targetDir}"`, { timeout: 15000 });
+        execFileSync("tar", ["-xf", tmpZip, "-C", targetDir], { timeout: 15000 });
       } catch {
         // Fallback: PowerShell Expand-Archive (Windows)
-        execSync(
-          `powershell -Command "Expand-Archive -Path '${tmpZip}' -DestinationPath '${targetDir}'"`,
-          { timeout: 15000 },
-        );
+        execFileSync("powershell", ["-Command", `Expand-Archive -Path '${tmpZip}' -DestinationPath '${targetDir}'`], {
+          timeout: 15000,
+        });
       }
     } catch (err) {
       rmSync(targetDir, { recursive: true, force: true });

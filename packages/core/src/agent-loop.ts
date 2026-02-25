@@ -366,11 +366,13 @@ export class SimpleAgentLoop implements AgentLoop {
         // Retry retryable tools on failure
         if (result.isError && RETRYABLE_TOOLS.has(toolCall.name)) {
           for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            if (this.aborted) break;
             const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
             console.log(
               `[agent-loop] Retrying ${toolCall.name} (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms...`,
             );
             await new Promise((r) => setTimeout(r, delay));
+            if (this.aborted) break;
             result = await this.toolRegistry.execute(
               toolCall.name,
               toolCall.input,

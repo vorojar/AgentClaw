@@ -564,27 +564,29 @@ export class SQLiteMemoryStore implements MemoryStore {
   }
 
   async deleteSession(id: string): Promise<void> {
-    const row = this.db
-      .prepare("SELECT conversation_id FROM sessions WHERE id = ?")
-      .get(id) as { conversation_id: string } | undefined;
-    if (row) {
-      // Nullify memory references before deleting turns (FK constraint)
-      this.db
-        .prepare(
-          "UPDATE memories SET source_turn_id = NULL WHERE source_turn_id IN (SELECT id FROM turns WHERE conversation_id = ?)",
-        )
-        .run(row.conversation_id);
-      this.db
-        .prepare("DELETE FROM turns WHERE conversation_id = ?")
-        .run(row.conversation_id);
-      this.db
-        .prepare("DELETE FROM traces WHERE conversation_id = ?")
-        .run(row.conversation_id);
-      this.db
-        .prepare("DELETE FROM conversations WHERE id = ?")
-        .run(row.conversation_id);
-    }
-    this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+    const deleteInTransaction = this.db.transaction((sessionId: string) => {
+      const row = this.db
+        .prepare("SELECT conversation_id FROM sessions WHERE id = ?")
+        .get(sessionId) as { conversation_id: string } | undefined;
+      if (row) {
+        this.db
+          .prepare(
+            "UPDATE memories SET source_turn_id = NULL WHERE source_turn_id IN (SELECT id FROM turns WHERE conversation_id = ?)",
+          )
+          .run(row.conversation_id);
+        this.db
+          .prepare("DELETE FROM turns WHERE conversation_id = ?")
+          .run(row.conversation_id);
+        this.db
+          .prepare("DELETE FROM traces WHERE conversation_id = ?")
+          .run(row.conversation_id);
+        this.db
+          .prepare("DELETE FROM conversations WHERE id = ?")
+          .run(row.conversation_id);
+      }
+      this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
+    });
+    deleteInTransaction(id);
   }
 
   // ─── Traces ──────────────────────────────────────────────────
@@ -637,17 +639,11 @@ export class SQLiteMemoryStore implements MemoryStore {
   // ─── Helpers ───────────────────────────────────────────────────
 
   private ensureConversation(conversationId: string): void {
-    const exists = this.db
-      .prepare("SELECT 1 FROM conversations WHERE id = ?")
-      .get(conversationId);
-
-    if (!exists) {
-      this.db
-        .prepare(
-          "INSERT INTO conversations (id, created_at, updated_at) VALUES (?, datetime('now'), datetime('now'))",
-        )
-        .run(conversationId);
-    }
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO conversations (id, created_at, updated_at) VALUES (?, datetime('now'), datetime('now'))",
+      )
+      .run(conversationId);
   }
 }
 
@@ -757,13 +753,19 @@ interface TraceRow {
 }
 
 function rowToTrace(row: TraceRow): Trace {
+  let steps: Trace["steps"] = [];
+  try {
+    steps = JSON.parse(row.steps);
+  } catch {
+    // corrupted data — return empty steps
+  }
   return {
     id: row.id,
     conversationId: row.conversation_id,
     userInput: row.user_input,
     systemPrompt: row.system_prompt ?? undefined,
     skillMatch: row.skill_match ?? undefined,
-    steps: JSON.parse(row.steps),
+    steps,
     response: row.response ?? undefined,
     model: row.model ?? undefined,
     tokensIn: row.tokens_in,

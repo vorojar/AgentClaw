@@ -1,10 +1,5 @@
 # 更新日志
 
-## [0.7.8] - 2026-02-25
-
-### 改进
-- **Skill 预注入（Embedding 相似度匹配）**：`buildContext()` 阶段用 embedding 向量预匹配 skill，置信度 >0.5 时直接注入指令到系统提示词，LLM 一轮直接执行，省掉 `use_skill` 工具调用轮。无 embedding 时自动降级到现有 token-overlap 匹配，零影响。Skill 向量在加载时一次性计算并缓存，memory search 与 skill matching 并行执行不增加延迟
-
 ## [0.7.7] - 2026-02-25
 
 ### 改进

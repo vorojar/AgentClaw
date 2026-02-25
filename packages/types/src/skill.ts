@@ -56,7 +56,4 @@ export interface SkillRegistry {
 
   /** Enable/disable a skill */
   setEnabled(id: string, enabled: boolean): void;
-
-  /** Set embedding function for semantic matching */
-  setEmbedFn?(fn: (texts: string[]) => Promise<number[][]>): void;
 }

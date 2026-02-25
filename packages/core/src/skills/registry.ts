@@ -16,28 +16,12 @@ import { parseSkillFile } from "./parser.js";
  * Manages a collection of skills loaded from SKILL.md files and provides
  * pattern-based matching against user input.
  */
-/** Cosine similarity between two vectors */
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
-
 export class SkillRegistryImpl implements SkillRegistry {
   private skills: Map<string, Skill> = new Map();
   private watcher: FSWatcher | null = null;
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> =
     new Map();
   private settingsPath: string | null = null;
-  private embedFn: ((texts: string[]) => Promise<number[][]>) | null = null;
-  private skillEmbeddings: Map<string, number[]> = new Map();
 
   /**
    * Set the path for persisting skill enabled/disabled settings.
@@ -45,41 +29,6 @@ export class SkillRegistryImpl implements SkillRegistry {
    */
   setSettingsPath(filePath: string): void {
     this.settingsPath = filePath;
-  }
-
-  /**
-   * Set the embedding function for semantic skill matching.
-   * Immediately computes embeddings for all loaded skills.
-   */
-  setEmbedFn(fn: (texts: string[]) => Promise<number[][]>): void {
-    this.embedFn = fn;
-    this.computeEmbeddings().catch((err) => {
-      console.warn(`[skills] Failed to compute embeddings: ${err}`);
-    });
-  }
-
-  /**
-   * Batch-compute embedding vectors for all enabled skills.
-   * Each skill is represented as "name: description".
-   */
-  private async computeEmbeddings(): Promise<void> {
-    if (!this.embedFn) return;
-    const entries: { id: string; text: string }[] = [];
-    for (const skill of this.skills.values()) {
-      if (!skill.enabled) continue;
-      entries.push({ id: skill.id, text: `${skill.name}: ${skill.description}` });
-    }
-    if (entries.length === 0) return;
-    try {
-      const vectors = await this.embedFn(entries.map((e) => e.text));
-      this.skillEmbeddings.clear();
-      for (let i = 0; i < entries.length; i++) {
-        this.skillEmbeddings.set(entries[i].id, vectors[i]);
-      }
-      console.log(`[skills] Computed embeddings for ${entries.length} skills`);
-    } catch (err) {
-      console.warn(`[skills] Embedding computation failed: ${err}`);
-    }
   }
 
   /**
@@ -176,14 +125,6 @@ export class SkillRegistryImpl implements SkillRegistry {
       const content = await readFile(filePath, "utf-8");
       const skill = parseSkillFile(filePath, content);
       this.register(skill);
-      // Recompute embedding for the changed skill
-      if (this.embedFn && skill.enabled) {
-        this.embedFn([`${skill.name}: ${skill.description}`])
-          .then((vectors) => {
-            this.skillEmbeddings.set(skill.id, vectors[0]);
-          })
-          .catch(() => {});
-      }
       return true;
     } catch {
       // Skip skills that can't be parsed
@@ -262,9 +203,10 @@ export class SkillRegistryImpl implements SkillRegistry {
     const matches: SkillMatch[] = [];
     const inputLower = input.toLowerCase();
 
-    // Check legacy keyword triggers first (always takes priority)
     for (const skill of this.skills.values()) {
       if (!skill.enabled) continue;
+
+      // Path 1: legacy keyword triggers (backward compat)
       if (skill.triggers && skill.triggers.length > 0) {
         let bestScore: number | null = null;
         let bestTrigger = skill.triggers[0];
@@ -281,45 +223,14 @@ export class SkillRegistryImpl implements SkillRegistry {
             confidence: bestScore,
             matchedTrigger: bestTrigger,
           });
+          continue;
         }
       }
-    }
 
-    // Embedding-based matching (preferred) or token-overlap fallback
-    if (this.embedFn && this.skillEmbeddings.size > 0) {
-      try {
-        const [queryVec] = await this.embedFn([input]);
-        for (const skill of this.skills.values()) {
-          if (!skill.enabled) continue;
-          // Skip skills already matched by keyword triggers
-          if (matches.some((m) => m.skill.id === skill.id)) continue;
-          const cached = this.skillEmbeddings.get(skill.id);
-          if (!cached) continue;
-          const score = cosineSimilarity(queryVec, cached);
-          if (score > 0.45) {
-            matches.push({ skill, confidence: score });
-          }
-        }
-      } catch {
-        // Embedding failed — fall through to token-overlap
-        for (const skill of this.skills.values()) {
-          if (!skill.enabled) continue;
-          if (matches.some((m) => m.skill.id === skill.id)) continue;
-          const score = descriptionScore(inputLower, skill);
-          if (score > 0.15) {
-            matches.push({ skill, confidence: score });
-          }
-        }
-      }
-    } else {
-      // No embedFn — use token-overlap
-      for (const skill of this.skills.values()) {
-        if (!skill.enabled) continue;
-        if (matches.some((m) => m.skill.id === skill.id)) continue;
-        const score = descriptionScore(inputLower, skill);
-        if (score > 0.15) {
-          matches.push({ skill, confidence: score });
-        }
+      // Path 2: description-based token overlap
+      const score = descriptionScore(inputLower, skill);
+      if (score > 0.15) {
+        matches.push({ skill, confidence: score });
       }
     }
 

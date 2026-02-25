@@ -545,6 +545,47 @@
   opacity: 0.3;
 }
 
+/* ── Voice button ────────────────────────────────── */
+
+.btn-voice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0;
+  flex-shrink: 0;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.btn-voice:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.btn-voice.listening {
+  color: var(--error);
+  animation: pulse-mic 1.2s ease-in-out infinite;
+}
+
+.btn-voice:disabled {
+  opacity: 0.3;
+}
+
+@keyframes pulse-mic {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 /* ── Connection Status ────────────────────────────── */
 
 .connection-banner {

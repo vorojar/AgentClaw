@@ -34,6 +34,7 @@ import {
   IconMoreHorizontal,
   IconEdit,
   IconTrash,
+  IconMic,
 } from "../components/Icons";
 import { exportAsMarkdown } from "../utils/export";
 import {
@@ -578,6 +579,10 @@ export function ChatPage() {
   const toolCallIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingSendRef = useRef<string | null>(null);
+
+  /* ── Voice input (Web Speech API) ─── */
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const skipHistoryRef = useRef(false);
   const stoppedRef = useRef(false);
 
@@ -894,6 +899,53 @@ export function ChatPage() {
         break;
       }
     }
+  }, []);
+
+  /* Voice input toggle */
+  const toggleVoice = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+      setIsListening(false);
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = navigator.language;
+    rec.interimResults = true;
+    rec.continuous = true;
+
+    const base = inputValue;
+
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      let finals = "";
+      let interim = "";
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finals += e.results[i][0].transcript;
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      setInputValue((base ? base + " " : "") + finals + interim);
+    };
+
+    rec.onend = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+
+    rec.onerror = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+
+    recognitionRef.current = rec;
+    setIsListening(true);
+    rec.start();
   }, []);
 
   /* Send */
@@ -1321,13 +1373,27 @@ export function ChatPage() {
                 }
               }}
             />
+            {(window.SpeechRecognition || window.webkitSpeechRecognition) && (
+              <button
+                className={`btn-voice${isListening ? " listening" : ""}`}
+                onClick={toggleVoice}
+                disabled={isSending}
+                title={isListening ? "Stop voice input" : "Voice input"}
+              >
+                <IconMic size={18} />
+              </button>
+            )}
             <textarea
               ref={textareaRef}
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder={
-                isSending ? "Waiting for response..." : "Reply to AgentClaw..."
+                isListening
+                  ? "Listening..."
+                  : isSending
+                    ? "Waiting for response..."
+                    : "Reply to AgentClaw..."
               }
               disabled={isSending}
               rows={2}

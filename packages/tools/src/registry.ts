@@ -46,6 +46,14 @@ export class ToolRegistryImpl implements ToolRegistry {
   ): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) {
+      // Auto-redirect: LLM called a skill name as if it were a tool
+      const skill = context?.skillRegistry?.get(name);
+      if (skill) {
+        const useSkill = this.tools.get("use_skill");
+        if (useSkill) {
+          return useSkill.execute({ name }, context);
+        }
+      }
       return { content: `Tool "${name}" not found`, isError: true };
     }
     try {

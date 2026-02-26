@@ -35,3 +35,6 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 packages/web/public/desktop.ini
+
+# SearXNG auto-generated
+searxng/uwsgi.ini

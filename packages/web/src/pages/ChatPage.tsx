@@ -267,6 +267,8 @@ function HtmlPreviewOverlay({
   filename: string;
   onClose: () => void;
 }) {
+  const [needsDevServer, setNeedsDevServer] = useState(false);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -286,6 +288,18 @@ function HtmlPreviewOverlay({
     };
   }, [onClose]);
 
+  // Detect non-self-contained HTML (Vite/webpack projects with module script refs)
+  useEffect(() => {
+    fetch(href)
+      .then((r) => r.text())
+      .then((html) => {
+        if (/<script\b[^>]*\bsrc=["'](?!https?:\/\/)/.test(html)) {
+          setNeedsDevServer(true);
+        }
+      })
+      .catch(() => {});
+  }, [href]);
+
   return (
     <div className="html-overlay">
       <div className="html-overlay-toolbar">
@@ -303,12 +317,30 @@ function HtmlPreviewOverlay({
           <IconExternalLink size={18} />
         </a>
       </div>
-      <iframe
-        src={href}
-        sandbox="allow-scripts allow-same-origin"
-        className="html-overlay-iframe"
-        title="HTML preview"
-      />
+      {needsDevServer ? (
+        <>
+          <iframe
+            src="http://localhost:5173"
+            className="html-overlay-iframe"
+            title="Vite dev server preview"
+          />
+          <div className="html-overlay-hint">
+            If blank, run:{" "}
+            <code>
+              cd{" "}
+              {href.replace(/^\/files\//, "data/tmp/").replace(/\/[^/]+$/, "")}{" "}
+              && npm run dev
+            </code>
+          </div>
+        </>
+      ) : (
+        <iframe
+          src={href}
+          sandbox="allow-scripts"
+          className="html-overlay-iframe"
+          title="HTML preview"
+        />
+      )}
     </div>
   );
 }

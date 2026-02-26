@@ -1,4 +1,4 @@
-import { basename, join, extname } from "node:path";
+import { basename, join, extname, resolve, relative } from "node:path";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
@@ -223,7 +223,17 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           preSelectedSkillName: parsed.skillName || undefined,
           sendFile: async (filePath: string) => {
             const filename = basename(filePath);
-            const url = `/files/${encodeURIComponent(filename)}`;
+            // Preserve subdirectory path relative to data/tmp for correct static serving
+            const tmpDir = resolve(process.cwd(), "data", "tmp");
+            const tempDir = resolve(process.cwd(), "data", "temp");
+            const abs = resolve(filePath);
+            let relPath = filename;
+            if (abs.startsWith(tmpDir)) {
+              relPath = relative(tmpDir, abs).replace(/\\/g, "/");
+            } else if (abs.startsWith(tempDir)) {
+              relPath = relative(tempDir, abs).replace(/\\/g, "/");
+            }
+            const url = `/files/${relPath.split("/").map(encodeURIComponent).join("/")}`;
             if (!sentFiles.some((f) => f.url === url)) {
               sentFiles.push({ url, filename });
             }

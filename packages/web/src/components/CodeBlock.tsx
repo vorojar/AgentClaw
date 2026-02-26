@@ -3,7 +3,7 @@ import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import "./CodeBlock.css";
 
-const PREVIEWABLE = new Set(["html", "svg", "mermaid"]);
+const PREVIEWABLE = new Set(["html", "svg", "mermaid", "jsx", "tsx"]);
 
 interface CodeBlockProps {
   className?: string;
@@ -41,6 +41,86 @@ function MermaidPreview({ code }: { code: string }) {
 
   if (error) return <pre className="code-preview-error">{error}</pre>;
   return <div ref={ref} className="code-preview-mermaid" />;
+}
+
+/* ── React (JSX/TSX) preview ── */
+
+const REACT_CDN = "https://cdn.jsdelivr.net/npm";
+
+function ReactPreview({ code }: { code: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const Babel = (await import("@babel/standalone")).default;
+        const result = Babel.transform(code, {
+          presets: [["react", { runtime: "classic" }], "typescript"],
+          filename: "component.tsx",
+        });
+
+        let compiled = result.code || "";
+        // Strip import statements (React/ReactDOM are globals in iframe)
+        compiled = compiled.replace(
+          /^import\s+.*?from\s+['"].*?['"];?\s*$/gm,
+          "",
+        );
+        // Convert export default to window assignment
+        const hasDefault = /export\s+default\s+/.test(compiled);
+        compiled = compiled.replace(
+          /export\s+default\s+/g,
+          "window.__COMPONENT__ = ",
+        );
+        // Remove remaining export keywords
+        compiled = compiled.replace(/^export\s+/gm, "");
+        // If no default export, detect PascalCase function/const as component
+        if (!hasDefault) {
+          const m = compiled.match(/(?:function|const|class)\s+([A-Z]\w*)/);
+          if (m) compiled += `\nwindow.__COMPONENT__ = ${m[1]};`;
+        }
+
+        const doc = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>*{margin:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;padding:16px;background:#fff;color:#1a1a1a}#__err{color:#e53e3e;font-family:monospace;font-size:13px;white-space:pre-wrap;padding:12px;background:#fff5f5;border-radius:4px}</style>
+<script crossorigin src="${REACT_CDN}/react@19/umd/react.production.min.js"><\/script>
+<script crossorigin src="${REACT_CDN}/react-dom@19/umd/react-dom.production.min.js"><\/script>
+</head><body><div id="root"></div><script>
+try{
+var {useState,useEffect,useRef,useMemo,useCallback,useReducer,useContext,createContext,Fragment}=React;
+${compiled}
+var C=window.__COMPONENT__;
+if(C){ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(C))}
+else{document.getElementById("root").innerHTML='<div id="__err">No component found. Use: export default function App() { ... }<\\/div>'}
+}catch(e){document.getElementById("root").innerHTML='<div id="__err">'+e.message+'<\\/div>'}
+<\/script></body></html>`;
+
+        if (!cancelled) {
+          setHtml(doc);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e));
+          setHtml(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  if (error) return <pre className="code-preview-error">{error}</pre>;
+  if (!html) return <div className="code-preview-loading">Compiling…</div>;
+  return (
+    <iframe
+      srcDoc={html}
+      sandbox="allow-scripts"
+      className="code-preview-iframe"
+      title="React preview"
+    />
+  );
 }
 
 /* ── HTML / SVG iframe preview ── */
@@ -117,6 +197,8 @@ export function CodeBlock({
         <div className="code-preview-container">
           {language === "mermaid" ? (
             <MermaidPreview code={code} />
+          ) : language === "jsx" || language === "tsx" ? (
+            <ReactPreview code={code} />
           ) : (
             <HtmlPreview code={code} language={language} />
           )}

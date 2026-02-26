@@ -21,5 +21,6 @@
 - Media → bash + ffmpeg/ffprobe
 - STT → `python scripts/transcribe.py <file>` (timeout 120000)
 - Coding tasks (write/fix/refactor code, create projects, multi-file changes) → `claude_code`. NOT file_write.
+- Frontend/React app → **NEVER use npm/Vite/node_modules**. Simple app → single self-contained HTML (React+Babel CDN, `<script type="text/babel">`). Multi-file app → use Deno (`deno serve`, native JSX/TSX, import from esm.sh).
 - Output files → save to {{tempdir}}, set `auto_send: true`.
 - Screenshot → active window; "全屏截图" → full screen.

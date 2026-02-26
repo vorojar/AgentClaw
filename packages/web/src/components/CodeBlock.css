@@ -131,3 +131,9 @@
   margin: 0;
   white-space: pre-wrap;
 }
+
+.code-preview-loading {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}

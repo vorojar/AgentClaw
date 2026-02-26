@@ -327,6 +327,7 @@ export async function bootstrap(): Promise<AppContext> {
     "magick",
     "node",
     "npm",
+    "deno",
   ];
   const availableCli: string[] = [];
   for (const tool of cliTools) {

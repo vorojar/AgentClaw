@@ -1461,6 +1461,34 @@ export function ChatPage() {
                   </div>
                 </div>
               </div>
+              {pendingFiles.length > 0 && (
+                <div
+                  className="pending-files"
+                  style={{ marginTop: 8, padding: 0 }}
+                >
+                  {pendingFiles.map((pf, i) => (
+                    <div key={i} className="pending-file-item">
+                      {pf.preview ? (
+                        <img
+                          src={pf.preview}
+                          alt={pf.file.name}
+                          className="pending-file-preview"
+                        />
+                      ) : (
+                        <span className="pending-file-name">
+                          {pf.file.name}
+                        </span>
+                      )}
+                      <button
+                        className="pending-file-remove"
+                        onClick={() => removePendingFile(i)}
+                      >
+                        <IconX size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="chat-welcome-skills">
               {[
@@ -1635,8 +1663,22 @@ export function ChatPage() {
           </div>
         )}
 
-        {/* Pending file previews */}
-        {pendingFiles.length > 0 && (
+        {/* Hidden file input (always rendered so ref works in both layouts) */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            if (e.target.files) {
+              handleFiles(Array.from(e.target.files));
+              e.target.value = "";
+            }
+          }}
+        />
+
+        {/* Pending file previews (only in chat mode, welcome has its own) */}
+        {!isNewChat && pendingFiles.length > 0 && (
           <div className="pending-files">
             {pendingFiles.map((pf, i) => (
               <div key={i} className="pending-file-item">
@@ -1691,18 +1733,6 @@ export function ChatPage() {
                   >
                     <IconPaperclip size={18} />
                   </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        handleFiles(Array.from(e.target.files));
-                        e.target.value = "";
-                      }
-                    }}
-                  />
                   {skills.length > 0 && (
                     <div className="skill-menu-anchor" ref={skillMenuRef}>
                       <button

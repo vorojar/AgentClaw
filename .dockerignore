@@ -1,0 +1,16 @@
+node_modules/
+dist/
+data/
+.env
+.env.local
+.env.*.local
+.git/
+.turbo/
+.vscode/
+.idea/
+.ruff_cache/
+.dmux/
+*.log
+*.tsbuildinfo
+Thumbs.db
+.DS_Store

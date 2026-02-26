@@ -50,54 +50,47 @@ agentclaw/
 
 ## 快速开始
 
-### 前置要求
+### Docker 部署（推荐）
 
-- Node.js >= 20
-- pnpm >= 9
+```bash
+git clone https://github.com/vorojar/AgentClaw.git
+cd AgentClaw
+cp .env.example .env
+# 编辑 .env，至少填入一个 LLM API key
 
-### 安装
+docker compose up -d
+```
+
+打开 http://localhost:3100 即可使用。
+
+### 手动部署
+
+**前置要求：** Node.js >= 20, pnpm >= 9
 
 ```bash
 git clone https://github.com/vorojar/AgentClaw.git
 cd AgentClaw
 pnpm install
 npm run build
+cp .env.example .env
+# 编辑 .env，至少填入一个 LLM API key
+
+npm run start
 ```
+
+打开 http://localhost:3100
 
 ### 配置
 
-创建 `.env` 文件，至少填入一个 LLM API key：
+所有配置通过环境变量，参见 [`.env.example`](.env.example) 获取完整列表。
 
-```env
-# LLM (至少配一个)
-ANTHROPIC_API_KEY=sk-...
-# 或 OpenAI 兼容 (DeepSeek/Kimi/Qwen 等)
-OPENAI_API_KEY=sk-...
-OPENAI_BASE_URL=https://api.deepseek.com/v1
-DEFAULT_MODEL=deepseek-chat
+**最低要求：** 一个 LLM API key（`ANTHROPIC_API_KEY`、`OPENAI_API_KEY` 或 `GEMINI_API_KEY`）。
 
-# 网关
-PORT=3100
-API_KEY=your-secret-key
-
-# 可选：Telegram Bot
-TELEGRAM_BOT_TOKEN=123456:ABC...
-
-# 可选：WhatsApp Bot (QR 扫码认证)
-WHATSAPP_ENABLED=true
-```
-
-### 运行
+### 其他启动方式
 
 ```bash
-# 启动 Gateway (HTTP/WS + Telegram + WhatsApp)
-npm run start
-
-# 启动 Web UI 开发服务器
-npm run start:web
-
-# 或使用 CLI 模式
-npm run cli
+npm run start:web    # Web UI 开发服务器（热更新）
+npm run cli          # 终端交互模式
 ```
 
 ## 核心功能
@@ -168,6 +161,19 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 | `writing` | 写作、翻译、校对、总结 |
 | `xlsx` | 创建/编辑/分析 Excel 表格 |
 | `yt-dlp` | 下载视频/音频 (YouTube/Bilibili/Twitter) |
+
+## Artifacts 实时预览
+
+代码块支持实时预览，点击 **Preview** 按钮即可在聊天中直接渲染：
+
+| 语言 | 渲染方式 |
+|------|---------|
+| `html` | iframe sandbox |
+| `svg` | iframe（自动包装为 HTML document） |
+| `mermaid` | 动态加载 mermaid.js 渲染为 SVG |
+| `jsx` / `tsx` | @babel/standalone 编译 + React 19 CDN iframe |
+
+生成的 HTML 文件（`/files/*.html`）显示为可点击的预览卡片，全屏覆盖层浏览。
 
 ## MCP 集成
 

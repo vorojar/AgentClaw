@@ -1,0 +1,15 @@
+services:
+  agentclaw:
+    build: .
+    container_name: agentclaw
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3100}:3100"
+    volumes:
+      - ./data:/app/data
+      - ./skills:/app/skills
+    env_file:
+      - .env
+    environment:
+      - PORT=3100
+      - HOST=0.0.0.0

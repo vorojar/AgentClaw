@@ -1,15 +1,20 @@
 # 更新日志
 
-## [0.7.16] - 2026-02-26
+## [0.8.0] - 2026-02-26
 
 ### 新功能
+- **Docker 化部署**：多阶段构建 Dockerfile + docker-compose.yml，`docker compose up -d` 一键启动。包含 ffmpeg/git/curl/python/deno 等 CLI 工具
 - **React 实时预览（Artifacts）**：JSX/TSX 代码块支持 Preview 按钮，动态加载 @babel/standalone 编译 + React 19 CDN 渲染，iframe 沙箱隔离
 - **Deno 前端开发**：系统提示词引导 AI 使用 Deno 替代 npm/Vite 生成前端项目，消除 node_modules 依赖
+- **.env.example**：完整的环境变量示例文件，注释说明每项配置
 
 ### 修复
 - **sendFile 子目录路径**：保留 `data/tmp/` 下的子目录结构，修复子目录文件（如 `calculator/index.html`）404 问题
 - **Vite 项目预览降级**：检测非自包含 HTML（引用本地 module script），自动切换 iframe 到 dev server 地址，底部提示启动命令
 - **HTML 预览安全**：移除 `allow-same-origin` sandbox 属性，修复浏览器安全警告
+
+### 文档
+- **README 更新**：新增 Docker 部署说明（推荐方式），新增 Artifacts 预览功能说明
 
 ## [0.7.15] - 2026-02-26
 

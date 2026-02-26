@@ -14,7 +14,9 @@ SERPER_URL = "https://google.serper.dev/search"
 
 def search_searxng(query: str, max_results: int = 5) -> str | None:
     """Search via self-hosted SearXNG instance. Returns None on failure."""
-    url = f"{SEARXNG_URL}/search?q={urllib.parse.quote(query)}&format=json"
+    url = (
+        f"{SEARXNG_URL}/search?q={urllib.parse.quote(query)}&format=json&language=zh-CN"
+    )
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
 
     try:

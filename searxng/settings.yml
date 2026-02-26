@@ -1,60 +1,31 @@
-use_default_settings: true
+use_default_settings:
+  engines:
+    keep_only:
+      - yahoo
+      - duckduckgo
 
 server:
   secret_key: "change-me-to-a-random-string"
-  limiter: false      # Self-hosted, no rate limiting needed
+  limiter: false
   image_proxy: false
   port: 8080
   bind_address: "0.0.0.0"
 
 search:
-  safe_search: 0
+  safe_search: 1
   autocomplete: ""
-  default_lang: "auto"
+  default_lang: "zh-CN"
   formats:
     - html
-    - json             # Required for API access
+    - json
 
 ui:
   static_use_hash: true
 
-# Outgoing requests
 outgoing:
   request_timeout: 5.0
   max_request_timeout: 10.0
 
-# Enable engines with best coverage (China-accessible)
 engines:
-  - name: bing
-    engine: bing
-    shortcut: bi
-    disabled: false
   - name: yahoo
-    engine: yahoo
-    shortcut: yh
     disabled: false
-  - name: duckduckgo
-    engine: duckduckgo
-    shortcut: ddg
-    disabled: false
-  - name: brave
-    engine: brave
-    shortcut: br
-    disabled: false
-  - name: startpage
-    engine: startpage
-    shortcut: sp
-    disabled: false
-  - name: presearch
-    engine: presearch
-    shortcut: ps
-    disabled: true  # access denied from most networks
-  - name: wikipedia
-    engine: wikipedia
-    shortcut: wp
-    disabled: false
-  # Google is rate-limited by SearXNG; disable to avoid suspensions
-  - name: google
-    engine: google
-    shortcut: go
-    disabled: true

@@ -1,5 +1,12 @@
 # 更新日志
 
+## [0.8.2] - 2026-02-27
+
+### 修复
+- **SearXNG 搜索质量修复**：移除 bing/brave/startpage 等中文搜索质量差的引擎，仅保留 yahoo + duckduckgo（`keep_only`）；恢复 `language=zh-CN` 参数（搜索脚本 + settings.yml `default_lang`）；`safe_search: 0` → `1`，过滤成人内容
+- **知识类问题不再触发搜索**：系统提示词新增规则——定义、概念、"XX是什么"等知识类问题直接回答，仅实时数据（新闻、价格、天气）才触发 web search
+- **ToolRegistry skill 自动重定向**：LLM 把 skill 名称当工具名调用时，registry 自动转发到 `use_skill` 工具，避免弱模型分不清 tool/skill 导致的 "Tool not found" 错误
+
 ## [0.8.1] - 2026-02-26
 
 ### 新功能

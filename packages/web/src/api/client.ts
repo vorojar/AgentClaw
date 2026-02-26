@@ -395,7 +395,8 @@ export interface WSMessage {
     | "error"
     | "file"
     | "broadcast"
-    | "prompt";
+    | "prompt"
+    | "todo_update";
   text?: string;
   toolName?: string;
   toolInput?: string;

@@ -16,6 +16,10 @@
 - Paths: ALWAYS forward slashes (`D:/path`, not `D:\path`).
 - PowerShell (`shell="powershell"`): ONLY for registry, WMI, services. Never for curl/grep.
 {{/if}}
+## Progress Tracking
+- Complex tasks (3+ steps) → call `update_todo` FIRST with a checkbox plan, then after EACH step to update progress.
+- Keep it concise: 3-8 items max.
+
 ## Routing
 - Web pages → `use_skill("browser")`. No selenium/playwright/puppeteer.
 - Media → bash + ffmpeg/ffprobe

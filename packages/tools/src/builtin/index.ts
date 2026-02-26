@@ -11,6 +11,7 @@ import { planTaskTool } from "./plan-task.js";
 import { useSkillTool } from "./use-skill.js";
 import { delegateTaskTool } from "./delegate-task.js";
 import { claudeCodeTool } from "./claude-code.js";
+import { updateTodoTool } from "./update-todo.js";
 
 // Re-exports for backwards compatibility (other packages may import these)
 export { shellTool, shellInfo } from "./shell.js";
@@ -25,6 +26,7 @@ export { planTaskTool } from "./plan-task.js";
 export { useSkillTool } from "./use-skill.js";
 export { delegateTaskTool } from "./delegate-task.js";
 export { claudeCodeTool } from "./claude-code.js";
+export { updateTodoTool } from "./update-todo.js";
 
 /** Options for configuring which conditional tools to include */
 export interface BuiltinToolsOptions {
@@ -49,7 +51,7 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
 
   // Conditional tools — loaded based on configuration
   if (options?.gateway) {
-    tools.push(sendFileTool, setReminderTool, scheduleTool);
+    tools.push(sendFileTool, setReminderTool, scheduleTool, updateTodoTool);
   }
   if (options?.memory) {
     tools.push(rememberTool);

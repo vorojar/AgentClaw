@@ -80,6 +80,8 @@ export interface ToolExecutionContext {
       enabled: boolean;
     }>;
   };
+  /** Update the todo progress list (displayed in frontend) */
+  todoNotify?: (items: Array<{ text: string; done: boolean }>) => void;
   /** Spawn an independent sub-agent to handle a subtask */
   delegateTask?: (task: string) => Promise<string>;
   /** Pre-selected skill name from UI chips — inject instructions directly, skip use_skill round */

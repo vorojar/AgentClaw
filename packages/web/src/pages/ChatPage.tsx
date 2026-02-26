@@ -613,6 +613,9 @@ export function ChatPage() {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [skillMenuOpen, setSkillMenuOpen] = useState(false);
+  const [todoItems, setTodoItems] = useState<
+    Array<{ text: string; done: boolean }>
+  >([]);
   const skillMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -877,9 +880,17 @@ export function ChatPage() {
         });
         break;
       }
+      case "todo_update": {
+        const items = (
+          msg as unknown as { items: Array<{ text: string; done: boolean }> }
+        ).items;
+        if (Array.isArray(items)) setTodoItems(items);
+        break;
+      }
       case "done": {
         stoppedRef.current = false;
         setActiveToolName(null);
+        setTodoItems([]);
         const elapsed = sendTimestampRef.current
           ? Date.now() - sendTimestampRef.current
           : undefined;
@@ -1398,6 +1409,36 @@ export function ChatPage() {
           </div>
         )}
 
+        {/* Todo progress card */}
+        {todoItems.length > 0 && (
+          <div className="todo-progress-card">
+            <div className="todo-progress-header">
+              <span className="todo-progress-label">Progress</span>
+              <span className="todo-progress-count">
+                {todoItems.filter((i) => i.done).length}/{todoItems.length}
+              </span>
+            </div>
+            <div className="todo-progress-bar">
+              <div
+                className="todo-progress-fill"
+                style={{
+                  width: `${(todoItems.filter((i) => i.done).length / todoItems.length) * 100}%`,
+                }}
+              />
+            </div>
+            <ul className="todo-progress-list">
+              {todoItems.map((item, i) => (
+                <li key={i} className={item.done ? "done" : ""}>
+                  <span className="todo-check">
+                    {item.done ? "\u2713" : "\u25CB"}
+                  </span>
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Messages */}
         {messages.length === 0 && !loadingHistory ? (
           <div className="chat-welcome">
@@ -1666,7 +1707,11 @@ export function ChatPage() {
                           );
                         })()}
                       {m.toolCalls
-                        .filter((tc) => tc.toolName !== "send_file")
+                        .filter(
+                          (tc) =>
+                            tc.toolName !== "send_file" &&
+                            tc.toolName !== "update_todo",
+                        )
                         .map((tc) => (
                           <ToolCallCard key={tc.id} entry={tc} />
                         ))}

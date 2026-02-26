@@ -1157,6 +1157,87 @@
   }
 }
 
+/* ── Todo progress card ─────────────────────────── */
+
+.todo-progress-card {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 720px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  animation: messageIn 0.25s ease;
+}
+
+.todo-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.todo-progress-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.todo-progress-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.todo-progress-bar {
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.todo-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.todo-progress-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todo-progress-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: opacity 0.2s;
+}
+
+.todo-progress-list li.done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.todo-check {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.todo-progress-list li.done .todo-check {
+  color: var(--accent);
+}
+
 /* ── Regenerate button ───────────────────────────── */
 
 .regenerate-row {

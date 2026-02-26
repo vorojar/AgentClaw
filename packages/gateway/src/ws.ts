@@ -242,6 +242,9 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           streamText: (text: string) => {
             safeSend(JSON.stringify({ type: "text", text }));
           },
+          todoNotify: (items: Array<{ text: string; done: boolean }>) => {
+            safeSend(JSON.stringify({ type: "todo_update", items }));
+          },
           promptUser: (question: string) => {
             return new Promise<string>((resolve) => {
               pendingPrompt = resolve;

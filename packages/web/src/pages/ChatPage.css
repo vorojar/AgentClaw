@@ -543,6 +543,18 @@
   font-size: 12px;
 }
 
+.tool-result-pre {
+  background: var(--bg-tertiary);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  overflow-x: auto;
+  margin: 8px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* ── Streaming indicator ──────────────────────────── */
 
 .streaming-cursor {

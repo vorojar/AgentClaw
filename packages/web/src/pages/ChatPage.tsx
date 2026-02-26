@@ -407,22 +407,18 @@ const mdComponents = {
 
 const toolMdComponents = {
   code: ({
-    className,
     children,
-    ...props
   }: {
     className?: string;
     children?: React.ReactNode;
     [k: string]: unknown;
   }) => {
-    const isBlock = /language-(\w+)/.test(className || "");
-    if (isBlock)
-      return (
-        <CodeBlock className={className} {...props}>
-          {children}
-        </CodeBlock>
-      );
+    // Tool results use simple inline code only — no CodeBlock (no dark theme, no Preview)
     return <code className="code-inline">{children}</code>;
+  },
+  // Prevent code blocks from rendering as <pre><code> with CodeBlock styling
+  pre: ({ children }: { children?: React.ReactNode }) => {
+    return <pre className="tool-result-pre">{children}</pre>;
   },
 };
 

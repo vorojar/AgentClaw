@@ -1,6 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import {
+  oneDark,
+  oneLight,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useTheme } from "./ThemeProvider";
 import "./CodeBlock.css";
 
 const PREVIEWABLE = new Set(["html", "svg", "mermaid", "jsx", "tsx"]);
@@ -149,21 +153,15 @@ export function CodeBlock({
   inline,
   ...props
 }: CodeBlockProps) {
-  const [copied, setCopied] = useState(false);
   const [preview, setPreview] = useState(false);
+  const { theme } = useTheme();
 
   const match = /language-(\w+)/.exec(className || "");
   const language = match ? match[1] : "";
   const code = String(children).replace(/\n$/, "");
   const canPreview = PREVIEWABLE.has(language);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [code]);
-
+  /* Inline code (`backtick`) */
   if (inline) {
     return (
       <code className="code-block-inline" {...props}>
@@ -172,11 +170,19 @@ export function CodeBlock({
     );
   }
 
+  /* Single-line code block without preview → lightweight render */
+  if (!code.includes("\n") && !canPreview) {
+    return (
+      <div className="code-block-single">
+        <code>{code}</code>
+      </div>
+    );
+  }
+
   return (
     <div className="code-block-wrapper">
-      {language && <span className="code-block-lang">{language}</span>}
-      <div className="code-block-actions">
-        {canPreview && (
+      {canPreview && (
+        <div className="code-block-actions">
           <button
             className={`code-block-btn${preview ? " active" : ""}`}
             onClick={() => setPreview(!preview)}
@@ -184,15 +190,8 @@ export function CodeBlock({
           >
             {preview ? "Code" : "Preview"}
           </button>
-        )}
-        <button
-          className={`code-block-btn${copied ? " copied" : ""}`}
-          onClick={handleCopy}
-          type="button"
-        >
-          {copied ? "Copied!" : "Copy"}
-        </button>
-      </div>
+        </div>
+      )}
       {preview ? (
         <div className="code-preview-container">
           {language === "mermaid" ? (
@@ -205,7 +204,7 @@ export function CodeBlock({
         </div>
       ) : (
         <SyntaxHighlighter
-          style={oneDark}
+          style={theme === "dark" ? oneDark : oneLight}
           language={language || "text"}
           customStyle={{ background: "transparent", margin: 0 }}
           PreTag="pre"

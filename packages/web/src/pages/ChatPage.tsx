@@ -1602,6 +1602,15 @@ export function ChatPage() {
                     </div>
                   ) : (
                     <>
+                      {m.toolCalls
+                        .filter(
+                          (tc) =>
+                            tc.toolName !== "send_file" &&
+                            tc.toolName !== "update_todo",
+                        )
+                        .map((tc) => (
+                          <ToolCallCard key={tc.id} entry={tc} />
+                        ))}
                       {m.content &&
                         (() => {
                           const parsed = parseMessageContent(m.content);
@@ -1707,15 +1716,6 @@ export function ChatPage() {
                             </div>
                           );
                         })()}
-                      {m.toolCalls
-                        .filter(
-                          (tc) =>
-                            tc.toolName !== "send_file" &&
-                            tc.toolName !== "update_todo",
-                        )
-                        .map((tc) => (
-                          <ToolCallCard key={tc.id} entry={tc} />
-                        ))}
                       {showRegenerate &&
                         idx === messages.length - 1 &&
                         m.role === "assistant" && (

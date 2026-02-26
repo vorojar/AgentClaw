@@ -147,11 +147,12 @@ export class SimpleAgentLoop implements AgentLoop {
     while (iterations < this._config.maxIterations && !this.aborted) {
       iterations++;
 
-      // Build context
+      // Build context (iteration 2+ reuses cached dynamic prefix for KV-cache stability)
       this.setState("thinking");
       const { systemPrompt, messages, skillMatch } =
         await this.contextManager.buildContext(convId, input, {
           preSelectedSkillName: context?.preSelectedSkillName,
+          reuseContext: iterations > 1,
         });
 
       // Record trace metadata on first iteration

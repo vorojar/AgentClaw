@@ -79,7 +79,11 @@ export interface ContextManager {
   buildContext(
     conversationId: string,
     currentInput: string | ContentBlock[],
-    options?: { preSelectedSkillName?: string },
+    options?: {
+      preSelectedSkillName?: string;
+      /** Skip memory search & skill injection — reuse cached dynamic prefix (for agent loop iteration 2+) */
+      reuseContext?: boolean;
+    },
   ): Promise<{
     systemPrompt: string;
     messages: Message[];

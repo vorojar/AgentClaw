@@ -6,12 +6,10 @@
 - **Todo 实时进度追踪**：借鉴 Manus AI，新增 `update_todo` 工具。Agent 执行复杂多步任务时自动创建进度清单，前端实时显示进度条 + checkbox 列表（WebSocket `todo_update` 事件）。工具返回值留在上下文末尾，防止 LLM 在长任务中迷失（lost-in-the-middle）
 
 ### 优化
+- **KV-Cache 上下文优化**：system prompt 固定不变（不再拼接记忆/技能），动态内容（记忆 + skill catalog + 激活技能指令）拆到 messages 前缀。Agent loop 多轮迭代复用首次上下文（`reuseContext`），避免重复搜索记忆。Claude provider 使用 `cache_control: { type: "ephemeral" }` 显式标记缓存点。预估 input token 成本降低 50-60%
 - **代码块简化**：消息正文中的代码块移除复制按钮和语言标签，仅保留 Preview 按钮（html/svg/mermaid/jsx/tsx）
 - **单行代码块轻量渲染**：单行代码块不再使用 SyntaxHighlighter，改用轻量 `.code-block-single` 样式
 - **隐藏 update_todo 工具卡片**：同 send_file，不在聊天中显示工具调用卡片
-
-### 文档
-- **Roadmap Phase 9**：借鉴 Manus AI 的 Agent 设计，规划 todo 追踪、步骤时间线、会话回放、KV-Cache 优化、文件即上下文等方向
 
 ## [0.8.0] - 2026-02-26
 

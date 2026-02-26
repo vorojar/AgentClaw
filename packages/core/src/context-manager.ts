@@ -24,6 +24,18 @@ export class SimpleContextManager implements ContextManager {
   private compressAfter: number;
   private summaryCache = new Map<string, string>();
 
+  /**
+   * KV-Cache optimization: cache dynamic prefix (memories + skills) per conversation.
+   * Reused on agent loop iterations 2+ to keep the prefix stable.
+   */
+  private dynamicPrefixCache = new Map<
+    string,
+    {
+      messages: Message[];
+      skillMatch?: { name: string; confidence: number };
+    }
+  >();
+
   constructor(options: {
     systemPrompt?: string;
     memoryStore: MemoryStore;
@@ -43,24 +55,27 @@ export class SimpleContextManager implements ContextManager {
   async buildContext(
     conversationId: string,
     currentInput: string | ContentBlock[],
-    options?: { preSelectedSkillName?: string },
+    options?: {
+      preSelectedSkillName?: string;
+      reuseContext?: boolean;
+    },
   ): Promise<{
     systemPrompt: string;
     messages: Message[];
     skillMatch?: { name: string; confidence: number };
   }> {
-    // 获取对话历史
+    // ── 1. History ──
     const turns = await this.memoryStore.getHistory(
       conversationId,
       this.maxHistoryTurns,
     );
 
-    let messages: Message[];
+    let historyMessages: Message[];
     if (turns.length > this.compressAfter) {
       const oldTurns = turns.slice(0, turns.length - this.compressAfter);
       const recentTurns = turns.slice(turns.length - this.compressAfter);
       const summary = await this.compressTurns(conversationId, oldTurns);
-      messages = [
+      historyMessages = [
         {
           id: "summary",
           role: "user",
@@ -76,13 +91,59 @@ export class SimpleContextManager implements ContextManager {
         ...recentTurns.map((turn) => this.turnToMessage(turn)),
       ];
     } else {
-      messages = turns.map((turn) => this.turnToMessage(turn));
+      historyMessages = turns.map((turn) => this.turnToMessage(turn));
     }
 
-    let finalPrompt = this.systemPrompt;
+    // ── 2. System prompt: ALWAYS static (never mutated) ──
+    // This is the key to KV-cache optimization.
+    // Memories, skills, and active skill instructions go into messages instead.
+
+    // ── 3. Dynamic prefix (memories + skills → user/assistant message pair) ──
+    let dynamicPrefix: Message[];
     let skillMatch: { name: string; confidence: number } | undefined;
 
-    // Extract text from input for memory search query
+    if (options?.reuseContext && this.dynamicPrefixCache.has(conversationId)) {
+      // Agent loop iteration 2+: reuse cached prefix (skip memory search)
+      const cached = this.dynamicPrefixCache.get(conversationId)!;
+      dynamicPrefix = cached.messages;
+      skillMatch = cached.skillMatch;
+    } else {
+      // First iteration: build dynamic prefix
+      const result = await this.buildDynamicPrefix(currentInput, options);
+      dynamicPrefix = result.messages;
+      skillMatch = result.skillMatch;
+      // Cache for subsequent iterations
+      this.dynamicPrefixCache.set(conversationId, {
+        messages: dynamicPrefix,
+        skillMatch,
+      });
+    }
+
+    // ── 4. Assemble: [dynamic prefix] + [history] ──
+    const messages = [...dynamicPrefix, ...historyMessages];
+
+    return {
+      systemPrompt: this.systemPrompt,
+      messages,
+      skillMatch,
+    };
+  }
+
+  /**
+   * Build dynamic context prefix: memories + skill catalog + active skill.
+   * Returns a user/assistant message pair to prepend to messages.
+   */
+  private async buildDynamicPrefix(
+    currentInput: string | ContentBlock[],
+    options?: { preSelectedSkillName?: string },
+  ): Promise<{
+    messages: Message[];
+    skillMatch?: { name: string; confidence: number };
+  }> {
+    const parts: string[] = [];
+    let skillMatch: { name: string; confidence: number } | undefined;
+
+    // ── Memories ──
     const searchQuery =
       typeof currentInput === "string"
         ? currentInput
@@ -93,7 +154,6 @@ export class SimpleContextManager implements ContextManager {
             .map((b) => b.text)
             .join(" ");
 
-    // Recall relevant long-term memories and inject into system prompt
     try {
       const memories = await this.memoryStore.search({
         query: searchQuery,
@@ -109,26 +169,27 @@ export class SimpleContextManager implements ContextManager {
           totalChars += line.length;
         }
         if (lines.length > 0) {
-          finalPrompt += `\n\nYour long-term memory (things you know about the user and previous interactions):\n${lines.join("\n")}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`;
+          parts.push(
+            `Long-term memory:\n${lines.join("\n")}\nUse this information naturally. Do NOT create files to remember things.`,
+          );
         }
       }
     } catch {
       // Memory search failed — continue without memories
     }
 
-    // Skill injection: pre-selected skill gets instructions injected directly
+    // ── Skill catalog ──
     if (this.skillRegistry) {
       try {
         const preSkillName = options?.preSelectedSkillName;
         if (preSkillName) {
           const skill = this.skillRegistry.get(preSkillName);
           if (skill) {
-            finalPrompt += `\n\n[Active Skill: ${skill.name}]\n${skill.instructions}`;
+            parts.push(`[Active Skill: ${skill.name}]\n${skill.instructions}`);
             skillMatch = { name: skill.name, confidence: 1.0 };
           }
         }
 
-        // Always inject skill catalog (LLM can still use use_skill for other skills)
         const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
         if (allSkills.length > 0) {
           const catalog = allSkills
@@ -140,18 +201,37 @@ export class SimpleContextManager implements ContextManager {
               return `${s.name}(${cn})`;
             })
             .join(", ");
-          finalPrompt += `\n\nSkills (call use_skill(name) to activate): ${catalog}`;
+          parts.push(`Skills (call use_skill(name) to activate): ${catalog}`);
         }
       } catch {
         // Skill catalog failed — continue without it
       }
     }
 
-    return {
-      systemPrompt: finalPrompt,
-      messages,
-      skillMatch,
-    };
+    // No dynamic context needed
+    if (parts.length === 0) {
+      return { messages: [], skillMatch };
+    }
+
+    // Build user/assistant pair (maintains message alternation for Claude)
+    const contextText = `[Context]\n${parts.join("\n\n")}`;
+    const now = new Date();
+    const messages: Message[] = [
+      {
+        id: "ctx",
+        role: "user",
+        content: contextText,
+        createdAt: now,
+      },
+      {
+        id: "ctx-ack",
+        role: "assistant",
+        content: "OK.",
+        createdAt: now,
+      },
+    ];
+
+    return { messages, skillMatch };
   }
 
   private async compressTurns(

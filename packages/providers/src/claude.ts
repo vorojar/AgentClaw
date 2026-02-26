@@ -58,7 +58,17 @@ export class ClaudeProvider extends BaseLLMProvider {
       model,
       max_tokens: request.maxTokens ?? 4096,
       messages,
-      ...(request.systemPrompt ? { system: request.systemPrompt } : {}),
+      ...(request.systemPrompt
+        ? {
+            system: [
+              {
+                type: "text" as const,
+                text: request.systemPrompt,
+                cache_control: { type: "ephemeral" as const },
+              },
+            ],
+          }
+        : {}),
       ...(tools && tools.length > 0 ? { tools } : {}),
       ...(request.temperature != null
         ? { temperature: request.temperature }
@@ -101,7 +111,17 @@ export class ClaudeProvider extends BaseLLMProvider {
       max_tokens: request.maxTokens ?? 4096,
       messages,
       stream: true,
-      ...(request.systemPrompt ? { system: request.systemPrompt } : {}),
+      ...(request.systemPrompt
+        ? {
+            system: [
+              {
+                type: "text" as const,
+                text: request.systemPrompt,
+                cache_control: { type: "ephemeral" as const },
+              },
+            ],
+          }
+        : {}),
       ...(tools && tools.length > 0 ? { tools } : {}),
       ...(request.temperature != null
         ? { temperature: request.temperature }

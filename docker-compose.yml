@@ -13,3 +13,30 @@ services:
     environment:
       - PORT=3100
       - HOST=0.0.0.0
+      - SEARXNG_URL=http://searxng:8080
+    depends_on:
+      - searxng
+
+  # SearXNG — free self-hosted meta search engine (replaces Serper API)
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    depends_on:
+      - redis
+
+  # Redis — required by SearXNG for caching and rate limiting
+  redis:
+    image: docker.io/valkey/valkey:8-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: valkey-server --save 30 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

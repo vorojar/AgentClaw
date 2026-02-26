@@ -5,6 +5,8 @@
 ### 新功能
 - **Todo 实时进度追踪**：借鉴 Manus AI，新增 `update_todo` 工具。Agent 执行复杂多步任务时自动创建进度清单，前端实时显示进度条 + checkbox 列表（WebSocket `todo_update` 事件）。工具返回值留在上下文末尾，防止 LLM 在长任务中迷失（lost-in-the-middle）
 
+- **SearXNG 搜索引擎集成**：自托管免费元搜索引擎替代 Serper API（$2.50/1000次→$0）。SearXNG 为主搜索源，Serper 自动降级为 fallback。docker-compose 包含 SearXNG + Redis 容器，开箱即用
+
 ### 优化
 - **KV-Cache 上下文优化**：system prompt 固定不变（不再拼接记忆/技能），动态内容（记忆 + skill catalog + 激活技能指令）拆到 messages 前缀。Agent loop 多轮迭代复用首次上下文（`reuseContext`），避免重复搜索记忆。Claude provider 使用 `cache_control: { type: "ephemeral" }` 显式标记缓存点。预估 input token 成本降低 50-60%
 - **代码块简化**：消息正文中的代码块移除复制按钮和语言标签，仅保留 Preview 按钮（html/svg/mermaid/jsx/tsx）

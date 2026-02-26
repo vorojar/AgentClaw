@@ -1,21 +1,66 @@
 #!/usr/bin/env python3
-"""Web search via Google Serper API."""
+"""Web search via SearXNG (self-hosted, free) with Serper API fallback."""
 
 import argparse
 import json
 import os
-import sys
 import urllib.request
 import urllib.error
+import urllib.parse
 
+SEARXNG_URL = os.environ.get("SEARXNG_URL", "http://localhost:8888")
 SERPER_URL = "https://google.serper.dev/search"
 
 
-def search(query: str, max_results: int = 5) -> str:
+def search_searxng(query: str, max_results: int = 5) -> str | None:
+    """Search via self-hosted SearXNG instance. Returns None on failure."""
+    url = (
+        f"{SEARXNG_URL}/search?q={urllib.parse.quote(query)}&format=json&language=zh-CN"
+    )
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception:
+        return None
+
+    lines = []
+
+    # Answers (similar to Serper answerBox)
+    for answer in data.get("answers", []):
+        lines.append(f"Direct answer: {answer}")
+        lines.append("")
+
+    # Infoboxes (similar to Serper knowledgeGraph)
+    for ib in data.get("infoboxes", []):
+        title = ib.get("infobox", "")
+        content = ib.get("content", "")
+        if content:
+            lines.append(f"{title}: {content[:300]}")
+            lines.append("")
+
+    # Results
+    results = data.get("results", [])[:max_results]
+    if not results and not lines:
+        return None  # Empty results → fallback to Serper
+
+    for i, item in enumerate(results, 1):
+        lines.append(f"{i}. {item.get('title', '')}")
+        lines.append(f"   {item.get('url', '')}")
+        content = item.get("content")
+        if content:
+            lines.append(f"   {content}")
+        lines.append("")
+
+    return "\n".join(lines).strip() or None
+
+
+def search_serper(query: str, max_results: int = 5) -> str:
+    """Search via Google Serper API (paid fallback)."""
     api_key = os.environ.get("SERPER_API_KEY")
     if not api_key:
-        print("Error: SERPER_API_KEY environment variable not set.", file=sys.stderr)
-        sys.exit(1)
+        return "Error: No search backend available. Set SEARXNG_URL or SERPER_API_KEY."
 
     payload = json.dumps(
         {"q": query, "num": min(max_results, 10), "hl": "zh-cn"}
@@ -31,11 +76,9 @@ def search(query: str, max_results: int = 5) -> str:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
-        print(f"Search API error ({e.code}): {e.read().decode()}", file=sys.stderr)
-        sys.exit(1)
+        return f"Search API error ({e.code}): {e.read().decode()}"
     except Exception as e:
-        print(f"Search failed: {e}", file=sys.stderr)
-        sys.exit(1)
+        return f"Search failed: {e}"
 
     lines = []
 
@@ -69,8 +112,21 @@ def search(query: str, max_results: int = 5) -> str:
     return "\n".join(lines).strip()
 
 
+def search(query: str, max_results: int = 5) -> str:
+    """Search with SearXNG first, Serper as fallback."""
+    # Try SearXNG (free, self-hosted)
+    result = search_searxng(query, max_results)
+    if result:
+        return result
+
+    # Fallback to Serper API (paid)
+    return search_serper(query, max_results)
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Web search via Serper API")
+    parser = argparse.ArgumentParser(
+        description="Web search (SearXNG + Serper fallback)"
+    )
     parser.add_argument("query", help="Search query")
     parser.add_argument("--max", type=int, default=5, help="Max results (default 5)")
     args = parser.parse_args()

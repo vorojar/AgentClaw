@@ -926,6 +926,7 @@ export function ChatPage() {
           return prev;
         });
         setIsSending(false);
+        refreshSessions();
         break;
       }
       case "prompt": {

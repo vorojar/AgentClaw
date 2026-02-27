@@ -384,21 +384,16 @@
 - [x] 前端实时展示任务进度清单（WebSocket 推送 `todo_update` 事件）
 - [x] 双重作用：用户看进度 + Agent 不迷失（将目标持续写入上下文末尾）
 
-### 9.2 会话回放
-- [ ] 记录每步操作快照（工具调用 + 结果 + 时间戳）
-- [ ] 前端回放界面：时间轴滑块，可快进/后退到任意步骤
-- [ ] 回放可分享（生成回放链接）
-
-### 9.4 KV-Cache 上下文优化 ✅
+### 9.2 KV-Cache 上下文优化 ✅
 - [x] System prompt 固定不变，动态内容（记忆 + skill catalog + 激活技能指令）拆到 messages 前缀
 - [x] Agent loop 多轮迭代复用首次上下文（`reuseContext`），避免重复搜索记忆
 - [x] Claude provider 使用 `cache_control: { type: "ephemeral" }` 显式标记缓存点
 - [x] 预估 input token 成本降低 50-60%
 
-### 9.5 文件系统即上下文
-- [ ] 长任务中间结果存文件（`data/tmp/workspace/`）而非塞进聊天上下文
-- [ ] Agent 自动管理工作目录，跨步骤共享文件状态
-- [ ] 结合 todo.md 追踪文件产物
+### 9.3 SearXNG 自托管搜索 ✅
+- [x] SearXNG 替代 Serper API，搜索成本从 $2.50/1000次降至 $0
+- [x] 仅保留 Yahoo + DuckDuckGo，`language=zh-CN` + `safe_search: 1`
+- [x] Serper 自动降级为 fallback
 
 ---
 
@@ -408,10 +403,6 @@
 
 Phase 9 进行中：借鉴 Manus，提升 Agent 智能和透明度。
 
-已完成：
-- ✅ todo.md 实时进度追踪
-- ✅ KV-Cache 上下文优化（input token 成本降低 50-60%）
-- ✅ SearXNG 自托管搜索（搜索成本降至 $0）
+**Phase 9 已完成：Todo 进度追踪 + KV-Cache 优化 + SearXNG 自托管搜索。**
 
-当前优先：
-- 会话回放
+下一阶段待规划。

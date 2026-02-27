@@ -79,9 +79,11 @@ async function parseUserContent(
         } catch {
           /* 复制失败则用原路径 */
         }
-        const usePath = existsSync(origPath) ? origPath : filePath.replace(/\\/g, "/");
+        const usePath = existsSync(origPath)
+          ? origPath
+          : filePath.replace(/\\/g, "/");
         fileHints.push(
-          `[Attached file: filepath="${usePath}"]`,
+          `The user attached a file. Its absolute path is: ${usePath}`,
         );
       }
     }
@@ -287,7 +289,11 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
 
         // Convert uploaded images to multimodal ContentBlock[]
         // 保留原始文本，agent-loop 用于 DB 存储（刷新后显示的是这个）
-        context.originalUserText = parsed.content;
+        // 清理 /files/hex URL，防止 LLM 从历史上下文中拾取错误路径
+        context.originalUserText = parsed.content.replace(
+          /\[Uploaded:\s*([^\]]*)\]\(\/files\/[^)]+\)/g,
+          "[$1]",
+        );
         const userContent = await parseUserContent(parsed.content);
 
         // Use processInputStream for streaming events

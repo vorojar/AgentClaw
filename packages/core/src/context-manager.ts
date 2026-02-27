@@ -278,6 +278,14 @@ export class SimpleContextManager implements ContextManager {
   }
 
   /** Rebuild a full Message (with ContentBlock[]) from a stored ConversationTurn */
+  /**
+   * Strip `/files/hex` URLs from stored user text so LLM doesn't pick up wrong paths.
+   * `[Uploaded: name](/files/hex.xlsx)` → `[name]`
+   */
+  private cleanFileUrls(text: string): string {
+    return text.replace(/\[Uploaded:\s*([^\]]*)\]\(\/files\/[^)]+\)/g, "[$1]");
+  }
+
   private turnToMessage(turn: ConversationTurn): Message {
     // Assistant turn with tool calls — reconstruct ContentBlock[] including tool_use blocks
     if (turn.role === "assistant" && turn.toolCalls) {
@@ -331,10 +339,16 @@ export class SimpleContextManager implements ContextManager {
       try {
         const parsed = JSON.parse(turn.content);
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
+          // 清理历史中的 /files/ URL，防止 LLM 拾取错误路径
+          const cleaned = (parsed as ContentBlock[]).map((block) =>
+            block.type === "text"
+              ? { ...block, text: this.cleanFileUrls(block.text) }
+              : block,
+          );
           return {
             id: turn.id,
             role: turn.role,
-            content: parsed as ContentBlock[],
+            content: cleaned,
             createdAt: turn.createdAt,
             model: turn.model,
           };
@@ -345,10 +359,12 @@ export class SimpleContextManager implements ContextManager {
     }
 
     // User / system / plain assistant — plain text
+    const content =
+      turn.role === "user" ? this.cleanFileUrls(turn.content) : turn.content;
     return {
       id: turn.id,
       role: turn.role,
-      content: turn.content,
+      content,
       createdAt: turn.createdAt,
       model: turn.model,
     };

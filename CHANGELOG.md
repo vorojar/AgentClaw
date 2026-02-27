@@ -1,5 +1,17 @@
 # 更新日志
 
+## [0.8.6] - 2026-02-27
+
+### 修复
+- **历史消息 `/files/` URL 清理**：`turnToMessage` 加载用户历史消息时清理 `[Uploaded: name](/files/hex)` 格式的 URL，防止 LLM 从上下文中拾取错误的 web 路径而非文件系统路径
+- **附件路径存储清理**：`originalUserText` 存入 DB 前清理 `/files/hex` URL，新消息不再带误导性路径
+- **附件 hint 自然语言化**：`[Attached file: filepath="..."]` 改为 `The user attached a file. Its absolute path is: ...`，减少弱模型只提取文件名的概率
+- **send.py 路径自动搜索**：`resolve_file()` 支持完整路径/相对路径/纯文件名，自动在 `data/tmp/` 中查找。LLM 即使只传文件名也能发送成功
+- **附件关键词检测更新**：auto-injection 正则适配新 hint 格式（`/attached.*file|附件/i`），确保带附件的邮件任务自动注入 email skill
+
+### 性能
+- 带附件发邮件：92k → 6.7k tokens（2轮完成，第1轮即成功）
+
 ## [0.8.5] - 2026-02-27
 
 ### 改进

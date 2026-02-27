@@ -214,7 +214,7 @@ export class SimpleAgentLoop implements AgentLoop {
       // 附件 + 邮件关键词 → email skill（"发到我邮箱" 等无显式邮箱地址的场景）
       if (
         !effectiveSkillName &&
-        /\[Attached file:/.test(inputText) &&
+        /attached.*file|附件/i.test(inputText) &&
         /邮|email|mail/i.test(inputText)
       ) {
         effectiveSkillName = "imap-smtp-email";

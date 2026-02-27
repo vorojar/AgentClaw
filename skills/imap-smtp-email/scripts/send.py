@@ -8,6 +8,22 @@ from email.mime.text import MIMEText
 from email import encoders
 
 
+def resolve_file(filepath):
+    """Find file by exact path, or search data/tmp/ by basename."""
+    if os.path.exists(filepath):
+        return filepath
+    basename = os.path.basename(filepath)
+    alt = os.path.join("data", "tmp", basename)
+    if os.path.exists(alt):
+        return alt
+    # Glob search in data/tmp/ as last resort
+    import glob
+    matches = glob.glob(os.path.join("data", "tmp", "**", basename), recursive=True)
+    if matches:
+        return matches[0]
+    return filepath  # will raise FileNotFoundError naturally
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--to", required=True, help="Recipient(s), comma-separated")
@@ -34,6 +50,7 @@ def main():
     msg.attach(MIMEText(args.body or "请查收。", "plain", "utf-8"))
 
     for filepath in args.attachments:
+        filepath = resolve_file(filepath)
         filename = os.path.basename(filepath)
         with open(filepath, "rb") as f:
             part = MIMEBase("application", "octet-stream")

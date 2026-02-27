@@ -687,6 +687,8 @@ export function ChatPage() {
       setIsSending(false);
       setActiveToolName(null);
       setLoadingHistory(false);
+      // 新建会话时清空 todo
+      setTodoItems([]);
       return;
     }
     // Skip loading empty history for sessions just created by ensureSession
@@ -709,6 +711,17 @@ export function ChatPage() {
       }
     }
     loadHistory();
+    // 从 localStorage 恢复 todo 进度
+    const savedTodo = localStorage.getItem(`todo:${activeSessionId}`);
+    if (savedTodo) {
+      try {
+        setTodoItems(JSON.parse(savedTodo));
+      } catch {
+        setTodoItems([]);
+      }
+    } else {
+      setTodoItems([]);
+    }
     return () => {
       cancelled = true;
     };
@@ -897,13 +910,21 @@ export function ChatPage() {
         const items = (
           msg as unknown as { items: Array<{ text: string; done: boolean }> }
         ).items;
-        if (Array.isArray(items)) setTodoItems(items);
+        if (Array.isArray(items)) {
+          setTodoItems(items);
+          // 持久化到 localStorage，切换会话时可恢复
+          if (activeSessionId) {
+            localStorage.setItem(
+              `todo:${activeSessionId}`,
+              JSON.stringify(items),
+            );
+          }
+        }
         break;
       }
       case "done": {
         stoppedRef.current = false;
         setActiveToolName(null);
-        setTodoItems([]);
         const elapsed = sendTimestampRef.current
           ? Date.now() - sendTimestampRef.current
           : undefined;
@@ -1754,6 +1775,7 @@ export function ChatPage() {
         <input
           ref={fileInputRef}
           type="file"
+          accept="*/*"
           multiple
           style={{ display: "none" }}
           onChange={(e) => {

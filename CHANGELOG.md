@@ -5,6 +5,9 @@
 ### 改进
 - **Per-trace 临时目录**：每次会话生成 `data/tmp/{traceId}/` 隔离目录，所有输出文件存入其中，不再全部平铺在 `data/tmp/`。LLM 收到工作目录路径提示，自动使用
 - **脚本文件不再自动发送给用户**：shell 工具的 `detectFilePaths` 过滤掉 `.py`/`.sh`/`.js`/`.ts`/`.rb`/`.bat`/`.cmd`/`.ps1`/`.pl` 等脚本扩展名，临时脚本不再作为"成果文件"推送到前端
+- **Todo 进度持久化**：`done` 事件不再清空 todoItems，进度卡片在会话完成后保留。通过 localStorage 按 sessionId 持久化，切换/刷新后自动恢复
+- **非图片附件对 LLM 可见**：`parseUserContent` 不再丢弃非图片文件链接，改为注入文件路径提示（`[Attached file: xxx, saved to: path]`），LLM 可用 `file_read` 读取内容
+- **手机端文件选择**：`<input type="file">` 添加 `accept="*/*"`，确保移动端可选择所有类型文件
 
 ## [0.8.4] - 2026-02-27
 

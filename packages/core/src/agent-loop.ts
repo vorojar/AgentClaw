@@ -129,18 +129,23 @@ export class SimpleAgentLoop implements AgentLoop {
       createdAt: new Date(),
     };
 
-    // Pre-process images: save to files so LLM can reference by path
+    // Per-trace temp directory: data/tmp/{traceId}/
+    const traceTmpDir = join(process.cwd(), "data", "tmp", trace.id).replace(
+      /\\/g,
+      "/",
+    );
+    mkdirSync(traceTmpDir, { recursive: true });
+
+    // Pre-process images: save to per-trace dir so LLM can reference by path
     // Also prevents re-sending base64 on every iteration (saves tokens)
     const savedImagePaths: string[] = [];
     if (Array.isArray(input)) {
-      const tmpDir = join(process.cwd(), "data", "tmp");
-      mkdirSync(tmpDir, { recursive: true });
       for (const block of input) {
         if (block.type === "image" && (block as ImageContent).data) {
           const img = block as ImageContent;
           const ext = img.mediaType?.includes("png") ? "png" : "jpg";
           const filename = `user_image_${Date.now()}.${ext}`;
-          const filePath = join(tmpDir, filename).replace(/\\/g, "/");
+          const filePath = join(traceTmpDir, filename).replace(/\\/g, "/");
           try {
             writeFileSync(filePath, Buffer.from(img.data, "base64"));
             savedImagePaths.push(filePath);
@@ -149,14 +154,24 @@ export class SimpleAgentLoop implements AgentLoop {
           }
         }
       }
-      // Inject path hint so LLM knows where the images are
-      if (savedImagePaths.length > 0) {
-        const hint =
-          savedImagePaths.length === 1
-            ? `[User sent an image, saved to: ${savedImagePaths[0]}. Use this path directly to attach/process the file. Do NOT take a screenshot.]`
-            : `[User sent ${savedImagePaths.length} images, saved to: ${savedImagePaths.join(", ")}. Use these paths directly. Do NOT take screenshots.]`;
-        input.push({ type: "text", text: hint });
+      // Inject working directory + image path hints
+      const hints: string[] = [];
+      hints.push(
+        `[Working directory for output files: ${traceTmpDir}. Save ALL generated files here.]`,
+      );
+      if (savedImagePaths.length === 1) {
+        hints.push(
+          `[User sent an image, saved to: ${savedImagePaths[0]}. Use this path directly to attach/process the file. Do NOT take a screenshot.]`,
+        );
+      } else if (savedImagePaths.length > 1) {
+        hints.push(
+          `[User sent ${savedImagePaths.length} images, saved to: ${savedImagePaths.join(", ")}. Use these paths directly. Do NOT take screenshots.]`,
+        );
       }
+      input.push({ type: "text", text: hints.join("\n") });
+    } else {
+      // String input — prepend working dir hint
+      input = `[Working directory for output files: ${traceTmpDir}. Save ALL generated files here.]\n${input}`;
     }
 
     // 存储用户消息：ContentBlock[] 需序列化为 JSON 字符串

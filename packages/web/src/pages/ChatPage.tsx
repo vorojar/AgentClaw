@@ -1110,13 +1110,17 @@ export function ChatPage() {
 
     let contentToSend = text;
     const imageUrls: string[] = [];
+    const fileLinks: string[] = [];
 
     if (pendingFiles.length > 0) {
       for (const pf of pendingFiles) {
         try {
           const result = await uploadFile(pf.file);
-          if (/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(pf.file.name))
+          if (/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(pf.file.name)) {
             imageUrls.push(result.url);
+          } else {
+            fileLinks.push(`[${pf.file.name}](${result.url})`);
+          }
           contentToSend += `\n[Uploaded: ${pf.file.name}](${result.url})`;
         } catch (err) {
           console.error("Upload failed:", err);
@@ -1127,6 +1131,7 @@ export function ChatPage() {
 
     let displayContent = text;
     for (const url of imageUrls) displayContent += `\n![](${url})`;
+    if (fileLinks.length > 0) displayContent += `\n${fileLinks.join("\n")}`;
 
     const userMsg: DisplayMessage = {
       key: nextKey(),
@@ -1772,7 +1777,6 @@ export function ChatPage() {
         )}
 
         {/* Hidden file input (always rendered so ref works in both layouts) */}
-        {/* accept="*/*" 确保手机端可以选择所有类型文件 */}
         <input
           ref={fileInputRef}
           type="file"

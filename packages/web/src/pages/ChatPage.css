@@ -387,6 +387,13 @@
   background: var(--border);
 }
 
+.tool-call-duration {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .tool-call-chevron {
   display: flex;
   align-items: center;

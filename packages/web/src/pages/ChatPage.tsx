@@ -58,6 +58,8 @@ interface ToolCallEntry {
   toolResult?: string;
   isError?: boolean;
   collapsed: boolean;
+  startedAt?: number;
+  durationMs?: number;
 }
 
 interface DisplayMessage {
@@ -537,6 +539,13 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
         <span className="tool-call-name" title={label}>
           {label}
         </span>
+        {entry.durationMs !== undefined && (
+          <span className="tool-call-duration">
+            {entry.durationMs < 1000
+              ? `${entry.durationMs}ms`
+              : `${(entry.durationMs / 1000).toFixed(1)}s`}
+          </span>
+        )}
         <span
           className="tool-call-chevron"
           style={{ transform: `rotate(${rotationRef.current}deg)` }}
@@ -794,6 +803,7 @@ export function ChatPage() {
           toolName: msg.toolName ?? "unknown",
           toolInput: msg.toolInput ?? "",
           collapsed: true,
+          startedAt: Date.now(),
         };
         setActiveToolName(msg.toolName ?? null);
         setMessages((prev) => {
@@ -829,6 +839,9 @@ export function ChatPage() {
                   ...toolCalls[i],
                   toolResult: msg.toolResult ?? "",
                   isError: false,
+                  durationMs: toolCalls[i].startedAt
+                    ? Date.now() - toolCalls[i].startedAt
+                    : undefined,
                 };
                 break;
               }

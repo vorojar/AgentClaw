@@ -31,6 +31,7 @@ function findGitBash(): string | null {
     const gitPath = execFileSync("where", ["git"], {
       timeout: 3000,
       encoding: "utf8",
+      windowsHide: true,
     })
       .trim()
       .split(/\r?\n/)[0]
@@ -204,6 +205,7 @@ function runShell(
         timeout,
         maxBuffer: 10 * 1024 * 1024,
         encoding: "buffer",
+        windowsHide: true,
         env: {
           ...process.env,
           PYTHONIOENCODING: "utf-8",
@@ -300,7 +302,38 @@ export const shellTool: Tool = {
       return { content: blocked, isError: true };
     }
 
-    const result = await runShell(command, timeout, shellChoice);
+    // Auto-detect PowerShell commands on Windows and route to powershell executor
+    // Prevents $var interpolation issues when running PowerShell through Git Bash
+    const effectiveShell =
+      shellChoice ??
+      (process.platform === "win32" &&
+      detectedShell.name === "bash" &&
+      /^\s*powershell\b/i.test(command)
+        ? "powershell"
+        : undefined);
+
+    // When auto-routing to powershell, strip the leading "powershell -Command" wrapper
+    // since powershellConfig already handles that
+    let effectiveCommand = command;
+    if (
+      effectiveShell === "powershell" &&
+      !shellChoice &&
+      /^\s*powershell\s+(-\w+\s+)*-Command\s+/i.test(command)
+    ) {
+      effectiveCommand = command.replace(
+        /^\s*powershell\s+(-\w+\s+)*-Command\s+/i,
+        "",
+      );
+      // Remove outer quotes if present
+      if (
+        (effectiveCommand.startsWith('"') && effectiveCommand.endsWith('"')) ||
+        (effectiveCommand.startsWith("'") && effectiveCommand.endsWith("'"))
+      ) {
+        effectiveCommand = effectiveCommand.slice(1, -1);
+      }
+    }
+
+    const result = await runShell(effectiveCommand, timeout, effectiveShell);
 
     const MAX_CONTENT = 8000;
     if (result.content.length > MAX_CONTENT) {

@@ -41,6 +41,7 @@ function runCommand(
       {
         timeout,
         maxBuffer: 2 * 1024 * 1024,
+        windowsHide: true,
         env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
       },
       (error, stdout, stderr) => {

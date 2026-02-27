@@ -1,5 +1,16 @@
 # 更新日志
 
+## [0.8.4] - 2026-02-27
+
+### 修复
+- **用户图片自动保存到文件**：用户发送的图片自动 base64 decode 保存到 `data/tmp/`，在消息中注入文件路径提示。LLM 直接使用文件路径作为附件，不再截屏。同时避免后续迭代重发 base64 浪费 token
+- **强制 use_skill 优先**：系统提示词新增 Skills 规则——任务匹配可用 skill 时必须先调 `use_skill` 加载指令，禁止从零写代码
+- **update_todo 使用规范**：明确要求在任务开始前创建计划、每步更新，不要在全部完成后才调用
+- **PowerShell 自动路由**：shell 工具检测 `powershell` 开头的命令自动切到 PowerShell 执行器，避免 Git Bash 吃掉 `$` 变量
+- **windowsHide**：所有 `execFile` 调用加 `windowsHide: true`，防止 pm2 后台运行时弹出终端窗口
+- **连续错误阈值 2→3**：给 LLM 更多纠错机会
+- **max_iterations 停止后保留 LLM 文本**：不再返回空响应，保留最后一次输出并持久化到 DB
+
 ## [0.8.3] - 2026-02-27
 
 ### 修复

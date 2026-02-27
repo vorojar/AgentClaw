@@ -97,6 +97,7 @@ export function registerToolRoutes(
       try {
         execFileSync("git", ["clone", "--depth", "1", url, targetDir], {
           timeout: 30000,
+          windowsHide: true,
         });
       } catch (err) {
         return reply.status(500).send({
@@ -162,12 +163,23 @@ export function registerToolRoutes(
     try {
       mkdirSync(targetDir, { recursive: true });
       try {
-        execFileSync("tar", ["-xf", tmpZip, "-C", targetDir], { timeout: 15000 });
+        execFileSync("tar", ["-xf", tmpZip, "-C", targetDir], {
+          timeout: 15000,
+          windowsHide: true,
+        });
       } catch {
         // Fallback: PowerShell Expand-Archive (Windows)
-        execFileSync("powershell", ["-Command", `Expand-Archive -Path '${tmpZip}' -DestinationPath '${targetDir}'`], {
-          timeout: 15000,
-        });
+        execFileSync(
+          "powershell",
+          [
+            "-Command",
+            `Expand-Archive -Path '${tmpZip}' -DestinationPath '${targetDir}'`,
+          ],
+          {
+            timeout: 15000,
+            windowsHide: true,
+          },
+        );
       }
     } catch (err) {
       rmSync(targetDir, { recursive: true, force: true });

@@ -335,6 +335,7 @@ export async function bootstrap(): Promise<AppContext> {
       execFileSync(os === "win32" ? "where" : "which", [tool], {
         timeout: 2000,
         stdio: "ignore",
+        windowsHide: true,
       });
       availableCli.push(tool);
     } catch {

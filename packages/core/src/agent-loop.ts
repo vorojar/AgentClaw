@@ -7,6 +7,7 @@ import type {
   AgentEventType,
   Message,
   ContentBlock,
+  ImageContent,
   ToolUseContent,
   ToolResultContent,
   ToolExecutionContext,
@@ -20,6 +21,8 @@ import type {
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
+import { writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 const DEFAULT_CONFIG: AgentConfig = {
   maxIterations: 15,
@@ -40,7 +43,7 @@ const RETRYABLE_TOOLS = new Set([
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 2000; // ms
 /** Stop the loop if this many consecutive iterations produce only errors */
-const MAX_CONSECUTIVE_ERRORS = 2;
+const MAX_CONSECUTIVE_ERRORS = 3;
 
 export class SimpleAgentLoop implements AgentLoop {
   private _state: AgentState = "idle";
@@ -126,6 +129,36 @@ export class SimpleAgentLoop implements AgentLoop {
       createdAt: new Date(),
     };
 
+    // Pre-process images: save to files so LLM can reference by path
+    // Also prevents re-sending base64 on every iteration (saves tokens)
+    const savedImagePaths: string[] = [];
+    if (Array.isArray(input)) {
+      const tmpDir = join(process.cwd(), "data", "tmp");
+      mkdirSync(tmpDir, { recursive: true });
+      for (const block of input) {
+        if (block.type === "image" && (block as ImageContent).data) {
+          const img = block as ImageContent;
+          const ext = img.mediaType?.includes("png") ? "png" : "jpg";
+          const filename = `user_image_${Date.now()}.${ext}`;
+          const filePath = join(tmpDir, filename).replace(/\\/g, "/");
+          try {
+            writeFileSync(filePath, Buffer.from(img.data, "base64"));
+            savedImagePaths.push(filePath);
+          } catch {
+            // save failed, keep original base64
+          }
+        }
+      }
+      // Inject path hint so LLM knows where the images are
+      if (savedImagePaths.length > 0) {
+        const hint =
+          savedImagePaths.length === 1
+            ? `[User sent an image, saved to: ${savedImagePaths[0]}. Use this path directly to attach/process the file. Do NOT take a screenshot.]`
+            : `[User sent ${savedImagePaths.length} images, saved to: ${savedImagePaths.join(", ")}. Use these paths directly. Do NOT take screenshots.]`;
+        input.push({ type: "text", text: hint });
+      }
+    }
+
     // 存储用户消息：ContentBlock[] 需序列化为 JSON 字符串
     const userTurn: ConversationTurn = {
       id: generateId(),
@@ -143,6 +176,7 @@ export class SimpleAgentLoop implements AgentLoop {
     // Agent loop: think → act → observe → repeat
     let iterations = 0;
     let consecutiveErrors = 0;
+    let lastFullText = ""; // Keep last LLM text for fallback response
 
     while (iterations < this._config.maxIterations && !this.aborted) {
       iterations++;
@@ -233,6 +267,8 @@ export class SimpleAgentLoop implements AgentLoop {
       const iterTokensOut = totalTokensOut - prevTokensOut;
       prevTokensIn = totalTokensIn;
       prevTokensOut = totalTokensOut;
+
+      if (fullText) lastFullText = fullText;
 
       // Record LLM call in trace (include text if any)
       const llmStep: Record<string, unknown> = {
@@ -561,12 +597,30 @@ export class SimpleAgentLoop implements AgentLoop {
       console.error("[agent-loop] Failed to persist trace:", e);
     }
 
+    // Store a final assistant turn so token stats persist
+    const fallbackContent =
+      lastFullText ||
+      "I've reached the maximum number of iterations. Please try breaking your request into smaller steps.";
+    const fallbackTurn: ConversationTurn = {
+      id: generateId(),
+      conversationId: convId,
+      role: "assistant",
+      content: fallbackContent,
+      model: usedModel,
+      tokensIn: totalTokensIn,
+      tokensOut: totalTokensOut,
+      durationMs,
+      toolCallCount: totalToolCalls,
+      traceId: trace.id,
+      createdAt: new Date(),
+    };
+    await this.memoryStore.addTurn(convId, fallbackTurn);
+
     this.setState("idle");
     const fallbackMessage: Message = {
       id: generateId(),
       role: "assistant",
-      content:
-        "I've reached the maximum number of iterations. Please try breaking your request into smaller steps.",
+      content: fallbackContent,
       createdAt: new Date(),
       model: usedModel,
       tokensIn: totalTokensIn,

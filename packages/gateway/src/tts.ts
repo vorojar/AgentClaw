@@ -30,7 +30,7 @@ export async function textToSpeech(text: string): Promise<string | null> {
     execFile(
       "python",
       [scriptPath, cleaned, outPath],
-      { timeout: 30_000 },
+      { timeout: 30_000, windowsHide: true },
       (err) => {
         if (err) {
           console.error("[tts] Failed:", err.message);

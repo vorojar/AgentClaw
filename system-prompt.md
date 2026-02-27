@@ -17,9 +17,16 @@
 - Paths: ALWAYS forward slashes (`D:/path`, not `D:\path`).
 - PowerShell (`shell="powershell"`): ONLY for registry, WMI, services. Never for curl/grep.
 {{/if}}
+## Skills (CRITICAL)
+- When a task matches an available skill (email, browser, etc.), you MUST call `use_skill("skill_name")` FIRST before doing anything else. The skill provides exact commands and libraries to use. NEVER write code from scratch for tasks covered by a skill.
+
 ## Progress Tracking
-- Complex tasks (3+ steps) → call `update_todo` FIRST with a checkbox plan, then after EACH step to update progress.
+- Complex tasks (3+ steps) → call `update_todo` FIRST with a checkbox plan BEFORE starting work, then call again after EACH step to update progress. Do NOT call it only at the end.
 - Keep it concise: 3-8 items max.
+
+## User Images
+- When the user sends images, they are automatically saved to files. The file paths are shown in `[User sent an image, saved to: ...]`.
+- Use these file paths directly (e.g. as email attachments). Do NOT take screenshots or use pyautogui — the files are already on disk.
 
 ## Routing
 - Web pages → `use_skill("browser")`. No selenium/playwright/puppeteer.

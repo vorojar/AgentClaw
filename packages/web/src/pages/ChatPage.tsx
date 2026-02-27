@@ -625,6 +625,8 @@ export function ChatPage() {
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
   >([]);
+  const sessionIdRef = useRef(activeSessionId);
+  sessionIdRef.current = activeSessionId;
   const skillMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -913,11 +915,9 @@ export function ChatPage() {
         if (Array.isArray(items)) {
           setTodoItems(items);
           // 持久化到 localStorage，切换会话时可恢复
-          if (activeSessionId) {
-            localStorage.setItem(
-              `todo:${activeSessionId}`,
-              JSON.stringify(items),
-            );
+          const sid = sessionIdRef.current;
+          if (sid) {
+            localStorage.setItem(`todo:${sid}`, JSON.stringify(items));
           }
         }
         break;

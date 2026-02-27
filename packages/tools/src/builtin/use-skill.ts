@@ -85,6 +85,13 @@ export const useSkillTool: Tool = {
       return { content: "Error: skill registry not available", isError: true };
     }
 
+    // Skill 已通过自动注入加载到系统提示词中，不再重复返回完整指令
+    if (context?.preSelectedSkillName === name) {
+      return {
+        content: `Skill "${name}" is already active. Follow the instructions in the system prompt above. Do NOT call use_skill again.`,
+      };
+    }
+
     const skill = registry.get(name);
     if (!skill) {
       const available = registry

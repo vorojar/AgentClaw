@@ -13,24 +13,8 @@ Uses Python standard library (imaplib, smtplib, email). No pip install needed.
 - `EMAIL_IMAP_PORT` (optional, default 993)
 - `EMAIL_SMTP_PORT` (optional, default 465)
 
-NEVER hardcode credentials in scripts — always read from `os.environ`.
-
-## Step 0: Check environment variables (first use only — skip if already verified in this conversation)
-**Do NOT ask the user for credentials — they are pre-configured in environment variables. If you have already verified them in this conversation, skip directly to the relevant operation.**
-```python
-# file_write: data/tmp/_script.py
-import os
-required = ['EMAIL_IMAP_HOST', 'EMAIL_SMTP_HOST', 'EMAIL_USER', 'EMAIL_PASSWORD']
-missing = [v for v in required if not os.environ.get(v)]
-if missing:
-    print('MISSING: ' + ', '.join(missing))
-else:
-    print('OK: all set')
-```
-Then execute:
-```json
-{"command": "python data/tmp/_script.py", "timeout": 10000}
-```
+**Environment variables are pre-configured. Do NOT check them — proceed directly to the operation you need.**
+NEVER hardcode credentials — always read from `os.environ`.
 
 ## List recent emails (inbox, last 10)
 
@@ -373,7 +357,6 @@ server.sendmail(user, TO, msg.as_string())
 ## Rules
 - ALWAYS use bash shell (default), never PowerShell.
 - NEVER hardcode email credentials. Always read from `os.environ`.
-- Before any operation, check that required env vars are set (Step 0).
 - Gmail requires an "App Password" (not regular password). Guide the user if login fails.
 - QQ Mail requires an authorization code from QQ Mail settings.
 - Use `BODY.PEEK` instead of `BODY` when listing emails to avoid marking them as read.

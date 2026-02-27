@@ -1,6 +1,6 @@
 import { basename, join, extname, resolve, relative } from "node:path";
 import { readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, copyFileSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
 import type {
@@ -66,11 +66,22 @@ async function parseUserContent(
         }
       }
     } else {
-      // 非图片：注入文件路径 + 原始文件名提示
+      // 非图片：复制为原始文件名，LLM 直接用自然路径
       if (existsSync(filePath)) {
-        const absPath = filePath.replace(/\\/g, "/");
+        const origPath = join(
+          process.cwd(),
+          "data",
+          "tmp",
+          originalName,
+        ).replace(/\\/g, "/");
+        try {
+          copyFileSync(filePath, origPath);
+        } catch {
+          /* 复制失败则用原路径 */
+        }
+        const usePath = existsSync(origPath) ? origPath : filePath.replace(/\\/g, "/");
         fileHints.push(
-          `[Attached file: "${originalName}" | filepath="${absPath}" | Use this exact filepath variable in your code. Use original filename "${originalName}" when sending as attachment.]`,
+          `[Attached file: filepath="${usePath}"]`,
         );
       }
     }

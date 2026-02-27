@@ -220,6 +220,10 @@ export class SimpleAgentLoop implements AgentLoop {
         effectiveSkillName = "imap-smtp-email";
       }
     }
+    // 同步到 context，use_skill 检测到已注入时返回短消息而非重复全文
+    if (effectiveSkillName && context) {
+      context.preSelectedSkillName = effectiveSkillName;
+    }
 
     // Agent loop: think → act → observe → repeat
     let iterations = 0;

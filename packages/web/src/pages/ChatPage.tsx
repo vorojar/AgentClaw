@@ -1751,9 +1751,11 @@ export function ChatPage() {
         )}
 
         {/* Hidden file input (always rendered so ref works in both layouts) */}
+        {/* accept="*/*" 确保手机端可以选择所有类型文件 */}
         <input
           ref={fileInputRef}
           type="file"
+          accept="*/*"
           multiple
           style={{ display: "none" }}
           onChange={(e) => {

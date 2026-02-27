@@ -30,44 +30,63 @@ const MIME_MAP: Record<string, string> = {
 const UPLOAD_RE = /\[Uploaded:\s*[^\]]*\]\(\/files\/([^)]+)\)/g;
 
 /**
- * Parse user message: if it contains uploaded image URLs, convert to ContentBlock[]
- * with base64 ImageContent so the LLM can see the images natively.
+ * 解析用户消息中的上传文件链接：
+ * - 图片文件：转为 base64 ContentBlock，LLM 可直接看到
+ * - 非图片文件：注入文件路径提示，LLM 可用 file_read 工具读取内容
  */
 async function parseUserContent(
   text: string,
 ): Promise<string | ContentBlock[]> {
   const matches = [...text.matchAll(UPLOAD_RE)];
-  const imageMatches = matches.filter((m) => {
-    const filename = decodeURIComponent(m[1]);
-    return IMAGE_EXTS.has(extname(filename).toLowerCase());
-  });
-  if (imageMatches.length === 0) return text;
+  if (matches.length === 0) return text;
 
   const blocks: ContentBlock[] = [];
+  // 非图片文件的路径提示，引导 LLM 使用 file_read 读取
+  const fileHints: string[] = [];
 
-  // Add image blocks
-  for (const m of imageMatches) {
+  for (const m of matches) {
     const filename = decodeURIComponent(m[1]);
+    const ext = extname(filename).toLowerCase();
     const filePath = join(process.cwd(), "data", "tmp", filename);
-    if (!existsSync(filePath)) continue;
-    try {
-      const buf = await readFile(filePath);
-      const ext = extname(filename).toLowerCase();
-      blocks.push({
-        type: "image",
-        data: buf.toString("base64"),
-        mediaType: MIME_MAP[ext] ?? "image/jpeg",
-      });
-    } catch {
-      // skip unreadable files
+
+    if (IMAGE_EXTS.has(ext)) {
+      // 图片：转为 base64 ContentBlock
+      if (existsSync(filePath)) {
+        try {
+          const buf = await readFile(filePath);
+          blocks.push({
+            type: "image",
+            data: buf.toString("base64"),
+            mediaType: MIME_MAP[ext] ?? "image/jpeg",
+          });
+        } catch {
+          /* 跳过不可读文件 */
+        }
+      }
+    } else {
+      // 非图片：注入文件路径提示，LLM 可用 file_read 工具读取
+      if (existsSync(filePath)) {
+        const absPath = filePath.replace(/\\/g, "/");
+        fileHints.push(
+          `[Attached file: ${filename}, saved to: ${absPath}. Use file_read to access its content.]`,
+        );
+      }
     }
   }
 
-  // Add text (strip image upload markers, keep other text)
-  const cleanText = text
+  // 清理上传链接标记，保留其他文本
+  let cleanText = text
     .replace(UPLOAD_RE, "")
     .replace(/\n{3,}/g, "\n")
     .trim();
+
+  // 拼接非图片文件路径提示
+  if (fileHints.length > 0) {
+    cleanText = cleanText
+      ? `${cleanText}\n${fileHints.join("\n")}`
+      : fileHints.join("\n");
+  }
+
   if (cleanText) {
     blocks.push({ type: "text", text: cleanText });
   }

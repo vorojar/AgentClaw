@@ -15,8 +15,8 @@ Uses Python standard library (imaplib, smtplib, email). No pip install needed.
 
 NEVER hardcode credentials in scripts — always read from `os.environ`.
 
-## Step 0: Check environment variables (MANDATORY — always run this first)
-**You MUST execute this check before doing anything else. Do NOT ask the user for credentials — they are pre-configured in environment variables.**
+## Step 0: Check environment variables (first use only — skip if already verified in this conversation)
+**Do NOT ask the user for credentials — they are pre-configured in environment variables. If you have already verified them in this conversation, skip directly to the relevant operation.**
 ```python
 # file_write: data/tmp/_script.py
 import os

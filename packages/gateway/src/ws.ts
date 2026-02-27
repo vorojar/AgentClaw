@@ -70,7 +70,7 @@ async function parseUserContent(
       if (existsSync(filePath)) {
         const absPath = filePath.replace(/\\/g, "/");
         fileHints.push(
-          `[Attached file: "${originalName}", saved to: ${absPath}. Use file_read to access content. Use original filename "${originalName}" when sending as attachment.]`,
+          `[Attached file: "${originalName}" | filepath="${absPath}" | Use this exact filepath variable in your code. Use original filename "${originalName}" when sending as attachment.]`,
         );
       }
     }

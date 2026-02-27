@@ -7,6 +7,7 @@
 - **强制 use_skill 优先**：系统提示词新增 Skills 规则——任务匹配可用 skill 时必须先调 `use_skill` 加载指令，禁止从零写代码
 - **update_todo 使用规范**：明确要求在任务开始前创建计划、每步更新，不要在全部完成后才调用
 - **PowerShell 自动路由**：shell 工具检测 `powershell` 开头的命令自动切到 PowerShell 执行器，避免 Git Bash 吃掉 `$` 变量
+- **Skill 自动注入（结构信号匹配）**：用户输入包含邮箱地址时自动注入 email skill 指令到系统提示词，LLM 不需要自己调 use_skill。这不是关键词意图匹配（已被证明是死胡同），而是检测结构化信号（邮箱地址模式），确定性触发
 - **windowsHide**：所有 `execFile` 调用加 `windowsHide: true`，防止 pm2 后台运行时弹出终端窗口
 - **连续错误阈值 2→3**：给 LLM 更多纠错机会
 - **max_iterations 停止后保留 LLM 文本**：不再返回空响应，保留最后一次输出并持久化到 DB

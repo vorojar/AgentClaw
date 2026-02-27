@@ -173,6 +173,27 @@ export class SimpleAgentLoop implements AgentLoop {
     const toolFailCounts = new Map<string, number>();
     const MAX_TOOL_FAILURES = 2;
 
+    // Auto-detect skill from structural signals in user input
+    // This is NOT keyword/intent matching — it detects unambiguous patterns
+    // (email addresses, URLs) so the skill instructions are pre-injected
+    // into the prompt, saving the LLM from needing to call use_skill.
+    let effectiveSkillName = context?.preSelectedSkillName;
+    if (!effectiveSkillName) {
+      const inputText =
+        typeof input === "string"
+          ? input
+          : input
+              .filter(
+                (b): b is { type: "text"; text: string } => b.type === "text",
+              )
+              .map((b) => b.text)
+              .join(" ");
+      // Email address pattern → email skill
+      if (/[\w.-]+@[\w.-]+\.\w{2,}/.test(inputText)) {
+        effectiveSkillName = "imap-smtp-email";
+      }
+    }
+
     // Agent loop: think → act → observe → repeat
     let iterations = 0;
     let consecutiveErrors = 0;
@@ -185,7 +206,7 @@ export class SimpleAgentLoop implements AgentLoop {
       this.setState("thinking");
       const { systemPrompt, messages, skillMatch } =
         await this.contextManager.buildContext(convId, input, {
-          preSelectedSkillName: context?.preSelectedSkillName,
+          preSelectedSkillName: effectiveSkillName,
           reuseContext: iterations > 1,
         });
 

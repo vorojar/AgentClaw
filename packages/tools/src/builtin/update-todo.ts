@@ -33,7 +33,11 @@ export const updateTodoTool: Tool = {
     input: Record<string, unknown>,
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
-    const todo = String(input.todo ?? "");
+    // Handle array input: LLMs sometimes send an array of strings instead of markdown
+    const rawTodo = input.todo;
+    const todo = Array.isArray(rawTodo)
+      ? rawTodo.map(String).join("\n")
+      : String(rawTodo ?? "");
     const items = parseTodoMarkdown(todo);
 
     if (items.length === 0) {

@@ -391,8 +391,8 @@ export class SQLiteMemoryStore implements MemoryStore {
 
     this.db
       .prepare(
-        `INSERT INTO turns (id, conversation_id, role, content, tool_calls, tool_results, model, tokens_in, tokens_out, trace_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO turns (id, conversation_id, role, content, tool_calls, tool_results, model, tokens_in, tokens_out, duration_ms, tool_call_count, trace_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         turn.id || randomUUID(),
@@ -404,6 +404,8 @@ export class SQLiteMemoryStore implements MemoryStore {
         turn.model ?? null,
         turn.tokensIn ?? null,
         turn.tokensOut ?? null,
+        turn.durationMs ?? null,
+        turn.toolCallCount ?? null,
         turn.traceId ?? null,
         turn.createdAt
           ? turn.createdAt.toISOString()
@@ -672,6 +674,8 @@ interface TurnRow {
   model: string | null;
   tokens_in: number | null;
   tokens_out: number | null;
+  duration_ms: number | null;
+  tool_call_count: number | null;
   trace_id: string | null;
   created_at: string;
 }
@@ -787,6 +791,8 @@ function rowToConversationTurn(row: TurnRow): ConversationTurn {
     model: row.model ?? undefined,
     tokensIn: row.tokens_in ?? undefined,
     tokensOut: row.tokens_out ?? undefined,
+    durationMs: row.duration_ms ?? undefined,
+    toolCallCount: row.tool_call_count ?? undefined,
     traceId: row.trace_id ?? undefined,
     createdAt: new Date(row.created_at),
   };

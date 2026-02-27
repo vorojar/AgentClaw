@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS turns (
   model TEXT,
   tokens_in INTEGER,
   tokens_out INTEGER,
+  duration_ms INTEGER,
+  tool_call_count INTEGER,
   trace_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -91,6 +93,12 @@ export function initDatabase(dbPath: string): Database.Database {
   }>;
   if (!turnCols.some((c) => c.name === "trace_id")) {
     db.exec("ALTER TABLE turns ADD COLUMN trace_id TEXT");
+  }
+  if (!turnCols.some((c) => c.name === "duration_ms")) {
+    db.exec("ALTER TABLE turns ADD COLUMN duration_ms INTEGER");
+  }
+  if (!turnCols.some((c) => c.name === "tool_call_count")) {
+    db.exec("ALTER TABLE turns ADD COLUMN tool_call_count INTEGER");
   }
 
   const sessionCols = db.prepare("PRAGMA table_info(sessions)").all() as Array<{

@@ -330,7 +330,7 @@ for filepath in ATTACHMENTS:
         part = MIMEBase("application", "octet-stream")
         part.set_payload(f.read())
     encoders.encode_base64(part)
-    part.add_header("Content-Disposition", f"attachment; filename={filename}")
+    part.add_header("Content-Disposition", "attachment", filename=("utf-8", "", filename))
     msg.attach(part)
 
 with smtplib.SMTP_SSL(host, port) as server:

@@ -297,24 +297,24 @@ export class SimpleAgentLoop implements AgentLoop {
         }
       }
 
-      // Store assistant turn (per-iteration tokens, not cumulative)
-      const assistantTurn: ConversationTurn = {
-        id: generateId(),
-        conversationId: convId,
-        role: "assistant",
-        content: storedText,
-        toolCalls: toolCalls.length > 0 ? JSON.stringify(toolCalls) : undefined,
-        model: usedModel,
-        tokensIn: iterTokensIn,
-        tokensOut: iterTokensOut,
-        traceId: trace.id,
-        createdAt: new Date(),
-      };
-      await this.memoryStore.addTurn(convId, assistantTurn);
-
-      // If no tool calls, we're done
+      // If no tool calls, this is the final turn — store cumulative totals
       if (toolCalls.length === 0) {
         const durationMs = Date.now() - startTime;
+
+        const assistantTurn: ConversationTurn = {
+          id: generateId(),
+          conversationId: convId,
+          role: "assistant",
+          content: storedText,
+          model: usedModel,
+          tokensIn: totalTokensIn,
+          tokensOut: totalTokensOut,
+          durationMs,
+          toolCallCount: totalToolCalls,
+          traceId: trace.id,
+          createdAt: new Date(),
+        };
+        await this.memoryStore.addTurn(convId, assistantTurn);
 
         // Finalize and persist trace
         trace.response = storedText;
@@ -343,6 +343,21 @@ export class SimpleAgentLoop implements AgentLoop {
         yield this.createEvent("response_complete", { message });
         return;
       }
+
+      // Intermediate turn — store per-iteration tokens
+      const assistantTurn: ConversationTurn = {
+        id: generateId(),
+        conversationId: convId,
+        role: "assistant",
+        content: storedText,
+        toolCalls: JSON.stringify(toolCalls),
+        model: usedModel,
+        tokensIn: iterTokensIn,
+        tokensOut: iterTokensOut,
+        traceId: trace.id,
+        createdAt: new Date(),
+      };
+      await this.memoryStore.addTurn(convId, assistantTurn);
 
       // Execute tool calls
       this.setState("tool_calling");
@@ -475,8 +490,10 @@ export class SimpleAgentLoop implements AgentLoop {
           role: "assistant",
           content: responseText,
           model: usedModel,
-          tokensIn: iterTokensIn,
-          tokensOut: iterTokensOut,
+          tokensIn: totalTokensIn,
+          tokensOut: totalTokensOut,
+          durationMs,
+          toolCallCount: totalToolCalls,
           traceId: trace.id,
           createdAt: new Date(),
         };

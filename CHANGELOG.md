@@ -10,6 +10,10 @@
 - **Skill 指令约束性前缀**：`use_skill` 返回内容增加 "Follow these instructions exactly, use ONLY the libraries shown" 前缀，防止 LLM 无视模板自己造轮子
 - **删除 writing skill**：纯鸡汤式指令（"match tone, use clear language"），无可执行内容，每次调用浪费一轮迭代
 - **maxIterations 10→15**：多步任务（写内容+转格式+发邮件）需要更多迭代容错空间
+- **Token 统计刷新后不一致**：最终 assistant turn 存的是单次迭代 token 而非累计值，页面刷新后从 DB 读到的 token 远小于 WS 实时推送值。重构为：最终 turn 存累计 `totalTokensIn/totalTokensOut`，中间 turn 存单次增量；autoComplete turn 同步修复
+- **Token 统计持久化完善**：turns 表新增 `duration_ms` 和 `tool_call_count` 列（含旧库迁移），addTurn INSERT/TurnRow/rowToConversationTurn 全链路补齐
+- **Email 附件中文文件名变 .bin**：发送邮件时附件文件名未按 RFC 2231 编码，含中文时接收方无法识别。改用 `filename=("utf-8", "", filename)` 三元组编码
+- **update_todo 兼容数组输入**：LLM 偶尔传入数组而非字符串，工具直接报错。新增 `Array.isArray` 检测，自动 join 为 markdown 文本
 
 ## [0.8.2] - 2026-02-27
 

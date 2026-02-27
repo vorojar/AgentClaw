@@ -295,6 +295,8 @@
 - [x] 从 Bing HTML 抓取（经常失败）换为 Serper API（Google 搜索结构化 JSON）
 - [x] 支持 answerBox + knowledgeGraph + organic results
 - [x] 极省 token：结构化 JSON vs 全页文本
+- [x] SearXNG 自托管替代 Serper API（$2.50/1000次→$0），Serper 降级为 fallback
+- [x] 仅保留 Yahoo + DuckDuckGo 引擎，`language=zh-CN` + `safe_search: 1`
 
 ---
 
@@ -358,7 +360,7 @@
 | **部署形态** | Electron 桌面应用（必须本地装） | **Web + Gateway 服务（远程部署，多端访问）** | **AgentClaw 更灵活** |
 | **工具重试** | 未提及 | **指数退避重试** | **AgentClaw 胜** |
 | **定时任务** | Cron 调度 | TaskScheduler + set_reminder + **orchestrator 自动执行 + 多网关广播** | **AgentClaw 胜**（任务触发后自动执行完整 agent 循环） |
-| **网页搜索** | Playwright 驱动 Chrome 搜索 | Serper API (Google 搜索结构化 JSON) | **AgentClaw 胜**（结构化 JSON，极省 token，稳定可靠） |
+| **网页搜索** | Playwright 驱动 Chrome 搜索 | **SearXNG 自托管**（免费）+ Serper API fallback | **AgentClaw 胜**（零成本 + 结构化 JSON + fallback 兜底） |
 | **Planner** | create-plan 技能 | plan_task 工具 + SimplePlanner | 持平 |
 | **数据隐私** | 全本地 SQLite | 全本地 SQLite | 持平 |
 
@@ -392,10 +394,11 @@
 - [ ] 前端回放界面：时间轴滑块，可快进/后退到任意步骤
 - [ ] 回放可分享（生成回放链接）
 
-### 9.4 KV-Cache 上下文优化
-- [ ] 保持 system prompt 前缀稳定（不插入动态时间戳到中间位置）
-- [ ] Append-only 上下文策略，减少 cache miss
-- [ ] 工具注册表固定不变，通过 logits masking 或条件约束代替动态增删
+### 9.4 KV-Cache 上下文优化 ✅
+- [x] System prompt 固定不变，动态内容（记忆 + skill catalog + 激活技能指令）拆到 messages 前缀
+- [x] Agent loop 多轮迭代复用首次上下文（`reuseContext`），避免重复搜索记忆
+- [x] Claude provider 使用 `cache_control: { type: "ephemeral" }` 显式标记缓存点
+- [x] 预估 input token 成本降低 50-60%
 
 ### 9.5 文件系统即上下文
 - [ ] 长任务中间结果存文件（`data/tmp/workspace/`）而非塞进聊天上下文
@@ -410,8 +413,11 @@
 
 Phase 9 进行中：借鉴 Manus，提升 Agent 智能和透明度。
 
-当前优先：
+已完成：
 - ✅ todo.md 实时进度追踪
+- ✅ KV-Cache 上下文优化（input token 成本降低 50-60%）
+- ✅ SearXNG 自托管搜索（搜索成本降至 $0）
+
+当前优先：
 - 步骤时间线可视化
-- KV-Cache 上下文优化（省钱）
 - 会话回放

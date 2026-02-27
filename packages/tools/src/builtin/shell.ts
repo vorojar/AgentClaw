@@ -133,10 +133,28 @@ export const shellInfo = {
 const FILE_PATH_RE =
   /(?:[A-Za-z]:)?(?:[/\\][^\s/\\:*?"<>|]+)*[/\\]?data[/\\]tmp[/\\][^\s/\\:*?"<>|]+\.[a-z0-9]+(?:\.[a-z0-9]+)?/gi;
 
+/** Script/temp file extensions — never auto-send to user */
+const SCRIPT_EXTS = new Set([
+  ".py",
+  ".sh",
+  ".js",
+  ".ts",
+  ".rb",
+  ".bat",
+  ".cmd",
+  ".ps1",
+  ".pl",
+]);
+
 function detectFilePaths(text: string): string[] {
   const matches = text.match(FILE_PATH_RE) || [];
-  // Normalize backslashes to forward slashes for consistent file access
-  return [...new Set(matches.map((p) => p.replace(/\\/g, "/")))];
+  // Normalize backslashes, deduplicate, filter out script files
+  return [
+    ...new Set(matches.map((p) => p.replace(/\\/g, "/"))),
+  ].filter((p) => {
+    const ext = p.slice(p.lastIndexOf(".")).toLowerCase();
+    return !SCRIPT_EXTS.has(ext);
+  });
 }
 
 /**

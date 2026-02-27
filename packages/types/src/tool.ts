@@ -86,6 +86,8 @@ export interface ToolExecutionContext {
   delegateTask?: (task: string) => Promise<string>;
   /** Pre-selected skill name from UI chips — inject instructions directly, skip use_skill round */
   preSelectedSkillName?: string;
+  /** Original user message text before parseUserContent transformation (for DB storage) */
+  originalUserText?: string;
   /** Planner for decomposing complex tasks into executable steps */
   planner?: {
     createPlan(

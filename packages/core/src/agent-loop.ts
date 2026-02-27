@@ -129,9 +129,9 @@ export class SimpleAgentLoop implements AgentLoop {
       createdAt: new Date(),
     };
 
-    // 在注入提示前保存原始用户输入（刷新后显示的是这个）
-    const userContentForStorage =
-      typeof input === "string" ? input : JSON.stringify(input);
+    // 优先用 gateway 传入的原始文本（parseUserContent 转换前的），否则用当前 input
+    const userContentForStorage = context?.originalUserText
+      ?? (typeof input === "string" ? input : JSON.stringify(input));
 
     // Per-trace temp directory: data/tmp/{traceId}/
     const traceTmpDir = join(process.cwd(), "data", "tmp", trace.id).replace(

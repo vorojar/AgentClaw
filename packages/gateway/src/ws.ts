@@ -275,6 +275,8 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
         };
 
         // Convert uploaded images to multimodal ContentBlock[]
+        // 保留原始文本，agent-loop 用于 DB 存储（刷新后显示的是这个）
+        context.originalUserText = parsed.content;
         const userContent = await parseUserContent(parsed.content);
 
         // Use processInputStream for streaming events

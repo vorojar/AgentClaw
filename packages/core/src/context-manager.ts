@@ -25,13 +25,13 @@ export class SimpleContextManager implements ContextManager {
   private summaryCache = new Map<string, string>();
 
   /**
-   * KV-Cache optimization: cache dynamic prefix (memories + skills) per conversation.
-   * Reused on agent loop iterations 2+ to keep the prefix stable.
+   * Cache dynamic context (memories + skills) per conversation.
+   * Reused on agent loop iterations 2+ so we don't re-search memories every iteration.
    */
-  private dynamicPrefixCache = new Map<
+  private dynamicContextCache = new Map<
     string,
     {
-      messages: Message[];
+      suffix: string;
       skillMatch?: { name: string; confidence: number };
     }
   >();
@@ -94,50 +94,45 @@ export class SimpleContextManager implements ContextManager {
       historyMessages = turns.map((turn) => this.turnToMessage(turn));
     }
 
-    // ── 2. System prompt: ALWAYS static (never mutated) ──
-    // This is the key to KV-cache optimization.
-    // Memories, skills, and active skill instructions go into messages instead.
-
-    // ── 3. Dynamic prefix (memories + skills → user/assistant message pair) ──
-    let dynamicPrefix: Message[];
+    // ── 2. Dynamic context (memories + skills) → appended to system prompt ──
+    let dynamicSuffix: string;
     let skillMatch: { name: string; confidence: number } | undefined;
 
-    if (options?.reuseContext && this.dynamicPrefixCache.has(conversationId)) {
-      // Agent loop iteration 2+: reuse cached prefix (skip memory search)
-      const cached = this.dynamicPrefixCache.get(conversationId)!;
-      dynamicPrefix = cached.messages;
+    if (options?.reuseContext && this.dynamicContextCache.has(conversationId)) {
+      const cached = this.dynamicContextCache.get(conversationId)!;
+      dynamicSuffix = cached.suffix;
       skillMatch = cached.skillMatch;
     } else {
-      // First iteration: build dynamic prefix
-      const result = await this.buildDynamicPrefix(currentInput, options);
-      dynamicPrefix = result.messages;
+      const result = await this.buildDynamicContext(currentInput, options);
+      dynamicSuffix = result.suffix;
       skillMatch = result.skillMatch;
-      // Cache for subsequent iterations
-      this.dynamicPrefixCache.set(conversationId, {
-        messages: dynamicPrefix,
+      this.dynamicContextCache.set(conversationId, {
+        suffix: dynamicSuffix,
         skillMatch,
       });
     }
 
-    // ── 4. Assemble: [dynamic prefix] + [history] ──
-    const messages = [...dynamicPrefix, ...historyMessages];
+    // ── 3. Assemble ──
+    const finalPrompt = dynamicSuffix
+      ? `${this.systemPrompt}\n\n${dynamicSuffix}`
+      : this.systemPrompt;
 
     return {
-      systemPrompt: this.systemPrompt,
-      messages,
+      systemPrompt: finalPrompt,
+      messages: historyMessages,
       skillMatch,
     };
   }
 
   /**
-   * Build dynamic context prefix: memories + skill catalog + active skill.
-   * Returns a user/assistant message pair to prepend to messages.
+   * Build dynamic context: memories + skill catalog + active skill.
+   * Returns a string to append to the system prompt.
    */
-  private async buildDynamicPrefix(
+  private async buildDynamicContext(
     currentInput: string | ContentBlock[],
     options?: { preSelectedSkillName?: string },
   ): Promise<{
-    messages: Message[];
+    suffix: string;
     skillMatch?: { name: string; confidence: number };
   }> {
     const parts: string[] = [];
@@ -170,7 +165,7 @@ export class SimpleContextManager implements ContextManager {
         }
         if (lines.length > 0) {
           parts.push(
-            `Long-term memory:\n${lines.join("\n")}\nUse this information naturally. Do NOT create files to remember things.`,
+            `Your long-term memory (things you know about the user and previous interactions):\n${lines.join("\n")}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`,
           );
         }
       }
@@ -208,30 +203,10 @@ export class SimpleContextManager implements ContextManager {
       }
     }
 
-    // No dynamic context needed
-    if (parts.length === 0) {
-      return { messages: [], skillMatch };
-    }
-
-    // Build user/assistant pair (maintains message alternation for Claude)
-    const contextText = `[Context]\n${parts.join("\n\n")}`;
-    const now = new Date();
-    const messages: Message[] = [
-      {
-        id: "ctx",
-        role: "user",
-        content: contextText,
-        createdAt: now,
-      },
-      {
-        id: "ctx-ack",
-        role: "assistant",
-        content: "OK.",
-        createdAt: now,
-      },
-    ];
-
-    return { messages, skillMatch };
+    return {
+      suffix: parts.join("\n\n"),
+      skillMatch,
+    };
   }
 
   private async compressTurns(

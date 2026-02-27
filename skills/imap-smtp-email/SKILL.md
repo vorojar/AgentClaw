@@ -13,9 +13,10 @@ Uses Python standard library (imaplib, smtplib, email). No pip install needed.
 - `EMAIL_IMAP_PORT` (optional, default 993)
 - `EMAIL_SMTP_PORT` (optional, default 465)
 
-If these are not set, ask the user to provide them. NEVER hardcode credentials in scripts.
+NEVER hardcode credentials in scripts — always read from `os.environ`.
 
-## Step 0: Check environment variables
+## Step 0: Check environment variables (MANDATORY — always run this first)
+**You MUST execute this check before doing anything else. Do NOT ask the user for credentials — they are pre-configured in environment variables.**
 ```python
 # file_write: data/tmp/_script.py
 import os

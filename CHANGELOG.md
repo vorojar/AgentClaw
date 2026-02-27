@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.8.3] - 2026-02-27
+
+### 修复
+- **记忆回归系统提示词**：KV-Cache 优化误将记忆从系统提示词移到 user/assistant 消息对，导致新会话中 LLM 忽略已存储的记忆（如用户邮箱），反复索要已知信息。现已回归系统提示词，确保记忆作为最高权威上下文可见
+- **Email Skill 强制检查环境变量**：删除"问用户要凭证"的误导性引导，Step 0（检查 .env 环境变量）标注为强制执行，杜绝跳过检查直接 ask_user 的问题
+
 ## [0.8.2] - 2026-02-27
 
 ### 修复
@@ -15,7 +21,7 @@
 - **SearXNG 搜索引擎集成**：自托管免费元搜索引擎替代 Serper API（$2.50/1000次→$0）。SearXNG 为主搜索源，Serper 自动降级为 fallback。docker-compose 包含 SearXNG + Redis 容器，开箱即用
 
 ### 优化
-- **KV-Cache 上下文优化**：system prompt 固定不变（不再拼接记忆/技能），动态内容（记忆 + skill catalog + 激活技能指令）拆到 messages 前缀。Agent loop 多轮迭代复用首次上下文（`reuseContext`），避免重复搜索记忆。Claude provider 使用 `cache_control: { type: "ephemeral" }` 显式标记缓存点。预估 input token 成本降低 50-60%
+- **上下文缓存优化**：Agent loop 多轮迭代复用首次上下文（`reuseContext`），避免重复搜索记忆。Claude provider 使用 `cache_control: { type: "ephemeral" }` 显式标记缓存点
 - **代码块简化**：消息正文中的代码块移除复制按钮和语言标签，仅保留 Preview 按钮（html/svg/mermaid/jsx/tsx）
 - **单行代码块轻量渲染**：单行代码块不再使用 SyntaxHighlighter，改用轻量 `.code-block-single` 样式
 - **隐藏 update_todo 工具卡片**：同 send_file，不在聊天中显示工具调用卡片

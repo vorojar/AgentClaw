@@ -27,7 +27,8 @@ const MIME_MAP: Record<string, string> = {
   ".bmp": "image/bmp",
   ".svg": "image/svg+xml",
 };
-const UPLOAD_RE = /\[Uploaded:\s*[^\]]*\]\(\/files\/([^)]+)\)/g;
+// 捕获原始文件名(group 1)和保存文件名(group 2)
+const UPLOAD_RE = /\[Uploaded:\s*([^\]]*)\]\(\/files\/([^)]+)\)/g;
 
 /**
  * 解析用户消息中的上传文件链接：
@@ -45,9 +46,10 @@ async function parseUserContent(
   const fileHints: string[] = [];
 
   for (const m of matches) {
-    const filename = decodeURIComponent(m[1]);
-    const ext = extname(filename).toLowerCase();
-    const filePath = join(process.cwd(), "data", "tmp", filename);
+    const originalName = m[1].trim();
+    const savedName = decodeURIComponent(m[2]);
+    const ext = extname(savedName).toLowerCase();
+    const filePath = join(process.cwd(), "data", "tmp", savedName);
 
     if (IMAGE_EXTS.has(ext)) {
       // 图片：转为 base64 ContentBlock
@@ -64,11 +66,11 @@ async function parseUserContent(
         }
       }
     } else {
-      // 非图片：注入文件路径提示，LLM 可用 file_read 工具读取
+      // 非图片：注入文件路径 + 原始文件名提示
       if (existsSync(filePath)) {
         const absPath = filePath.replace(/\\/g, "/");
         fileHints.push(
-          `[Attached file: ${filename}, saved to: ${absPath}. Use file_read to access its content.]`,
+          `[Attached file: "${originalName}", saved to: ${absPath}. Use file_read to access content. Use original filename "${originalName}" when sending as attachment.]`,
         );
       }
     }

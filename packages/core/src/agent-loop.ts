@@ -129,6 +129,10 @@ export class SimpleAgentLoop implements AgentLoop {
       createdAt: new Date(),
     };
 
+    // 在注入提示前保存原始用户输入（刷新后显示的是这个）
+    const userContentForStorage =
+      typeof input === "string" ? input : JSON.stringify(input);
+
     // Per-trace temp directory: data/tmp/{traceId}/
     const traceTmpDir = join(process.cwd(), "data", "tmp", trace.id).replace(
       /\\/g,
@@ -174,12 +178,12 @@ export class SimpleAgentLoop implements AgentLoop {
       input = `[Working directory for output files: ${traceTmpDir}. Save ALL generated files here.]\n${input}`;
     }
 
-    // 存储用户消息：ContentBlock[] 需序列化为 JSON 字符串
+    // 存储原始用户消息（不含注入的提示），刷新后用户看到的是原始内容
     const userTurn: ConversationTurn = {
       id: generateId(),
       conversationId: convId,
       role: "user",
-      content: typeof input === "string" ? input : JSON.stringify(input),
+      content: userContentForStorage,
       createdAt: new Date(),
     };
     await this.memoryStore.addTurn(convId, userTurn);

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
-const DEFAULT_TIMEOUT = 30_000;
+const DEFAULT_TIMEOUT = 120_000;
 
 /**
  * Find Git Bash on Windows.

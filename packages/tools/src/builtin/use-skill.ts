@@ -1,4 +1,58 @@
+import { execFile } from "node:child_process";
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
+import { shellInfo } from "./shell.js";
+
+/**
+ * Extract install commands from skill instructions (Step 0 JSON code blocks).
+ * Matches patterns like: ```json\n{"command": "pip install xxx", "timeout": 60000}\n```
+ */
+function extractInstallCommands(
+  instructions: string,
+): Array<{ command: string; timeout: number }> {
+  const results: Array<{ command: string; timeout: number }> = [];
+  const jsonBlockRe = /```json\s*\n\s*(\{[^}]+\})\s*\n\s*```/g;
+  let match: RegExpExecArray | null;
+  while ((match = jsonBlockRe.exec(instructions)) !== null) {
+    try {
+      const obj = JSON.parse(match[1]) as Record<string, unknown>;
+      const cmd = String(obj.command ?? "");
+      if (/\b(pip|npm)\s+install\b/.test(cmd)) {
+        results.push({
+          command: cmd,
+          timeout: Number(obj.timeout) || 120_000,
+        });
+      }
+    } catch {
+      // not valid JSON, skip
+    }
+  }
+  return results;
+}
+
+/** Run a shell command and return stdout/stderr. */
+function runCommand(
+  command: string,
+  timeout: number,
+): Promise<{ ok: boolean; output: string }> {
+  return new Promise((resolve) => {
+    execFile(
+      shellInfo.shell,
+      ["-c", command],
+      {
+        timeout,
+        maxBuffer: 2 * 1024 * 1024,
+        env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+      },
+      (error, stdout, stderr) => {
+        const output = [String(stdout || ""), String(stderr || "")]
+          .filter(Boolean)
+          .join("\n")
+          .trim();
+        resolve({ ok: !error, output: output.slice(0, 500) });
+      },
+    );
+  });
+}
 
 export const useSkillTool: Tool = {
   name: "use_skill",
@@ -43,6 +97,23 @@ export const useSkillTool: Tool = {
       };
     }
 
-    return { content: skill.instructions };
+    // Auto-execute install steps (Step 0) so dependencies are ready
+    const installCmds = extractInstallCommands(skill.instructions);
+    const installResults: string[] = [];
+    for (const cmd of installCmds) {
+      const { ok, output } = await runCommand(cmd.command, cmd.timeout);
+      installResults.push(
+        ok ? `✅ ${cmd.command} — installed` : `⚠️ ${cmd.command} — ${output}`,
+      );
+    }
+
+    const prefix =
+      "⚠️ IMPORTANT: Follow these instructions exactly. Use ONLY the libraries and methods shown below. Do NOT use alternative libraries.\n\n";
+    const installStatus =
+      installResults.length > 0
+        ? `Dependencies:\n${installResults.join("\n")}\n\n`
+        : "";
+
+    return { content: prefix + installStatus + skill.instructions };
   },
 };

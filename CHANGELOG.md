@@ -5,6 +5,11 @@
 ### 修复
 - **记忆回归系统提示词**：KV-Cache 优化误将记忆从系统提示词移到 user/assistant 消息对，导致新会话中 LLM 忽略已存储的记忆（如用户邮箱），反复索要已知信息。现已回归系统提示词，确保记忆作为最高权威上下文可见
 - **Email Skill 强制检查环境变量**：删除"问用户要凭证"的误导性引导，Step 0（检查 .env 环境变量）标注为强制执行，杜绝跳过检查直接 ask_user 的问题
+- **Shell 默认超时 30s→120s**：pip install / npm install 在 30s 内经常超时导致任务链断裂，提升到 120s
+- **Skill 依赖自动安装**：`use_skill` 激活 skill 时自动执行 Step 0 的 install 命令（pip/npm install），依赖就绪后才返回指令，LLM 不再需要自己处理安装步骤
+- **Skill 指令约束性前缀**：`use_skill` 返回内容增加 "Follow these instructions exactly, use ONLY the libraries shown" 前缀，防止 LLM 无视模板自己造轮子
+- **删除 writing skill**：纯鸡汤式指令（"match tone, use clear language"），无可执行内容，每次调用浪费一轮迭代
+- **maxIterations 10→15**：多步任务（写内容+转格式+发邮件）需要更多迭代容错空间
 
 ## [0.8.2] - 2026-02-27
 

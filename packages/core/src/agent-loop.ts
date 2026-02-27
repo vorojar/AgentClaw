@@ -22,7 +22,7 @@ import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
 
 const DEFAULT_CONFIG: AgentConfig = {
-  maxIterations: 10,
+  maxIterations: 15,
   systemPrompt: "",
   streaming: false,
   temperature: 0.7,

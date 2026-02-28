@@ -179,13 +179,14 @@ export class SQLiteMemoryStore implements MemoryStore {
    */
   async findSimilar(
     content: string,
-    type: string,
+    _type: string,
     threshold = 0.75,
   ): Promise<{ entry: MemoryEntry; score: number } | null> {
+    // Search across ALL types — same info stored under different types
+    // (e.g. "fact" vs "entity") should still be detected as duplicate
     const results = await this.search({
       query: content,
-      type: type as MemoryEntry["type"],
-      limit: 5,
+      limit: 10,
       semanticWeight: 1.0,
       recencyWeight: 0,
       importanceWeight: 0,

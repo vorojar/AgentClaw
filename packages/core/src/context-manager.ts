@@ -187,15 +187,7 @@ export class SimpleContextManager implements ContextManager {
 
         const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
         if (allSkills.length > 0) {
-          const catalog = allSkills
-            .map((s) => {
-              const d = s.description;
-              const cn = d.includes("|")
-                ? d.split("|")[0].trim()
-                : d.slice(0, 15);
-              return `${s.name}(${cn})`;
-            })
-            .join(", ");
+          const catalog = allSkills.map((s) => s.name).join(", ");
           parts.push(`Skills (call use_skill(name) to activate): ${catalog}`);
         }
       } catch {

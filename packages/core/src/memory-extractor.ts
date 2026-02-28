@@ -21,31 +21,25 @@ interface ExtractedMemory {
   importance: number;
 }
 
-const EXTRACTION_PROMPT = `Analyze the following conversation and extract ONLY information worth remembering permanently. Be extremely selective.
+const EXTRACTION_PROMPT = `从对话中提取值得永久记住的用户信息。极度精简，只提取长期有价值的。
 
-Categories:
-- fact: enduring facts about the user or their environment (e.g. "User's name is Alex", "User's project uses TypeScript", "User lives in Beijing")
-- preference: user preferences and habits (e.g. "User prefers dark mode", "User wants responses in Chinese", "User likes concise answers")
-- entity: important people, projects, or systems in the user's life (e.g. "Project: AgentClaw — a self-hosted AI agent", "User's colleague: Zhang Wei")
-- episodic: lessons learned from past failures/successes (e.g. "sqlite-vec doesn't work well on Windows", "chcp 65001 fixes Chinese encoding in cmd.exe")
+类型：
+- fact: 用户的持久事实（邮箱、年龄、住址、公司）
+- preference: 用户偏好和习惯
+- entity: 用户生活中的重要人物、项目、系统
+- episodic: 从失败/成功中学到的经验教训
 
-Return a JSON array. Each item:
-{"type": "fact|preference|entity|episodic", "content": "...", "importance": 0.0-1.0}
+输出 JSON 数组：{"type": "fact|preference|entity|episodic", "content": "...", "importance": 0.0-1.0}
+无内容则返回：[]
 
-If nothing worth remembering, return: []
+禁止提取：
+- 一次性操作（截图、打开网页、发文件）
+- 工具执行细节（文件路径、命令输出）
+- 助手自身的行为和能力
+- 系统/框架/工具的实现细节
+- 未来对话中用不到的信息
 
-DO NOT extract:
-- One-off commands or tasks ("user asked to take a screenshot", "user asked to open a URL")
-- Tool execution details (file paths, screen resolutions, command outputs)
-- Temporary actions ("user set a reminder", "user sent a file")
-- Things the assistant did or said (only extract what reveals something about the USER)
-- Anything that would not be useful in a future conversation
-
-GOOD examples: "User's name is 小明", "User prefers to be called 主人", "User's OS is Windows 11"
-BAD examples: "User asked to screenshot", "User opened www.example.com", "Reminder was set for 8pm"
-
-Conversation:
-`;
+用中文写 content。`;
 
 export class MemoryExtractor {
   private provider: LLMProvider;
@@ -58,10 +52,11 @@ export class MemoryExtractor {
 
   /**
    * Extract memories from recent conversation turns.
-   * Call this periodically (e.g. every N turns) to build long-term memory.
+   * Existing memories are provided so the LLM can avoid duplicates.
    */
-  async extractFromTurns(
+  private async extractFromTurns(
     turns: ConversationTurn[],
+    existingMemories: string[],
   ): Promise<ExtractedMemory[]> {
     if (turns.length === 0) return [];
 
@@ -73,13 +68,26 @@ export class MemoryExtractor {
 
     if (conversationText.trim().length < 20) return [];
 
+    // Include existing memories so LLM avoids duplicates
+    let existingSection = "";
+    if (existingMemories.length > 0) {
+      existingSection =
+        "\n\n已有记忆（不要提取重复或换种说法的）：\n" +
+        existingMemories.join("\n") +
+        "\n";
+    }
+
     try {
       const response = await this.provider.chat({
         messages: [
           {
             id: generateId(),
             role: "user",
-            content: EXTRACTION_PROMPT + conversationText,
+            content:
+              EXTRACTION_PROMPT +
+              existingSection +
+              "\n对话：\n" +
+              conversationText,
             createdAt: new Date(),
           },
         ],
@@ -141,11 +149,17 @@ export class MemoryExtractor {
       recentTurnsCount,
     );
 
-    const extracted = await this.extractFromTurns(turns);
+    // Load existing memories so LLM can see what's already stored
+    const existingResults = await this.memoryStore.search({ limit: 50 });
+    const existingMemories = existingResults.map(
+      (r) => `- [${r.entry.type}] ${r.entry.content}`,
+    );
+
+    const extracted = await this.extractFromTurns(turns, existingMemories);
     let stored = 0;
 
     for (const memory of extracted) {
-      // Semantic dedup: skip if a similar memory already exists
+      // Semantic dedup: skip if a similar memory already exists (cross-type)
       const similar = await this.memoryStore.findSimilar(
         memory.content,
         memory.type,

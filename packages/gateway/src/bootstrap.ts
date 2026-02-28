@@ -336,9 +336,9 @@ export async function bootstrap(): Promise<AppContext> {
   const shellDesc =
     shellInfo.name === "bash"
       ? process.platform === "win32"
-        ? 'bash (Git Bash) by default. Use standard Unix/bash commands (ls, grep, cat, ffmpeg, etc.). For Windows-specific tasks (Recycle Bin, registry, WMI, system info), set the shell parameter to "powershell" and write native PowerShell syntax directly.'
-        : "bash (Git Bash). Use standard Unix/bash commands (ls, grep, cat, ffmpeg, etc.)."
-      : "PowerShell. Use PowerShell syntax (Get-ChildItem, $variable).";
+        ? 'bash (Git Bash)，使用 Unix 命令。Windows 专属任务（注册表、WMI）用 shell="powershell"'
+        : "bash，使用 Unix 命令"
+      : "PowerShell，使用 PowerShell 语法";
 
   console.log(
     `[bootstrap] Shell: ${shellInfo.name} (${shellInfo.shell}), CLI tools: ${availableCli.join(", ") || "none detected"}`,
@@ -378,8 +378,8 @@ export async function bootstrap(): Promise<AppContext> {
       os: osName,
       arch: arch(),
       shell: shellDesc,
-      homedir: homedir(),
-      tempdir: tempDir,
+      homedir: homedir().replace(/\\/g, "/"),
+      tempdir: tempDir.replace(/\\/g, "/"),
       availableCli: availableCli.join(", "),
       isWindows: os === "win32" ? "true" : "",
     };

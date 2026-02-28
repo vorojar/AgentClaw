@@ -3,7 +3,7 @@ name: pptx
 description: 创建、编辑和分析PowerPoint演示文稿，支持幻灯片布局、图表、动画 | Create, edit and analyze PowerPoint presentations (.pptx)
 ---
 
-All output files go to `data/tmp/`. Use `file_write` to create the Python script, then `shell` to execute it.
+All output files go to the working directory (工作目录). Use `file_write` to create the Python script, then `shell` to execute it.
 
 ## Step 0: Install dependency (first time only)
 ```json
@@ -13,7 +13,7 @@ All output files go to `data/tmp/`. Use `file_write` to create the Python script
 ## Create a presentation
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from pptx import Presentation
 from pptx.util import Inches, Pt, Cm, Emu
 from pptx.dml.color import RGBColor
@@ -96,24 +96,24 @@ for r, row_data in enumerate(data, 1):
 
 # ========== Slide 5: Image (if available) ==========
 # slide = prs.slides.add_slide(prs.slide_layouts[6])
-# slide.shapes.add_picture("data/tmp/image.png", Inches(1), Inches(1), width=Inches(8))
+# slide.shapes.add_picture("{WORKDIR}/image.png", Inches(1), Inches(1), width=Inches(8))
 
-prs.save("data/tmp/output.pptx")
-print("OK: data/tmp/output.pptx")
+prs.save("{WORKDIR}/output.pptx")
+print("OK: {WORKDIR}/output.pptx")
 ```
 
 Then execute:
 ```json
-{"command": "python data/tmp/_script.py", "timeout": 30000}
+{"command": "python {WORKDIR}/_script.py", "timeout": 30000}
 ```
 
 ## Read / analyze an existing presentation
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from pptx import Presentation
 
-prs = Presentation("data/tmp/input.pptx")  # <-- replace with actual path
+prs = Presentation("{WORKDIR}/input.pptx")  # <-- replace with actual path
 
 print(f"Total slides: {len(prs.slides)}")
 print(f"Slide size: {prs.slide_width} x {prs.slide_height}")
@@ -133,7 +133,7 @@ for i, slide in enumerate(prs.slides):
 ## Add a chart to a slide
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.enum.chart import XL_CHART_TYPE
@@ -158,8 +158,8 @@ chart = slide.shapes.add_chart(
 chart.has_legend = True
 chart.legend.include_in_layout = False
 
-prs.save("data/tmp/chart_pptx.pptx")
-print("OK: data/tmp/chart_pptx.pptx")
+prs.save("{WORKDIR}/chart_pptx.pptx")
+print("OK: {WORKDIR}/chart_pptx.pptx")
 ```
 
 ## Insert an image into a specific slide
@@ -168,10 +168,10 @@ print("OK: data/tmp/chart_pptx.pptx")
 from pptx import Presentation
 from pptx.util import Inches
 
-prs = Presentation("data/tmp/existing.pptx")
+prs = Presentation("{WORKDIR}/existing.pptx")
 slide = prs.slides[0]  # first slide, change index as needed
-slide.shapes.add_picture("data/tmp/image.png", Inches(1), Inches(2), width=Inches(6))
-prs.save("data/tmp/existing_with_image.pptx")
+slide.shapes.add_picture("{WORKDIR}/image.png", Inches(1), Inches(2), width=Inches(6))
+prs.save("{WORKDIR}/existing_with_image.pptx")
 print("OK")
 ```
 
@@ -187,7 +187,7 @@ print("OK")
 ## Rules
 - ALWAYS use bash shell (default), never PowerShell.
 - Default slide size: 16:9 widescreen (13.333 x 7.5 inches). Set explicitly.
-- Output path: `data/tmp/xxx.pptx`. Use descriptive filenames.
+- Output path: `{WORKDIR}/xxx.pptx`. Use descriptive filenames.
 - For user-uploaded files, read from the path the user provides.
 - After generating the file, use `send_file` to deliver it to the user.
 - Keep Chinese content as-is. Do NOT translate.

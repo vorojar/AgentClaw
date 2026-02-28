@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.8.16] - 2026-03-01
+
+### 修复
+- **消除上传文件重复**：ws.ts 上传非图片附件改用 `renameSync`（移动而非复制）避免 `data/tmp/` 根目录残留副本；图片读取为 base64 后立即 `unlinkSync` 删除临时文件；agent-loop 将附件复制到 per-trace 目录后删除原文件。确保 `data/tmp/` 根目录不再有散落文件
+- **技能输出路径使用工作目录**：7 个 SKILL.md（yt-dlp、bilingual-subtitle、docx、xlsx、pptx、pdf、imap-smtp-email）中所有硬编码的 `data/tmp/` 替换为 `{WORKDIR}/`，技能生成的文件自动进入 per-trace 会话目录
+
 ## [0.8.15] - 2026-03-01
 
 ### 修复

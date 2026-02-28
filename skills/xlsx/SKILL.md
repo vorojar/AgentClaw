@@ -3,7 +3,7 @@ name: xlsx
 description: 创建、编辑和分析Excel表格，支持公式、图表、数据处理 | Create, edit and analyze Excel spreadsheets (.xlsx)
 ---
 
-All output files go to `data/tmp/`. Use `file_write` to create the Python script, then `shell` to execute it.
+All output files go to the working directory (工作目录). Use `file_write` to create the Python script, then `shell` to execute it.
 
 ## Step 0: Install dependency (first time only)
 ```json
@@ -13,7 +13,7 @@ All output files go to `data/tmp/`. Use `file_write` to create the Python script
 ## Create a new workbook with data
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -60,22 +60,22 @@ for col_idx in range(1, len(headers) + 1):
 # --- Freeze top row ---
 ws.freeze_panes = "A2"
 
-wb.save("data/tmp/output.xlsx")
-print("OK: data/tmp/output.xlsx")
+wb.save("{WORKDIR}/output.xlsx")
+print("OK: {WORKDIR}/output.xlsx")
 ```
 
 Then execute:
 ```json
-{"command": "python data/tmp/_script.py", "timeout": 30000}
+{"command": "python {WORKDIR}/_script.py", "timeout": 30000}
 ```
 
 ## Read / analyze an existing spreadsheet
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from openpyxl import load_workbook
 
-wb = load_workbook("data/tmp/input.xlsx", data_only=True)  # data_only=True to read computed values
+wb = load_workbook("{WORKDIR}/input.xlsx", data_only=True)  # data_only=True to read computed values
 
 for sheet_name in wb.sheetnames:
     ws = wb[sheet_name]
@@ -89,11 +89,11 @@ for sheet_name in wb.sheetnames:
 ## Add a chart
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from openpyxl import load_workbook
 from openpyxl.chart import BarChart, Reference
 
-wb = load_workbook("data/tmp/output.xlsx")
+wb = load_workbook("{WORKDIR}/output.xlsx")
 ws = wb.active
 
 chart = BarChart()
@@ -115,8 +115,8 @@ chart.height = 10
 
 ws.add_chart(chart, "E2")
 
-wb.save("data/tmp/output_chart.xlsx")
-print("OK: data/tmp/output_chart.xlsx")
+wb.save("{WORKDIR}/output_chart.xlsx")
+print("OK: {WORKDIR}/output_chart.xlsx")
 ```
 
 ## Create a second sheet
@@ -124,14 +124,14 @@ print("OK: data/tmp/output_chart.xlsx")
 ```python
 from openpyxl import load_workbook
 
-wb = load_workbook("data/tmp/output.xlsx")
+wb = load_workbook("{WORKDIR}/output.xlsx")
 ws2 = wb.create_sheet("汇总")
 ws2["A1"] = "部门"
 ws2["B1"] = "人数"
 ws2.append(["技术部", 2])
 ws2.append(["市场部", 1])
 ws2.append(["财务部", 1])
-wb.save("data/tmp/output.xlsx")
+wb.save("{WORKDIR}/output.xlsx")
 print("OK")
 ```
 
@@ -142,7 +142,7 @@ from openpyxl import load_workbook
 from openpyxl.formatting.rule import CellIsRule
 from openpyxl.styles import PatternFill
 
-wb = load_workbook("data/tmp/output.xlsx")
+wb = load_workbook("{WORKDIR}/output.xlsx")
 ws = wb.active
 
 # Highlight salaries > 15000 in green
@@ -150,13 +150,13 @@ green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="so
 ws.conditional_formatting.add("C2:C100",
     CellIsRule(operator="greaterThan", formula=["15000"], fill=green_fill))
 
-wb.save("data/tmp/output.xlsx")
+wb.save("{WORKDIR}/output.xlsx")
 print("OK")
 ```
 
 ## Rules
 - ALWAYS use bash shell (default), never PowerShell.
-- Output path: `data/tmp/xxx.xlsx`. Use descriptive filenames.
+- Output path: `{WORKDIR}/xxx.xlsx`. Use descriptive filenames.
 - Use `data_only=True` when reading to get computed formula values (not the formula string).
 - For large datasets (>1000 rows), use `write_only=True` mode for better performance.
 - After generating the file, use `send_file` to deliver it to the user.

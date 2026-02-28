@@ -28,7 +28,7 @@ Criteria: `FROM "addr"`, `SUBJECT "text"`, `SINCE "01-Jan-2024"`, `UNSEEN`, `ALL
 
 ## Download attachments
 ```
-{"command": "python skills/imap-smtp-email/scripts/download.py --id 123 --output-dir data/tmp", "timeout": 30000, "auto_send": true}
+{"command": "python skills/imap-smtp-email/scripts/download.py --id 123 --output-dir {WORKDIR}", "timeout": 30000, "auto_send": true}
 ```
 
 ## Rules

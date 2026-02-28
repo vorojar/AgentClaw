@@ -21,7 +21,13 @@ import type {
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
-import { writeFileSync, mkdirSync, existsSync, copyFileSync } from "node:fs";
+import {
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  copyFileSync,
+  unlinkSync,
+} from "node:fs";
 import { join, basename } from "node:path";
 
 const DEFAULT_CONFIG: AgentConfig = {
@@ -174,9 +180,14 @@ export class SimpleAgentLoop implements AgentLoop {
               );
               try {
                 copyFileSync(origPath, newPath);
+                try {
+                  unlinkSync(origPath);
+                } catch {
+                  /* ignore */
+                }
                 relocatedFiles.set(origPath, newPath);
               } catch {
-                /* copy failed — keep original path */
+                /* move failed — keep original path */
               }
             }
           }

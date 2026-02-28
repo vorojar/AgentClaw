@@ -1,6 +1,6 @@
 import { basename, join, extname, resolve, relative } from "node:path";
 import { readFile } from "node:fs/promises";
-import { existsSync, copyFileSync } from "node:fs";
+import { existsSync, renameSync, unlinkSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
 import type {
@@ -52,7 +52,7 @@ async function parseUserContent(
     const filePath = join(process.cwd(), "data", "tmp", savedName);
 
     if (IMAGE_EXTS.has(ext)) {
-      // 图片：转为 base64 ContentBlock
+      // 图片：转为 base64 ContentBlock，读完后删除上传临时文件
       if (existsSync(filePath)) {
         try {
           const buf = await readFile(filePath);
@@ -61,12 +61,13 @@ async function parseUserContent(
             data: buf.toString("base64"),
             mediaType: MIME_MAP[ext] ?? "image/jpeg",
           });
+          try { unlinkSync(filePath); } catch { /* ignore */ }
         } catch {
           /* 跳过不可读文件 */
         }
       }
     } else {
-      // 非图片：复制为原始文件名，LLM 直接用自然路径
+      // 非图片：rename 到原始文件名（移动，不留副本）
       if (existsSync(filePath)) {
         const origPath = join(
           process.cwd(),
@@ -75,9 +76,9 @@ async function parseUserContent(
           originalName,
         ).replace(/\\/g, "/");
         try {
-          copyFileSync(filePath, origPath);
+          renameSync(filePath, origPath);
         } catch {
-          /* 复制失败则用原路径 */
+          /* rename 失败则保留原路径 */
         }
         const usePath = existsSync(origPath)
           ? origPath

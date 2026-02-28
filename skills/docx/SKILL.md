@@ -3,7 +3,7 @@ name: docx
 description: 创建、编辑和分析Word文档，支持格式设置、表格、图片插入 | Create, edit and analyze Word documents (.docx)
 ---
 
-All output files go to `data/tmp/`. Use `file_write` to create the Python script, then `shell` to execute it.
+All output files go to the working directory (工作目录). Use `file_write` to create the Python script, then `shell` to execute it.
 
 ## Step 0: Install dependency (first time only)
 ```json
@@ -13,7 +13,7 @@ All output files go to `data/tmp/`. Use `file_write` to create the Python script
 ## Create a new document
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from docx import Document
 from docx.shared import Pt, Inches, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -62,29 +62,29 @@ for r, row_data in enumerate(data, 1):
         table.rows[r].cells[c].text = val
 
 # --- Insert image (if available) ---
-# doc.add_picture("data/tmp/image.png", width=Inches(4))
+# doc.add_picture("{WORKDIR}/image.png", width=Inches(4))
 
 # --- Page break ---
 doc.add_page_break()
 doc.add_heading("第二页内容", level=1)
 doc.add_paragraph("这是第二页的内容。")
 
-doc.save("data/tmp/output.docx")
-print("OK: data/tmp/output.docx")
+doc.save("{WORKDIR}/output.docx")
+print("OK: {WORKDIR}/output.docx")
 ```
 
 Then execute:
 ```json
-{"command": "python data/tmp/_script.py", "timeout": 30000}
+{"command": "python {WORKDIR}/_script.py", "timeout": 30000}
 ```
 
 ## Read / analyze an existing document
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from docx import Document
 
-doc = Document("data/tmp/input.docx")  # <-- replace with actual path
+doc = Document("{WORKDIR}/input.docx")  # <-- replace with actual path
 
 # Print all paragraphs
 for i, para in enumerate(doc.paragraphs):
@@ -100,14 +100,14 @@ for t_idx, table in enumerate(doc.tables):
 ## Add content to an existing document
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 from docx import Document
 
-doc = Document("data/tmp/existing.docx")  # <-- replace with actual path
+doc = Document("{WORKDIR}/existing.docx")  # <-- replace with actual path
 doc.add_heading("新增章节", level=1)
 doc.add_paragraph("这段内容是后来添加的。")
-doc.save("data/tmp/existing_updated.docx")
-print("OK: data/tmp/existing_updated.docx")
+doc.save("{WORKDIR}/existing_updated.docx")
+print("OK: {WORKDIR}/existing_updated.docx")
 ```
 
 ## Set page margins and orientation
@@ -129,7 +129,7 @@ section.right_margin = Cm(2.5)
 
 ## Rules
 - ALWAYS use bash shell (default), never PowerShell.
-- Output path: `data/tmp/xxx.docx`. Use descriptive filenames, not just "output.docx".
+- Output path: `{WORKDIR}/xxx.docx`. Use descriptive filenames, not just "output.docx".
 - For user-uploaded files, read from the path the user provides.
 - After generating the file, use `send_file` to deliver it to the user.
 - If the user provides Chinese content, keep it as-is. Do NOT translate.

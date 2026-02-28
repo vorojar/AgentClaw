@@ -3,7 +3,7 @@ name: pdf
 description: PDF文档处理，提取文字和表格、合并拆分、创建PDF | PDF manipulation - extract text/tables, merge/split, create PDFs
 ---
 
-All output files go to `data/tmp/`. Use `file_write` to create the Python script, then `shell` to execute it.
+All output files go to the working directory (工作目录). Use `file_write` to create the Python script, then `shell` to execute it.
 
 ## Step 0: Install dependency (first time only)
 ```json
@@ -15,10 +15,10 @@ The import name is `fitz` (not `PyMuPDF`).
 ## Extract text from a PDF
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz  # PyMuPDF
 
-doc = fitz.open("data/tmp/input.pdf")  # <-- replace with actual path
+doc = fitz.open("{WORKDIR}/input.pdf")  # <-- replace with actual path
 print(f"Total pages: {len(doc)}")
 
 for page_num in range(len(doc)):
@@ -32,16 +32,16 @@ doc.close()
 
 Then execute:
 ```json
-{"command": "python data/tmp/_script.py", "timeout": 60000}
+{"command": "python {WORKDIR}/_script.py", "timeout": 60000}
 ```
 
 ## Extract text from specific pages only
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
-doc = fitz.open("data/tmp/input.pdf")
+doc = fitz.open("{WORKDIR}/input.pdf")
 
 # Pages 1-3 (0-indexed: 0, 1, 2)
 for page_num in [0, 1, 2]:
@@ -56,10 +56,10 @@ doc.close()
 ## Extract tables from a PDF
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
-doc = fitz.open("data/tmp/input.pdf")
+doc = fitz.open("{WORKDIR}/input.pdf")
 
 for page_num in range(len(doc)):
     page = doc[page_num]
@@ -78,15 +78,15 @@ doc.close()
 ## Merge multiple PDFs
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
 output = fitz.open()
 
 files = [
-    "data/tmp/file1.pdf",
-    "data/tmp/file2.pdf",
-    "data/tmp/file3.pdf",
+    "{WORKDIR}/file1.pdf",
+    "{WORKDIR}/file2.pdf",
+    "{WORKDIR}/file3.pdf",
 ]
 
 for f in files:
@@ -94,41 +94,41 @@ for f in files:
     output.insert_pdf(doc)
     doc.close()
 
-output.save("data/tmp/merged.pdf")
+output.save("{WORKDIR}/merged.pdf")
 output.close()
-print("OK: data/tmp/merged.pdf")
+print("OK: {WORKDIR}/merged.pdf")
 ```
 
 ## Split PDF — extract specific pages
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
-doc = fitz.open("data/tmp/input.pdf")
+doc = fitz.open("{WORKDIR}/input.pdf")
 output = fitz.open()
 
 # Extract pages 2-5 (0-indexed: 1, 2, 3, 4)
 output.insert_pdf(doc, from_page=1, to_page=4)
 
-output.save("data/tmp/pages_2_to_5.pdf")
+output.save("{WORKDIR}/pages_2_to_5.pdf")
 output.close()
 doc.close()
-print("OK: data/tmp/pages_2_to_5.pdf")
+print("OK: {WORKDIR}/pages_2_to_5.pdf")
 ```
 
 ## Split PDF — each page as separate file
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
-doc = fitz.open("data/tmp/input.pdf")
+doc = fitz.open("{WORKDIR}/input.pdf")
 
 for i in range(len(doc)):
     single = fitz.open()
     single.insert_pdf(doc, from_page=i, to_page=i)
-    path = f"data/tmp/page_{i+1}.pdf"
+    path = f"{WORKDIR}/page_{i+1}.pdf"
     single.save(path)
     single.close()
     print(f"OK: {path}")
@@ -139,17 +139,17 @@ doc.close()
 ## PDF pages to images (PNG)
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
-doc = fitz.open("data/tmp/input.pdf")
+doc = fitz.open("{WORKDIR}/input.pdf")
 
 for i in range(len(doc)):
     page = doc[i]
     # zoom=2 for higher resolution (default=1 gives 72dpi, zoom=2 gives 144dpi)
     mat = fitz.Matrix(2, 2)
     pix = page.get_pixmap(matrix=mat)
-    path = f"data/tmp/page_{i+1}.png"
+    path = f"{WORKDIR}/page_{i+1}.png"
     pix.save(path)
     print(f"OK: {path}")
 
@@ -159,7 +159,7 @@ doc.close()
 ## Create a PDF with title and content
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
 doc = fitz.open()
@@ -174,18 +174,18 @@ body_rect = fitz.Rect(50, 100, 545, 792)
 text = "正文内容...\n\n第二段内容..."
 page.insert_textbox(body_rect, text, fontsize=14, fontname="china-s")
 
-doc.save("data/tmp/created.pdf")
+doc.save("{WORKDIR}/created.pdf")
 doc.close()
-print("OK: data/tmp/created.pdf")
+print("OK: {WORKDIR}/created.pdf")
 ```
 
 ## Add watermark to PDF
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
-doc = fitz.open("data/tmp/input.pdf")
+doc = fitz.open("{WORKDIR}/input.pdf")
 
 for page in doc:
     # Diagonal watermark text
@@ -198,18 +198,18 @@ for page in doc:
         rotate=45,
     )
 
-doc.save("data/tmp/watermarked.pdf")
+doc.save("{WORKDIR}/watermarked.pdf")
 doc.close()
-print("OK: data/tmp/watermarked.pdf")
+print("OK: {WORKDIR}/watermarked.pdf")
 ```
 
 ## Get PDF metadata / info
 
 ```python
-# file_write: data/tmp/_script.py
+# file_write: {WORKDIR}/_script.py
 import fitz
 
-doc = fitz.open("data/tmp/input.pdf")
+doc = fitz.open("{WORKDIR}/input.pdf")
 print(f"Pages: {len(doc)}")
 print(f"Metadata: {doc.metadata}")
 print(f"Is encrypted: {doc.is_encrypted}")
@@ -221,7 +221,7 @@ doc.close()
 ## Rules
 - ALWAYS use bash shell (default), never PowerShell.
 - Import name is `fitz`, NOT `PyMuPDF`. (`import fitz`)
-- Output path: `data/tmp/xxx.pdf` or `data/tmp/xxx.png`. Use descriptive filenames.
+- Output path: `{WORKDIR}/xxx.pdf` or `{WORKDIR}/xxx.png`. Use descriptive filenames.
 - For large PDFs (>50 pages), process in batches or only the pages the user asks for.
 - Chinese font for `insert_text` / `insert_textbox`: use `fontname="china-s"` (SimSun) or `fontname="china-ss"` (for bold).
 - `insert_text()` does NOT support `align` parameter. For centered text, use `insert_textbox()` with `align=fitz.TEXT_ALIGN_CENTER`.

@@ -82,32 +82,10 @@ export interface ToolExecutionContext {
   };
   /** Update the todo progress list (displayed in frontend) */
   todoNotify?: (items: Array<{ text: string; done: boolean }>) => void;
-  /** Spawn an independent sub-agent to handle a subtask */
-  delegateTask?: (task: string) => Promise<string>;
   /** Pre-selected skill name from UI chips — inject instructions directly, skip use_skill round */
   preSelectedSkillName?: string;
   /** Original user message text before parseUserContent transformation (for DB storage) */
   originalUserText?: string;
-  /** Planner for decomposing complex tasks into executable steps */
-  planner?: {
-    createPlan(
-      goal: string,
-      context?: string,
-    ): Promise<{
-      id: string;
-      goal: string;
-      steps: Array<{ id: string; description: string; status: string }>;
-    }>;
-    executeNext(planId: string): Promise<
-      Array<{
-        id: string;
-        description: string;
-        status: string;
-        result?: string;
-        error?: string;
-      }>
-    >;
-  };
 }
 
 /** A tool that can be executed */

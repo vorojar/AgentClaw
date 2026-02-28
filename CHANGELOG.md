@@ -1,5 +1,16 @@
 # 更新日志
 
+## [0.8.8] - 2026-02-28
+
+### 精简
+- **删除 3 个冗余工具**：`set_reminder`（被 `schedule` 覆盖）、`plan_task`（LLM 自身能力 + `update_todo` 替代）、`delegate_task`（极少使用，`claude_code` 覆盖编码场景）
+- **删除 2 个冗余技能**：`http-request`（`bash(curl)` 替代）、`python-exec`（`bash(python)` + `claude_code` 替代）
+- **清理类型定义**：移除 `ToolExecutionContext` 中的 `planner` 和 `delegateTask` 字段
+- **清理 gateway bootstrap**：移除 SimplePlanner 初始化和相关导入
+
+### 性能
+- 每轮 LLM 调用减少 ~450 tokens（3 个工具定义的 schema 开销），10 轮任务省 ~4.5k
+
 ## [0.8.7] - 2026-02-28
 
 ### 改进

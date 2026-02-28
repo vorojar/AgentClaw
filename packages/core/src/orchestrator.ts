@@ -34,7 +34,6 @@ export class SimpleOrchestrator implements Orchestrator {
   private agentConfig?: Partial<AgentConfig>;
   private systemPrompt?: string;
   private scheduler?: ToolExecutionContext["scheduler"];
-  private planner?: ToolExecutionContext["planner"];
   private skillRegistry?: SkillRegistryImpl;
   private tmpDir?: string;
 
@@ -47,7 +46,6 @@ export class SimpleOrchestrator implements Orchestrator {
     agentConfig?: Partial<AgentConfig>;
     systemPrompt?: string;
     scheduler?: ToolExecutionContext["scheduler"];
-    planner?: ToolExecutionContext["planner"];
     skillRegistry?: SkillRegistryImpl;
     tmpDir?: string;
   }) {
@@ -63,7 +61,6 @@ export class SimpleOrchestrator implements Orchestrator {
     this.agentConfig = options.agentConfig;
     this.systemPrompt = options.systemPrompt;
     this.scheduler = options.scheduler;
-    this.planner = options.planner;
     this.skillRegistry = options.skillRegistry;
     this.tmpDir = options.tmpDir;
   }
@@ -155,9 +152,7 @@ export class SimpleOrchestrator implements Orchestrator {
         });
       },
       scheduler: this.scheduler,
-      planner: this.planner,
       skillRegistry: this.skillRegistry,
-      delegateTask: (task: string) => this.runSubAgent(task, context),
     };
 
     const inputHasImage = hasImage(input);

@@ -1,10 +1,4 @@
-import {
-  SimpleOrchestrator,
-  SimplePlanner,
-  SimpleAgentLoop,
-  SimpleContextManager,
-  SkillRegistryImpl,
-} from "@agentclaw/core";
+import { SimpleOrchestrator, SkillRegistryImpl } from "@agentclaw/core";
 import {
   ClaudeProvider,
   OpenAICompatibleProvider,
@@ -23,7 +17,6 @@ import { initDatabase, SQLiteMemoryStore } from "@agentclaw/memory";
 import type {
   LLMProvider,
   Orchestrator,
-  Planner,
   SkillRegistry,
   ToolRegistry,
   MemoryStore,
@@ -38,7 +31,6 @@ export interface AppContext {
   provider: LLMProvider;
   visionProvider?: LLMProvider;
   orchestrator: Orchestrator;
-  planner: Planner;
   toolRegistry: ToolRegistryImpl;
   memoryStore: SQLiteMemoryStore;
   skillRegistry: SkillRegistryImpl;
@@ -240,11 +232,9 @@ export async function bootstrap(): Promise<AppContext> {
   // Tool registry
   const toolRegistry = new ToolRegistryImpl();
   const builtinTools = createBuiltinTools({
-    gateway: true, // gateway 模式，启用 send_file/reminder/schedule
+    gateway: true, // gateway 模式，启用 send_file/schedule
     memory: true, // 启用 remember
-    planner: true, // 启用 plan_task
     skills: true, // 启用 use_skill
-    delegate: true, // 启用 delegate_task（子 agent）
     claudeCode: true, // 启用 claude_code（Claude Code CLI）
   });
   for (const tool of builtinTools) {
@@ -422,22 +412,6 @@ export async function bootstrap(): Promise<AppContext> {
   );
   await skillRegistry.loadFromDirectory(skillsDir);
 
-  // Planner
-  const planner = new SimplePlanner({
-    provider,
-    agentLoopFactory: (conversationId: string) => {
-      const contextManager = new SimpleContextManager({
-        memoryStore,
-      });
-      return new SimpleAgentLoop({
-        provider,
-        toolRegistry,
-        contextManager,
-        memoryStore,
-      });
-    },
-  });
-
   // Orchestrator
   const tmpDir = resolve(process.cwd(), "data", "tmp");
   const orchestrator = new SimpleOrchestrator({
@@ -448,10 +422,6 @@ export async function bootstrap(): Promise<AppContext> {
     memoryStore,
     systemPrompt: defaultSystemPrompt,
     scheduler,
-    planner: {
-      createPlan: (goal, ctx) => planner.createPlan(goal, ctx),
-      executeNext: (planId) => planner.executeNext(planId),
-    },
     skillRegistry,
     tmpDir,
   });
@@ -471,7 +441,6 @@ export async function bootstrap(): Promise<AppContext> {
     provider,
     visionProvider,
     orchestrator,
-    planner,
     toolRegistry,
     memoryStore,
     skillRegistry,

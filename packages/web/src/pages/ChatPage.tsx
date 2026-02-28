@@ -1780,7 +1780,6 @@ export function ChatPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="*/*"
           multiple
           style={{ display: "none" }}
           onChange={(e) => {

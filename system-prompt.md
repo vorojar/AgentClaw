@@ -21,7 +21,7 @@
 - When a task matches an available skill (email, browser, etc.), you MUST call `use_skill("skill_name")` FIRST before doing anything else. The skill provides exact commands and libraries to use. NEVER write code from scratch for tasks covered by a skill.
 
 ## Progress Tracking
-- Complex tasks (3+ steps) → call `update_todo` FIRST with a checkbox plan BEFORE starting work, then call again after EACH step to update progress. Do NOT call it only at the end.
+- Complex tasks (3+ steps) → call `update_todo` ONCE at the start with a checkbox plan. Progress auto-updates as you work — do NOT call update_todo again.
 - Keep it concise: 3-8 items max.
 
 ## User Images

@@ -130,8 +130,9 @@ export class SimpleAgentLoop implements AgentLoop {
     };
 
     // 优先用 gateway 传入的原始文本（parseUserContent 转换前的），否则用当前 input
-    const userContentForStorage = context?.originalUserText
-      ?? (typeof input === "string" ? input : JSON.stringify(input));
+    const userContentForStorage =
+      context?.originalUserText ??
+      (typeof input === "string" ? input : JSON.stringify(input));
 
     // Per-trace temp directory: data/tmp/{traceId}/
     const traceTmpDir = join(process.cwd(), "data", "tmp", trace.id).replace(
@@ -192,38 +193,13 @@ export class SimpleAgentLoop implements AgentLoop {
     const toolFailCounts = new Map<string, number>();
     const MAX_TOOL_FAILURES = 2;
 
-    // Auto-detect skill from structural signals in user input
-    // This is NOT keyword/intent matching — it detects unambiguous patterns
-    // (email addresses, URLs) so the skill instructions are pre-injected
-    // into the prompt, saving the LLM from needing to call use_skill.
-    let effectiveSkillName = context?.preSelectedSkillName;
-    if (!effectiveSkillName) {
-      const inputText =
-        typeof input === "string"
-          ? input
-          : input
-              .filter(
-                (b): b is { type: "text"; text: string } => b.type === "text",
-              )
-              .map((b) => b.text)
-              .join(" ");
-      // Email address pattern → email skill
-      if (/[\w.-]+@[\w.-]+\.\w{2,}/.test(inputText)) {
-        effectiveSkillName = "imap-smtp-email";
-      }
-      // 附件 + 邮件关键词 → email skill（"发到我邮箱" 等无显式邮箱地址的场景）
-      if (
-        !effectiveSkillName &&
-        /attached.*file|附件/i.test(inputText) &&
-        /邮|email|mail/i.test(inputText)
-      ) {
-        effectiveSkillName = "imap-smtp-email";
-      }
-    }
-    // 同步到 context，use_skill 检测到已注入时返回短消息而非重复全文
-    if (effectiveSkillName && context) {
-      context.preSelectedSkillName = effectiveSkillName;
-    }
+    // Skill injection is handled entirely by use_skill tool — no auto-injection.
+    // This keeps the system prompt lean; LLM decides which skill to load.
+    const effectiveSkillName = context?.preSelectedSkillName;
+
+    // Todo auto-advance: track items set by update_todo, auto-mark done on tool success
+    const META_TOOLS = new Set(["update_todo", "ask_user"]);
+    let activeTodoItems: Array<{ text: string; done: boolean }> | null = null;
 
     // Agent loop: think → act → observe → repeat
     let iterations = 0;
@@ -544,6 +520,31 @@ export class SimpleAgentLoop implements AgentLoop {
         await this.memoryStore.addTurn(convId, toolTurn);
 
         if (result.isError) iterationErrorCount++;
+
+        // Todo auto-advance: capture items from update_todo, then auto-mark on success
+        if (!result.isError && toolCall.name === "update_todo") {
+          const rawTodo = toolCall.input.todo;
+          const todoStr = Array.isArray(rawTodo)
+            ? (rawTodo as string[]).map(String).join("\n")
+            : String(rawTodo ?? "");
+          activeTodoItems = [];
+          for (const line of todoStr.split("\n")) {
+            const m = line.match(/^[-*]\s*\[([ xX])\]\s*(.+)/);
+            if (m)
+              activeTodoItems.push({ text: m[2].trim(), done: m[1] !== " " });
+          }
+        }
+        if (
+          !result.isError &&
+          !META_TOOLS.has(toolCall.name) &&
+          activeTodoItems
+        ) {
+          const nextIdx = activeTodoItems.findIndex((i) => !i.done);
+          if (nextIdx >= 0) {
+            activeTodoItems[nextIdx].done = true;
+            context?.todoNotify?.(activeTodoItems);
+          }
+        }
       }
 
       // Drain sentFiles from context into accumulator (dedup by URL)

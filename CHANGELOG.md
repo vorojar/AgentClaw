@@ -1,5 +1,15 @@
 # 更新日志
 
+## [0.8.7] - 2026-02-28
+
+### 改进
+- **删除 skill auto-injection**：移除邮箱地址/附件关键词自动注入 skill 的逻辑，统一走 `use_skill` 按需加载。系统提示词保持精简，多轮任务不再每轮多带 ~500 tokens
+- **update_todo 自动推进**：LLM 只需在开始时调一次 `update_todo` 建计划，之后每个非 meta 工具（排除 update_todo/ask_user）执行成功后，agent-loop 自动标记下一项 done 并推送 UI。use_skill 成功也触发推进（表示上一阶段完成）。省去 2+ 次 LLM 调用
+- **移动端文件选择**：移除 `accept="*/*"` 属性，避免部分手机浏览器限制为仅图片选择
+
+### 性能
+- 复合任务（写词+生图+发邮件）预期从 52k 降至 ~35k tokens（省去 update_todo 手动更新轮次）
+
 ## [0.8.6] - 2026-02-27
 
 ### 修复
@@ -7,7 +17,6 @@
 - **附件路径存储清理**：`originalUserText` 存入 DB 前清理 `/files/hex` URL，新消息不再带误导性路径
 - **附件 hint 自然语言化**：`[Attached file: filepath="..."]` 改为 `The user attached a file. Its absolute path is: ...`，减少弱模型只提取文件名的概率
 - **send.py 路径自动搜索**：`resolve_file()` 支持完整路径/相对路径/纯文件名，自动在 `data/tmp/` 中查找。LLM 即使只传文件名也能发送成功
-- **附件关键词检测更新**：auto-injection 正则适配新 hint 格式（`/attached.*file|附件/i`），确保带附件的邮件任务自动注入 email skill
 
 ### 性能
 - 带附件发邮件：92k → 6.7k tokens（2轮完成，第1轮即成功）

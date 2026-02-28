@@ -1,5 +1,12 @@
 # 更新日志
 
+## [0.8.12] - 2026-02-28
+
+### 修复
+- **bash 失败计数按命令区分**：`toolFailCounts` 原按工具名计数，bash 是通用工具，不同命令共享失败配额（如 gcal.py 失败 2 次后 `echo` 排查也被拦截）。改为按命令前缀计数，不同命令不互相阻断
+- **update_todo 工具 description 与系统提示词统一**：原 description 说"每步都调"，与系统提示词"开始和结束各调一次"矛盾，导致 LLM 反复调用造成进度"快速走完又重置"。统一为只调两次
+- **gcal.py token 刷新错误处理**：`get_access_token` 的 `urlopen` 未 catch `HTTPError`，400 错误以裸 traceback 抛出，LLM 误判为"缺少凭据"。添加 try/except 打印具体错误
+
 ## [0.8.11] - 2026-02-28
 
 ### 改进

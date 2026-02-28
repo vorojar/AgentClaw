@@ -36,8 +36,13 @@ def get_access_token():
         "grant_type": "refresh_token",
     }).encode()
     req = urllib.request.Request(TOKEN_URL, data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
-    with urllib.request.urlopen(req) as resp:
-        result = json.loads(resp.read().decode())
+    try:
+        with urllib.request.urlopen(req) as resp:
+            result = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        print(f"Token refresh failed ({e.code} {e.reason}):\n{body}", file=sys.stderr)
+        sys.exit(1)
     _cached_token = result["access_token"]
     _token_expiry = time.time() + result.get("expires_in", 3600)
     return _cached_token

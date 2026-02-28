@@ -440,7 +440,13 @@ export class SimpleAgentLoop implements AgentLoop {
         } as TraceStep);
 
         // Check if this tool has already failed too many times across iterations
-        const priorFails = toolFailCounts.get(toolCall.name) ?? 0;
+        // For bash, key by command prefix so different commands don't share counts
+        const failKey =
+          toolCall.name === "bash" &&
+          typeof toolCall.input?.command === "string"
+            ? `bash:${toolCall.input.command.slice(0, 80)}`
+            : toolCall.name;
+        const priorFails = toolFailCounts.get(failKey) ?? 0;
         let result: Awaited<ReturnType<typeof this.toolRegistry.execute>>;
 
         const toolStart = Date.now();
@@ -481,9 +487,9 @@ export class SimpleAgentLoop implements AgentLoop {
 
         // Update per-tool failure tracking
         if (result.isError) {
-          toolFailCounts.set(toolCall.name, priorFails + 1);
+          toolFailCounts.set(failKey, priorFails + 1);
         } else {
-          toolFailCounts.delete(toolCall.name);
+          toolFailCounts.delete(failKey);
         }
 
         if (result.autoComplete) hasAutoComplete = true;

@@ -15,7 +15,7 @@ function parseTodoMarkdown(md: string): Array<{ text: string; done: boolean }> {
 export const updateTodoTool: Tool = {
   name: "update_todo",
   description:
-    "Create or update a todo progress list. Call at the START of complex multi-step tasks to show the plan, and after EACH step to update progress. Use markdown checkboxes.",
+    "Create or update a todo progress list. Call ONLY TWICE: once at the START to show the plan (all unchecked), once at the END to mark all done. Do NOT call in between. Use markdown checkboxes.",
   category: "builtin",
   parameters: {
     type: "object",

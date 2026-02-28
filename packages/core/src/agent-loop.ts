@@ -21,8 +21,8 @@ import type {
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 import { generateId } from "@agentclaw/providers";
-import { writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { writeFileSync, mkdirSync, existsSync, copyFileSync } from "node:fs";
+import { join, basename } from "node:path";
 
 const DEFAULT_CONFIG: AgentConfig = {
   maxIterations: 15,
@@ -141,9 +141,12 @@ export class SimpleAgentLoop implements AgentLoop {
     );
     mkdirSync(traceTmpDir, { recursive: true });
 
-    // Pre-process images: save to per-trace dir so LLM can reference by path
-    // Also prevents re-sending base64 on every iteration (saves tokens)
+    // ── Collect all user files into per-trace dir ──
+    // 1. Images: save base64 to per-trace dir
     const savedImagePaths: string[] = [];
+    // 2. Attachments (video, docs, etc.): copy from data/tmp/ root to per-trace dir
+    const relocatedFiles = new Map<string, string>(); // original path → per-trace path
+
     if (Array.isArray(input)) {
       for (const block of input) {
         if (block.type === "image" && (block as ImageContent).data) {
@@ -158,12 +161,32 @@ export class SimpleAgentLoop implements AgentLoop {
             // save failed, keep original base64
           }
         }
+        // Relocate non-image attachments referenced in text blocks
+        if (block.type === "text") {
+          const re = /\[用户附件：([^\]]+)\]/g;
+          let m;
+          while ((m = re.exec(block.text)) !== null) {
+            const origPath = m[1];
+            if (existsSync(origPath)) {
+              const newPath = join(traceTmpDir, basename(origPath)).replace(
+                /\\/g,
+                "/",
+              );
+              try {
+                copyFileSync(origPath, newPath);
+                relocatedFiles.set(origPath, newPath);
+              } catch {
+                /* copy failed — keep original path */
+              }
+            }
+          }
+        }
       }
     }
 
-    // Build runtime hints (working dir + image paths) — injected into messages after buildContext
+    // Build runtime hints — injected into messages after buildContext
     const runtimeHints: string[] = [
-      `[输出目录：${traceTmpDir}]（所有生成的文件必须保存到此目录）`,
+      `[工作目录：${traceTmpDir}]（所有文件都在此目录下，输出也保存到这里）`,
     ];
     if (savedImagePaths.length === 1) {
       runtimeHints.push(
@@ -210,14 +233,27 @@ export class SimpleAgentLoop implements AgentLoop {
           reuseContext: iterations > 1,
         });
 
-      // Inject runtime hints (working dir, image paths) into the last user message.
-      // Hints are NOT stored in DB (UI stays clean), but LLM sees them every iteration.
+      // Inject runtime hints + rewrite relocated file paths in the last user message.
+      // DB stores original paths (UI stays clean), LLM sees per-trace paths every iteration.
       if (messages.length > 0) {
         const lastMsg = messages[messages.length - 1];
         if (lastMsg.role === "user") {
+          // Rewrite attachment paths from data/tmp/ root → per-trace dir
+          const rewrite = (text: string): string => {
+            let result = text;
+            for (const [orig, relocated] of relocatedFiles) {
+              result = result.replaceAll(orig, relocated);
+            }
+            return result;
+          };
           if (typeof lastMsg.content === "string") {
-            lastMsg.content += "\n" + hintText;
+            lastMsg.content = rewrite(lastMsg.content) + "\n" + hintText;
           } else if (Array.isArray(lastMsg.content)) {
+            for (const block of lastMsg.content as ContentBlock[]) {
+              if (block.type === "text") {
+                block.text = rewrite(block.text);
+              }
+            }
             (lastMsg.content as ContentBlock[]).push({
               type: "text",
               text: hintText,

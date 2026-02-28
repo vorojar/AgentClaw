@@ -362,11 +362,17 @@ export const shellTool: Tool = {
         result.content.slice(-3000);
     }
 
-    // Always send detected output files to frontend (inline display via WS file event).
-    // autoComplete (skip next LLM turn) only when auto_send is explicitly set.
+    // Detect output files and send to frontend for inline display.
+    // auto_send=true: scan stdout for file paths (e.g. ffmpeg progress output)
+    // auto_send unset: only scan the command itself (avoid sending files listed by ls/find)
     if (!result.isError && context?.sendFile) {
-      let paths = detectFilePaths(result.content);
-      if (paths.length === 0) {
+      let paths: string[];
+      if (autoSend) {
+        paths = detectFilePaths(result.content);
+        if (paths.length === 0) {
+          paths = detectFilePaths(command);
+        }
+      } else {
         paths = detectFilePaths(command);
       }
       let sentCount = 0;

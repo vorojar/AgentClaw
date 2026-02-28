@@ -159,25 +159,22 @@ export class SimpleAgentLoop implements AgentLoop {
           }
         }
       }
-      // Inject working directory + image path hints
-      const hints: string[] = [];
-      hints.push(
-        `[Working directory for output files: ${traceTmpDir}. Save ALL generated files here.]`,
-      );
-      if (savedImagePaths.length === 1) {
-        hints.push(
-          `[User sent an image, saved to: ${savedImagePaths[0]}. Use this path directly to attach/process the file. Do NOT take a screenshot.]`,
-        );
-      } else if (savedImagePaths.length > 1) {
-        hints.push(
-          `[User sent ${savedImagePaths.length} images, saved to: ${savedImagePaths.join(", ")}. Use these paths directly. Do NOT take screenshots.]`,
-        );
-      }
-      input.push({ type: "text", text: hints.join("\n") });
-    } else {
-      // String input — prepend working dir hint
-      input = `[Working directory for output files: ${traceTmpDir}. Save ALL generated files here.]\n${input}`;
     }
+
+    // Build runtime hints (working dir + image paths) — injected into messages after buildContext
+    const runtimeHints: string[] = [
+      `[Working directory for output files: ${traceTmpDir}. Save ALL generated files here.]`,
+    ];
+    if (savedImagePaths.length === 1) {
+      runtimeHints.push(
+        `[User sent an image, saved to: ${savedImagePaths[0]}. Use this path directly to attach/process the file. Do NOT take a screenshot.]`,
+      );
+    } else if (savedImagePaths.length > 1) {
+      runtimeHints.push(
+        `[User sent ${savedImagePaths.length} images, saved to: ${savedImagePaths.join(", ")}. Use these paths directly. Do NOT take screenshots.]`,
+      );
+    }
+    const hintText = runtimeHints.join("\n");
 
     // 存储原始用户消息（不含注入的提示），刷新后用户看到的是原始内容
     const userTurn: ConversationTurn = {
@@ -212,6 +209,22 @@ export class SimpleAgentLoop implements AgentLoop {
           preSelectedSkillName: effectiveSkillName,
           reuseContext: iterations > 1,
         });
+
+      // Inject runtime hints (working dir, image paths) into the last user message.
+      // Hints are NOT stored in DB (UI stays clean), but LLM sees them every iteration.
+      if (messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg.role === "user") {
+          if (typeof lastMsg.content === "string") {
+            lastMsg.content += "\n" + hintText;
+          } else if (Array.isArray(lastMsg.content)) {
+            (lastMsg.content as ContentBlock[]).push({
+              type: "text",
+              text: hintText,
+            });
+          }
+        }
+      }
 
       // Record trace metadata on first iteration
       if (iterations === 1) {

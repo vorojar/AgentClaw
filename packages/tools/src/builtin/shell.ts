@@ -129,9 +129,9 @@ export const shellInfo = {
   shell: detectedShell.shell,
 };
 
-/** Detect file paths pointing to data/tmp in a string (supports / and \ separators, Unicode filenames) */
+/** Detect file paths pointing to data/tmp (including subdirectories) */
 const FILE_PATH_RE =
-  /(?:[A-Za-z]:)?(?:[/\\][^\s/\\:*?"<>|]+)*[/\\]?data[/\\]tmp[/\\][^\s/\\:*?"<>|]+\.[a-z0-9]+(?:\.[a-z0-9]+)?/gi;
+  /(?:[A-Za-z]:)?(?:[/\\][^\s/\\:*?"<>|]+)*[/\\]?data[/\\]tmp(?:[/\\][^\s/\\:*?"<>|]+)+\.[a-z0-9]+(?:\.[a-z0-9]+)?/gi;
 
 /** Script/temp file extensions — never auto-send to user */
 const SCRIPT_EXTS = new Set([

@@ -1,5 +1,12 @@
 # 更新日志
 
+## [0.8.13] - 2026-02-28
+
+### 修复
+- **图片路径 hint 丢失**：agent-loop 将图片保存路径 hint push 到 `input` 数组，但 `buildContext` 从 DB 取历史消息（不含 hint），LLM 看不到图片路径 → 自行编造文件名。改为每轮 `buildContext` 后注入 hint 到 messages 最后一条用户消息，DB 存干净内容（UI 不变）
+- **输出文件按会话隔离**：系统提示词不再硬编码 `data/tmp`，改为引导 LLM 使用运行时 `[Working directory ...]` 提供的 per-trace 目录，避免多会话文件混在 `data/tmp/` 根目录
+- **shell auto_send 正则支持子目录**：`FILE_PATH_RE` 原只匹配 `data/tmp/file.ext`，不支持 `data/tmp/subdir/file.ext`。修复后多级子目录文件也能被 `auto_send` 正确检测和发送
+
 ## [0.8.12] - 2026-02-28
 
 ### 修复

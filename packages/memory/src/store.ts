@@ -174,7 +174,7 @@ export class SQLiteMemoryStore implements MemoryStore {
   }
 
   /**
-   * Find the most similar existing memory (same type, above similarity threshold).
+   * Find the most similar existing memory across all types.
    * Returns the entry + score, or null if nothing similar enough exists.
    */
   async findSimilar(

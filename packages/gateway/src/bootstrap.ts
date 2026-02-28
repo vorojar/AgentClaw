@@ -333,12 +333,15 @@ export async function bootstrap(): Promise<AppContext> {
     }
   }
 
-  const shellDesc =
-    shellInfo.name === "bash"
-      ? process.platform === "win32"
-        ? 'bash (Git Bash)，使用 Unix 命令。Windows 专属任务（注册表、WMI）用 shell="powershell"'
-        : "bash，使用 Unix 命令"
-      : "PowerShell，使用 PowerShell 语法";
+  let shellDesc: string;
+  if (shellInfo.name !== "bash") {
+    shellDesc = "PowerShell，使用 PowerShell 语法";
+  } else if (process.platform === "win32") {
+    shellDesc =
+      'bash (Git Bash)，使用 Unix 命令。Windows 专属任务（注册表、WMI）用 shell="powershell"';
+  } else {
+    shellDesc = "bash，使用 Unix 命令";
+  }
 
   console.log(
     `[bootstrap] Shell: ${shellInfo.name} (${shellInfo.shell}), CLI tools: ${availableCli.join(", ") || "none detected"}`,
@@ -413,7 +416,6 @@ export async function bootstrap(): Promise<AppContext> {
   await skillRegistry.loadFromDirectory(skillsDir);
 
   // Orchestrator
-  const tmpDir = resolve(process.cwd(), "data", "tmp");
   const orchestrator = new SimpleOrchestrator({
     provider,
     visionProvider,
@@ -423,7 +425,7 @@ export async function bootstrap(): Promise<AppContext> {
     systemPrompt: defaultSystemPrompt,
     scheduler,
     skillRegistry,
-    tmpDir,
+    tmpDir: tempDir,
   });
 
   const config: AppRuntimeConfig = {

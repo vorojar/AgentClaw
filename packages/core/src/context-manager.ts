@@ -165,7 +165,7 @@ export class SimpleContextManager implements ContextManager {
         }
         if (lines.length > 0) {
           parts.push(
-            `Your long-term memory (things you know about the user and previous interactions):\n${lines.join("\n")}\n\nUse this information naturally. Do NOT create files to remember things — you already have a built-in memory system.`,
+            `你的长期记忆：\n${lines.join("\n")}\n\n自然地使用这些信息。不要创建文件来记忆——你已有内置记忆系统。`,
           );
         }
       }

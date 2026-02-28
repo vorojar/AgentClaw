@@ -1,5 +1,14 @@
 # 更新日志
 
+## [0.8.10] - 2026-02-28
+
+### 代码精简
+- **bootstrap 消除重复变量**：`tmpDir`（416 行）与 `tempDir`（303 行）是同一路径，合并为 `tempDir`
+- **bootstrap shellDesc**：嵌套三元运算符改为 if/else，提升可读性
+- **context-manager 记忆提示语**：英文改中文，与系统提示词风格统一
+- **memory-extractor**：`existingSection` 改用 const 条件表达式，去掉 let 可变赋值
+- **store.ts findSimilar JSDoc**：注释从 "same type" 更正为 "across all types"，与跨类型搜索行为一致
+
 ## [0.8.9] - 2026-02-28
 
 ### 优化

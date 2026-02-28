@@ -68,14 +68,12 @@ export class MemoryExtractor {
 
     if (conversationText.trim().length < 20) return [];
 
-    // Include existing memories so LLM avoids duplicates
-    let existingSection = "";
-    if (existingMemories.length > 0) {
-      existingSection =
-        "\n\n已有记忆（不要提取重复或换种说法的）：\n" +
-        existingMemories.join("\n") +
-        "\n";
-    }
+    const existingSection =
+      existingMemories.length > 0
+        ? "\n\n已有记忆（不要提取重复或换种说法的）：\n" +
+          existingMemories.join("\n") +
+          "\n"
+        : "";
 
     try {
       const response = await this.provider.chat({

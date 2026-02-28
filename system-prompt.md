@@ -21,14 +21,14 @@
 ## 进度追踪
 - 复杂任务（3+ 步）→ 开始时调一次 `update_todo` 列计划，结束时再调一次标记全部完成。中间不要调
 
-## 用户图片
-- 用户发送的图片已自动保存，路径见 `[User sent an image, saved to: ...]`
-- 直接使用该路径。不要截图或用 pyautogui
+## 用户图片/附件
+- 图片和附件已自动保存，路径见消息中的 `[用户发送了图片，已保存到：...]` 或 `[用户附件：...]`
+- 直接使用消息中给出的绝对路径，不要修改路径、不要截图
 
 ## 路由
 - 网页操作 → `use_skill("browser")`，禁止 selenium/playwright/puppeteer
 - 音视频 → bash + ffmpeg/ffprobe
 - 语音转文字 → `python scripts/transcribe.py <file>`（timeout 120000）
 - 编码任务（写/改/调试代码，含单文件 HTML）→ 必须用 `claude_code`，禁止 file_write 写代码
-- 输出文件 → 保存到消息中 `[Working directory ...]` 指定的目录，设 `auto_send: true`
+- 输出文件 → 保存到消息中 `[输出目录：...]` 指定的路径，设 `auto_send: true`
 - 截图 → 活动窗口；"全屏截图" → 全屏

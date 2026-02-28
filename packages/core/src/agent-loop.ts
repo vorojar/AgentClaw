@@ -163,15 +163,15 @@ export class SimpleAgentLoop implements AgentLoop {
 
     // Build runtime hints (working dir + image paths) — injected into messages after buildContext
     const runtimeHints: string[] = [
-      `[Working directory for output files: ${traceTmpDir}. Save ALL generated files here.]`,
+      `[输出目录：${traceTmpDir}]（所有生成的文件必须保存到此目录）`,
     ];
     if (savedImagePaths.length === 1) {
       runtimeHints.push(
-        `[User sent an image, saved to: ${savedImagePaths[0]}. Use this path directly to attach/process the file. Do NOT take a screenshot.]`,
+        `[用户发送了图片，已保存到：${savedImagePaths[0]}]（直接使用此路径，不要截图）`,
       );
     } else if (savedImagePaths.length > 1) {
       runtimeHints.push(
-        `[User sent ${savedImagePaths.length} images, saved to: ${savedImagePaths.join(", ")}. Use these paths directly. Do NOT take screenshots.]`,
+        `[用户发送了 ${savedImagePaths.length} 张图片，已保存到：${savedImagePaths.join(", ")}]（直接使用这些路径，不要截图）`,
       );
     }
     const hintText = runtimeHints.join("\n");

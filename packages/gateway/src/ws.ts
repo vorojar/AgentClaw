@@ -83,7 +83,7 @@ async function parseUserContent(
           ? origPath
           : filePath.replace(/\\/g, "/");
         fileHints.push(
-          `The user attached a file. Its absolute path is: ${usePath}`,
+          `[用户附件：${usePath}]（直接使用此绝对路径，不要修改）`,
         );
       }
     }

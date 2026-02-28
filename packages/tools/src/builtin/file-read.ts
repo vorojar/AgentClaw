@@ -1,5 +1,20 @@
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import type { Tool, ToolResult } from "@agentclaw/types";
+
+/**
+ * On Windows, Git Bash maps /tmp/ to the OS temp dir (e.g. C:/Users/.../Temp),
+ * but Node.js resolves /tmp/ to drive-root (e.g. D:\tmp). Fix the mismatch.
+ */
+function resolveFilePath(filePath: string): string {
+  if (
+    process.platform === "win32" &&
+    (filePath.startsWith("/tmp/") || filePath === "/tmp")
+  ) {
+    return filePath.replace(/^\/tmp/, tmpdir());
+  }
+  return filePath;
+}
 
 export const fileReadTool: Tool = {
   name: "file_read",
@@ -14,7 +29,7 @@ export const fileReadTool: Tool = {
   },
 
   async execute(input: Record<string, unknown>): Promise<ToolResult> {
-    const filePath = input.path as string;
+    const filePath = resolveFilePath(input.path as string);
 
     try {
       const content = await readFile(filePath, "utf-8");

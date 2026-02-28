@@ -1,5 +1,15 @@
 # 更新日志
 
+## [0.8.11] - 2026-02-28
+
+### 改进
+- **工具执行耗时持久化**：agent-loop 记录每个工具调用的 `durationMs`，写入 trace step 和 toolResults JSON，WS 转发给前端。刷新页面后工具卡片仍显示耗时
+- **移除 todo auto-advance**：auto-advance 无法正确映射工具调用到 todo 项（3 个 todo 在搜索阶段就被全标完），改为模型自己在开始和结束各调一次 `update_todo`
+
+### 修复
+- **file_read/file_write `/tmp` 路径映射**：Windows 上 Git Bash 的 `/tmp/` 映射到 OS temp 目录，但 Node.js 解析为 `D:\tmp`。添加 `resolveFilePath()` 自动映射
+- **web-search skill 内置 curl 抓取指令**：搜索结果出来后直接用 curl 抓取页面，不再需要额外调 `use_skill("web-fetch")`，省 1 轮 LLM
+
 ## [0.8.10] - 2026-02-28
 
 ### 代码精简

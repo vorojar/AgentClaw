@@ -197,10 +197,6 @@ export class SimpleAgentLoop implements AgentLoop {
     // This keeps the system prompt lean; LLM decides which skill to load.
     const effectiveSkillName = context?.preSelectedSkillName;
 
-    // Todo auto-advance: track items set by update_todo, auto-mark done on tool success
-    const META_TOOLS = new Set(["update_todo", "ask_user"]);
-    let activeTodoItems: Array<{ text: string; done: boolean }> | null = null;
-
     // Agent loop: think → act → observe → repeat
     let iterations = 0;
     let consecutiveErrors = 0;
@@ -447,6 +443,8 @@ export class SimpleAgentLoop implements AgentLoop {
         const priorFails = toolFailCounts.get(toolCall.name) ?? 0;
         let result: Awaited<ReturnType<typeof this.toolRegistry.execute>>;
 
+        const toolStart = Date.now();
+
         if (priorFails >= MAX_TOOL_FAILURES) {
           result = {
             content: `This tool has failed ${priorFails} times in this conversation. Stop retrying and tell the user what went wrong.`,
@@ -479,6 +477,8 @@ export class SimpleAgentLoop implements AgentLoop {
           }
         }
 
+        const toolDurationMs = Date.now() - toolStart;
+
         // Update per-tool failure tracking
         if (result.isError) {
           toolFailCounts.set(toolCall.name, priorFails + 1);
@@ -491,6 +491,7 @@ export class SimpleAgentLoop implements AgentLoop {
         yield this.createEvent("tool_result", {
           name: toolCall.name,
           result,
+          durationMs: toolDurationMs,
         });
 
         // Record tool_result in trace
@@ -499,6 +500,7 @@ export class SimpleAgentLoop implements AgentLoop {
           name: toolCall.name,
           content: result.content,
           isError: result.isError,
+          durationMs: toolDurationMs,
         } as TraceStep);
 
         // Store tool result as a turn
@@ -514,37 +516,14 @@ export class SimpleAgentLoop implements AgentLoop {
           conversationId: convId,
           role: "tool",
           content: JSON.stringify([toolResultContent]),
-          toolResults: JSON.stringify([{ toolUseId: toolCall.id, ...result }]),
+          toolResults: JSON.stringify([
+            { toolUseId: toolCall.id, ...result, durationMs: toolDurationMs },
+          ]),
           createdAt: new Date(),
         };
         await this.memoryStore.addTurn(convId, toolTurn);
 
         if (result.isError) iterationErrorCount++;
-
-        // Todo auto-advance: capture items from update_todo, then auto-mark on success
-        if (!result.isError && toolCall.name === "update_todo") {
-          const rawTodo = toolCall.input.todo;
-          const todoStr = Array.isArray(rawTodo)
-            ? (rawTodo as string[]).map(String).join("\n")
-            : String(rawTodo ?? "");
-          activeTodoItems = [];
-          for (const line of todoStr.split("\n")) {
-            const m = line.match(/^[-*]\s*\[([ xX])\]\s*(.+)/);
-            if (m)
-              activeTodoItems.push({ text: m[2].trim(), done: m[1] !== " " });
-          }
-        }
-        if (
-          !result.isError &&
-          !META_TOOLS.has(toolCall.name) &&
-          activeTodoItems
-        ) {
-          const nextIdx = activeTodoItems.findIndex((i) => !i.done);
-          if (nextIdx >= 0) {
-            activeTodoItems[nextIdx].done = true;
-            context?.todoNotify?.(activeTodoItems);
-          }
-        }
       }
 
       // Drain sentFiles from context into accumulator (dedup by URL)

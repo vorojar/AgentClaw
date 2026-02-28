@@ -58,7 +58,6 @@ interface ToolCallEntry {
   toolResult?: string;
   isError?: boolean;
   collapsed: boolean;
-  startedAt?: number;
   durationMs?: number;
 }
 
@@ -144,6 +143,7 @@ function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
             toolUseId?: string;
             content?: string;
             isError?: boolean;
+            durationMs?: number;
           }>;
           for (const tr of results) {
             const tc = lastMsg.toolCalls.find(
@@ -152,6 +152,7 @@ function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
             if (tc) {
               tc.toolResult = tr.content ?? "";
               tc.isError = tr.isError ?? false;
+              tc.durationMs = tr.durationMs;
             }
           }
         } catch {
@@ -818,7 +819,6 @@ export function ChatPage() {
           toolName: msg.toolName ?? "unknown",
           toolInput: msg.toolInput ?? "",
           collapsed: true,
-          startedAt: Date.now(),
         };
         setActiveToolName(msg.toolName ?? null);
         setMessages((prev) => {
@@ -854,9 +854,7 @@ export function ChatPage() {
                   ...toolCalls[i],
                   toolResult: msg.toolResult ?? "",
                   isError: false,
-                  durationMs: toolCalls[i].startedAt
-                    ? Date.now() - toolCalls[i].startedAt
-                    : undefined,
+                  durationMs: msg.durationMs ?? undefined,
                 };
                 break;
               }

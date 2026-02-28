@@ -332,12 +332,14 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
               const data = event.data as {
                 name: string;
                 result: { content: string };
+                durationMs?: number;
               };
               safeSend(
                 JSON.stringify({
                   type: "tool_result",
                   toolName: data.name,
                   toolResult: data.result.content,
+                  durationMs: data.durationMs,
                 }),
               );
               break;

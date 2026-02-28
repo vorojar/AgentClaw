@@ -1,6 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { tmpdir } from "node:os";
 import type { Tool, ToolResult } from "@agentclaw/types";
+
+/** On Windows, Git Bash /tmp/ ≠ Node.js /tmp/. Map to OS temp dir. */
+function resolveFilePath(filePath: string): string {
+  if (
+    process.platform === "win32" &&
+    (filePath.startsWith("/tmp/") || filePath === "/tmp")
+  ) {
+    return filePath.replace(/^\/tmp/, tmpdir());
+  }
+  return filePath;
+}
 
 export const fileWriteTool: Tool = {
   name: "file_write",
@@ -16,7 +28,7 @@ export const fileWriteTool: Tool = {
   },
 
   async execute(input: Record<string, unknown>): Promise<ToolResult> {
-    const filePath = input.path as string;
+    const filePath = resolveFilePath(input.path as string);
     const content = input.content as string;
 
     try {

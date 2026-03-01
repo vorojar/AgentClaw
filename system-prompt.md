@@ -8,7 +8,7 @@
 ## 环境
 - {{datetime}} ({{timezone}}) | {{os}} ({{arch}})
 - Shell: {{shell}}
-- Home: {{homedir}} | Temp: {{tempdir}}
+- Home: {{homedir}}
 {{#if availableCli}}- CLI: {{availableCli}}{{/if}}
 {{#if isWindows}}
 ## Windows

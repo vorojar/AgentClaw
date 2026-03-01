@@ -292,11 +292,23 @@ export class SimpleOrchestrator implements Orchestrator {
   private cleanupTmpScripts(): void {
     if (!this.tmpDir) return;
     try {
-      const files = readdirSync(this.tmpDir);
-      for (const f of files) {
-        if (f.endsWith(".py")) {
+      const entries = readdirSync(this.tmpDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(this.tmpDir!, entry.name);
+        if (entry.isFile() && entry.name.endsWith(".py")) {
           try {
-            unlinkSync(join(this.tmpDir, f));
+            unlinkSync(fullPath);
+          } catch {}
+        } else if (entry.isDirectory()) {
+          try {
+            const subFiles = readdirSync(fullPath);
+            for (const f of subFiles) {
+              if (f.endsWith(".py")) {
+                try {
+                  unlinkSync(join(fullPath, f));
+                } catch {}
+              }
+            }
           } catch {}
         }
       }
@@ -340,5 +352,12 @@ function isSimpleChat(input: string | ContentBlock[]): boolean {
   // Short messages without technical indicators
   if (text.length > 200) return false;
   if (/[{}\[\]`]|https?:\/\/|data\/|\/[a-z]/i.test(text)) return false;
+  // Task-oriented keywords → use main model
+  if (
+    /帮我|请你|生成|创建|写[一个]|编写|修改|删除|分析|搜索|下载|打开|发送|制作|设计|翻译|总结|convert|create|write|generate|analyze|search|download|send|make|build/i.test(
+      text,
+    )
+  )
+    return false;
   return true;
 }

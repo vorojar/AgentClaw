@@ -133,6 +133,8 @@ export class GeminiProvider extends BaseLLMProvider {
 
     let tokensIn = 0;
     let tokensOut = 0;
+    let finishReason: string | undefined;
+    let hasToolUse = false;
 
     for await (const chunk of response) {
       // Track usage from each chunk
@@ -145,6 +147,10 @@ export class GeminiProvider extends BaseLLMProvider {
             .candidatesTokenCount ?? tokensOut;
       }
 
+      if (chunk.candidates?.[0]?.finishReason) {
+        finishReason = chunk.candidates[0].finishReason as string;
+      }
+
       const parts = chunk.candidates?.[0]?.content?.parts ?? [];
 
       for (const part of parts) {
@@ -153,6 +159,7 @@ export class GeminiProvider extends BaseLLMProvider {
         }
 
         if (part.functionCall) {
+          hasToolUse = true;
           yield {
             type: "tool_use_start",
             toolUse: {
@@ -170,6 +177,7 @@ export class GeminiProvider extends BaseLLMProvider {
       type: "done",
       usage: { tokensIn, tokensOut },
       model,
+      stopReason: hasToolUse ? "tool_use" : this.mapFinishReason(finishReason),
     };
   }
 

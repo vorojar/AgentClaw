@@ -1,5 +1,28 @@
 # 更新日志
 
+## [0.8.20] - 2026-03-01
+
+### 新增
+- **web-fetch Playwright 替代**：新增 `skills/web-fetch/scripts/fetch.py`，用 Playwright 无头 Chromium 替代 curl 抓取，支持 JS 渲染页面（知乎、SPA）、自动滚动懒加载（`--scroll`）、HTML→Markdown 转换、输出截断（`--max-length`）
+- **LLM stopReason 管道**：`LLMStreamChunk` 添加 `stopReason` 属性，三个 provider（Claude/OpenAI-compatible/Gemini）均在 done chunk 中发射，agent-loop 检测 `max_tokens` 截断并 warn
+
+### 修复
+- **maxTokens 4096→8192**：默认 4096 频繁触发输出截断导致工具调用 JSON 被截断
+- **temperature 0.7→0.5**：降低随机性，提高指令遵循确定性
+- **use_skill 无限循环防护**：`useSkillRollbacks` 计数器上限 3，防止 use_skill 反复 rollback iterations
+- **use_skill auto-install 命令注入**：白名单验证（前缀锚定 + 危险字符拦截 + 恶意 PyPI 源拒绝）
+- **context-manager 缓存 key 碰撞**：`compressTurns` 缓存 key 从 `turns.length` 改为最后 turn ID
+- **context-manager 内存泄漏**：dynamicContextCache 上限 200、summaryCache 上限 100
+- **claude_code OUTPUT_DIR**：改用 `context.workDir` 优先，文件生成到正确会话目录
+- **cleanupTmpScripts 不清理子目录**：改为递归遍历 `withFileTypes` + 子目录
+- **isSimpleChat 误判任务为闲聊**：添加中英文任务关键词检测（帮我/创建/生成/write/build 等）
+- **WS 重连无退避**：固定 3s 替换为指数退避（1s→30s cap）+ jitter + 最多 8 次 + 成功后重置
+- **claude_code 规则与 CLI 可用性矛盾**：bootstrap 检测 `claude` CLI，system-prompt 条件注入规则
+
+### 改进
+- **Skill 质量**：google-calendar/google-tasks/create-skill 改为 JSON 模板 + Rules 段
+- **删除低质量 Skill**：coding（纯浪费迭代）、weather（有 ask 逃生路径）、research（与 web-search 重复）
+
 ## [0.8.19] - 2026-03-01
 
 ### 修复

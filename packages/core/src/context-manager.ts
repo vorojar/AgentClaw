@@ -110,6 +110,11 @@ export class SimpleContextManager implements ContextManager {
         suffix: dynamicSuffix,
         skillMatch,
       });
+      // Evict oldest entries if cache exceeds size limit
+      if (this.dynamicContextCache.size > 200) {
+        const firstKey = this.dynamicContextCache.keys().next().value;
+        if (firstKey) this.dynamicContextCache.delete(firstKey);
+      }
     }
 
     // ── 3. Assemble ──
@@ -211,7 +216,7 @@ export class SimpleContextManager implements ContextManager {
     conversationId: string,
     turns: ConversationTurn[],
   ): Promise<string> {
-    const cacheKey = `${conversationId}:${turns.length}`;
+    const cacheKey = `${conversationId}:${turns[turns.length - 1]?.id ?? turns.length}`;
     const cached = this.summaryCache.get(cacheKey);
     if (cached) return cached;
 
@@ -238,6 +243,10 @@ export class SimpleContextManager implements ContextManager {
           typeof resp.message.content === "string" ? resp.message.content : "";
         const summary = `[Earlier conversation summary]\n${text}`;
         this.summaryCache.set(cacheKey, summary);
+        if (this.summaryCache.size > 100) {
+          const firstKey = this.summaryCache.keys().next().value;
+          if (firstKey) this.summaryCache.delete(firstKey);
+        }
         return summary;
       } catch {
         // LLM failed, fall through to truncation
@@ -249,6 +258,10 @@ export class SimpleContextManager implements ContextManager {
     const result =
       summary.length > 2000 ? summary.slice(0, 2000) + "\n..." : summary;
     this.summaryCache.set(cacheKey, result);
+    if (this.summaryCache.size > 100) {
+      const firstKey = this.summaryCache.keys().next().value;
+      if (firstKey) this.summaryCache.delete(firstKey);
+    }
     return result;
   }
 

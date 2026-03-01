@@ -639,6 +639,7 @@ export function ChatPage() {
     promptReply: (c: string) => void;
   } | null>(null);
   const wsGenRef = useRef(0);
+  const wsRetryRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<DisplayMessage[]>(messages);
@@ -750,14 +751,21 @@ export function ChatPage() {
           setWsDisconnected(true);
           setIsSending(false);
           setActiveToolName(null);
-          // Auto-reconnect after 3 s (only if this generation is still current)
-          setTimeout(() => {
-            if (wsGenRef.current === gen) connectWs();
-          }, 3000);
+          // Exponential backoff reconnect (1s, 2s, 4s, 8s, 16s, cap 30s) + jitter
+          const retry = wsRetryRef.current;
+          if (retry < 8) {
+            const baseDelay = Math.min(1000 * Math.pow(2, retry), 30000);
+            const jitter = Math.random() * 1000;
+            wsRetryRef.current = retry + 1;
+            setTimeout(() => {
+              if (wsGenRef.current === gen) connectWs();
+            }, baseDelay + jitter);
+          }
         }
       },
       () => {
         if (wsGenRef.current === gen) {
+          wsRetryRef.current = 0; // Reset backoff on successful connect
           setWsConnected(true);
           setWsDisconnected(false);
           // Send pending message (first message that triggered session creation)

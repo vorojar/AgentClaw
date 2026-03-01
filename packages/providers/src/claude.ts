@@ -135,6 +135,7 @@ export class ClaudeProvider extends BaseLLMProvider {
 
     let tokensIn = 0;
     let tokensOut = 0;
+    let stopReason: string | null = null;
 
     for await (const event of stream) {
       if (event.type === "message_start") {
@@ -152,9 +153,13 @@ export class ClaudeProvider extends BaseLLMProvider {
       } else if (event.type === "message_delta") {
         const delta = event as unknown as {
           usage?: { output_tokens?: number };
+          delta?: { stop_reason?: string };
         };
         if (delta.usage?.output_tokens) {
           tokensOut = delta.usage.output_tokens;
+        }
+        if (delta.delta?.stop_reason) {
+          stopReason = delta.delta.stop_reason;
         }
       } else if (event.type === "content_block_start") {
         const block = event.content_block;
@@ -191,6 +196,7 @@ export class ClaudeProvider extends BaseLLMProvider {
           type: "done",
           usage: { tokensIn, tokensOut },
           model,
+          stopReason: this.mapStopReason(stopReason),
         };
       }
     }

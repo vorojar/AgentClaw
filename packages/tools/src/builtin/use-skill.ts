@@ -3,8 +3,19 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 import { shellInfo } from "./shell.js";
 
 /**
+ * Whitelist check: only allow simple package install commands.
+ * Rejects commands with pipes, chains, subshells, redirects, etc.
+ */
+function isAllowedInstallCommand(cmd: string): boolean {
+  if (!/^\s*(pip|pip3|npm)\s+install\b/.test(cmd)) return false;
+  if (/[|;&`$()]|>>?|<</.test(cmd)) return false;
+  if (/--index-url|--extra-index-url|-i\s/.test(cmd)) return false;
+  return true;
+}
+
+/**
  * Extract install commands from skill instructions (Step 0 JSON code blocks).
- * Matches patterns like: ```json\n{"command": "pip install xxx", "timeout": 60000}\n```
+ * Security: only allows simple `pip install <packages>` or `npm install <packages>`.
  */
 function extractInstallCommands(
   instructions: string,
@@ -15,13 +26,12 @@ function extractInstallCommands(
   while ((match = jsonBlockRe.exec(instructions)) !== null) {
     try {
       const obj = JSON.parse(match[1]) as Record<string, unknown>;
-      const cmd = String(obj.command ?? "");
-      if (/\b(pip|npm)\s+install\b/.test(cmd)) {
-        results.push({
-          command: cmd,
-          timeout: Number(obj.timeout) || 120_000,
-        });
-      }
+      const cmd = String(obj.command ?? "").trim();
+      if (!isAllowedInstallCommand(cmd)) continue;
+      results.push({
+        command: cmd,
+        timeout: Number(obj.timeout) || 120_000,
+      });
     } catch {
       // not valid JSON, skip
     }

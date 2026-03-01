@@ -318,6 +318,7 @@ export async function bootstrap(): Promise<AppContext> {
     "node",
     "npm",
     "deno",
+    "claude",
   ];
   const availableCli: string[] = [];
   for (const tool of cliTools) {
@@ -385,6 +386,7 @@ export async function bootstrap(): Promise<AppContext> {
       tempdir: tempDir.replace(/\\/g, "/"),
       availableCli: availableCli.join(", "),
       isWindows: os === "win32" ? "true" : "",
+      hasClaudeCode: availableCli.includes("claude") ? "true" : "",
     };
     // Replace {{var}} placeholders
     defaultSystemPrompt = template.replace(

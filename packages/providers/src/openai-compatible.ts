@@ -154,6 +154,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
     let tokensIn = 0;
     let tokensOut = 0;
+    let finishReason: string | null = null;
 
     for await (const chunk of stream) {
       // Extract usage from the final chunk (sent when stream_options.include_usage is true)
@@ -162,6 +163,10 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       if (chunk.usage) {
         tokensIn = chunk.usage.prompt_tokens ?? 0;
         tokensOut = chunk.usage.completion_tokens ?? 0;
+      }
+
+      if (chunk.choices?.[0]?.finish_reason) {
+        finishReason = chunk.choices[0].finish_reason;
       }
 
       const delta = chunk.choices[0]?.delta;
@@ -209,6 +214,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       type: "done",
       usage: { tokensIn, tokensOut },
       model,
+      stopReason: this.mapFinishReason(finishReason),
     };
   }
 

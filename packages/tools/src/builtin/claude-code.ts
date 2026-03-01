@@ -4,7 +4,10 @@ import { createInterface } from "node:readline";
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 const DEFAULT_TIMEOUT = 600_000; // 10 minutes — coding tasks are long
-const OUTPUT_DIR = join(process.cwd(), "data", "tmp").replace(/\\/g, "/");
+const DEFAULT_OUTPUT_DIR = join(process.cwd(), "data", "tmp").replace(
+  /\\/g,
+  "/",
+);
 
 /**
  * Spawn `claude` CLI in print mode with stream-json output.
@@ -17,6 +20,10 @@ async function runClaudeCode(
   timeout: number,
   context?: ToolExecutionContext,
 ): Promise<ToolResult> {
+  const outputDir = (context?.workDir ?? DEFAULT_OUTPUT_DIR).replace(
+    /\\/g,
+    "/",
+  );
   const args = [
     "-p",
     "--dangerously-skip-permissions",
@@ -76,7 +83,7 @@ async function runClaudeCode(
 
     // Inject output directory constraint + write prompt to stdin
     child.stdin!.write(
-      `${prompt}\n\nIMPORTANT: All generated output files MUST be saved to ${OUTPUT_DIR}/ directory. Never save files to the project root or other locations.`,
+      `${prompt}\n\nIMPORTANT: All generated output files MUST be saved to ${outputDir}/ directory. Never save files to the project root or other locations.`,
     );
     child.stdin!.end();
 

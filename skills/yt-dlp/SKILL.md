@@ -49,7 +49,7 @@ Playlists can be large — do NOT auto_send. Tell user the folder path instead.
 - ALWAYS use bash shell (default), never PowerShell.
 - ALWAYS quote the URL with single quotes (URLs contain special chars like & that bash interprets).
 - timeout MUST be 300000 (5min) for single video, 600000 (10min) for playlists. NEVER use default timeout.
-- Once download succeeds (exit code 0 and file exists), STOP. Do NOT retry with different quality/format.
+- Once download succeeds (exit code 0 and file exists), do NOT retry with different quality/format. Proceed to the user's next step if any.
 - If download fails, try `--cookies-from-browser chrome` (many sites need login for HD).
 - For Twitter/X: URLs like `https://x.com/user/status/123` work directly.
 - One command per video. Do NOT batch multiple URLs in one command.

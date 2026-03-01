@@ -3,37 +3,38 @@ name: create-skill
 description: 创建可复用的自定义技能，保存工作流为技能 | Create reusable custom skills and save workflows
 ---
 
-When the user wants to save a workflow as a reusable skill:
+## Step 1: Create skill directory
+```json
+{"command": "mkdir -p skills/<skill-name>", "timeout": 5000}
+```
 
-1. Create a directory under `skills/`:
-   ```
-   shell: mkdir -p skills/<skill-name>
-   ```
+## Step 2: Write SKILL.md
+Use `file_write` tool to create `skills/<skill-name>/SKILL.md` with this template:
 
-2. Write the SKILL.md file using file_write:
-   ```
-   file_write: skills/<skill-name>/SKILL.md
-   ```
+```
+---
+name: <skill-name>
+description: 中文描述 | English description
+---
 
-   SKILL.md format:
-   ```markdown
-   ---
-   name: <skill-name>
-   description: 中文描述，包含使用场景关键词 | English description with usage context
-   ---
+## Step 0: Install dependency (first time only)
+{"command": "pip install <package>", "timeout": 60000}
 
-   <Instructions for the LLM on how to perform this task>
-   ```
+## <Action name>
+{"command": "<exact command>", "timeout": 30000}
 
-3. Optionally create helper scripts:
-   ```
-   file_write: skills/<skill-name>/scripts/helper.py
-   ```
+## Rules
+- ALWAYS use bash shell (default), never PowerShell.
+- <domain-specific rules>
+```
 
-4. The skill will be auto-loaded by the file watcher — no restart needed.
+## Step 3 (optional): Create helper scripts
+Use `file_write` to create `skills/<skill-name>/scripts/<script>.py`.
 
-Rules:
-- Directory name should be kebab-case
-- Description should be bilingual (Chinese | English) and include usage context keywords
-- Instructions should be clear and self-contained
-- Scripts should read from args/stdin and write to stdout
+## Rules
+- Directory name: kebab-case (e.g., `my-skill`).
+- Description: bilingual (中文 | English).
+- Commands MUST use JSON template format: `{"command": "...", "timeout": N}`.
+- Scripts use relative paths (e.g., `skills/<name>/scripts/...`).
+- `{WORKDIR}` is ONLY for output file paths, NOT for script paths.
+- Skills auto-load via file watcher — no restart needed.

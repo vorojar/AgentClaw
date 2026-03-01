@@ -50,6 +50,8 @@ export interface LLMStreamChunk {
   usage?: { tokensIn: number; tokensOut: number };
   /** Model ID — present on "done" chunks */
   model?: string;
+  /** Stop reason — present on "done" chunks */
+  stopReason?: "end_turn" | "tool_use" | "max_tokens" | "stop_sequence";
 }
 
 /** Complete response from LLM */

@@ -235,18 +235,10 @@ function runShell(
         const stderrStr = stderr ? decodeOutput(stderr) : "";
         const output = [stdoutStr, stderrStr].filter(Boolean).join("\n");
 
-        // 截断过长输出，节省 token
-        const MAX_OUTPUT_CHARS = 20_000;
-        const truncatedOutput =
-          output.length > MAX_OUTPUT_CHARS
-            ? output.slice(0, MAX_OUTPUT_CHARS) +
-              `\n... [truncated, ${output.length - MAX_OUTPUT_CHARS} chars omitted]`
-            : output;
-
         if (error) {
           if (error.killed) {
             resolve({
-              content: `Command timed out after ${timeout}ms\n${truncatedOutput}`,
+              content: `Command timed out after ${timeout}ms\n${output}`,
               isError: true,
               metadata: { exitCode: null, timedOut: true },
             });
@@ -255,15 +247,15 @@ function runShell(
 
           const hasOutput = stdoutStr.trim().length > 0;
           resolve({
-            content: truncatedOutput || error.message,
+            content: output || error.message,
             isError: !hasOutput,
-            metadata: { exitCode: error.code ?? 1 },
+            metadata: { exitCode: typeof error.code === "number" ? error.code : 1 },
           });
           return;
         }
 
         resolve({
-          content: truncatedOutput,
+          content: output,
           isError: false,
           metadata: { exitCode: 0 },
         });
@@ -353,13 +345,14 @@ export const shellTool: Tool = {
 
     const result = await runShell(effectiveCommand, timeout, effectiveShell);
 
-    const MAX_CONTENT = 8000;
+    const MAX_CONTENT = 12_000;
     if (result.content.length > MAX_CONTENT) {
+      const half = 5000;
       const total = result.content.length;
       result.content =
-        result.content.slice(0, 3000) +
-        `\n...(truncated ${total} chars, showing first 3000 and last 3000)...\n` +
-        result.content.slice(-3000);
+        result.content.slice(0, half) +
+        `\n\n... (${total} chars total, showing first and last ${half}) ...\n\n` +
+        result.content.slice(-half);
     }
 
     // Detect output files and send to frontend for inline display.

@@ -34,8 +34,8 @@ const DEFAULT_CONFIG: AgentConfig = {
   maxIterations: 15,
   systemPrompt: "",
   streaming: false,
-  temperature: 0.7,
-  maxTokens: 4096,
+  temperature: 0.5,
+  maxTokens: 8192,
 };
 
 /** Tools that are safe to retry on failure (network-dependent tools) */
@@ -233,6 +233,7 @@ export class SimpleAgentLoop implements AgentLoop {
 
     // Agent loop: think → act → observe → repeat
     let iterations = 0;
+    let useSkillRollbacks = 0;
     let consecutiveErrors = 0;
     let lastFullText = ""; // Keep last LLM text for fallback response
 
@@ -344,6 +345,11 @@ export class SimpleAgentLoop implements AgentLoop {
             }
             if (chunk.model) {
               usedModel = chunk.model;
+            }
+            if (chunk.stopReason === "max_tokens") {
+              console.warn(
+                `[agent-loop] LLM output truncated (max_tokens reached at ${this._config.maxTokens} tokens)`,
+              );
             }
             break;
         }
@@ -678,8 +684,12 @@ export class SimpleAgentLoop implements AgentLoop {
       }
 
       // use_skill is just loading instructions — don't count against iteration budget
-      if (toolCalls.every((tc) => tc.name === "use_skill")) {
+      if (
+        toolCalls.every((tc) => tc.name === "use_skill") &&
+        useSkillRollbacks < 3
+      ) {
         iterations--;
+        useSkillRollbacks++;
       }
 
       // Loop back for next LLM call with tool results

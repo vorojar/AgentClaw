@@ -1,5 +1,10 @@
 # 更新日志
 
+## [0.8.19] - 2026-03-01
+
+### 修复
+- **comfyui 图片生成到会话目录**：comfyui.py `OUTPUT_DIR` 硬编码 `data/tmp`，生成图片在 tmp 根目录而非 per-trace 会话目录。添加 `--output-dir` 命令行参数，SKILL.md 模板加 `--output-dir '{WORKDIR}'` + `auto_send: true`
+
 ## [0.8.18] - 2026-03-01
 
 ### 修复

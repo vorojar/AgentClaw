@@ -11,7 +11,9 @@ import urllib.request
 import urllib.error
 
 BASE_URL = "http://127.0.0.1:8000"
-OUTPUT_DIR = os.path.join(os.getcwd(), "data", "tmp")
+OUTPUT_DIR = os.path.join(
+    os.getcwd(), "data", "tmp"
+)  # default, overridden by --output-dir
 POLL_INTERVAL = 2
 MAX_WAIT = 120
 
@@ -231,6 +233,8 @@ def main():
     parser = argparse.ArgumentParser(description="ComfyUI image processing")
     sub = parser.add_subparsers(dest="action", required=True)
 
+    parser.add_argument("--output-dir", help="Output directory for generated files")
+
     gen = sub.add_parser("generate", help="Text-to-image generation")
     gen.add_argument("--prompt", required=True)
     gen.add_argument("--width", type=int, default=1024)
@@ -245,6 +249,10 @@ def main():
     up.add_argument("--image", required=True)
 
     args = parser.parse_args()
+
+    global OUTPUT_DIR
+    if args.output_dir:
+        OUTPUT_DIR = args.output_dir
 
     if args.action == "generate":
         seed = args.seed if args.seed is not None else random.randint(0, 2**52)

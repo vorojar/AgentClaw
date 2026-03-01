@@ -115,6 +115,12 @@ export const useSkillTool: Tool = {
         ? `Dependencies:\n${installResults.join("\n")}\n\n`
         : "";
 
-    return { content: prefix + installStatus + skill.instructions };
+    let instructions = skill.instructions;
+    // Replace {WORKDIR} placeholder with actual per-trace working directory
+    if (context?.workDir) {
+      instructions = instructions.replaceAll("{WORKDIR}", context.workDir);
+    }
+
+    return { content: prefix + installStatus + instructions };
   },
 };

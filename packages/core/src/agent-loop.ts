@@ -147,6 +147,9 @@ export class SimpleAgentLoop implements AgentLoop {
     );
     mkdirSync(traceTmpDir, { recursive: true });
 
+    // Expose working directory to tools (use_skill replaces {WORKDIR})
+    if (context) context.workDir = traceTmpDir;
+
     // ── Collect all user files into per-trace dir ──
     // 1. Images: save base64 to per-trace dir
     const savedImagePaths: string[] = [];

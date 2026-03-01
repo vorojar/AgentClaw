@@ -26,10 +26,8 @@
 - 图片和附件已自动保存，路径见消息中的 `[用户发送了图片，已保存到：...]` 或 `[用户附件：...]`
 - 直接使用消息中给出的绝对路径，不要修改路径、不要截图
 
-## 路由
-- 网页操作 → `use_skill("browser")`，禁止 selenium/playwright/puppeteer
-- 音视频 → bash + ffmpeg/ffprobe
+## 补充规则
 - 语音转文字 → `python scripts/transcribe.py <file>`（timeout 120000）
-- 编码任务（写/改/调试代码，含单文件 HTML）→ 必须用 `claude_code`，禁止 file_write 写代码
 - 输出文件 → 保存到消息中 `[工作目录：...]` 指定的路径，设 `auto_send: true`
 - 截图 → 活动窗口；"全屏截图" → 全屏
+- 禁止 selenium/playwright/puppeteer，网页操作用 browser 技能

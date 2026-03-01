@@ -1,5 +1,13 @@
 # 更新日志
 
+## [0.8.18] - 2026-03-01
+
+### 修复
+- **use_skill 框架层替换 `{WORKDIR}`**：技能模板中的 `{WORKDIR}` 占位符之前依赖 LLM 从运行时 hint 读取路径来替换，弱模型做不到直接写 `./` → 文件下载到项目根目录、`/files/` URL 无法访问。改为 agent-loop 将 `traceTmpDir` 设到 `context.workDir`，use_skill 返回指令前自动 `replaceAll("{WORKDIR}", workDir)`，LLM 拿到的是带绝对路径的命令
+- **移除系统提示词 Temp 路径**：`Temp: D:/mycode/agentclaw/data/tmp` 与运行时 hint `[工作目录：.../data/tmp/{traceId}]` 冲突，弱模型优先选了 Temp 路径。移除 Temp，运行时 hint 成为唯一路径来源
+- **移除与技能冲突的路由规则**：`音视频 → bash + ffmpeg/ffprobe` 让模型跳过 use_skill 直接写 bash，与 yt-dlp/bilingual-subtitle 技能冲突。移除音视频、网页操作、编码的硬编码路由（保留 claude_code 工具约束和无技能对应的特殊规则）
+- **强制 use_skill**：系统提示词改为"第一步必须调 use_skill"+"禁止跳过直接写命令"，防止模型从训练数据"认识"工具而跳过技能加载
+
 ## [0.8.17] - 2026-03-01
 
 ### 修复

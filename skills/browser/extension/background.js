@@ -124,6 +124,11 @@ function setConnected(value) {
 // Command handlers
 // ---------------------------------------------------------------------------
 
+/** Convert ref-style selector (e.g. "e5") to CSS attribute selector */
+function resolveSelector(sel) {
+  return /^e\d+$/.test(sel) ? `[data-ac-ref="${sel}"]` : sel;
+}
+
 async function handleCommand(action, args) {
   switch (action) {
     case "open":
@@ -208,6 +213,7 @@ async function cmdScreenshot() {
 
 async function cmdClick({ selector }) {
   if (!selector) throw new Error("Selector required");
+  const resolved = resolveSelector(selector);
   const tab = await getActiveTab();
 
   const results = await chrome.scripting.executeScript({
@@ -218,7 +224,7 @@ async function cmdClick({ selector }) {
       el.click();
       return true;
     },
-    args: [selector],
+    args: [resolved],
   });
 
   if (results[0]?.error) throw new Error(results[0].error.message);
@@ -228,6 +234,7 @@ async function cmdClick({ selector }) {
 async function cmdType({ selector, text }) {
   if (!selector || text === undefined)
     throw new Error("Selector and text required");
+  const resolved = resolveSelector(selector);
   const tab = await getActiveTab();
 
   const results = await chrome.scripting.executeScript({
@@ -282,7 +289,7 @@ async function cmdType({ selector, text }) {
       if (endsWithNewline) dispatchEnter();
       return true;
     },
-    args: [selector, text],
+    args: [resolved, text],
   });
 
   if (results[0]?.error) throw new Error(results[0].error.message);
@@ -292,26 +299,203 @@ async function cmdType({ selector, text }) {
 async function cmdGetContent({ selector }) {
   const tab = await getActiveTab();
   const MAX_CONTENT = 50000;
+  const sel = selector ? resolveSelector(selector) : null;
 
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    func: (sel) => {
-      if (sel) {
-        const el = document.querySelector(sel);
-        if (!el) throw new Error(`Element not found: ${sel}`);
-        return el.innerText ?? el.textContent ?? "";
+    func: (sel, maxLen) => {
+      // Clear old ref markers
+      document
+        .querySelectorAll("[data-ac-ref]")
+        .forEach((el) => el.removeAttribute("data-ac-ref"));
+
+      const root = sel ? document.querySelector(sel) : document.body;
+      if (sel && !root) throw new Error(`Element not found: ${sel}`);
+
+      let refCount = 0;
+      const out = [];
+      let len = 0;
+
+      const SKIP = new Set([
+        "SCRIPT",
+        "STYLE",
+        "NOSCRIPT",
+        "SVG",
+        "LINK",
+        "META",
+        "TEMPLATE",
+      ]);
+      const INTERACT = new Set([
+        "A",
+        "BUTTON",
+        "INPUT",
+        "TEXTAREA",
+        "SELECT",
+        "SUMMARY",
+      ]);
+      const ROLES = new Set([
+        "button",
+        "link",
+        "tab",
+        "menuitem",
+        "option",
+        "checkbox",
+        "radio",
+        "switch",
+        "textbox",
+        "combobox",
+        "searchbox",
+      ]);
+      const BLOCK = new Set([
+        "DIV",
+        "P",
+        "SECTION",
+        "ARTICLE",
+        "MAIN",
+        "HEADER",
+        "FOOTER",
+        "NAV",
+        "ASIDE",
+        "LI",
+        "UL",
+        "OL",
+        "TABLE",
+        "TR",
+        "TD",
+        "TH",
+        "BLOCKQUOTE",
+        "FIGURE",
+        "FIGCAPTION",
+        "PRE",
+        "H1",
+        "H2",
+        "H3",
+        "H4",
+        "H5",
+        "H6",
+        "DT",
+        "DD",
+        "FORM",
+        "FIELDSET",
+        "DETAILS",
+      ]);
+
+      function vis(el) {
+        if (el.hidden || el.getAttribute("aria-hidden") === "true")
+          return false;
+        const s = getComputedStyle(el);
+        return s.display !== "none" && s.visibility !== "hidden";
       }
-      return document.body.innerText;
+
+      function isInteractive(el) {
+        if (el.tagName === "INPUT" && el.type === "hidden") return false;
+        if (INTERACT.has(el.tagName)) return true;
+        const r = el.getAttribute("role");
+        if (r && ROLES.has(r)) return true;
+        return false;
+      }
+
+      function getLabel(el) {
+        const a = el.getAttribute("aria-label");
+        if (a) return a.trim();
+        if (el.tagName === "INPUT" || el.tagName === "TEXTAREA")
+          return el.value || el.getAttribute("placeholder") || "";
+        if (el.tagName === "SELECT")
+          return el.options[el.selectedIndex]?.text || "";
+        const t = (el.innerText || "").trim();
+        return t.length > 80 ? t.slice(0, 77) + "\u2026" : t;
+      }
+
+      function desc(el) {
+        const tag = el.tagName;
+        const role = el.getAttribute("role");
+        if (tag === "A") {
+          const href = el.getAttribute("href") || "";
+          const shortHref =
+            href.length > 60 ? href.slice(0, 57) + "\u2026" : href;
+          return `link "${getLabel(el)}"${href && !href.startsWith("javascript:") ? " \u2192 " + shortHref : ""}`;
+        }
+        if (tag === "BUTTON" || role === "button")
+          return `button "${getLabel(el)}"`;
+        if (tag === "INPUT") {
+          const type = el.getAttribute("type") || "text";
+          if (type === "checkbox" || type === "radio")
+            return `${type} ${el.checked ? "\u2611" : "\u2610"} "${getLabel(el)}"`;
+          return `input[${type}] "${getLabel(el)}"`;
+        }
+        if (tag === "TEXTAREA") return `textarea "${getLabel(el)}"`;
+        if (tag === "SELECT") return `select "${getLabel(el)}"`;
+        return `${(role || tag).toLowerCase()} "${getLabel(el)}"`;
+      }
+
+      function put(s) {
+        if (len >= maxLen) return false;
+        out.push(s);
+        len += s.length;
+        return true;
+      }
+
+      function walk(node) {
+        if (len >= maxLen) return;
+        if (node.nodeType === 3) {
+          const t = node.textContent;
+          if (t && t.trim()) put(t);
+          return;
+        }
+        if (node.nodeType !== 1) return;
+
+        const tag = node.tagName;
+        if (SKIP.has(tag)) return;
+        if (!vis(node)) return;
+
+        // Heading → markdown style
+        if (/^H[1-6]$/.test(tag)) {
+          const t = (node.innerText || "").trim();
+          if (t) put("\n" + "#".repeat(+tag[1]) + " " + t + "\n");
+          return;
+        }
+
+        // Image
+        if (tag === "IMG") {
+          const alt = (node.getAttribute("alt") || "").trim();
+          if (alt) put(`[img: ${alt}]`);
+          return;
+        }
+
+        // Interactive element → assign ref
+        if (isInteractive(node)) {
+          refCount++;
+          const ref = "e" + refCount;
+          node.setAttribute("data-ac-ref", ref);
+          put(`[${ref}] ${desc(node)}`);
+          return;
+        }
+
+        // Block element → line break
+        const isBlock = BLOCK.has(tag);
+        if (isBlock) put("\n");
+        for (const child of node.childNodes) walk(child);
+        if (isBlock) put("\n");
+      }
+
+      walk(root);
+
+      let result = out.join("");
+      result = result.replace(/[ \t]+/g, " ");
+      result = result.replace(/\n[ \t]*\n/g, "\n\n");
+      result = result.replace(/\n{3,}/g, "\n\n");
+      result = result.trim();
+
+      if (result.length > maxLen) {
+        result = result.slice(0, maxLen) + "\n\u2026 [truncated]";
+      }
+      return result;
     },
-    args: [selector || null],
+    args: [sel, MAX_CONTENT],
   });
 
   if (results[0]?.error) throw new Error(results[0].error.message);
-  let text = results[0]?.result || "";
-  if (text.length > MAX_CONTENT) {
-    text = text.slice(0, MAX_CONTENT) + "\n\n... [truncated]";
-  }
-  return { text };
+  return { text: results[0]?.result || "" };
 }
 
 async function cmdScroll({ direction, pixels, selector }) {
@@ -373,6 +557,7 @@ async function cmdClose() {
 // ---------------------------------------------------------------------------
 
 async function waitForSelector(selector, timeout = 5000) {
+  const resolved = resolveSelector(selector);
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     const tab = await getActiveTab();
@@ -387,7 +572,7 @@ async function waitForSelector(selector, timeout = 5000) {
         }
         return true;
       },
-      args: [selector],
+      args: [resolved],
     });
     if (results[0]?.result) return;
     await new Promise((r) => setTimeout(r, 200));

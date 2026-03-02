@@ -1,5 +1,15 @@
 # 更新日志
 
+## [0.8.24] - 2026-03-02
+
+### 新增
+- **Browser Accessibility Snapshot**：`get_content` 从 raw `innerText` 升级为结构化无障碍快照
+  - 交互元素自动标记 ref ID：`[e1] button "Submit"`, `[e2] link "Home" → /`
+  - 标题转为 markdown 格式（`# Title`），图片显示 alt 文本
+  - 隐藏元素、script/style/svg 自动跳过
+  - 典型页面输出从 ~20K 压缩到 ~4-5K 字符，token 节省 70-80%
+- **Ref ID 选择器**：`click`/`type`/`wait_for` 支持 ref ID（如 `e5`），自动转为 `[data-ac-ref="e5"]` CSS 选择器，原有 CSS 选择器完全兼容
+
 ## [0.8.23] - 2026-03-02
 
 ### 新增

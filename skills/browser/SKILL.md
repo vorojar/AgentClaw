@@ -48,14 +48,38 @@ For very long pages, scroll multiple times with sleep between each scroll to tri
 | action | args | description |
 |---|---|---|
 | open | `{"url": "..."}` | Open URL in new tab, wait for load |
-| click | `{"selector": "..."}` | Click element |
-| type | `{"selector": "...", "text": "..."}` | Type text (supports contentEditable) |
+| click | `{"selector": "e5"}` or CSS selector | Click element by ref ID or CSS |
+| type | `{"selector": "e3", "text": "..."}` | Type text by ref ID or CSS selector |
 | scroll | `{"direction": "down"}` | Scroll page: down/up/top/bottom, optional `pixels` and `selector` |
-| get_content | `{"selector": "..."}` (optional) | Get page/element text |
+| get_content | `{"selector": "..."}` (optional) | Get accessibility snapshot with ref IDs |
 | screenshot | (none) | Capture visible tab |
 | wait_for | `{"selector": "...", "timeout": 5000}` | Wait for element to appear |
 | sleep | `{"ms": 1000}` | Wait fixed time |
 | close | (none) | Close current tab |
+
+### Accessibility Snapshot (get_content)
+
+`get_content` returns a token-efficient accessibility snapshot instead of raw text:
+- Interactive elements are tagged with ref IDs: `[e1] button "Submit"`, `[e2] link "Home" → /`
+- Headings use markdown format: `# Title`, `## Subtitle`
+- Regular text content is preserved inline
+- Use ref IDs directly in `click`/`type` selectors: `{"selector": "e5"}` — no CSS needed
+
+Example snapshot output:
+```
+# Search Results
+
+[e1] input[text] "Search..."
+[e2] button "Search"
+
+## First Result
+Some result text here
+[e3] link "View details" → /result/1
+
+[e4] button "Next Page"
+```
+
+Workflow: `get_content` → read snapshot → `click`/`type` with ref IDs (e.g. `e3`). CSS selectors still work for all actions.
 
 ## Single commands (for debugging or one-off actions)
 

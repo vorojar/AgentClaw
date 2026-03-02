@@ -1,43 +1,49 @@
 import type { Tool, ToolResult } from "@agentclaw/types";
+import TurndownService from "turndown";
+import { Readability } from "@mozilla/readability";
+import { parseHTML } from "linkedom";
 
 const DEFAULT_MAX_LENGTH = 10_000;
 const FETCH_TIMEOUT = 10_000;
-const USER_AGENT =
-  "AgentClaw/1.0 (https://github.com/agentclaw; compatible; Bot)";
 
-/** Strip HTML to readable plain text */
-function htmlToText(html: string): string {
-  let text = html;
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const BROWSER_HEADERS: Record<string, string> = {
+  "User-Agent": BROWSER_UA,
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+};
 
-  // Remove script and style blocks entirely
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
+const turndown = new TurndownService({
+  headingStyle: "atx",
+  codeBlockStyle: "fenced",
+  bulletListMarker: "-",
+});
 
-  // Replace <br>, <p>, <div>, <li>, heading tags with newlines
-  text = text.replace(/<br\s*\/?>/gi, "\n");
-  text = text.replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n");
-  text = text.replace(/<(p|div|h[1-6]|li|tr)[\s>]/gi, "\n");
+/** Convert HTML to Markdown: Readability extracts article → turndown converts, fallback to full-page */
+function htmlToMarkdown(html: string, url?: string): string {
+  // Try Readability first for article extraction
+  try {
+    const { document } = parseHTML(html);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const reader = new Readability(document as any, { charThreshold: 100 });
+    const article = reader.parse();
+    if (article?.content && (article.textContent?.length ?? 0) > 200) {
+      const title = article.title ? `# ${article.title}\n\n` : "";
+      const md = turndown.turndown(article.content);
+      return (title + md).replace(/\n{3,}/g, "\n\n").trim();
+    }
+  } catch {
+    // Readability failed, fall through to full-page conversion
+  }
 
-  // Strip remaining HTML tags
-  text = text.replace(/<[^>]+>/g, "");
+  // Fallback: full-page turndown with basic noise removal
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+  html = html.replace(/<style[\s\S]*?<\/style>/gi, "");
+  html = html.replace(/<nav[\s\S]*?<\/nav>/gi, "");
 
-  // Decode common HTML entities
-  text = text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
-
-  // Collapse multiple blank lines and trim each line
-  text = text
-    .split("\n")
-    .map((line) => line.trim())
-    .join("\n");
-  text = text.replace(/\n{3,}/g, "\n\n");
-
-  return text.trim();
+  const md = turndown.turndown(html);
+  return md.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export const webFetchTool: Tool = {
@@ -80,7 +86,7 @@ export const webFetchTool: Tool = {
 
     try {
       const response = await fetch(url, {
-        headers: { "User-Agent": USER_AGENT },
+        headers: BROWSER_HEADERS,
         signal: controller.signal,
         redirect: "follow",
       });
@@ -107,7 +113,7 @@ export const webFetchTool: Tool = {
           content = body;
         }
       } else if (contentType.includes("text/html")) {
-        content = htmlToText(body);
+        content = htmlToMarkdown(body);
       } else {
         // Plain text or other text formats
         content = body;

@@ -1,5 +1,15 @@
 # 更新日志
 
+## [0.8.21] - 2026-03-02
+
+### 新增
+- **web_fetch 注册为核心工具**：web_fetch 从未注册状态升级为核心工具（永远加载），agent 可直接调用抓取网页
+- **Readability 正文提取**：引入 `@mozilla/readability` + `linkedom`，文章类页面自动提取正文（去导航/广告/页脚），token 节省 70-80%；列表/首页等无文章结构的页面自动降级为全页转换
+
+### 改进
+- **HTML→Markdown 输出**：用 `turndown` 替换正则 `htmlToText()`，输出从纯文本升级为 Markdown，保留标题层级/列表/链接/代码块/粗体
+- **浏览器 UA 伪装**：fetch 请求从 Bot UA 改为真实 Chrome UA + Accept/Accept-Language headers，减少反爬拦截
+
 ## [0.8.20] - 2026-03-01
 
 ### 新增

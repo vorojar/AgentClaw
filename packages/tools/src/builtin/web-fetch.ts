@@ -114,6 +114,10 @@ export const webFetchTool: Tool = {
         }
       } else if (contentType.includes("text/html")) {
         content = htmlToMarkdown(body);
+        if (content.length < 500 && body.length > 2000) {
+          content +=
+            "\n\n[注意] 提取内容极少，该页面可能需要 JS 渲染（SPA/Next.js），建议使用 web-fetch 技能（Playwright）重新抓取。";
+        }
       } else {
         // Plain text or other text formats
         content = body;

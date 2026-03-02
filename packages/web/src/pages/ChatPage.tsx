@@ -1007,6 +1007,11 @@ export function ChatPage() {
         }
         break;
       }
+      case "session_activity": {
+        // Another channel (Telegram/WhatsApp) updated a session — refresh list
+        refreshSessions();
+        break;
+      }
       case "error": {
         if (msg.error?.includes("Session not found")) {
           createSession()

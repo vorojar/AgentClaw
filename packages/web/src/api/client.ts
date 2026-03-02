@@ -396,7 +396,8 @@ export interface WSMessage {
     | "file"
     | "broadcast"
     | "prompt"
-    | "todo_update";
+    | "todo_update"
+    | "session_activity";
   text?: string;
   toolName?: string;
   toolInput?: string;

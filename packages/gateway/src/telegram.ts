@@ -6,6 +6,7 @@ import type {
   AgentEvent,
   ToolExecutionContext,
 } from "@agentclaw/types";
+import { getWsClients } from "./ws.js";
 
 /** Map Telegram chat ID → AgentClaw session ID */
 const chatSessionMap = new Map<number, string>();
@@ -29,6 +30,14 @@ const VIDEO_EXTENSIONS = new Set([
   "mov",
   "webm",
 ]);
+
+/** Notify all Web UI clients that a session was updated from another channel */
+function broadcastSessionActivity(sessionId: string): void {
+  const msg = JSON.stringify({ type: "session_activity", sessionId, channel: "telegram" });
+  for (const ws of getWsClients()) {
+    try { ws.send(msg); } catch {}
+  }
+}
 
 function extractText(content: string | ContentBlock[]): string {
   if (typeof content === "string") return content;
@@ -317,6 +326,9 @@ export async function startTelegramBot(
           await replyFn(chunk);
         }
       }
+
+      // Notify Web UI that this session was updated
+      broadcastSessionActivity(sessionId!);
     } catch (err) {
       clearInterval(typingInterval);
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -495,6 +507,9 @@ export async function startTelegramBot(
       if (!accumulatedText.trim()) {
         await ctx.reply("(empty response)");
       }
+
+      // Notify Web UI that this session was updated
+      broadcastSessionActivity(sessionId!);
     } catch (err) {
       clearInterval(typingInterval);
 
@@ -692,6 +707,9 @@ export async function startTelegramBot(
       if (!accumulatedText.trim()) {
         await ctx.reply("(empty response)");
       }
+
+      // Notify Web UI that this session was updated
+      broadcastSessionActivity(sessionId!);
     } catch (err) {
       clearInterval(typingInterval);
 

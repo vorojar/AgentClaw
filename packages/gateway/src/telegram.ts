@@ -91,7 +91,7 @@ function createSendFile(
       // stat failed — try sending anyway
     }
 
-    const inputFile = new InputFile(createReadStream(filePath));
+    const inputFile = new InputFile(createReadStream(filePath), filename);
 
     if (IMAGE_EXTENSIONS.has(ext)) {
       await bot.api.sendPhoto(chatId, inputFile, { caption });

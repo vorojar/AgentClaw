@@ -12,6 +12,9 @@
 - **Telegram 流式输出（sendMessageDraft）**：利用 Bot API 9.5 新增的 `sendMessageDraft` 方法，LLM 生成过程中消息在原地实时更新（类似 ChatGPT 网页端），替代之前分段 sendMessage 刷屏的方式；tool_call 状态也实时显示在 draft 中；300ms 节流防止 API 过载；需要官方 Telegram 客户端支持
 
 ### 修复
+- **Telegram 发送文件显示为 DAT**：`InputFile` 构造时未传文件名，Telegram 无法识别扩展名，所有非图片/视频文件显示为"document xxx bytes DAT"。补传 `filename` 参数修复
+
+### 修复
 - **file_write 相对路径修复**：`file_write` 传入相对路径时自动解析到 `data/tmp/{traceId}/` 会话工作目录，而非项目根目录；配合 `sendFile` 自动复制兜底，彻底修复 Web UI `/files/` 下载 404
 - **send_file 相对路径修复**：send_file 同样支持 workDir 解析，优先在会话目录查找文件
 - **REST /chat 支持 sendFile**：REST API 的 `/api/sessions/:id/chat` 端点补充 sendFile 上下文，send_file 工具不再报 "not available"

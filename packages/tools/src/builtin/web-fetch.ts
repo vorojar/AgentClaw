@@ -16,6 +16,19 @@ const PLAYWRIGHT_TIMEOUT = 30_000;
 /** Playwright 子进程最大输出（字节） */
 const PLAYWRIGHT_MAX_BUFFER = 2 * 1024 * 1024;
 
+/** 已知 SPA/JS 渲染站点——命中时直接走 Playwright，不判断内容长度 */
+const SPA_DOMAINS = new Set([
+  "x.com", "twitter.com",
+  "zhihu.com", "www.zhihu.com",
+  "weibo.com", "m.weibo.com",
+  "bilibili.com", "www.bilibili.com",
+  "douyin.com", "www.douyin.com",
+  "xiaohongshu.com", "www.xiaohongshu.com",
+  "threads.net", "www.threads.net",
+  "reddit.com", "www.reddit.com",
+  "chatgpt.com", "chat.openai.com",
+]);
+
 /** 登录墙关键词——命中任一则提示用户需要登录态 */
 const LOGIN_WALL_KEYWORDS = [
   "安全验证",
@@ -139,8 +152,9 @@ export const webFetchTool: Tool = {
       } else if (contentType.includes("text/html")) {
         content = htmlToMarkdown(body);
 
-        // SPA 自动回退：内容极少但原始 HTML 较大，说明可能是 JS 渲染页面
-        if (content.length < 800 && body.length > 2000) {
+        // SPA 自动回退：已知 SPA 域名直接走 Playwright；其他站点内容极少时也降级
+        const isSPADomain = SPA_DOMAINS.has(parsedUrl.hostname);
+        if (isSPADomain || (content.length < 1500 && body.length > 2000)) {
           // 先尝试普通 Playwright，不够再加 --scroll
           let pwContent = await tryPlaywrightFetch(url, maxLength, false);
           if (pwContent !== null && pwContent.length < 500) {
@@ -168,6 +182,11 @@ export const webFetchTool: Tool = {
       } else {
         // Plain text or other text formats
         content = body;
+      }
+
+      // Hint: content is already markdown, no need for LLM to rewrite
+      if (content.length > 1000 && strategy !== "login_wall") {
+        content += "\n\n[提示] 以上内容已为 Markdown 格式，可直接用 file_write 保存，无需重新整理。";
       }
 
       // Truncate if needed

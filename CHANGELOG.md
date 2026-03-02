@@ -3,8 +3,16 @@
 ## [0.8.26] - 2026-03-02
 
 ### 改进
-- **web_fetch SPA 自动降级增强**：Playwright 降级新增 `--scroll` 重试，SPA 检测阈值从 500→800 chars；x.com/Twitter 等需要滚动加载的页面可在一次 web_fetch 调用内自动完成抓取，省去 use_skill + 多轮 bash 的 3 轮 LLM 开销
-- **上下文膨胀控制**：agent-loop 多轮迭代时，只保留最近 2 条 tool result 完整内容，更早的截断到 500 chars；典型 6 轮任务上下文从 14K→8K tokens
+- **web_fetch SPA 自动降级增强**：新增已知 SPA 域名列表（x.com/zhihu/bilibili/weibo 等 18 个），命中时直接走 Playwright；Playwright 降级新增 `--scroll` 重试；通用阈值从 500→1500 chars。x.com 推文抓取从 7 轮 LLM 降至 3 轮，token 节省 50-67%
+- **send_file autoComplete**：send_file 成功后自动结束 agent-loop，省去最终的"已完成"回复轮（典型省 ~14K tokens 输入）
+- **上下文膨胀控制**：agent-loop 多轮迭代时，只保留最近 2 条 tool result 完整内容，更早的截断到 500 chars
+- **系统提示词优化**：新增规则"web_fetch 返回内容已是 Markdown，直接保存不要改写"+"同一轮输出多个工具调用"
+
+### 修复
+- **file_write 相对路径修复**：`file_write` 传入相对路径时自动解析到 `data/tmp/{traceId}/` 会话工作目录，而非项目根目录；配合 `sendFile` 自动复制兜底，彻底修复 Web UI `/files/` 下载 404
+- **send_file 相对路径修复**：send_file 同样支持 workDir 解析，优先在会话目录查找文件
+- **REST /chat 支持 sendFile**：REST API 的 `/api/sessions/:id/chat` 端点补充 sendFile 上下文，send_file 工具不再报 "not available"
+- **移除多余的 `data/temp/` 目录**：文件服务统一使用 `data/tmp/`，清理 server/ws/claude-code 中的 temp 引用
 
 ### 修复
 - **file_write 相对路径修复**：`file_write` 传入相对路径时自动解析到 `data/tmp/{traceId}/` 会话工作目录，而非项目根目录；配合 `sendFile` 自动复制兜底，彻底修复 Web UI `/files/` 下载 404

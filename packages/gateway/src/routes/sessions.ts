@@ -1,6 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "../bootstrap.js";
-import type { Message, ContentBlock } from "@agentclaw/types";
+import type {
+  Message,
+  ContentBlock,
+  ToolExecutionContext,
+} from "@agentclaw/types";
+import { basename, join, resolve, relative } from "node:path";
+import { copyFileSync, mkdirSync } from "node:fs";
 
 function extractText(content: string | ContentBlock[]): string {
   if (typeof content === "string") return content;
@@ -120,7 +126,34 @@ export function registerSessionRoutes(
           return reply.status(404).send({ error: `Session not found: ${id}` });
         }
 
-        const message = await ctx.orchestrator.processInput(id, content);
+        // Provide sendFile so tools like send_file work in REST mode too
+        const tmpDir = resolve(process.cwd(), "data", "tmp");
+        const sentFiles: Array<{ url: string; filename: string }> = [];
+        const toolContext: ToolExecutionContext = {
+          sentFiles,
+          sendFile: async (filePath: string) => {
+            const filename = basename(filePath);
+            const abs = resolve(filePath);
+            let relPath = filename;
+            if (abs.startsWith(tmpDir)) {
+              relPath = relative(tmpDir, abs).replace(/\\/g, "/");
+            } else {
+              mkdirSync(tmpDir, { recursive: true });
+              try {
+                copyFileSync(abs, join(tmpDir, filename));
+              } catch {}
+            }
+            const url = `/files/${relPath.split("/").map(encodeURIComponent).join("/")}`;
+            if (!sentFiles.some((f) => f.url === url)) {
+              sentFiles.push({ url, filename });
+            }
+          },
+        };
+        const message = await ctx.orchestrator.processInput(
+          id,
+          content,
+          toolContext,
+        );
         return reply.send({ message: serializeMessage(message) });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

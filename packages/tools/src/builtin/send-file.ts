@@ -27,15 +27,23 @@ export const sendFileTool: Tool = {
       };
     }
 
-    // Check file exists — try original path, then resolved absolute path
+    // Check file exists — try workDir, original path, then resolved absolute path
     const { existsSync } = await import("node:fs");
-    const { resolve } = await import("node:path");
-    const resolvedPath = resolve(filePath);
-    const effectivePath = existsSync(filePath)
-      ? filePath
-      : existsSync(resolvedPath)
-        ? resolvedPath
+    const { resolve, isAbsolute } = await import("node:path");
+    // Relative paths → resolve to per-trace workDir first
+    const workDirPath =
+      context.workDir && !isAbsolute(filePath)
+        ? resolve(context.workDir, filePath)
         : null;
+    const resolvedPath = resolve(filePath);
+    const effectivePath =
+      workDirPath && existsSync(workDirPath)
+        ? workDirPath
+        : existsSync(filePath)
+          ? filePath
+          : existsSync(resolvedPath)
+            ? resolvedPath
+            : null;
     if (!effectivePath) {
       return {
         content: `File not found: ${filePath}`,
@@ -48,6 +56,7 @@ export const sendFileTool: Tool = {
       return {
         content: `File sent: ${effectivePath}`,
         isError: false,
+        autoComplete: true,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

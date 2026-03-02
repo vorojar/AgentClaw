@@ -34,3 +34,5 @@
 - 输出文件 → 保存到消息中 `[工作目录：...]` 指定的路径，设 `auto_send: true`
 - 截图 → 活动窗口；"全屏截图" → 全屏
 - 禁止直接写 selenium/playwright/puppeteer 代码，网页抓取用 web-fetch 技能，浏览器操作用 browser 技能
+- web_fetch 返回的内容已是 Markdown，用户要求保存/下载时直接 file_write 保存原文，不要重新整理或改写
+- 尽量在同一轮输出多个工具调用（如 file_write + send_file），减少不必要的额外轮次

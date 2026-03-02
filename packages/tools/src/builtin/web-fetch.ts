@@ -165,7 +165,7 @@ export const webFetchTool: Tool = {
             strategy = "playwright";
           } else if (pwContent === null) {
             content +=
-              "\n\n[注意] 提取内容极少，该页面可能需要 JS 渲染（SPA/Next.js），建议使用 web-fetch 技能（Playwright）重新抓取。";
+              "\n\n[注意] 提取内容极少（JS 渲染页面），且 Playwright 降级失败。若 Playwright 未安装，请执行：pip install playwright && python -m playwright install chromium --with-deps";
           }
         }
 

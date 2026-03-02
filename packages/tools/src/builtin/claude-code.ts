@@ -39,6 +39,7 @@ async function runClaudeCode(
       cwd: cwd || process.cwd(),
       env: { ...process.env, CLAUDECODE: undefined },
       shell: process.platform === "win32",
+      windowsHide: true,
     });
 
     let resultSummary = "";

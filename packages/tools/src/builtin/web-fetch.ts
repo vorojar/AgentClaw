@@ -245,6 +245,7 @@ async function tryPlaywrightFetch(
     const { stdout } = await execFileAsync("python", args, {
       timeout: scroll ? PLAYWRIGHT_TIMEOUT * 2 : PLAYWRIGHT_TIMEOUT,
       maxBuffer: PLAYWRIGHT_MAX_BUFFER,
+      windowsHide: true,
     });
     const result = stdout.trim();
     if (!result || result.startsWith("Error loading page:")) {

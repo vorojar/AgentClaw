@@ -15,6 +15,7 @@
 - **Claude Code 执行过程透明化**：claude_code 工具执行期间，实时推送 Claude Code 的每一步操作（Read/Edit/Bash/Grep 等）到前端和 Telegram；Web UI 的 tool_call 卡片下方显示进度行（最多 20 行，自动滚动）；工具完成后进度行自动隐藏
 
 ### 修复
+- **Windows 下 Claude Code/Playwright 弹出黑色终端窗口**：`spawn`/`execFile` 缺少 `windowsHide: true`，子进程会弹出可见的 cmd 窗口后又消失。claude-code 和 web-fetch 的 Playwright 调用补上此参数
 - **Telegram 发送文件显示为 DAT**：`InputFile` 构造时未传文件名，Telegram 无法识别扩展名，所有非图片/视频文件显示为"document xxx bytes DAT"。补传 `filename` 参数修复
 
 ### 修复

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { Cron } from "croner";
 import { bootstrap } from "./bootstrap.js";
 import { createServer } from "./server.js";
 import { TaskScheduler } from "./scheduler.js";
@@ -17,6 +18,8 @@ export { startTelegramBot } from "./telegram.js";
 export { startWhatsAppBot } from "./whatsapp.js";
 export { HeartbeatManager } from "./heartbeat.js";
 export type { HeartbeatConfig, HeartbeatDeps } from "./heartbeat.js";
+export { runHealthChecks, formatHealthResults } from "./health-check.js";
+export type { HealthCheckResult } from "./health-check.js";
 
 async function main(): Promise<void> {
   const port = parseInt(process.env.PORT || "3100", 10);
@@ -131,10 +134,34 @@ async function main(): Promise<void> {
   );
   heartbeat.start();
 
+  // 每小时健康检查：检测服务状态变化并通知用户
+  const healthJob = new Cron("0 * * * *", async () => {
+    try {
+      const changed = await ctx.refreshHealth();
+      if (changed.length > 0) {
+        const lines = changed.map(
+          (r) =>
+            `${r.ok ? "✅" : "❌"} ${r.name}：${r.message}`,
+        );
+        const text = `[服务状态变化]\n${lines.join("\n")}`;
+        console.log(`[health-check] ${text}`);
+        await broadcastAll(text);
+      } else {
+        console.log("[health-check] 定时检查完成，无状态变化");
+      }
+    } catch (err) {
+      console.error(
+        "[health-check] 定时检查失败:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  });
+
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`[gateway] Received ${signal}, shutting down...`);
     heartbeat.stop();
+    healthJob.stop();
     try {
       telegramBot?.stop();
     } catch {}

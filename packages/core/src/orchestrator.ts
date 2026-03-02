@@ -239,6 +239,11 @@ export class SimpleOrchestrator implements Orchestrator {
     this.agentConfig.model = model;
   }
 
+  /** 更新系统提示词（用于健康检查等动态内容刷新） */
+  updateSystemPrompt(prompt: string): void {
+    this.systemPrompt = prompt;
+  }
+
   /**
    * Spawn an independent sub-agent with its own conversation context.
    * The sub-agent shares provider/tools but has isolated history.

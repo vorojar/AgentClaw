@@ -26,6 +26,11 @@ import { execFileSync } from "child_process";
 import { dirname, resolve } from "path";
 import { platform, arch, homedir, tmpdir } from "os";
 import { TaskScheduler } from "./scheduler.js";
+import {
+  runHealthChecks,
+  formatHealthResults,
+  type HealthCheckResult,
+} from "./health-check.js";
 
 export interface AppContext {
   provider: LLMProvider;
@@ -36,6 +41,11 @@ export interface AppContext {
   skillRegistry: SkillRegistryImpl;
   config: AppRuntimeConfig;
   scheduler: TaskScheduler;
+  /**
+   * 重新运行健康检查并更新系统提示词。
+   * 返回变化的检查项（从 ok→fail 或 fail→ok），便于外部决定是否通知。
+   */
+  refreshHealth: () => Promise<HealthCheckResult[]>;
 }
 
 export interface AppRuntimeConfig {
@@ -355,6 +365,22 @@ export async function bootstrap(): Promise<AppContext> {
   );
   let defaultSystemPrompt: string;
 
+  // 启动时运行健康检查，将结果注入系统提示词
+  let healthResults: HealthCheckResult[] = [];
+  try {
+    healthResults = await runHealthChecks();
+    const ok = healthResults.filter((r) => r.ok).length;
+    const fail = healthResults.filter((r) => !r.ok).length;
+    console.log(
+      `[bootstrap] Health check: ${ok} ok, ${fail} failed (${healthResults.length} total)`,
+    );
+  } catch (err) {
+    console.error(
+      "[bootstrap] Health check error:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   if (existsSync(systemPromptPath)) {
     const template = readFileSync(systemPromptPath, "utf-8");
     const datetime = new Date().toLocaleString("zh-CN", {
@@ -387,6 +413,7 @@ export async function bootstrap(): Promise<AppContext> {
       availableCli: availableCli.join(", "),
       isWindows: os === "win32" ? "true" : "",
       hasClaudeCode: availableCli.includes("claude") ? "true" : "",
+      health: formatHealthResults(healthResults),
     };
     // Replace {{var}} placeholders
     defaultSystemPrompt = template.replace(
@@ -441,6 +468,51 @@ export async function bootstrap(): Promise<AppContext> {
     skillsDir,
   };
 
+  // 保存上次健康状态，用于检测变化
+  let lastHealthMap = new Map<string, boolean>();
+  for (const r of healthResults) {
+    lastHealthMap.set(r.name, r.ok);
+  }
+
+  // 构建基准系统提示词（不含 health 部分），用于后续刷新
+  const baseSystemPrompt = defaultSystemPrompt.replace(
+    /\[注意\] 以下服务当前不可用：.*?。涉及这些服务的请求请告知用户。\n?/,
+    "",
+  );
+
+  /**
+   * 重新运行健康检查，更新系统提示词。
+   * 返回状态发生变化的检查项。
+   */
+  const refreshHealth = async (): Promise<HealthCheckResult[]> => {
+    const results = await runHealthChecks();
+    const healthText = formatHealthResults(results);
+
+    // 用基准提示词 + 新的 health 文本重建系统提示词
+    const newPrompt = healthText
+      ? baseSystemPrompt.replace(/^(.*?\n)(## 规则)/ms, `$1${healthText}$2`)
+      : baseSystemPrompt;
+
+    orchestrator.updateSystemPrompt(newPrompt);
+
+    // 检测变化：哪些项状态翻转了
+    const changed: HealthCheckResult[] = [];
+    for (const r of results) {
+      const prev = lastHealthMap.get(r.name);
+      if (prev !== undefined && prev !== r.ok) {
+        changed.push(r);
+      }
+    }
+
+    // 更新缓存
+    lastHealthMap = new Map<string, boolean>();
+    for (const r of results) {
+      lastHealthMap.set(r.name, r.ok);
+    }
+
+    return changed;
+  };
+
   return {
     provider,
     visionProvider,
@@ -450,5 +522,6 @@ export async function bootstrap(): Promise<AppContext> {
     skillRegistry,
     config,
     scheduler,
+    refreshHealth,
   };
 }

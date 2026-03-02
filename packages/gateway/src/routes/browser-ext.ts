@@ -11,6 +11,11 @@ const pendingRequests = new Map<
 
 const REQUEST_TIMEOUT = 30_000;
 
+/** 返回 Chrome 扩展 WebSocket 是否已连接 */
+export function isExtensionConnected(): boolean {
+  return extensionSocket !== null && extensionSocket.readyState === 1;
+}
+
 export function registerBrowserExtension(app: FastifyInstance): void {
   // -----------------------------------------------------------------------
   // WebSocket endpoint for the Chrome extension

@@ -1,5 +1,18 @@
 # 更新日志
 
+## [0.8.22] - 2026-03-02
+
+### 新增
+- **web_search 内置工具**：SearXNG + Serper 搜索直接作为核心工具注册，LLM 无需走 use_skill 即可搜索，省掉一轮调用（~2-3s）
+
+### 改进
+- **Skill description 精确化**：明确 browser/web-fetch/web-search 三者职责边界，避免 LLM 混淆选择
+  - browser：仅用于需要登录态或交互操作（点击/输入/截图）
+  - web-fetch：仅用于需要 JS 渲染的页面（SPA/懒加载）
+  - web-search：标注为备用，优先使用内置 web_search 工具
+- **comfyui Skill**：补充前置条件说明（需 ComfyUI 运行在 localhost:8000）
+- **imap-smtp-email Skill**：列出所需环境变量（IMAP_*/SMTP_*）
+
 ## [0.8.21] - 2026-03-02
 
 ### 新增

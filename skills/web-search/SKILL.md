@@ -1,6 +1,6 @@
 ---
 name: web-search
-description: 搜索互联网信息，查找最新资讯、知识问答 | Search the web for information via SearXNG/Google
+description: 已有内置 web_search 工具，此 Skill 仅作备用 | Built-in web_search tool available, this skill is fallback only
 ---
 
 When the user asks to search the web, use the search script:

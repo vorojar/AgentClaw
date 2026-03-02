@@ -1,6 +1,6 @@
 ---
 name: browser
-description: 控制用户真实浏览器，打开网页、点击元素、输入文字、抓取网页内容、网页截图 | Browser automation via Chrome extension bridge
+description: 需要用户浏览器登录态或交互操作（点击、输入、截图）时使用，纯抓取请用 web_fetch 工具 | Browser automation requiring login state or interaction (click, type, screenshot); use web_fetch tool for plain fetching
 ---
 
 Control the user's real browser (with their logins/cookies) via the AgentClaw Browser Bridge extension.

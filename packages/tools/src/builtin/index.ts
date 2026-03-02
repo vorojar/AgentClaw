@@ -10,6 +10,7 @@ import { useSkillTool } from "./use-skill.js";
 import { claudeCodeTool } from "./claude-code.js";
 import { updateTodoTool } from "./update-todo.js";
 import { webFetchTool } from "./web-fetch.js";
+import { webSearchTool } from "./web-search.js";
 
 // Re-exports for backwards compatibility (other packages may import these)
 export { shellTool, shellInfo } from "./shell.js";
@@ -23,6 +24,7 @@ export { useSkillTool } from "./use-skill.js";
 export { claudeCodeTool } from "./claude-code.js";
 export { updateTodoTool } from "./update-todo.js";
 export { webFetchTool } from "./web-fetch.js";
+export { webSearchTool } from "./web-search.js";
 
 /** Options for configuring which conditional tools to include */
 export interface BuiltinToolsOptions {
@@ -45,6 +47,7 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
     fileWriteTool,
     askUserTool,
     webFetchTool,
+    webSearchTool,
   ];
 
   // Conditional tools — loaded based on configuration

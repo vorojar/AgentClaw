@@ -3,7 +3,7 @@ name: imap-smtp-email
 description: 收发邮件，查看收件箱、搜索邮件、发送带附件的邮件 | Read and send email via IMAP/SMTP with attachment support
 ---
 
-Environment variables are pre-configured. Just run the commands below.
+**需要环境变量**：`IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`。如果缺失会报错。
 
 ## Send email (with optional attachments and CC)
 ```

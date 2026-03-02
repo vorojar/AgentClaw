@@ -1,6 +1,6 @@
 ---
 name: web-fetch
-description: 抓取和读取网页内容，支持 JS 渲染页面 | Fetch and extract text content from web pages with JS rendering support
+description: 仅用于需要 JS 渲染的页面（知乎、SPA、懒加载），普通网页请直接用 web_fetch 工具 | Only for JS-rendered pages (Zhihu, SPA, lazy-load); use web_fetch tool for normal pages
 ---
 
 ## Decision: curl vs Playwright

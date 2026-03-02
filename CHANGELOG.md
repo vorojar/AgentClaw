@@ -2,6 +2,10 @@
 
 ## [0.8.26] - 2026-03-02
 
+### 改进
+- **web_fetch SPA 自动降级增强**：Playwright 降级新增 `--scroll` 重试，SPA 检测阈值从 500→800 chars；x.com/Twitter 等需要滚动加载的页面可在一次 web_fetch 调用内自动完成抓取，省去 use_skill + 多轮 bash 的 3 轮 LLM 开销
+- **上下文膨胀控制**：agent-loop 多轮迭代时，只保留最近 2 条 tool result 完整内容，更早的截断到 500 chars；典型 6 轮任务上下文从 14K→8K tokens
+
 ### 修复
 - **file_write 相对路径修复**：`file_write` 传入相对路径时自动解析到 `data/tmp/{traceId}/` 会话工作目录，而非项目根目录；配合 `sendFile` 自动复制兜底，彻底修复 Web UI `/files/` 下载 404
 - **移除多余的 `data/temp/` 目录**：文件服务统一使用 `data/tmp/`，清理 server/ws/claude-code 中的 temp 引用

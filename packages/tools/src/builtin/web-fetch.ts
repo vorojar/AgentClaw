@@ -140,13 +140,16 @@ export const webFetchTool: Tool = {
         content = htmlToMarkdown(body);
 
         // SPA 自动回退：内容极少但原始 HTML 较大，说明可能是 JS 渲染页面
-        if (content.length < 500 && body.length > 2000) {
-          const playwrightContent = await tryPlaywrightFetch(url, maxLength);
-          if (playwrightContent !== null) {
-            content = playwrightContent;
+        if (content.length < 800 && body.length > 2000) {
+          // 先尝试普通 Playwright，不够再加 --scroll
+          let pwContent = await tryPlaywrightFetch(url, maxLength, false);
+          if (pwContent !== null && pwContent.length < 500) {
+            pwContent = await tryPlaywrightFetch(url, maxLength, true);
+          }
+          if (pwContent !== null && pwContent.length >= 500) {
+            content = pwContent;
             strategy = "playwright";
-          } else {
-            // python/playwright 不可用，保留原有提示
+          } else if (pwContent === null) {
             content +=
               "\n\n[注意] 提取内容极少，该页面可能需要 JS 渲染（SPA/Next.js），建议使用 web-fetch 技能（Playwright）重新抓取。";
           }
@@ -213,30 +216,26 @@ export const webFetchTool: Tool = {
 async function tryPlaywrightFetch(
   url: string,
   maxLength: number,
+  scroll = false,
 ): Promise<string | null> {
-  // fetch.py 相对于 process.cwd()（项目根目录）的路径
   const scriptPath = resolve(process.cwd(), "skills/web-fetch/scripts/fetch.py");
   if (!existsSync(scriptPath)) {
     return null;
   }
 
   try {
-    const { stdout } = await execFileAsync(
-      "python",
-      [scriptPath, "--url", url, "--max-length", String(maxLength)],
-      {
-        timeout: PLAYWRIGHT_TIMEOUT,
-        maxBuffer: PLAYWRIGHT_MAX_BUFFER,
-      },
-    );
+    const args = [scriptPath, "--url", url, "--max-length", String(maxLength)];
+    if (scroll) args.push("--scroll");
+    const { stdout } = await execFileAsync("python", args, {
+      timeout: scroll ? PLAYWRIGHT_TIMEOUT * 2 : PLAYWRIGHT_TIMEOUT,
+      maxBuffer: PLAYWRIGHT_MAX_BUFFER,
+    });
     const result = stdout.trim();
-    // Playwright 脚本自身返回 "Error loading page: ..." 表示加载失败
     if (!result || result.startsWith("Error loading page:")) {
       return null;
     }
     return result;
   } catch {
-    // python 不可用 / playwright 未安装 / 超时 → 静默跳过
     return null;
   }
 }

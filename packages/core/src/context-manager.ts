@@ -117,7 +117,48 @@ export class SimpleContextManager implements ContextManager {
       }
     }
 
-    // ── 3. Assemble ──
+    // ── 3. Truncate old tool results to save context ──
+    // Keep the last 2 tool result messages intact; truncate earlier ones.
+    const TOOL_RESULT_KEEP_RECENT = 2;
+    const TOOL_RESULT_MAX_CHARS = 500;
+    let toolResultCount = 0;
+    // Count tool messages from the end
+    for (let i = historyMessages.length - 1; i >= 0; i--) {
+      if (historyMessages[i].role === "tool") toolResultCount++;
+    }
+    if (toolResultCount > TOOL_RESULT_KEEP_RECENT) {
+      let seen = 0;
+      // Walk from end, skip recent ones, truncate older ones
+      for (let i = historyMessages.length - 1; i >= 0; i--) {
+        if (historyMessages[i].role !== "tool") continue;
+        seen++;
+        if (seen <= TOOL_RESULT_KEEP_RECENT) continue;
+        // Truncate this old tool result
+        const msg = historyMessages[i];
+        if (
+          typeof msg.content === "string" &&
+          msg.content.length > TOOL_RESULT_MAX_CHARS
+        ) {
+          msg.content =
+            msg.content.slice(0, TOOL_RESULT_MAX_CHARS) +
+            `\n... [truncated, ${msg.content.length} chars total]`;
+        } else if (Array.isArray(msg.content)) {
+          for (const block of msg.content as ContentBlock[]) {
+            if (
+              block.type === "tool_result" &&
+              typeof block.content === "string" &&
+              block.content.length > TOOL_RESULT_MAX_CHARS
+            ) {
+              block.content =
+                block.content.slice(0, TOOL_RESULT_MAX_CHARS) +
+                `\n... [truncated, ${block.content.length} chars total]`;
+            }
+          }
+        }
+      }
+    }
+
+    // ── 4. Assemble ──
     const finalPrompt = dynamicSuffix
       ? `${this.systemPrompt}\n\n${dynamicSuffix}`
       : this.systemPrompt;

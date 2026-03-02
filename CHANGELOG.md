@@ -9,6 +9,7 @@
 - **系统提示词优化**：新增规则"web_fetch 返回内容已是 Markdown，直接保存不要改写"+"同一轮输出多个工具调用"
 - **删除 web-fetch 技能**：功能已被内置 web_fetch 工具完全覆盖（SPA 域名列表 + Playwright 自动降级 + scroll 重试），删除 SKILL.md 避免 LLM 绕开内置工具走低效手动流程；保留 scripts/fetch.py 供内置工具调用
 - **Playwright 直接 scroll**：SPA 降级时直接带 `--scroll` 一次抓取，省去"先不 scroll → 内容不够 → 再 scroll"的两次 Playwright 启动开销（典型省 10-15s）
+- **Telegram 流式输出（sendMessageDraft）**：利用 Bot API 9.5 新增的 `sendMessageDraft` 方法，LLM 生成过程中消息在原地实时更新（类似 ChatGPT 网页端），替代之前分段 sendMessage 刷屏的方式；tool_call 状态也实时显示在 draft 中；300ms 节流防止 API 过载；需要官方 Telegram 客户端支持
 
 ### 修复
 - **file_write 相对路径修复**：`file_write` 传入相对路径时自动解析到 `data/tmp/{traceId}/` 会话工作目录，而非项目根目录；配合 `sendFile` 自动复制兜底，彻底修复 Web UI `/files/` 下载 404

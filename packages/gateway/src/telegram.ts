@@ -137,6 +137,9 @@ function splitMessage(text: string, maxLen = 4096): string[] {
   return chunks;
 }
 
+/** Telegram Bot API base URL */
+const TG_API_BASE = "https://api.telegram.org";
+
 /**
  * Start a Telegram bot that forwards messages to the AgentClaw orchestrator.
  * Returns the bot instance for later cleanup.
@@ -146,6 +149,27 @@ export async function startTelegramBot(
   appCtx: AppContext,
 ): Promise<{ stop: () => void; broadcast: (text: string) => Promise<void> }> {
   const bot = new Bot(token);
+
+  /** Call sendMessageDraft (not yet in grammy) via raw HTTP */
+  async function sendMessageDraft(
+    chatId: number,
+    draftId: number,
+    text: string,
+  ): Promise<void> {
+    // Telegram limit: 1-4096 chars; show tail if overflowing
+    if (text.length > 4096) {
+      text = "…" + text.slice(-(4096 - 1));
+    }
+    try {
+      await fetch(`${TG_API_BASE}/bot${token}/sendMessageDraft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, draft_id: draftId, text }),
+      });
+    } catch {
+      // Draft update failed (network etc.), non-critical — ignore
+    }
+  }
 
   // Restore chat targets from database (survive restarts)
   try {
@@ -250,61 +274,53 @@ export async function startTelegramBot(
       );
 
       let accumulatedText = "";
-      let buffer = "";
-      let bufferStartTime = 0;
       let activeSkill = "";
-      const FLUSH_INTERVAL = 3000;
+      // Draft streaming state
+      const draftId = streaming ? (Date.now() % 2147483647) || 1 : 0;
+      let draftPrefix = "";  // tool-call status lines shown above draft
+      let lastDraftTime = 0;
+      const DRAFT_THROTTLE = 300; // ms — avoid flooding Telegram API
 
-      const flushBuffer = async () => {
-        if (!buffer.trim()) return;
-        buffer = stripFileMarkdown(buffer);
-        if (!buffer.trim()) return;
-        const chunks = splitMessage(buffer);
-        for (const chunk of chunks) {
-          await replyFn(chunk);
-        }
-        buffer = "";
-        bufferStartTime = 0;
+      const updateDraft = async (force = false) => {
+        if (!streaming || !draftId) return;
+        const now = Date.now();
+        if (!force && now - lastDraftTime < DRAFT_THROTTLE) return;
+        const displayText = stripFileMarkdown(
+          (draftPrefix ? draftPrefix + "\n\n" : "") + accumulatedText,
+        ).trim();
+        if (!displayText) return;
+        lastDraftTime = now;
+        await sendMessageDraft(chatId, draftId, displayText);
       };
 
       for await (const event of eventStream) {
         switch (event.type) {
           case "tool_call": {
-            if (streaming) await flushBuffer();
             const data = event.data as { name: string; input: Record<string, unknown> };
             if (data.name === "use_skill") {
               activeSkill = (data.input.name as string) || "";
-              await replyFn(`⚙️ use_skill: ${activeSkill}`);
-              break;
-            }
-            let toolLabel: string;
-            if (data.name === "web_search") {
-              toolLabel = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
+              draftPrefix += `⚙️ use_skill: ${activeSkill}\n`;
+            } else if (data.name === "web_search") {
+              draftPrefix += `🔍 ${(data.input as { query?: string }).query ?? "searching"}...\n`;
             } else if (data.name === "bash") {
-              toolLabel = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
+              draftPrefix += activeSkill ? `⚙️ bash: ${activeSkill}\n` : "⚙️ bash\n";
             } else {
-              toolLabel = `⚙️ ${data.name}`;
+              draftPrefix += `⚙️ ${data.name}\n`;
             }
-            await replyFn(toolLabel);
+            if (streaming) await updateDraft(true);
+            else await replyFn(draftPrefix.trim().split("\n").pop()!);
             break;
           }
           case "response_chunk": {
             const data = event.data as { text: string };
             accumulatedText += data.text;
-            if (streaming) {
-              if (!buffer) bufferStartTime = Date.now();
-              buffer += data.text;
-              if (buffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)) {
-                await flushBuffer();
-              }
-            }
+            if (streaming) await updateDraft();
             break;
           }
           case "response_complete": {
             const data = event.data as { message: Message };
             if (!accumulatedText) {
               accumulatedText = extractText(data.message.content);
-              if (streaming) buffer = accumulatedText;
             }
             break;
           }
@@ -313,11 +329,9 @@ export async function startTelegramBot(
 
       clearInterval(typingInterval);
 
-      if (streaming) {
-        await flushBuffer();
-      } else {
-        accumulatedText = stripFileMarkdown(accumulatedText);
-      }
+      // Clear draft by sending empty-ish (Telegram will hide it when final message arrives)
+      // Then send the definitive message
+      accumulatedText = stripFileMarkdown(accumulatedText);
 
       if (!accumulatedText.trim()) {
         await replyFn("(empty response)");
@@ -325,21 +339,19 @@ export async function startTelegramBot(
         return;
       }
 
-      // Non-streaming: send final reply (with optional TTS for voice)
-      if (!streaming) {
-        if (isVoice) {
-          const { textToSpeech } = await import("./tts.js");
-          const ogg = await textToSpeech(accumulatedText);
-          if (ogg) {
-            const { createReadStream } = await import("node:fs");
-            const { InputFile } = await import("grammy");
-            await bot.api.sendVoice(chatId, new InputFile(createReadStream(ogg)));
-          } else {
-            for (const chunk of splitMessage(accumulatedText)) await replyFn(chunk);
-          }
+      // Send final message(s)
+      if (isVoice) {
+        const { textToSpeech } = await import("./tts.js");
+        const ogg = await textToSpeech(accumulatedText);
+        if (ogg) {
+          const { createReadStream } = await import("node:fs");
+          const { InputFile } = await import("grammy");
+          await bot.api.sendVoice(chatId, new InputFile(createReadStream(ogg)));
         } else {
           for (const chunk of splitMessage(accumulatedText)) await replyFn(chunk);
         }
+      } else {
+        for (const chunk of splitMessage(accumulatedText)) await replyFn(chunk);
       }
 
       broadcastSessionActivity(sessionId!);

@@ -155,11 +155,8 @@ export const webFetchTool: Tool = {
         // SPA 自动回退：已知 SPA 域名直接走 Playwright；其他站点内容极少时也降级
         const isSPADomain = SPA_DOMAINS.has(parsedUrl.hostname);
         if (isSPADomain || (content.length < 1500 && body.length > 2000)) {
-          // 先尝试普通 Playwright，不够再加 --scroll
-          let pwContent = await tryPlaywrightFetch(url, maxLength, false);
-          if (pwContent !== null && pwContent.length < 500) {
-            pwContent = await tryPlaywrightFetch(url, maxLength, true);
-          }
+          // 直接带 --scroll 抓取，避免两次 Playwright 启动开销
+          const pwContent = await tryPlaywrightFetch(url, maxLength, true);
           if (pwContent !== null && pwContent.length >= 500) {
             content = pwContent;
             strategy = "playwright";

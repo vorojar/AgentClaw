@@ -8,6 +8,7 @@
 - **上下文膨胀控制**：agent-loop 多轮迭代时，只保留最近 2 条 tool result 完整内容，更早的截断到 500 chars
 - **系统提示词优化**：新增规则"web_fetch 返回内容已是 Markdown，直接保存不要改写"+"同一轮输出多个工具调用"
 - **删除 web-fetch 技能**：功能已被内置 web_fetch 工具完全覆盖（SPA 域名列表 + Playwright 自动降级 + scroll 重试），删除 SKILL.md 避免 LLM 绕开内置工具走低效手动流程；保留 scripts/fetch.py 供内置工具调用
+- **Playwright 直接 scroll**：SPA 降级时直接带 `--scroll` 一次抓取，省去"先不 scroll → 内容不够 → 再 scroll"的两次 Playwright 启动开销（典型省 10-15s）
 
 ### 修复
 - **file_write 相对路径修复**：`file_write` 传入相对路径时自动解析到 `data/tmp/{traceId}/` 会话工作目录，而非项目根目录；配合 `sendFile` 自动复制兜底，彻底修复 Web UI `/files/` 下载 404

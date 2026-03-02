@@ -495,11 +495,11 @@ export async function bootstrap(): Promise<AppContext> {
 
     orchestrator.updateSystemPrompt(newPrompt);
 
-    // 检测变化：哪些项状态翻转了
+    // 只广播新增故障（ok→fail），恢复（fail→ok）静默更新提示词即可
     const changed: HealthCheckResult[] = [];
     for (const r of results) {
       const prev = lastHealthMap.get(r.name);
-      if (prev !== undefined && prev !== r.ok) {
+      if (prev !== undefined && prev !== r.ok && !r.ok) {
         changed.push(r);
       }
     }

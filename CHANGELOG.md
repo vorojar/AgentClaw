@@ -4,6 +4,7 @@
 
 ### 修复
 - **file_write 相对路径修复**：`file_write` 传入相对路径时自动解析到 `data/tmp/{traceId}/` 会话工作目录，而非项目根目录；配合 `sendFile` 自动复制兜底，彻底修复 Web UI `/files/` 下载 404
+- **移除多余的 `data/temp/` 目录**：文件服务统一使用 `data/tmp/`，清理 server/ws/claude-code 中的 temp 引用
 
 ### 改进
 - **Telegram 消息处理去重**：提取 `processAndReply()` 共享管线，text/file/photo 三条处理路径共用会话管理、typing indicator、工具上下文、事件流处理、错误处理逻辑，文件从 752 行精简到 515 行（-31%）

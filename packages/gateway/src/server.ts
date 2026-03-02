@@ -68,13 +68,11 @@ export async function createServer(
   registerWebSocket(app, ctx);
   registerBrowserExtension(app);
 
-  // Serve generated files (images, documents, etc.) from data/tmp/ and data/temp/
+  // Serve generated files (images, documents, etc.) from data/tmp/
   const dataTmpDir = resolve(process.cwd(), "data", "tmp");
-  const dataTempDir = resolve(process.cwd(), "data", "temp");
   mkdirSync(dataTmpDir, { recursive: true });
-  mkdirSync(dataTempDir, { recursive: true });
   await app.register(fastifyStatic, {
-    root: [dataTmpDir, dataTempDir],
+    root: dataTmpDir,
     prefix: "/files/",
     decorateReply: false,
     // Generated files use snowflake IDs — immutable, safe to cache forever.
@@ -82,7 +80,7 @@ export async function createServer(
     maxAge: "7d",
     immutable: true,
   });
-  console.log("[server] Serving generated files from", dataTmpDir, dataTempDir);
+  console.log("[server] Serving generated files from", dataTmpDir);
 
   // Serve Web UI static files (built by @agentclaw/web)
   const __dirname = dirname(fileURLToPath(import.meta.url));

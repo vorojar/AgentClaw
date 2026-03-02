@@ -268,17 +268,14 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           preSelectedSkillName: parsed.skillName || undefined,
           sendFile: async (filePath: string) => {
             const filename = basename(filePath);
-            // Preserve subdirectory path relative to data/tmp for correct static serving
             const tmpDir = resolve(process.cwd(), "data", "tmp");
-            const tempDir = resolve(process.cwd(), "data", "temp");
             const abs = resolve(filePath);
             let relPath = filename;
             if (abs.startsWith(tmpDir)) {
+              // Preserve subdirectory path relative to data/tmp for correct static serving
               relPath = relative(tmpDir, abs).replace(/\\/g, "/");
-            } else if (abs.startsWith(tempDir)) {
-              relPath = relative(tempDir, abs).replace(/\\/g, "/");
             } else {
-              // File is outside served dirs — copy into data/tmp/ so /files/ can serve it
+              // File is outside served dir — copy into data/tmp/ so /files/ can serve it
               mkdirSync(tmpDir, { recursive: true });
               const dest = join(tmpDir, filename);
               try {

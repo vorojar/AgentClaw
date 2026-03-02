@@ -97,10 +97,10 @@ async function runClaudeCode(
         return;
       }
 
-      // Auto-send output files in data/tmp or data/temp to the user
+      // Auto-send output files in data/tmp/ to the user
       const sendFile = context?.sendFile;
       if (sendFile && filesChanged.length > 0) {
-        const outputRe = /[/\\]data[/\\]te?mp[/\\]/i;
+        const outputRe = /[/\\]data[/\\]tmp[/\\]/i;
         for (const f of filesChanged) {
           if (outputRe.test(f)) {
             try {

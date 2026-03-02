@@ -12,7 +12,7 @@ The extension is pre-installed. Just execute the commands below. If a command fa
 shell: node skills/browser/scripts/browser.mjs batch '<JSON array>'
 ```
 
-Each step: `{"action": "open|click|type|screenshot|get_content|wait_for|sleep|close", "args": {...}}`
+Each step: `{"action": "open|click|type|scroll|screenshot|get_content|wait_for|sleep|close", "args": {...}}`
 
 In batch mode, **click/type auto-wait** for the selector to appear (up to 5s), so you don't need explicit wait_for before them.
 
@@ -33,6 +33,12 @@ Step 2 — compose and send reply (use the content from step 1 to craft your rep
 ```
 Note: `querySelector` returns the first match, so `[data-testid=reply]` targets the first tweet's reply button — do NOT use `:first` (jQuery-only, invalid in CSS). Reply modal uses `tweetButton` (not `tweetButtonInline`).
 
+### Example: Scroll and read lazy-loaded content (Zhihu, etc.)
+```
+{"command": "node skills/browser/scripts/browser.mjs batch '[{\"action\":\"open\",\"args\":{\"url\":\"https://zhuanlan.zhihu.com/p/123456\"}},{\"action\":\"scroll\",\"args\":{\"direction\":\"bottom\"}},{\"action\":\"sleep\",\"args\":{\"ms\":1500}},{\"action\":\"get_content\",\"args\":{\"selector\":\"article\"}}]'", "timeout": 30000}
+```
+For very long pages, scroll multiple times with sleep between each scroll to trigger lazy loading.
+
 ### Example: Search Google and get content
 ```
 {"command": "node skills/browser/scripts/browser.mjs batch '[{\"action\":\"open\",\"args\":{\"url\":\"https://www.google.com/search?q=test\"}},{\"action\":\"get_content\",\"args\":{\"selector\":\"#search\"}}]'", "timeout": 20000}
@@ -44,6 +50,7 @@ Note: `querySelector` returns the first match, so `[data-testid=reply]` targets 
 | open | `{"url": "..."}` | Open URL in new tab, wait for load |
 | click | `{"selector": "..."}` | Click element |
 | type | `{"selector": "...", "text": "..."}` | Type text (supports contentEditable) |
+| scroll | `{"direction": "down"}` | Scroll page: down/up/top/bottom, optional `pixels` and `selector` |
 | get_content | `{"selector": "..."}` (optional) | Get page/element text |
 | screenshot | (none) | Capture visible tab |
 | wait_for | `{"selector": "...", "timeout": 5000}` | Wait for element to appear |

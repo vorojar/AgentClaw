@@ -140,11 +140,17 @@ async function handleCommand(action, args) {
       return await cmdClose();
     case "wait_for":
       return await cmdWaitFor(args);
+    case "scroll":
+      return await cmdScroll(args);
     case "sleep":
       await new Promise((r) => setTimeout(r, args.ms || 1000));
       return { slept: args.ms || 1000 };
     case "batch":
       return await cmdBatch(args);
+    case "reload":
+      // Delay reload so the WS response can be sent first
+      setTimeout(() => chrome.runtime.reload(), 200);
+      return { reloading: true };
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -306,6 +312,54 @@ async function cmdGetContent({ selector }) {
     text = text.slice(0, MAX_CONTENT) + "\n\n... [truncated]";
   }
   return { text };
+}
+
+async function cmdScroll({ direction, pixels, selector }) {
+  const tab = await getActiveTab();
+  const dir = direction || "down";
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: (dir, px, sel) => {
+      const el = sel ? document.querySelector(sel) : window;
+      if (sel && !el) throw new Error(`Element not found: ${sel}`);
+      const target = sel ? el : document.documentElement;
+
+      // Calculate scroll amount
+      const viewportH = window.innerHeight;
+      const amount = px || Math.floor(viewportH * 0.85);
+
+      switch (dir) {
+        case "up":
+          (sel ? el : window).scrollBy({ top: -amount, behavior: "smooth" });
+          break;
+        case "down":
+          (sel ? el : window).scrollBy({ top: amount, behavior: "smooth" });
+          break;
+        case "top":
+          (sel ? el : window).scrollTo({ top: 0, behavior: "smooth" });
+          break;
+        case "bottom":
+          (sel ? el : window).scrollTo({
+            top: target.scrollHeight,
+            behavior: "smooth",
+          });
+          break;
+        default:
+          (sel ? el : window).scrollBy({ top: amount, behavior: "smooth" });
+      }
+
+      return {
+        scrollTop: target.scrollTop || window.scrollY,
+        scrollHeight: target.scrollHeight,
+        viewportHeight: viewportH,
+      };
+    },
+    args: [dir, pixels || 0, selector || null],
+  });
+
+  if (results[0]?.error) throw new Error(results[0].error.message);
+  return { scrolled: dir, ...results[0]?.result };
 }
 
 async function cmdClose() {

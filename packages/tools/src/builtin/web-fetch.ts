@@ -2,9 +2,31 @@ import type { Tool, ToolResult } from "@agentclaw/types";
 import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+const execFileAsync = promisify(execFile);
 
 const DEFAULT_MAX_LENGTH = 10_000;
 const FETCH_TIMEOUT = 10_000;
+/** Playwright 子进程超时（毫秒） */
+const PLAYWRIGHT_TIMEOUT = 30_000;
+/** Playwright 子进程最大输出（字节） */
+const PLAYWRIGHT_MAX_BUFFER = 2 * 1024 * 1024;
+
+/** 登录墙关键词——命中任一则提示用户需要登录态 */
+const LOGIN_WALL_KEYWORDS = [
+  "安全验证",
+  "请登录",
+  "登录后",
+  "请先登录",
+  "login required",
+  "sign in to",
+  "please log in",
+  "access denied",
+];
 
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
@@ -103,6 +125,8 @@ export const webFetchTool: Tool = {
       const body = await response.text();
 
       let content: string;
+      // 标记最终采用的抓取策略
+      let strategy: "native" | "playwright" | "login_wall" = "native";
 
       if (contentType.includes("application/json")) {
         // Pretty-print JSON
@@ -114,9 +138,29 @@ export const webFetchTool: Tool = {
         }
       } else if (contentType.includes("text/html")) {
         content = htmlToMarkdown(body);
+
+        // SPA 自动回退：内容极少但原始 HTML 较大，说明可能是 JS 渲染页面
         if (content.length < 500 && body.length > 2000) {
+          const playwrightContent = await tryPlaywrightFetch(url, maxLength);
+          if (playwrightContent !== null) {
+            content = playwrightContent;
+            strategy = "playwright";
+          } else {
+            // python/playwright 不可用，保留原有提示
+            content +=
+              "\n\n[注意] 提取内容极少，该页面可能需要 JS 渲染（SPA/Next.js），建议使用 web-fetch 技能（Playwright）重新抓取。";
+          }
+        }
+
+        // 登录墙检测（对 native 和 playwright 结果都生效）
+        if (
+          LOGIN_WALL_KEYWORDS.some((kw) =>
+            content.toLowerCase().includes(kw.toLowerCase()),
+          )
+        ) {
+          strategy = "login_wall";
           content +=
-            "\n\n[注意] 提取内容极少，该页面可能需要 JS 渲染（SPA/Next.js），建议使用 web-fetch 技能（Playwright）重新抓取。";
+            "\n\n[注意] 此页面需要登录态才能访问完整内容，建议使用 browser 技能（可利用用户的浏览器登录状态）。";
         }
       } else {
         // Plain text or other text formats
@@ -134,6 +178,7 @@ export const webFetchTool: Tool = {
         isError: false,
         metadata: {
           url,
+          strategy,
           status: response.status,
           contentType,
           truncated,
@@ -160,3 +205,38 @@ export const webFetchTool: Tool = {
     }
   },
 };
+
+/**
+ * 尝试调用 Playwright 脚本抓取页面内容。
+ * 如果 python 不在 PATH、fetch.py 不存在、或执行失败，静默返回 null（不影响主流程）。
+ */
+async function tryPlaywrightFetch(
+  url: string,
+  maxLength: number,
+): Promise<string | null> {
+  // fetch.py 相对于 process.cwd()（项目根目录）的路径
+  const scriptPath = resolve(process.cwd(), "skills/web-fetch/scripts/fetch.py");
+  if (!existsSync(scriptPath)) {
+    return null;
+  }
+
+  try {
+    const { stdout } = await execFileAsync(
+      "python",
+      [scriptPath, "--url", url, "--max-length", String(maxLength)],
+      {
+        timeout: PLAYWRIGHT_TIMEOUT,
+        maxBuffer: PLAYWRIGHT_MAX_BUFFER,
+      },
+    );
+    const result = stdout.trim();
+    // Playwright 脚本自身返回 "Error loading page: ..." 表示加载失败
+    if (!result || result.startsWith("Error loading page:")) {
+      return null;
+    }
+    return result;
+  } catch {
+    // python 不可用 / playwright 未安装 / 超时 → 静默跳过
+    return null;
+  }
+}

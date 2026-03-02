@@ -2,6 +2,9 @@
 
 ## [0.8.26] - 2026-03-02
 
+### 修复
+- **send_file 404 修复**：`sendFile` 回调在文件不在 `data/tmp/` 目录下时自动复制过去，修复 Web UI 通过 `/files/` 路由下载外部路径文件时 404 的问题
+
 ### 改进
 - **Telegram 消息处理去重**：提取 `processAndReply()` 共享管线，text/file/photo 三条处理路径共用会话管理、typing indicator、工具上下文、事件流处理、错误处理逻辑，文件从 752 行精简到 515 行（-31%）
 

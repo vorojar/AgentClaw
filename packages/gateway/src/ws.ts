@@ -1,6 +1,12 @@
 import { basename, join, extname, resolve, relative } from "node:path";
 import { readFile } from "node:fs/promises";
-import { existsSync, renameSync, unlinkSync } from "node:fs";
+import {
+  existsSync,
+  renameSync,
+  unlinkSync,
+  copyFileSync,
+  mkdirSync,
+} from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
 import type {
@@ -61,7 +67,11 @@ async function parseUserContent(
             data: buf.toString("base64"),
             mediaType: MIME_MAP[ext] ?? "image/jpeg",
           });
-          try { unlinkSync(filePath); } catch { /* ignore */ }
+          try {
+            unlinkSync(filePath);
+          } catch {
+            /* ignore */
+          }
         } catch {
           /* 跳过不可读文件 */
         }
@@ -267,6 +277,15 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
               relPath = relative(tmpDir, abs).replace(/\\/g, "/");
             } else if (abs.startsWith(tempDir)) {
               relPath = relative(tempDir, abs).replace(/\\/g, "/");
+            } else {
+              // File is outside served dirs — copy into data/tmp/ so /files/ can serve it
+              mkdirSync(tmpDir, { recursive: true });
+              const dest = join(tmpDir, filename);
+              try {
+                copyFileSync(abs, dest);
+              } catch {
+                /* ignore copy errors */
+              }
             }
             const url = `/files/${relPath.split("/").map(encodeURIComponent).join("/")}`;
             if (!sentFiles.some((f) => f.url === url)) {

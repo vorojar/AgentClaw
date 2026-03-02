@@ -59,6 +59,7 @@ interface ToolCallEntry {
   isError?: boolean;
   collapsed: boolean;
   durationMs?: number;
+  progressLines?: string[];
 }
 
 interface DisplayMessage {
@@ -554,6 +555,17 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
           <IconChevronRight size={14} />
         </span>
       </div>
+      {entry.toolResult === undefined &&
+        entry.progressLines &&
+        entry.progressLines.length > 0 && (
+          <div className="tool-progress-lines">
+            {entry.progressLines.map((line, i) => (
+              <div key={i} className="tool-progress-line">
+                {line}
+              </div>
+            ))}
+          </div>
+        )}
       {expanded && (
         <div className="tool-call-body">
           {entry.toolInput && (
@@ -863,6 +875,34 @@ export function ChatPage() {
                   toolResult: msg.toolResult ?? "",
                   isError: false,
                   durationMs: msg.durationMs ?? undefined,
+                };
+                break;
+              }
+            }
+            return [...prev.slice(0, -1), { ...last, toolCalls }];
+          }
+          return prev;
+        });
+        break;
+      }
+      case "tool_progress": {
+        const progressText = msg.text ?? "";
+        if (!progressText) break;
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === "assistant" && last.toolCalls.length > 0) {
+            const toolCalls = [...last.toolCalls];
+            // Append to the last unfinished tool call
+            for (let i = toolCalls.length - 1; i >= 0; i--) {
+              if (toolCalls[i].toolResult === undefined) {
+                const lines = [
+                  ...(toolCalls[i].progressLines ?? []),
+                  progressText,
+                ];
+                // Keep last 20 lines to avoid memory bloat
+                toolCalls[i] = {
+                  ...toolCalls[i],
+                  progressLines: lines.slice(-20),
                 };
                 break;
               }

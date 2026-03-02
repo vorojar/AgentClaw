@@ -302,6 +302,9 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
               safeSend(JSON.stringify({ type: "prompt", question }));
             });
           },
+          notifyUser: async (message: string) => {
+            safeSend(JSON.stringify({ type: "tool_progress", text: message }));
+          },
         };
 
         // Convert uploaded images to multimodal ContentBlock[]

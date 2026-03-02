@@ -11,6 +11,9 @@
 - **Playwright 直接 scroll**：SPA 降级时直接带 `--scroll` 一次抓取，省去"先不 scroll → 内容不够 → 再 scroll"的两次 Playwright 启动开销（典型省 10-15s）
 - **Telegram 流式输出（sendMessageDraft）**：利用 Bot API 9.5 新增的 `sendMessageDraft` 方法，LLM 生成过程中消息在原地实时更新（类似 ChatGPT 网页端），替代之前分段 sendMessage 刷屏的方式；tool_call 状态也实时显示在 draft 中；300ms 节流防止 API 过载；需要官方 Telegram 客户端支持
 
+### 新增
+- **Claude Code 执行过程透明化**：claude_code 工具执行期间，实时推送 Claude Code 的每一步操作（Read/Edit/Bash/Grep 等）到前端和 Telegram；Web UI 的 tool_call 卡片下方显示进度行（最多 20 行，自动滚动）；工具完成后进度行自动隐藏
+
 ### 修复
 - **Telegram 发送文件显示为 DAT**：`InputFile` 构造时未传文件名，Telegram 无法识别扩展名，所有非图片/视频文件显示为"document xxx bytes DAT"。补传 `filename` 参数修复
 

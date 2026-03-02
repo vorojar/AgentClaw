@@ -45,6 +45,8 @@ async function runClaudeCode(
     let toolCallCount = 0;
     const filesChanged: string[] = [];
 
+    const notify = context?.notifyUser;
+
     const rl = createInterface({ input: child.stdout! });
     rl.on("line", (line) => {
       if (!line.trim()) return;
@@ -55,17 +57,36 @@ async function runClaudeCode(
           for (const block of evt.message.content) {
             if (block.type === "tool_use") {
               toolCallCount++;
+              const name = block.name as string;
               if (
-                block.name === "Edit" ||
-                block.name === "Write" ||
-                block.name === "NotebookEdit"
+                name === "Edit" ||
+                name === "Write" ||
+                name === "NotebookEdit"
               ) {
                 const path =
                   block.input?.file_path || block.input?.notebook_path || "";
                 if (path && !filesChanged.includes(path)) {
                   filesChanged.push(path);
                 }
+                notify?.(`✏️ ${name}: ${path}`).catch(() => {});
+              } else if (name === "Read") {
+                notify?.(`📖 Read: ${block.input?.file_path ?? ""}`).catch(
+                  () => {},
+                );
+              } else if (name === "Bash") {
+                const cmd = String(block.input?.command ?? "").slice(0, 80);
+                notify?.(`🔧 Bash: ${cmd}`).catch(() => {});
+              } else if (name === "Grep" || name === "Glob") {
+                notify?.(`🔍 ${name}: ${block.input?.pattern ?? ""}`).catch(
+                  () => {},
+                );
+              } else {
+                notify?.(`⚙️ ${name}`).catch(() => {});
               }
+            } else if (block.type === "text" && block.text) {
+              // Forward first line of assistant thinking as progress
+              const firstLine = block.text.split("\n")[0].slice(0, 120);
+              if (firstLine) notify?.(`💭 ${firstLine}`).catch(() => {});
             }
           }
         } else if (evt.type === "result") {

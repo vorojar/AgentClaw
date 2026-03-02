@@ -420,6 +420,23 @@
   white-space: nowrap;
 }
 
+.tool-progress-lines {
+  padding: 6px 14px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tool-progress-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .tool-call-body {
   padding: 12px 14px;
   font-family: var(--font-mono);

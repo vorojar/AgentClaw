@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \".claude/hooks/check-changelog.ps1\"",
+            "statusMessage": "Checking CHANGELOG..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \".claude/hooks/reload-browser-ext.ps1\"",
+            "statusMessage": "Checking browser extension reload...",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \".claude/hooks/auto-build.ps1\"",
+            "statusMessage": "Auto building...",
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \".claude/hooks/auto-restart-gateway.ps1\"",
+            "statusMessage": "Checking gateway restart...",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

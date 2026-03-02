@@ -1,5 +1,23 @@
 # 更新日志
 
+## [0.8.23] - 2026-03-02
+
+### 新增
+- **Health-check 框架**：gateway 启动时自动检测 5 项服务（Google OAuth / IMAP / SearXNG / Chrome 扩展 / ComfyUI），每小时定时复检，状态变化时通过 Telegram/WhatsApp 通知用户；异常项注入系统提示词，LLM 自动知晓哪些能力不可用
+- **Browser scroll action**：浏览器技能新增 `scroll` 动作（down/up/top/bottom），支持懒加载页面（知乎专栏等）滚动触发内容加载
+- **Browser reload action**：新增 `reload` 命令，支持远程重载 Chrome 扩展
+- **Claude Code 开发 hooks**：
+  - `auto-build.ps1`：编辑 TS 源文件后自动增量构建（30s 防抖）
+  - `check-changelog.ps1`：git commit 前检查 CHANGELOG.md 是否已 staged
+  - `auto-restart-gateway.ps1`：构建完成后自动重启 gateway
+  - `reload-browser-ext.ps1`：编辑扩展文件后自动重载 Chrome 扩展
+
+### 改进
+- **web_fetch 智能瀑布策略**：SPA 页面自动回退 Playwright 渲染（无需 LLM 多轮试错）；登录墙关键词检测（安全验证/请登录等），命中时明确提示使用 browser 技能；metadata 新增 `strategy` 字段标记采用的策略
+- **get_content batch 截断**：浏览器技能 batch 模式下 get_content 输出上限从 500 → 5000 字符，避免内容被截断
+- **orchestrator.updateSystemPrompt()**：支持运行时动态更新系统提示词（health-check 刷新用）
+- **browser-ext.ts 导出 isExtensionConnected()**：供 health-check 检测扩展连接状态
+
 ## [0.8.22] - 2026-03-02
 
 ### 新增

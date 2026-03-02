@@ -34,7 +34,7 @@ async function exec(action, args = {}) {
 async function main() {
   const [,, action, ...rest] = process.argv;
   if (!action) {
-    console.error('Usage: node browser.mjs <open|screenshot|click|type|get_content|close|batch|wait_for|sleep> [args...]');
+    console.error('Usage: node browser.mjs <open|screenshot|click|type|scroll|get_content|close|batch|wait_for|sleep> [args...]');
     process.exit(1);
   }
 
@@ -98,7 +98,9 @@ async function main() {
         } else if (r.action === 'open') {
           detail = `${r.title} | ${r.url}`;
         } else if (r.action === 'get_content') {
-          detail = (r.text || '').slice(0, 500);
+          detail = (r.text || '').slice(0, 5000);
+        } else if (r.action === 'scroll') {
+          detail = `${r.scrolled} | scrollTop: ${r.scrollTop}, scrollHeight: ${r.scrollHeight}`;
         } else if (r.error) {
           detail = r.error;
         }
@@ -120,6 +122,18 @@ async function main() {
       console.log(`Slept ${ms}ms`);
       break;
     }
+    case 'scroll': {
+      const direction = rest[0] || 'down';
+      const pixels = rest[1] ? parseInt(rest[1]) : undefined;
+      const result = await exec('scroll', { direction, pixels });
+      console.log(`Scrolled ${direction} | scrollTop: ${result.scrollTop}, scrollHeight: ${result.scrollHeight}, viewport: ${result.viewportHeight}`);
+      break;
+    }
+    case 'reload': {
+      await exec('reload');
+      console.log('Extension reloading...');
+      break;
+    }
     case 'search': {
       const query = rest.join(' ');
       if (!query) { console.error('Error: search query required'); process.exit(1); }
@@ -129,7 +143,7 @@ async function main() {
       break;
     }
     default:
-      console.error(`Unknown action: ${action}. Use: open, search, screenshot, click, type, get_content, close`);
+      console.error(`Unknown action: ${action}. Use: open, search, screenshot, click, type, scroll, get_content, close`);
       process.exit(1);
   }
 }

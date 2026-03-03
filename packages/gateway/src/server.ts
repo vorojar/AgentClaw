@@ -157,7 +157,15 @@ export async function createServer(
 ${htmlBody}
 </body>
 </html>`;
-    reply.type("text/html; charset=utf-8").send(html);
+    // Bypass Fastify reply chain (including @fastify/compress which
+    // produces content-length:0 with Brotli) by writing directly to raw response.
+    const buf = Buffer.from(html, "utf-8");
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "content-length": buf.length.toString(),
+    });
+    reply.raw.end(buf);
   });
 
   // Serve Web UI static files (built by @agentclaw/web)

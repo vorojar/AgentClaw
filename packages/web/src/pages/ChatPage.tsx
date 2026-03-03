@@ -355,7 +355,7 @@ function HtmlPreviewOverlay({
       ) : (
         <iframe
           src={href}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           className="html-overlay-iframe"
           title="HTML preview"
         />

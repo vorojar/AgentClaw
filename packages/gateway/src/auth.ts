@@ -50,6 +50,7 @@ export function registerAuth(app: FastifyInstance): void {
       url === "/favicon.ico" ||
       url.startsWith("/assets/") ||
       url.startsWith("/files/") ||
+      url.startsWith("/preview/") ||
       url.startsWith("/chat") ||
       url.startsWith("/plans") ||
       url.startsWith("/memory") ||

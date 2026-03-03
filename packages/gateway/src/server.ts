@@ -113,19 +113,7 @@ export async function createServer(
     max-width: 860px; margin: 0 auto; padding: 24px 20px 60px;
     color: #1a1a1a; background: #fff; line-height: 1.7;
   }
-  .toolbar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
-    border-bottom: 1px solid #e5e5e5; padding: 8px 20px;
-    display: flex; justify-content: flex-end; gap: 10px;
-  }
-  .toolbar a {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 16px; border-radius: 6px; font-size: 14px;
-    text-decoration: none; color: #fff; background: #2563eb;
-  }
-  .toolbar a:hover { background: #1d4ed8; }
-  body { padding-top: 56px; }
+  body { padding-top: 12px; }
   h1 { font-size: 1.8em; border-bottom: 2px solid #e5e5e5; padding-bottom: 8px; }
   h2 { font-size: 1.4em; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-top: 2em; }
   h3 { font-size: 1.15em; margin-top: 1.5em; }
@@ -151,9 +139,6 @@ export async function createServer(
 </style>
 </head>
 <body>
-<div class="toolbar">
-  <a href="${downloadUrl}" download>⬇ 下载</a>
-</div>
 ${htmlBody}
 </body>
 </html>`;

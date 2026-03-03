@@ -119,22 +119,7 @@ async function runClaudeCode(
         return;
       }
 
-      // Auto-send output files in data/tmp/ to the user
-      const sendFile = context?.sendFile;
-      if (sendFile && filesChanged.length > 0) {
-        const outputRe = /[/\\]data[/\\]tmp[/\\]/i;
-        for (const f of filesChanged) {
-          if (outputRe.test(f)) {
-            try {
-              await sendFile(f);
-            } catch {
-              /* ignore */
-            }
-          }
-        }
-      }
-
-      // Concise result for the outer LLM to compose a proper response
+      // Concise result for the outer LLM — it decides which files to send_file
       const parts = [`Claude Code completed (${toolCallCount} tool calls).`];
       if (filesChanged.length > 0) {
         parts.push(`Files changed: ${filesChanged.join(", ")}`);

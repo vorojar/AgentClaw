@@ -314,7 +314,7 @@ export async function startTelegramBot(
           case "response_chunk": {
             const data = event.data as { text: string };
             accumulatedText += data.text;
-            if (streaming) await updateDraft();
+            if (streaming) void updateDraft();
             break;
           }
           case "response_complete": {

@@ -237,9 +237,11 @@ function formatUsageStats(msg: DisplayMessage): string | null {
 function HtmlPreviewCard({
   href,
   filename,
+  downloadHref,
 }: {
   href: string;
   filename: string;
+  downloadHref?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -254,6 +256,7 @@ function HtmlPreviewCard({
           <HtmlPreviewOverlay
             href={href}
             filename={filename}
+            downloadHref={downloadHref}
             onClose={() => setOpen(false)}
           />,
           document.body,
@@ -265,10 +268,12 @@ function HtmlPreviewCard({
 function HtmlPreviewOverlay({
   href,
   filename,
+  downloadHref,
   onClose,
 }: {
   href: string;
   filename: string;
+  downloadHref?: string;
   onClose: () => void;
 }) {
   const [needsDevServer, setNeedsDevServer] = useState(false);
@@ -311,6 +316,16 @@ function HtmlPreviewOverlay({
           <IconArrowLeft size={20} />
         </button>
         <span className="html-overlay-title">{filename}</span>
+        {downloadHref && (
+          <a
+            href={downloadHref}
+            download
+            className="html-overlay-btn"
+            title="Download"
+          >
+            <IconDownload size={18} />
+          </a>
+        )}
         <a
           href={href}
           target="_blank"
@@ -398,6 +413,18 @@ const mdComponents = {
     if (href && /\.html?$/i.test(href) && href.startsWith("/files/")) {
       const filename = decodeURIComponent(href.split("/").pop() || "");
       return <HtmlPreviewCard href={href} filename={filename} />;
+    }
+    if (href && /\.md$/i.test(href) && href.startsWith("/files/")) {
+      const filename = decodeURIComponent(href.split("/").pop() || "");
+      // Route through /preview/ for server-side markdown rendering
+      const previewHref = href.replace(/^\/files\//, "/preview/");
+      return (
+        <HtmlPreviewCard
+          href={previewHref}
+          filename={filename}
+          downloadHref={href}
+        />
+      );
     }
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" {...props}>

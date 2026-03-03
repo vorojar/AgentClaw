@@ -12,6 +12,7 @@
 - **Telegram 流式输出（sendMessageDraft）**：利用 Bot API 9.5 新增的 `sendMessageDraft` 方法，LLM 生成过程中消息在原地实时更新（类似 ChatGPT 网页端），替代之前分段 sendMessage 刷屏的方式；tool_call 状态也实时显示在 draft 中；300ms 节流防止 API 过载；需要官方 Telegram 客户端支持
 
 ### 新增
+- **Markdown 文件预览**：新增 `/preview/*` 路由，服务端用 `marked` 将 .md 文件渲染为带样式的 HTML 页面（含下载按钮、代码高亮、暗色模式适配）；Web UI 中 .md 文件链接点击后在 overlay 中渲染预览，体验与 .html 文件一致
 - **Claude Code 执行过程透明化**：claude_code 工具执行期间，实时推送 Claude Code 的每一步操作（Read/Edit/Bash/Grep 等）到前端和 Telegram；Web UI 的 tool_call 卡片下方显示进度行（最多 20 行，自动滚动）；工具完成后进度行自动隐藏
 
 ### 修复

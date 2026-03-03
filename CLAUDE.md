@@ -78,6 +78,17 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / WhatsApp)
 - `WHATSAPP_ENABLED=true` — 启用 WhatsApp bot（QR 码扫码认证）
 - `PORT` / `HOST` — gateway 监听地址（默认 3100 / 0.0.0.0）
 
+## 前端调试规则
+
+- 修改前端代码后，用 Playwright MCP 验证：
+  1. `browser_navigate` 打开相关页面
+  2. `browser_snapshot` 获取页面结构（优先用这个，比截图省 token）
+  3. `browser_console_logs` 检查有无报错
+  4. 如有报错或渲染异常，修复后重新验证，直到无错
+- 需要验证视觉效果时才用 `browser_screenshot`（布局、样式问题）
+- 需要测试交互时用 `browser_click` / `browser_type` 模拟操作
+- 开发服务器地址：http://localhost:5173（dev）或 http://localhost:3100（prod）
+
 ## 开发约定
 
 - 新增工具：在 `packages/tools/src/builtin/` 创建文件，实现 `Tool` 接口，在 `index.ts` 的 `createBuiltinTools()` 中注册

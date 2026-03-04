@@ -40,32 +40,54 @@ export function registerTaskRoutes(
   // POST /api/tasks - Create scheduled task
   app.post<{
     Body: { name: string; cron: string; action: string; enabled: boolean };
-  }>("/api/tasks", async (req, reply) => {
-    try {
-      const { name, cron, action, enabled } = req.body;
+  }>(
+    "/api/tasks",
+    {
+      schema: {
+        // 校验请求体：name/cron/action 必填，enabled 可选（默认 true）
+        body: {
+          type: "object",
+          required: ["name", "cron", "action"],
+          properties: {
+            name: { type: "string", minLength: 1 },
+            cron: { type: "string", minLength: 1 },
+            action: { type: "string", minLength: 1 },
+            enabled: { type: "boolean" },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { name, cron, action, enabled } = req.body;
 
-      if (!name || !cron || !action) {
-        return reply
-          .status(400)
-          .send({ error: "Missing required fields: name, cron, action" });
+        const task = scheduler.create({
+          name,
+          cron,
+          action,
+          enabled: enabled ?? true,
+        });
+        return reply.status(201).send(serializeTask(task));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: message });
       }
-
-      const task = scheduler.create({
-        name,
-        cron,
-        action,
-        enabled: enabled ?? true,
-      });
-      return reply.status(201).send(serializeTask(task));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
-  });
+    },
+  );
 
   // DELETE /api/tasks/:id - Delete scheduled task
   app.delete<{ Params: { id: string } }>(
     "/api/tasks/:id",
+    {
+      schema: {
+        // 校验路径参数：id 不能为空
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string", minLength: 1 } },
+        },
+      },
+    },
     async (req, reply) => {
       try {
         const deleted = scheduler.delete(req.params.id);

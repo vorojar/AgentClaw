@@ -52,6 +52,13 @@ export async function createServer(
   await app.register(websocket);
   await app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024 } });
 
+  // 健康检查端点（无需认证，必须在 auth 之前注册）
+  app.get("/health", async () => ({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  }));
+
   // Register authentication (no-op if API_KEY not set)
   registerAuth(app);
 

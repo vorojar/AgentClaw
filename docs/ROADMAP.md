@@ -64,7 +64,7 @@
 - [x] Re-planning on failure（失败时重新规划：`replan()` 保留已完成步骤，替换剩余步骤）
 
 ### 2.3 Web Tools（Web 工具）✅
-- [x] Web search tool (DuckDuckGo, no API key needed)（网页搜索工具：DuckDuckGo，无需 API key）
+- [x] Web search tool: SearXNG self-hosted (primary, $0) + Serper API (fallback)（网页搜索工具：SearXNG 自托管（主，免费）+ Serper API（备用））
 - [x] Web fetch tool (HTML auto-clean, JSON pretty-print)（网页抓取工具：HTML 自动清洗、JSON 格式化）
 
 ### 2.4 MCP Protocol（MCP 协议）✅
@@ -245,7 +245,8 @@
 
 ### 6.5 Token Optimization（Token 优化）✅
 - [x] 去掉 system prompt 中重复的工具描述（LLM 已通过 `tools` API 参数获取结构化定义）
-- [x] 动态工具筛选：7 个核心工具始终发送，8 组专业工具按用户输入关键词触发，首轮筛选后续迭代全量
+- [x] 工具分层加载：核心工具（6 个）永远加载，条件工具（6 个）按 gateway/memory/skills/claudeCode 配置加载
+- [x] Agent loop 始终发送所有已注册工具（已移除关键词动态筛选，避免误判）
 - [x] 每轮对话节省约 2000 tokens
 
 ### 6.6 Skills Hot-Reload（技能热加载）✅
@@ -397,12 +398,35 @@
 
 ---
 
+## Phase 10: Engineering Quality — "更可靠" (More Reliable)
+
+**Goal**: 工程质量提升 + 开发体验标准化
+
+### 10.1 Code Quality Toolchain（代码质量工具链）✅
+- [x] Biome 代码格式化工具接入（替代 ESLint + Prettier，零配置、极速）
+- [x] GitHub Actions CI 流水线（lint + build + test，PR 自动检查）
+- [x] Vitest 测试框架接入 + 核心路径测试覆盖
+- [x] knip 死代码检测与清理
+
+### 10.2 Testing（测试覆盖扩展）
+- [ ] Providers 流式解析测试（OpenAI/Claude/Gemini 的 stream chunk 解析边界）
+- [ ] 工具执行边界条件测试（超时、权限、错误恢复）
+- [ ] Gateway 路由和 WebSocket 集成测试
+- [ ] Memory 向量检索准确性测试
+
+### 10.3 LLM Embedding 接入
+- [ ] 接入真正的 LLM embedding 模型（替代 SimpleBagOfWords fallback）
+- [ ] 记忆检索质量评估与优化
+
+---
+
 ## Current Focus（当前重点）
 
-**Phase 8 已完成：Artifacts 预览 + Claude Code 集成 + 工具调用可视化 + 移动端优化。**
+**Phase 1-9 已完成。**
 
-Phase 9 进行中：借鉴 Manus，提升 Agent 智能和透明度。
+**Phase 10 进行中**：工程质量提升——Biome/CI/Vitest/knip 已完成，测试覆盖扩展和 LLM Embedding 接入待做。
 
-**Phase 9 已完成：Todo 进度追踪 + KV-Cache 优化 + SearXNG 自托管搜索。**
-
-下一阶段待规划。
+### 待规划方向
+- **权限门控**：敏感操作（rm、格式化）需用户确认
+- **沙箱执行**：Docker 容器隔离替代命令黑名单
+- **更多 IM 网关**：钉钉、飞书

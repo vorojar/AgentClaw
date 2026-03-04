@@ -49,6 +49,17 @@ export function registerMemoryRoutes(
     },
   );
 
+  // POST /api/memories/reindex - Regenerate all embeddings
+  app.post("/api/memories/reindex", async (_req, reply) => {
+    try {
+      const result = await ctx.memoryStore.reindexEmbeddings();
+      return reply.send(result);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(500).send({ error: message });
+    }
+  });
+
   // DELETE /api/memories/:id - Delete memory
   app.delete<{ Params: { id: string } }>(
     "/api/memories/:id",

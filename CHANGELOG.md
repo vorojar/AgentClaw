@@ -1,5 +1,17 @@
 # 更新日志
 
+## [0.8.29] - 2026-03-04
+
+### 新增
+- **OpenAI Compatible Embedding**：`OpenAICompatibleProvider.embed()` 方法，调用标准 `/v1/embeddings` 端点，支持 OpenAI、DeepSeek 等兼容 API。可通过 `OPENAI_EMBEDDING_MODEL` 环境变量或构造参数 `embeddingModel` 配置模型名
+- **Embedding 质量 Benchmark**：`scripts/embedding-benchmark.ts` 对比脚本，评估 Recall@3 和 MRR 指标。实测：SimpleBagOfWords 28%/36% → Volcano doubao-embedding 83%/95%
+
+### 修复
+- **Volcano Embedding 响应解析**：修复 `volcano-embedding.ts` 中 multimodal endpoint 响应格式（`data.embedding` 而非 `data[0].embedding`），doubao-embedding-vision 模型现在正常工作
+
+### 改进
+- **文档同步**：更新 `docs/ARCHITECTURE.md`（修正 SkillRegistry/ContextManager/工具分层/skills schema/部署架构/Web Search 共 6 处过时描述）和 `docs/ROADMAP.md`（修正 Token Optimization 矛盾描述，补充 Phase 10 工程质量章节，更新 Current Focus）
+
 ## [0.8.28] - 2026-03-04
 
 ### 新增

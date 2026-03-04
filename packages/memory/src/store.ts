@@ -468,6 +468,25 @@ export class SQLiteMemoryStore implements MemoryStore {
       .run(platform, targetId);
   }
 
+  // ─── Reindex ──────────────────────────────────────────────────
+
+  /** Regenerate embeddings for all memories using the current embedFn */
+  async reindexEmbeddings(): Promise<{ total: number; updated: number }> {
+    const rows = this.db
+      .prepare("SELECT id, content FROM memories")
+      .all() as Array<{ id: string; content: string }>;
+
+    let updated = 0;
+    for (const row of rows) {
+      const embedding = await this.generateEmbedding(row.content);
+      this.db
+        .prepare("UPDATE memories SET embedding = ? WHERE id = ?")
+        .run(Buffer.from(new Float64Array(embedding).buffer), row.id);
+      updated++;
+    }
+    return { total: rows.length, updated };
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────
 
   /** Generate embedding for text — uses LLM embed if available, else bag-of-words */

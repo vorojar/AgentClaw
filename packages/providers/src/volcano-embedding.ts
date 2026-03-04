@@ -15,11 +15,12 @@ export interface VolcanoEmbeddingOptions {
   baseURL?: string;
 }
 
+/** Multimodal endpoint returns a single embedding object (not an array) */
 interface EmbeddingResponse {
-  object: string;
-  data: Array<{ object: string; embedding: number[]; index: number }>;
-  model: string;
-  usage: { prompt_tokens: number; total_tokens: number };
+  created: number;
+  data: { embedding: number[] };
+  model?: string;
+  usage?: { prompt_tokens: number; total_tokens: number };
 }
 
 export class VolcanoEmbedding {
@@ -67,6 +68,6 @@ export class VolcanoEmbedding {
     }
 
     const json = (await res.json()) as EmbeddingResponse;
-    return json.data[0].embedding;
+    return json.data.embedding;
   }
 }

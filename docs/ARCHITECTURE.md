@@ -144,9 +144,9 @@ The brain of the system:（系统的大脑：）
 
 - **AgentLoop**: The think-act-observe cycle with automatic retry.（思考-行动-观察循环，带自动重试。）Receives user input, manages the conversation loop with the LLM, handles tool calls with exponential backoff retry for network tools (comfyui/http_request/web_search/web_fetch), and produces final responses.（接收用户输入，管理与 LLM 的对话循环，网络类工具失败自动重试（指数退避），生成最终回复。）
 - **Planner** ✅: Decomposes complex tasks into executable plans with steps and dependencies via LLM.（通过 LLM 将复杂任务分解为带有步骤和依赖关系的可执行计划。）Exposed as built-in `plan_task` tool so the LLM can invoke it autonomously.（作为内置 `plan_task` 工具暴露，LLM 可自主调用。）Executes steps through AgentLoop, monitors progress, and re-plans on failure.（通过 AgentLoop 执行步骤，监控进度，失败时自动重规划。）
-- **ContextManager**: Builds the optimal context window for each LLM call by combining system prompts, conversation history, memory retrieval results, and **matched skill instructions**.（通过组合系统提示、对话历史、记忆检索结果和**匹配的技能指令**，为每次 LLM 调用构建最优上下文窗口。）Skills are dynamically matched against user input and injected when confidence > 0.3.（技能根据用户输入动态匹配，confidence > 0.3 时注入。）
+- **ContextManager**: Builds the optimal context window for each LLM call by combining system prompts, conversation history, memory retrieval results, and **skill catalog**.（通过组合系统提示、对话历史、记忆检索结果和**技能目录**，为每次 LLM 调用构建最优上下文窗口。）Supports `reuseContext` to skip redundant memory/skill lookups across agent loop iterations. When `preSelectedSkillName` is set (via `use_skill` tool), injects the full skill instructions.（支持 `reuseContext` 跳过 agent loop 多轮迭代中的重复查询。当 `preSelectedSkillName` 被设置（通过 `use_skill` 工具）时，注入完整技能指令。）
 - **Orchestrator**: Top-level coordinator.（顶层协调器。）Manages sessions, injects skill/planner/scheduler into tool execution context, handles lifecycle.（管理会话，将 skill/planner/scheduler 注入工具执行上下文，处理生命周期。）
-- **SkillRegistry** ✅: Loads skills from SKILL.md files (YAML frontmatter + natural language instructions).（从 SKILL.md 文件加载技能：YAML 元数据 + 自然语言指令。）Matches user input via keyword/intent triggers and injects instructions into system prompt.（通过关键词/意图触发器匹配用户输入，并将指令注入系统提示词。）
+- **SkillRegistry** ✅: Loads skills from SKILL.md files (YAML frontmatter + natural language instructions).（从 SKILL.md 文件加载技能：YAML 元数据 + 自然语言指令。）Injects a lightweight skill catalog (~100 tokens: name + description) into system prompt; LLM autonomously decides whether to call `use_skill(name)` tool to activate a skill.（在系统提示词中注入轻量技能目录（~100 token：name + description），由 LLM 自主判断是否调用 `use_skill(name)` 工具激活技能。）
 - **MemoryExtractor** ✅: Uses LLM to extract long-term memories (facts, preferences, entities, episodic) from conversations.（使用 LLM 从对话中提取长期记忆：事实、偏好、实体、情景。）Runs periodically every 5 turns.（每 5 轮对话自动运行。）
 
 ### packages/providers（模型提供商包）
@@ -161,10 +161,15 @@ LLM abstraction layer with 3 adapters covering 8+ providers:（LLM 抽象层，3
 
 ### packages/tools（工具包）
 
-Tool system with three tiers:（三层工具系统：）
+Layered tool system with core + conditional loading:（分层工具系统，核心 + 条件加载：）
 
-- **Built-in** ✅: shell, file-read, file-write, web-search (Serper API), web-fetch, ask-user, remember, set-reminder, schedule, send-file, python, http-request, browser, comfyui, plan-task, create-skill, google-calendar, google-tasks（内置工具：命令行、文件读写、网页搜索（Serper API，Google 搜索结果的结构化 JSON）、网页抓取、询问用户、记忆、提醒、定时任务、发送文件、Python 执行、HTTP 请求、浏览器、ComfyUI 图片处理、任务规划、创建技能、Google 日历、Google 任务）。Google Calendar 和 Google Tasks 工具通过 OAuth2 + REST API 直接访问用户日历和任务，需配置 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` 环境变量。web-search 使用 Serper API（Google 搜索结果的结构化 JSON），需配置 `SERPER_API_KEY`。
-- **External**: claude-code, codex — future（外部工具：Claude Code、Codex——未来计划）
+- **Core tools (6, always loaded)（核心工具，6 个，永远加载）**: shell, file_read, file_write, ask_user, web_fetch, web_search
+- **Conditional tools (6, config-driven)（条件工具，6 个，按配置加载）**:
+  - `gateway: true` → send_file, schedule, update_todo
+  - `memory: true` → remember
+  - `skills: true` → use_skill
+  - `claudeCode: true` → claude_code
+- **Skill-based tools（技能工具）**: Skills in `skills/` directory provide instructions for using tools like python, browser, comfyui, http_request, google_calendar, google_tasks etc. Activated via `use_skill(name)`.（`skills/` 目录下的技能提供工具使用指令，通过 `use_skill(name)` 激活。）
 - **MCP** ✅: MCPClient (stdio + HTTP transport) + MCPManager for multi-server connections.（MCP 协议：MCPClient 支持 stdio + HTTP 传输 + MCPManager 管理多服务器连接。）Auto-discovers tools from MCP servers and adapts them to AgentClaw Tool interface.（自动从 MCP 服务器发现工具并适配为 AgentClaw Tool 接口。）
 
 Each tool implements a standard interface: `{ name, description, parameters, execute() }`.（每个工具实现标准接口：`{ name, description, parameters, execute() }`。）
@@ -297,19 +302,29 @@ CREATE TABLE plans (
 );
 ```
 
-### skills（技能表）
+### skills（技能——文件系统存储）
 
-```sql
-CREATE TABLE skills (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
-  path TEXT NOT NULL,
-  triggers TEXT NOT NULL, -- JSON array of trigger patterns（触发模式的 JSON 数组）
-  enabled INTEGER NOT NULL DEFAULT 1,
-  last_used_at TEXT,
-  use_count INTEGER NOT NULL DEFAULT 0
-);
+Skills are **not stored in SQLite**. They live as `skills/*/SKILL.md` files and are loaded dynamically by `SkillRegistry` at startup with hot-reload via `fs.watch`.（技能不存储在数据库中，以 `skills/*/SKILL.md` 文件形式存在，由 `SkillRegistry` 启动时加载，`fs.watch` 热加载。）
+
+## Deployment（部署）
+
+### Docker（容器化部署）
+
+Multi-stage Dockerfile + docker-compose with 3 services:（多阶段 Dockerfile + docker-compose 三服务编排：）
+
 ```
+docker-compose.yml
+├── agentclaw        # Main service (node:20-slim, includes ffmpeg/git/curl/python3/Deno)
+│                    #（主服务，运行时含 ffmpeg/git/curl/python3/Deno）
+├── searxng          # Self-hosted meta search engine (replaces Serper API, $0 cost)
+│                    #（自托管元搜索引擎，替代 Serper API，零成本）
+└── redis (valkey)   # Cache + rate limiting for SearXNG
+                     #（SearXNG 的缓存和限流）
+```
+
+- `docker compose up` one-command deployment（一键启动）
+- `./data` and `./skills` mounted as volumes for persistence（数据和技能目录挂载为 volume）
+- `.env` file for all configuration（所有配置通过 .env 文件注入）
 
 ## Design Principles（设计原则）
 

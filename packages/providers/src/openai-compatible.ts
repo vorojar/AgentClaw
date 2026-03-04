@@ -21,6 +21,8 @@ export interface OpenAICompatibleOptions {
   providerName?: string;
   /** Pre-defined models list; if omitted a sensible default is used */
   models?: ModelInfo[];
+  /** Embedding model to use (default: text-embedding-3-small). Set to "" to disable embed(). */
+  embeddingModel?: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
   private client: OpenAI;
   private defaultModel: string;
+  private embeddingModel: string;
 
   constructor(options: OpenAICompatibleOptions = {}) {
     super();
@@ -41,6 +44,10 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       apiKey: options.apiKey ?? "",
       baseURL: options.baseURL,
     });
+    this.embeddingModel =
+      options.embeddingModel ??
+      process.env.OPENAI_EMBEDDING_MODEL ??
+      "text-embedding-3-small";
     this.models = options.models ?? [
       {
         id: "gpt-4o",
@@ -216,6 +223,22 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       model,
       stopReason: this.mapFinishReason(finishReason),
     };
+  }
+
+  // ---- Embedding ----
+
+  async embed(texts: string[]): Promise<number[][]> {
+    if (!this.embeddingModel) {
+      throw new Error("Embedding model not configured");
+    }
+    const response = await this.client.embeddings.create({
+      model: this.embeddingModel,
+      input: texts,
+    });
+    // Sort by index to ensure correct ordering
+    return response.data
+      .sort((a, b) => a.index - b.index)
+      .map((d) => d.embedding);
   }
 
   // ---- Internal conversion helpers ----

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@babel/standalone": "^7.29.1",
+    "@sentry/react": "^10.42.0",
     "mermaid": "^11.12.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

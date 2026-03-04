@@ -28,6 +28,7 @@
     "@fastify/multipart": "^9.4.0",
     "@fastify/static": "^9.0.0",
     "@fastify/websocket": "^11.2.0",
+    "@sentry/node": "^10.42.0",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "croner": "^10.0.1",
     "dotenv": "^17.3.1",

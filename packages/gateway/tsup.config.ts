@@ -21,5 +21,6 @@ export default defineConfig({
     "dotenv",
     "mammoth",
     "xlsx",
+    "@sentry/node",
   ],
 });

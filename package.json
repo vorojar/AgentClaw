@@ -12,13 +12,16 @@
     "typecheck": "turbo typecheck",
     "clean": "turbo clean",
     "lint": "turbo lint",
-    "knip": "knip"
+    "knip": "knip",
+    "test": "turbo test",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
     "knip": "^5.85.0",
     "turbo": "^2.4.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

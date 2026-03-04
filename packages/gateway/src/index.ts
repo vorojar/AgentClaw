@@ -157,9 +157,17 @@ async function main(): Promise<void> {
     }
   });
 
-  // Graceful shutdown
+  // 优雅关停
   const shutdown = async (signal: string) => {
-    console.log(`[gateway] Received ${signal}, shutting down...`);
+    console.log(`[shutdown] Received ${signal}, closing gracefully...`);
+
+    // 超时保护：10 秒后强制退出
+    const forceExit = setTimeout(() => {
+      console.error("[shutdown] Force exit after timeout");
+      process.exit(1);
+    }, 10_000);
+    forceExit.unref(); // 不阻止进程自然退出
+
     heartbeat.stop();
     healthJob.stop();
     try {
@@ -169,7 +177,13 @@ async function main(): Promise<void> {
       whatsappBot?.stop();
     } catch {}
     ctx.scheduler.stopAll();
-    await app.close();
+
+    try {
+      await app.close();
+      console.log("[shutdown] Server closed");
+    } catch (err) {
+      console.error("[shutdown] Error during close:", err);
+    }
     process.exit(0);
   };
 

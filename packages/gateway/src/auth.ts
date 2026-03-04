@@ -47,6 +47,7 @@ export function registerAuth(app: FastifyInstance): void {
     // Allow static assets, SPA shell, and generated files without auth
     if (
       url === "/" ||
+      url === "/health" ||
       url === "/favicon.ico" ||
       url.startsWith("/assets/") ||
       url.startsWith("/files/") ||

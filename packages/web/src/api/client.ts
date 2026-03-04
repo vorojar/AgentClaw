@@ -101,16 +101,6 @@ export interface ChatMessage {
   toolResults?: string;
 }
 
-export function sendMessage(
-  sessionId: string,
-  content: string,
-): Promise<{ message: ChatMessage }> {
-  return request(`/sessions/${sessionId}/chat`, {
-    method: "POST",
-    body: JSON.stringify({ content }),
-  });
-}
-
 export function getHistory(
   sessionId: string,
   limit?: number,
@@ -257,15 +247,6 @@ export function getConfig(): Promise<AppConfigInfo> {
   return request("/config");
 }
 
-export function updateConfig(
-  updates: Partial<AppConfigInfo>,
-): Promise<AppConfigInfo> {
-  return request("/config", {
-    method: "PUT",
-    body: JSON.stringify(updates),
-  });
-}
-
 // ── Token Logs ─────────────────────────────────────
 
 export interface TokenLogEntry {
@@ -278,7 +259,7 @@ export interface TokenLogEntry {
   createdAt: string;
 }
 
-export interface TokenLogsResponse {
+interface TokenLogsResponse {
   items: TokenLogEntry[];
   total: number;
 }
@@ -319,17 +300,13 @@ export interface TraceInfo {
   createdAt: string;
 }
 
-export interface TracesResponse {
+interface TracesResponse {
   items: TraceInfo[];
   total: number;
 }
 
 export function getTraces(limit = 20, offset = 0): Promise<TracesResponse> {
   return request(`/traces?limit=${limit}&offset=${offset}`);
-}
-
-export function getTrace(id: string): Promise<TraceInfo> {
-  return request(`/traces/${id}`);
 }
 
 // ── Scheduled Tasks ─────────────────────────────────

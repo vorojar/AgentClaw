@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "workspaces": {
+    "packages/types": {},
+    "packages/providers": {},
+    "packages/tools": {},
+    "packages/memory": {},
+    "packages/core": {},
+    "packages/gateway": {},
+    "packages/cli": {},
+    "packages/web": {
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignore": ["skills/**", "scripts/**"]
+}

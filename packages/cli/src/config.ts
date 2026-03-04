@@ -5,7 +5,7 @@ import {
   GeminiProvider,
 } from "@agentclaw/providers";
 
-export interface CLIConfig {
+interface CLIConfig {
   provider: string;
   model?: string;
   databasePath: string;

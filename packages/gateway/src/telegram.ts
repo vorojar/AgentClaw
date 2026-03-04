@@ -1,4 +1,5 @@
 import { Bot } from "grammy";
+import * as Sentry from "@sentry/node";
 import type { AppContext } from "./bootstrap.js";
 import type {
   Message,
@@ -357,6 +358,7 @@ export async function startTelegramBot(
       broadcastSessionActivity(sessionId!);
     } catch (err) {
       clearInterval(typingInterval);
+      Sentry.captureException(err);
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`[telegram] Error processing ${label}:`, errMsg);
       if (errMsg.includes("Session not found")) {
@@ -503,6 +505,7 @@ export async function startTelegramBot(
 
   // ── Error handler ───────────────────────────────
   bot.catch((err) => {
+    Sentry.captureException(err.error ?? err);
     console.error("[telegram] Bot error:", err.message);
   });
 

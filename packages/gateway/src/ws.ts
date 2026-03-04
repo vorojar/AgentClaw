@@ -14,6 +14,7 @@ import type {
   Message,
   ToolExecutionContext,
 } from "@agentclaw/types";
+import * as Sentry from "@sentry/node";
 
 const IMAGE_EXTS = new Set([
   ".jpg",
@@ -406,6 +407,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
 
         safeSend(JSON.stringify({ type: "done", ...usageStats }));
       } catch (err: unknown) {
+        Sentry.captureException(err);
         const message = err instanceof Error ? err.message : String(err);
         safeSend(JSON.stringify({ type: "error", error: message }));
         safeSend(JSON.stringify({ type: "done" }));

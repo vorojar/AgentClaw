@@ -22,6 +22,7 @@ import { registerBrowserExtension } from "./routes/browser-ext.js";
 import { registerUploadRoutes } from "./routes/upload.js";
 import { registerPreviewRoutes } from "./routes/preview.js";
 import { registerAuth } from "./auth.js";
+import * as Sentry from "@sentry/node";
 
 export interface ServerOptions {
   ctx: AppContext;
@@ -121,6 +122,16 @@ export async function createServer(
 
     console.log("[server] Serving Web UI from", webDistDir);
   }
+
+  // Sentry：捕获 Fastify 未处理的路由错误
+  app.setErrorHandler(
+    (error: Error & { statusCode?: number }, _request, reply) => {
+      Sentry.captureException(error);
+      reply.status(error.statusCode ?? 500).send({
+        error: error.message || "Internal Server Error",
+      });
+    },
+  );
 
   return app;
 }

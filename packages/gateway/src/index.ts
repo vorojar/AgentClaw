@@ -1,3 +1,14 @@
+import * as Sentry from "@sentry/node";
+
+// Sentry 错误监控：仅在配置了 DSN 时初始化，否则零开销
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "production",
+    tracesSampleRate: 0.2,
+  });
+}
+
 import "dotenv/config";
 import { Cron } from "croner";
 import { bootstrap } from "./bootstrap.js";
@@ -36,6 +47,7 @@ async function main(): Promise<void> {
     await app.listen({ port, host });
     console.log(`[gateway] Server listening on http://${host}:${port}`);
   } catch (err) {
+    Sentry.captureException(err);
     console.error("[gateway] Failed to start server:", err);
     process.exit(1);
   }
@@ -113,6 +125,7 @@ async function main(): Promise<void> {
 
       await broadcastAll(text);
     } catch (err) {
+      Sentry.captureException(err);
       const msg = `❌ 定时任务「${task.name}」执行失败: ${err instanceof Error ? err.message : String(err)}`;
       console.error("[scheduler]", msg);
       await broadcastAll(msg);
@@ -178,6 +191,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
+  Sentry.captureException(err);
   console.error("[gateway] Fatal error:", err);
   process.exit(1);
 });

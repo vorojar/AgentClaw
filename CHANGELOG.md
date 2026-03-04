@@ -1,5 +1,16 @@
 # 更新日志
 
+## [0.8.28] - 2026-03-04
+
+### 新增
+- **Vitest 测试框架**：安装 vitest 4.x，配置 turbo test 任务。core 包 29 测试（agent-loop + orchestrator），providers 包 16 测试（openai-compatible 流式/非流式/工具调用），共 45 个测试全部通过
+- **Sentry 错误监控**：gateway 端 `@sentry/node` 条件初始化（SENTRY_DSN），Fastify 全局错误处理器 + WS/Telegram/定时任务关键 catch 点。web 端 `@sentry/react` ErrorBoundary（VITE_SENTRY_DSN）。未配置 DSN 时零开销
+- **API 路由输入校验**：所有 13 个 REST API 端点添加 Fastify 原生 JSON Schema 校验（params、body、querystring），替代手动 if 校验
+- **Gateway 优雅关停**：SIGTERM/SIGINT 信号处理 + 10s 超时强制退出；新增 `/health` 健康检查端点（无需认证）
+
+### 改进
+- **knip 死代码清理**：删除 5 个未引用文件（create-skill.ts, ModelSelector, SearchDialog），移除 3 个未使用 API 函数，9 个 export 降级为内部 interface，移除 root package.json 冗余依赖。knip 零报告通过
+
 ## [0.8.27] - 2026-03-04
 
 ### 新增

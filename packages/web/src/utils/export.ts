@@ -1,4 +1,4 @@
-export interface ExportMessage {
+interface ExportMessage {
   role: string;
   content: string;
   createdAt?: string;

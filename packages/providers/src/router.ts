@@ -26,7 +26,7 @@ interface TierRoute {
 }
 
 /** Per-model accumulated usage statistics. */
-export interface ModelUsageStats {
+interface ModelUsageStats {
   provider: string;
   model: string;
   totalInputTokens: number;
@@ -36,7 +36,7 @@ export interface ModelUsageStats {
 }
 
 /** Aggregated usage statistics returned by `getUsageStats()`. */
-export interface UsageStats {
+interface UsageStats {
   byModel: ModelUsageStats[];
   totalInputTokens: number;
   totalOutputTokens: number;
@@ -45,7 +45,7 @@ export interface UsageStats {
 }
 
 /** Result of `routeWithFallback` — an ordered list of candidates. */
-export interface RouteCandidate {
+interface RouteCandidate {
   provider: LLMProvider;
   model: string;
 }

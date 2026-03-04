@@ -19,8 +19,7 @@
   "dependencies": {
     "@agentclaw/types": "workspace:*",
     "@agentclaw/providers": "workspace:*",
-    "@agentclaw/tools": "workspace:*",
-    "@agentclaw/memory": "workspace:*"
+    "@agentclaw/tools": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.4.0",

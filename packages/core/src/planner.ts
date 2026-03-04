@@ -10,7 +10,7 @@ import type {
 import { generateId } from "@agentclaw/providers";
 
 /** Options for constructing a SimplePlanner */
-export interface SimplePlannerOptions {
+interface SimplePlannerOptions {
   /** LLM provider used to decompose goals into steps and replan */
   provider: LLMProvider;
   /** Factory that creates an AgentLoop bound to a conversation */

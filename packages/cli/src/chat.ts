@@ -14,7 +14,7 @@ import {
 } from "@agentclaw/tools";
 import { initDatabase, SQLiteMemoryStore } from "@agentclaw/memory";
 
-export interface ChatOptions {
+interface ChatOptions {
   provider: LLMProvider;
   model?: string;
   databasePath: string;

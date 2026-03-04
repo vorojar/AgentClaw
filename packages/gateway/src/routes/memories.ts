@@ -9,6 +9,19 @@ export function registerMemoryRoutes(
   // GET /api/memories - Search memories
   app.get<{ Querystring: { q?: string; type?: string; limit?: string } }>(
     "/api/memories",
+    {
+      schema: {
+        // 校验查询参数：q/type/limit 均可选
+        querystring: {
+          type: "object",
+          properties: {
+            q: { type: "string" },
+            type: { type: "string" },
+            limit: { type: "string", pattern: "^[0-9]+$" },
+          },
+        },
+      },
+    },
     async (req, reply) => {
       try {
         const { q, type, limit } = req.query;
@@ -39,6 +52,16 @@ export function registerMemoryRoutes(
   // DELETE /api/memories/:id - Delete memory
   app.delete<{ Params: { id: string } }>(
     "/api/memories/:id",
+    {
+      schema: {
+        // 校验路径参数：id 不能为空
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string", minLength: 1 } },
+        },
+      },
+    },
     async (req, reply) => {
       try {
         await ctx.memoryStore.delete(req.params.id);

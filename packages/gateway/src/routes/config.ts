@@ -50,23 +50,38 @@ export function registerConfigRoutes(
     Body: {
       model?: string;
     };
-  }>("/api/config", async (req, reply) => {
-    try {
-      const updates = req.body;
-      if (updates.model !== undefined) {
-        ctx.config.model = updates.model;
-        (ctx.orchestrator as any).setModel(updates.model);
-      }
+  }>(
+    "/api/config",
+    {
+      schema: {
+        // 校验请求体：model 可选，字符串类型
+        body: {
+          type: "object",
+          properties: {
+            model: { type: "string", minLength: 1 },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const updates = req.body;
+        if (updates.model !== undefined) {
+          ctx.config.model = updates.model;
+          (ctx.orchestrator as any).setModel(updates.model);
+        }
 
-      return reply.send({
-        provider: ctx.config.provider,
-        model: ctx.config.model,
-        databasePath: ctx.config.databasePath,
-        skillsDir: ctx.config.skillsDir,
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
-  });
+        return reply.send({
+          provider: ctx.config.provider,
+          model: ctx.config.model,
+          databasePath: ctx.config.databasePath,
+          skillsDir: ctx.config.skillsDir,
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
 }

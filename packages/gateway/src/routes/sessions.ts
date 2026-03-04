@@ -74,6 +74,16 @@ export function registerSessionRoutes(
   // DELETE /api/sessions/:id - Close session
   app.delete<{ Params: { id: string } }>(
     "/api/sessions/:id",
+    {
+      schema: {
+        // 校验路径参数：id 不能为空
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string", minLength: 1 } },
+        },
+      },
+    },
     async (req, reply) => {
       try {
         await ctx.orchestrator.closeSession(req.params.id);
@@ -88,6 +98,24 @@ export function registerSessionRoutes(
   // PATCH /api/sessions/:id - Rename session
   app.patch<{ Params: { id: string }; Body: { title: string } }>(
     "/api/sessions/:id",
+    {
+      schema: {
+        // 校验路径参数：id 不能为空
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string", minLength: 1 } },
+        },
+        // 校验请求体：title 必填，至少 1 个字符
+        body: {
+          type: "object",
+          required: ["title"],
+          properties: {
+            title: { type: "string", minLength: 1 },
+          },
+        },
+      },
+    },
     async (req, reply) => {
       try {
         const session = await ctx.orchestrator.getSession(req.params.id);
@@ -95,9 +123,6 @@ export function registerSessionRoutes(
           return reply.status(404).send({ error: "Session not found" });
         }
         const { title } = req.body;
-        if (typeof title !== "string") {
-          return reply.status(400).send({ error: "Missing title" });
-        }
         await ctx.memoryStore.saveSession({ ...session, title });
         return reply.send(serializeSession({ ...session, title }));
       } catch (err: unknown) {
@@ -110,16 +135,28 @@ export function registerSessionRoutes(
   // POST /api/sessions/:id/chat - Send message
   app.post<{ Params: { id: string }; Body: { content: string } }>(
     "/api/sessions/:id/chat",
+    {
+      schema: {
+        // 校验路径参数：id 不能为空
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string", minLength: 1 } },
+        },
+        // 校验请求体：content 必填，至少 1 个字符
+        body: {
+          type: "object",
+          required: ["content"],
+          properties: {
+            content: { type: "string", minLength: 1 },
+          },
+        },
+      },
+    },
     async (req, reply) => {
       try {
         const { id } = req.params;
         const { content } = req.body;
-
-        if (!content) {
-          return reply
-            .status(400)
-            .send({ error: "Missing content in request body" });
-        }
 
         const session = await ctx.orchestrator.getSession(id);
         if (!session) {
@@ -165,6 +202,23 @@ export function registerSessionRoutes(
   // GET /api/sessions/:id/history - Get conversation history
   app.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
     "/api/sessions/:id/history",
+    {
+      schema: {
+        // 校验路径参数：id 不能为空
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string", minLength: 1 } },
+        },
+        // 校验查询参数：limit 可选，数字字符串
+        querystring: {
+          type: "object",
+          properties: {
+            limit: { type: "string", pattern: "^[0-9]+$" },
+          },
+        },
+      },
+    },
     async (req, reply) => {
       try {
         const { id } = req.params;

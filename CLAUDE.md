@@ -87,7 +87,7 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / WhatsApp)
   4. 如有报错或渲染异常，修复后重新验证，直到无错
 - 需要验证视觉效果时才用 `browser_screenshot`（布局、样式问题）
 - 需要测试交互时用 `browser_click` / `browser_type` 模拟操作
-- 开发服务器地址：http://localhost:5173（dev）或 http://localhost:3100（prod）
+- 开发服务器地址： http://localhost:3100
 
 ## 开发约定
 

@@ -19,5 +19,7 @@ export default defineConfig({
     "better-sqlite3",
     "grammy",
     "dotenv",
+    "mammoth",
+    "xlsx",
   ],
 });

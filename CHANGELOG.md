@@ -1,5 +1,16 @@
 # 更新日志
 
+## [0.8.27] - 2026-03-04
+
+### 新增
+- **Office/表格文件预览**：docx、pptx 通过 LibreOffice headless 转 PDF 预览（mammoth 作为 docx 降级方案），xlsx/xls/csv 通过 SheetJS 转 HTML 表格预览；复用现有 HtmlPreviewCard + iframe 架构，体验与 Markdown 预览一致
+- **预览模块独立**：从 `server.ts` 提取 `/preview/*` 路由到 `routes/preview.ts`，统一管理 md/docx/xlsx/csv/pptx 转换器，含 LRU 缓存（50 条）和 20MB 大小限制
+- **LibreOffice 并发控制**：soffice headless 在 Windows 上只允单实例，添加 mutex 序列化 + 自动清理残留 soffice.bin 进程，避免"等待打印机"弹窗
+- **预览加载动画**：HtmlPreviewOverlay 添加 loading spinner，LibreOffice 转换期间显示加载状态
+
+### 修复
+- **xlsx/csv 表格左边距过大**：wrapHtml 默认 `max-width: 860px; margin: 0 auto` 导致宽表格居中留白，表格预览改用 `max-width: none; padding: 12px` 全宽显示
+
 ## [0.8.26] - 2026-03-02
 
 ### 改进

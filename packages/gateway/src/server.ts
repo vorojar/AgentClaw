@@ -1,6 +1,5 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
-import { marked } from "marked";
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
@@ -21,6 +20,7 @@ import { registerTaskRoutes } from "./routes/tasks.js";
 import { registerWebSocket } from "./ws.js";
 import { registerBrowserExtension } from "./routes/browser-ext.js";
 import { registerUploadRoutes } from "./routes/upload.js";
+import { registerPreviewRoutes } from "./routes/preview.js";
 import { registerAuth } from "./auth.js";
 
 export interface ServerOptions {
@@ -83,75 +83,8 @@ export async function createServer(
   });
   console.log("[server] Serving generated files from", dataTmpDir);
 
-  // Markdown preview: /preview/xxx.md → rendered HTML with download button
-  app.get("/preview/*", async (request, reply) => {
-    const relPath = decodeURIComponent(
-      (request.params as { "*": string })["*"],
-    );
-    // Security: block path traversal
-    if (relPath.includes("..")) {
-      return reply.code(400).send("Invalid path");
-    }
-    const filePath = resolve(dataTmpDir, relPath);
-    if (!existsSync(filePath) || !filePath.endsWith(".md")) {
-      return reply.code(404).send("File not found");
-    }
-    const md = readFileSync(filePath, "utf-8");
-    const htmlBody = await marked.parse(md);
-    const title = relPath.split("/").pop() ?? "Preview";
-    const downloadUrl = `/files/${relPath}`;
-    const html = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    max-width: 860px; margin: 0 auto; padding: 24px 20px 60px;
-    color: #1a1a1a; background: #fff; line-height: 1.7;
-  }
-  body { padding-top: 12px; }
-  h1 { font-size: 1.8em; border-bottom: 2px solid #e5e5e5; padding-bottom: 8px; }
-  h2 { font-size: 1.4em; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-top: 2em; }
-  h3 { font-size: 1.15em; margin-top: 1.5em; }
-  pre { background: #f6f8fa; border-radius: 6px; padding: 16px; overflow-x: auto; font-size: 14px; }
-  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-  pre code { background: none; padding: 0; }
-  blockquote { border-left: 4px solid #ddd; margin: 1em 0; padding: 0.5em 1em; color: #555; }
-  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-  th { background: #f6f8fa; font-weight: 600; }
-  img { max-width: 100%; border-radius: 6px; }
-  a { color: #2563eb; }
-  @media (prefers-color-scheme: dark) {
-    body { background: #1a1a2e; color: #e0e0e0; }
-    .toolbar { background: rgba(26,26,46,0.92); border-color: #333; }
-    pre { background: #16213e; }
-    code { background: #1a1a3a; }
-    th { background: #16213e; }
-    th, td { border-color: #333; }
-    h1, h2 { border-color: #333; }
-    blockquote { border-color: #444; color: #aaa; }
-  }
-</style>
-</head>
-<body>
-${htmlBody}
-</body>
-</html>`;
-    // Bypass Fastify reply chain (including @fastify/compress which
-    // produces content-length:0 with Brotli) by writing directly to raw response.
-    const buf = Buffer.from(html, "utf-8");
-    reply.hijack();
-    reply.raw.writeHead(200, {
-      "content-type": "text/html; charset=utf-8",
-      "content-length": buf.length.toString(),
-    });
-    reply.raw.end(buf);
-  });
+  // Preview: /preview/xxx.{md,docx,xlsx,csv,pptx} → rendered HTML
+  registerPreviewRoutes(app, dataTmpDir);
 
   // Serve Web UI static files (built by @agentclaw/web)
   const __dirname = dirname(fileURLToPath(import.meta.url));

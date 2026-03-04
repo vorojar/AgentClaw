@@ -277,6 +277,7 @@ function HtmlPreviewOverlay({
   onClose: () => void;
 }) {
   const [needsDevServer, setNeedsDevServer] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -309,6 +310,11 @@ function HtmlPreviewOverlay({
       .catch(() => {});
   }, [href]);
 
+  const iframeProp = {
+    className: "html-overlay-iframe",
+    onLoad: () => setIframeLoading(false),
+  };
+
   return (
     <div className="html-overlay">
       <div className="html-overlay-toolbar">
@@ -336,11 +342,17 @@ function HtmlPreviewOverlay({
           <IconExternalLink size={18} />
         </a>
       </div>
+      {iframeLoading && (
+        <div className="html-overlay-loading">
+          <span className="html-overlay-spinner" />
+          <span>Loading preview...</span>
+        </div>
+      )}
       {needsDevServer ? (
         <>
           <iframe
             src="http://localhost:5173"
-            className="html-overlay-iframe"
+            {...iframeProp}
             title="Vite dev server preview"
           />
           <div className="html-overlay-hint">
@@ -352,11 +364,13 @@ function HtmlPreviewOverlay({
             </code>
           </div>
         </>
+      ) : /\.(pptx|docx)$/i.test(filename) ? (
+        <iframe src={href} {...iframeProp} title="PDF preview" />
       ) : (
         <iframe
           src={href}
           sandbox="allow-scripts allow-same-origin"
-          className="html-overlay-iframe"
+          {...iframeProp}
           title="HTML preview"
         />
       )}
@@ -417,6 +431,21 @@ const mdComponents = {
     if (href && /\.md$/i.test(href) && href.startsWith("/files/")) {
       const filename = decodeURIComponent(href.split("/").pop() || "");
       // Route through /preview/ for server-side markdown rendering
+      const previewHref = href.replace(/^\/files\//, "/preview/");
+      return (
+        <HtmlPreviewCard
+          href={previewHref}
+          filename={filename}
+          downloadHref={href}
+        />
+      );
+    }
+    if (
+      href &&
+      /\.(docx|pptx|xlsx|xls|csv)$/i.test(href) &&
+      href.startsWith("/files/")
+    ) {
+      const filename = decodeURIComponent(href.split("/").pop() || "");
       const previewHref = href.replace(/^\/files\//, "/preview/");
       return (
         <HtmlPreviewCard

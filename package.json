@@ -11,7 +11,9 @@
     "dev": "turbo dev",
     "typecheck": "turbo typecheck",
     "clean": "turbo clean",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
@@ -20,7 +22,8 @@
     "@vitejs/plugin-react": "^5.1.4",
     "turbo": "^2.4.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

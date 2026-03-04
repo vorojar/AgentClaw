@@ -17,6 +17,9 @@
     },
     "lint": {
       "dependsOn": ["^build"]
+    },
+    "test": {
+      "cache": false
     }
   }
 }

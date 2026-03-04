@@ -60,6 +60,8 @@ function splitMessage(text: string, maxLen = 4000): string[] {
 export interface FeishuConfig {
   appId: string;
   appSecret: string;
+  /** Comma-separated open_id whitelist. If empty, ALL users are blocked. */
+  allowedUsers?: string;
 }
 
 /** Send a text message to a Feishu chat */
@@ -90,6 +92,23 @@ export async function startFeishuBot(
     appId: config.appId,
     appSecret: config.appSecret,
   };
+
+  // User whitelist — if not configured, block everyone (safe by default)
+  const allowedUsers = new Set(
+    (config.allowedUsers ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  if (allowedUsers.size === 0) {
+    console.warn(
+      "[feishu] WARNING: FEISHU_ALLOWED_USERS is empty — all messages will be rejected. Set it to a comma-separated list of open_id values.",
+    );
+  } else {
+    console.log(
+      `[feishu] User whitelist: ${allowedUsers.size} user(s) allowed`,
+    );
+  }
 
   // Client for sending messages
   const client = new lark.Client(baseConfig);
@@ -122,6 +141,18 @@ export async function startFeishuBot(
   }): Promise<void> {
     const { sender, message } = data;
     const { chat_id, message_type, content } = message;
+    const openId = sender?.sender_id?.open_id ?? "";
+
+    // Whitelist check — reject unauthorized users
+    if (!openId || !allowedUsers.has(openId)) {
+      console.log(`[feishu] Blocked message from unauthorized user: ${openId}`);
+      await sendText(
+        client,
+        chat_id,
+        "Access denied. This bot is restricted to authorized users only.",
+      );
+      return;
+    }
 
     // Only handle text messages for now
     let userText: string;

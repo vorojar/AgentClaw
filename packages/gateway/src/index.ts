@@ -87,7 +87,11 @@ async function main(): Promise<void> {
   if (dingtalkKey && dingtalkSecret) {
     try {
       dingtalkBot = await startDingTalkBot(
-        { clientId: dingtalkKey, clientSecret: dingtalkSecret },
+        {
+          clientId: dingtalkKey,
+          clientSecret: dingtalkSecret,
+          allowedUsers: process.env.DINGTALK_ALLOWED_USERS,
+        },
         ctx,
       );
     } catch (err) {
@@ -102,7 +106,11 @@ async function main(): Promise<void> {
   if (feishuAppId && feishuAppSecret) {
     try {
       feishuBot = await startFeishuBot(
-        { appId: feishuAppId, appSecret: feishuAppSecret },
+        {
+          appId: feishuAppId,
+          appSecret: feishuAppSecret,
+          allowedUsers: process.env.FEISHU_ALLOWED_USERS,
+        },
         ctx,
       );
     } catch (err) {

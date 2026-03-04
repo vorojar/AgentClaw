@@ -84,6 +84,8 @@ const DINGTALK_API = "https://api.dingtalk.com/v1.0";
 export interface DingTalkConfig {
   clientId: string;
   clientSecret: string;
+  /** Comma-separated staffId whitelist. If empty, ALL users are blocked. */
+  allowedUsers?: string;
 }
 
 /**
@@ -94,6 +96,23 @@ export async function startDingTalkBot(
   config: DingTalkConfig,
   appCtx: AppContext,
 ): Promise<{ stop: () => void; broadcast: (text: string) => Promise<void> }> {
+  // User whitelist — if not configured, block everyone (safe by default)
+  const allowedUsers = new Set(
+    (config.allowedUsers ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  if (allowedUsers.size === 0) {
+    console.warn(
+      "[dingtalk] WARNING: DINGTALK_ALLOWED_USERS is empty — all messages will be rejected. Set it to a comma-separated list of staffId values.",
+    );
+  } else {
+    console.log(
+      `[dingtalk] User whitelist: ${allowedUsers.size} user(s) allowed`,
+    );
+  }
+
   const client = new DWClient({
     clientId: config.clientId,
     clientSecret: config.clientSecret,
@@ -139,6 +158,19 @@ export async function startDingTalkBot(
         msgtype,
         text,
       } = msg;
+
+      // Whitelist check — reject unauthorized users
+      if (!senderStaffId || !allowedUsers.has(senderStaffId)) {
+        console.log(
+          `[dingtalk] Blocked message from unauthorized user: ${senderStaffId} (${msg.senderNick})`,
+        );
+        await replyText(
+          sessionWebhook,
+          "Access denied. This bot is restricted to authorized users only.",
+        );
+        client.send(res.headers.messageId, { status: EventAck.SUCCESS });
+        return;
+      }
 
       // Store chat info for broadcast
       chatInfoMap.set(conversationId, {

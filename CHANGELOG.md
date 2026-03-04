@@ -10,6 +10,8 @@
 
 ### 改进
 - **knip 死代码清理**：删除 5 个未引用文件（create-skill.ts, ModelSelector, SearchDialog），移除 3 个未使用 API 函数，9 个 export 降级为内部 interface，移除 root package.json 冗余依赖。knip 零报告通过
+- **Biome 代码格式化**：接入 @biomejs/biome 2.4.5（formatter + linter），全量格式化 52 个文件，0 errors / 194 warnings
+- **GitHub Actions CI**：push/PR to master 自动运行 lint → build → typecheck → test
 
 ## [0.8.27] - 2026-03-04
 

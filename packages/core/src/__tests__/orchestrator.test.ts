@@ -92,9 +92,18 @@ function createMockMemoryStore(): MemoryStore {
     delete: vi.fn().mockResolvedValue(undefined),
     addTurn: vi.fn().mockResolvedValue(undefined),
     getHistory: vi.fn().mockResolvedValue([]),
-    saveSession: vi.fn(async (session: { id: string; conversationId: string; createdAt: Date; lastActiveAt: Date; title?: string; metadata?: Record<string, unknown> }) => {
-      sessions.set(session.id, session);
-    }),
+    saveSession: vi.fn(
+      async (session: {
+        id: string;
+        conversationId: string;
+        createdAt: Date;
+        lastActiveAt: Date;
+        title?: string;
+        metadata?: Record<string, unknown>;
+      }) => {
+        sessions.set(session.id, session);
+      },
+    ),
     getSessionById: vi.fn(async (id: string) => {
       return sessions.get(id) ?? null;
     }),

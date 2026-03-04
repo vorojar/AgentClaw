@@ -6,7 +6,11 @@ let extensionSocket: WebSocket | null = null;
 
 const pendingRequests = new Map<
   string,
-  { resolve: (value: unknown) => void; reject: (reason: Error) => void; timer: ReturnType<typeof setTimeout> }
+  {
+    resolve: (value: unknown) => void;
+    reject: (reason: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }
 >();
 
 const REQUEST_TIMEOUT = 30_000;
@@ -27,7 +31,8 @@ export function registerBrowserExtension(app: FastifyInstance): void {
     socket.on("message", (rawData: Buffer | string) => {
       let msg: { id?: string; type?: string; result?: unknown; error?: string };
       try {
-        const str = typeof rawData === "string" ? rawData : rawData.toString("utf-8");
+        const str =
+          typeof rawData === "string" ? rawData : rawData.toString("utf-8");
         msg = JSON.parse(str);
       } catch {
         return;
@@ -86,7 +91,10 @@ export function registerBrowserExtension(app: FastifyInstance): void {
       });
     }
 
-    const body = request.body as { action?: string; args?: Record<string, unknown> };
+    const body = request.body as {
+      action?: string;
+      args?: Record<string, unknown>;
+    };
     if (!body?.action) {
       return reply.status(400).send({ error: "Missing action" });
     }
@@ -101,7 +109,9 @@ export function registerBrowserExtension(app: FastifyInstance): void {
 
       pendingRequests.set(id, { resolve, reject, timer });
 
-      extensionSocket!.send(JSON.stringify({ id, action: body.action, args: body.args || {} }));
+      extensionSocket!.send(
+        JSON.stringify({ id, action: body.action, args: body.args || {} }),
+      );
     }).catch((err) => {
       return reply.status(502).send({ error: err.message });
     });

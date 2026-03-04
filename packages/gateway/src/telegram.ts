@@ -14,28 +14,21 @@ const chatSessionMap = new Map<number, string>();
 /** Pending ask_user prompts: chatId → resolve function for the next user message */
 const pendingPrompts = new Map<number, (answer: string) => void>();
 
-const IMAGE_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "webp",
-  "bmp",
-]);
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp"]);
 
-const VIDEO_EXTENSIONS = new Set([
-  "mp4",
-  "mkv",
-  "avi",
-  "mov",
-  "webm",
-]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "mkv", "avi", "mov", "webm"]);
 
 /** Notify all Web UI clients that a session was updated from another channel */
 function broadcastSessionActivity(sessionId: string): void {
-  const msg = JSON.stringify({ type: "session_activity", sessionId, channel: "telegram" });
+  const msg = JSON.stringify({
+    type: "session_activity",
+    sessionId,
+    channel: "telegram",
+  });
   for (const ws of getWsClients()) {
-    try { ws.send(msg); } catch {}
+    try {
+      ws.send(msg);
+    } catch {}
   }
 }
 
@@ -179,7 +172,9 @@ export async function startTelegramBot(
       chatSessionMap.set(Number(t.targetId), t.sessionId ?? "");
     }
     if (targets.length > 0) {
-      console.log(`[telegram] Restored ${targets.length} chat target(s) from database`);
+      console.log(
+        `[telegram] Restored ${targets.length} chat target(s) from database`,
+      );
     }
   } catch (err) {
     console.error("[telegram] Failed to restore chat targets:", err);
@@ -229,7 +224,14 @@ export async function startTelegramBot(
   }
 
   async function processAndReply(opts: ProcessOptions): Promise<void> {
-    const { chatId, input, replyFn, streaming = true, isVoice = false, label = "message" } = opts;
+    const {
+      chatId,
+      input,
+      replyFn,
+      streaming = true,
+      isVoice = false,
+      label = "message",
+    } = opts;
 
     // Get or create session
     let sessionId = chatSessionMap.get(chatId);
@@ -238,7 +240,11 @@ export async function startTelegramBot(
         const session = await appCtx.orchestrator.createSession();
         sessionId = session.id;
         chatSessionMap.set(chatId, sessionId);
-        appCtx.memoryStore.saveChatTarget("telegram", String(chatId), sessionId);
+        appCtx.memoryStore.saveChatTarget(
+          "telegram",
+          String(chatId),
+          sessionId,
+        );
       } catch (err) {
         console.error("[telegram] Failed to create session:", err);
         await replyFn("❌ Failed to start session. Please try again.");
@@ -277,8 +283,8 @@ export async function startTelegramBot(
       let accumulatedText = "";
       let activeSkill = "";
       // Draft streaming state
-      const draftId = streaming ? (Date.now() % 2147483647) || 1 : 0;
-      let draftPrefix = "";  // tool-call status lines shown above draft
+      const draftId = streaming ? Date.now() % 2147483647 || 1 : 0;
+      let draftPrefix = ""; // tool-call status lines shown above draft
       let lastDraftTime = 0;
       const DRAFT_THROTTLE = 300; // ms — avoid flooding Telegram API
 
@@ -297,14 +303,19 @@ export async function startTelegramBot(
       for await (const event of eventStream) {
         switch (event.type) {
           case "tool_call": {
-            const data = event.data as { name: string; input: Record<string, unknown> };
+            const data = event.data as {
+              name: string;
+              input: Record<string, unknown>;
+            };
             if (data.name === "use_skill") {
               activeSkill = (data.input.name as string) || "";
               draftPrefix += `⚙️ use_skill: ${activeSkill}\n`;
             } else if (data.name === "web_search") {
               draftPrefix += `🔍 ${(data.input as { query?: string }).query ?? "searching"}...\n`;
             } else if (data.name === "bash") {
-              draftPrefix += activeSkill ? `⚙️ bash: ${activeSkill}\n` : "⚙️ bash\n";
+              draftPrefix += activeSkill
+                ? `⚙️ bash: ${activeSkill}\n`
+                : "⚙️ bash\n";
             } else {
               draftPrefix += `⚙️ ${data.name}\n`;
             }
@@ -349,7 +360,8 @@ export async function startTelegramBot(
           const { InputFile } = await import("grammy");
           await bot.api.sendVoice(chatId, new InputFile(createReadStream(ogg)));
         } else {
-          for (const chunk of splitMessage(accumulatedText)) await replyFn(chunk);
+          for (const chunk of splitMessage(accumulatedText))
+            await replyFn(chunk);
         }
       } else {
         for (const chunk of splitMessage(accumulatedText)) await replyFn(chunk);
@@ -394,29 +406,61 @@ export async function startTelegramBot(
 
     const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
 
-    await processAndReply({ chatId, input: text, replyFn, streaming: false, isVoice, label: fileType });
+    await processAndReply({
+      chatId,
+      input: text,
+      replyFn,
+      streaming: false,
+      isVoice,
+      label: fileType,
+    });
   }
 
   // ── Document messages ──────────────────────────
   bot.on("message:document", async (ctx) => {
     const doc = ctx.message.document;
     const fileName = doc.file_name ?? `file_${Date.now()}`;
-    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), doc.file_id, fileName, "文件");
+    await handleFileMessage(
+      ctx.chat.id,
+      ctx.message.caption ?? "",
+      (t) => ctx.reply(t),
+      doc.file_id,
+      fileName,
+      "文件",
+    );
   });
 
   // ── Video messages ─────────────────────────────
   bot.on("message:video", async (ctx) => {
     const video = ctx.message.video;
     const ext = video.mime_type?.split("/")[1]?.split(";")[0].trim() ?? "mp4";
-    const fileName = (video as unknown as { file_name?: string }).file_name ?? `video_${Date.now()}.${ext}`;
-    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), video.file_id, fileName, "视频");
+    const fileName =
+      (video as unknown as { file_name?: string }).file_name ??
+      `video_${Date.now()}.${ext}`;
+    await handleFileMessage(
+      ctx.chat.id,
+      ctx.message.caption ?? "",
+      (t) => ctx.reply(t),
+      video.file_id,
+      fileName,
+      "视频",
+    );
   });
 
   // ── Animation (GIF) messages ───────────────────
   bot.on("message:animation", async (ctx) => {
     const anim = ctx.message.animation;
-    const fileName = (anim as unknown as { file_name?: string }).file_name ?? `animation_${Date.now()}.mp4`;
-    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), anim.file_id, fileName, "动图");
+    const fileName =
+      (anim as unknown as { file_name?: string }).file_name ??
+      `animation_${Date.now()}.mp4`;
+    await handleFileMessage(
+      ctx.chat.id,
+      ctx.message.caption ?? "",
+      (t) => ctx.reply(t),
+      anim.file_id,
+      fileName,
+      "动图",
+    );
   });
 
   // ── Audio messages ─────────────────────────────
@@ -424,14 +468,29 @@ export async function startTelegramBot(
     const audio = ctx.message.audio;
     const ext = audio.mime_type?.split("/")[1]?.split(";")[0].trim() ?? "mp3";
     const fileName = audio.file_name ?? `audio_${Date.now()}.${ext}`;
-    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), audio.file_id, fileName, "音频");
+    await handleFileMessage(
+      ctx.chat.id,
+      ctx.message.caption ?? "",
+      (t) => ctx.reply(t),
+      audio.file_id,
+      fileName,
+      "音频",
+    );
   });
 
   // ── Voice messages ─────────────────────────────
   bot.on("message:voice", async (ctx) => {
     const voice = ctx.message.voice;
     const fileName = `voice_${Date.now()}.ogg`;
-    await handleFileMessage(ctx.chat.id, ctx.message.caption ?? "", (t) => ctx.reply(t), voice.file_id, fileName, "语音", true);
+    await handleFileMessage(
+      ctx.chat.id,
+      ctx.message.caption ?? "",
+      (t) => ctx.reply(t),
+      voice.file_id,
+      fileName,
+      "语音",
+      true,
+    );
   });
 
   // ── Text messages ───────────────────────────────
@@ -447,7 +506,12 @@ export async function startTelegramBot(
       return;
     }
 
-    await processAndReply({ chatId, input: text, replyFn: (t) => ctx.reply(t), label: "text" });
+    await processAndReply({
+      chatId,
+      input: text,
+      replyFn: (t) => ctx.reply(t),
+      label: "text",
+    });
   });
 
   // ── 图片消息处理 ──────────────────────────────────
@@ -477,8 +541,11 @@ export async function startTelegramBot(
 
       const ext = file.file_path.split(".").pop()?.toLowerCase() ?? "jpg";
       const mimeMap: Record<string, string> = {
-        jpg: "image/jpeg", jpeg: "image/jpeg",
-        png: "image/png", gif: "image/gif", webp: "image/webp",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        gif: "image/gif",
+        webp: "image/webp",
       };
       const mediaType = mimeMap[ext] ?? "image/jpeg";
 
@@ -492,10 +559,18 @@ export async function startTelegramBot(
 
       const contentBlocks: ContentBlock[] = [
         { type: "image", data: base64Data, mediaType },
-        { type: "text", text: `[用户发送了图片，已保存到 ${localImagePath.replace(/\\/g, "/")}]\n${caption}` },
+        {
+          type: "text",
+          text: `[用户发送了图片，已保存到 ${localImagePath.replace(/\\/g, "/")}]\n${caption}`,
+        },
       ];
 
-      await processAndReply({ chatId, input: contentBlocks, replyFn: (t) => ctx.reply(t), label: "photo" });
+      await processAndReply({
+        chatId,
+        input: contentBlocks,
+        replyFn: (t) => ctx.reply(t),
+        label: "photo",
+      });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error("[telegram] Error downloading photo:", errMsg);

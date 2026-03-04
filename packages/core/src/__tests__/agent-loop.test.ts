@@ -61,9 +61,7 @@ function createMockProvider(
 
 // ── Mock ToolRegistryImpl ──
 
-function createMockToolRegistry(
-  tools: Tool[] = [],
-): ToolRegistryImpl {
+function createMockToolRegistry(tools: Tool[] = []): ToolRegistryImpl {
   const toolMap = new Map<string, Tool>();
   for (const t of tools) toolMap.set(t.name, t);
 
@@ -86,7 +84,8 @@ function createMockToolRegistry(
         context?: ToolExecutionContext,
       ): Promise<ToolResult> => {
         const tool = toolMap.get(name);
-        if (!tool) return { content: `Tool "${name}" not found`, isError: true };
+        if (!tool)
+          return { content: `Tool "${name}" not found`, isError: true };
         return tool.execute(input, context);
       },
     ),
@@ -345,7 +344,9 @@ describe("SimpleAgentLoop", () => {
         config: { maxIterations: 3 },
       });
 
-      const events = await collectEvents(loop.runStream("do something", "conv-2"));
+      const events = await collectEvents(
+        loop.runStream("do something", "conv-2"),
+      );
 
       // 应有 response_complete 事件
       const completeEvent = events.find((e) => e.type === "response_complete");
@@ -495,9 +496,7 @@ describe("SimpleAgentLoop", () => {
         memoryStore,
       });
 
-      const events = await collectEvents(
-        loop.runStream("执行一下", "conv-4"),
-      );
+      const events = await collectEvents(loop.runStream("执行一下", "conv-4"));
 
       // tool_result 事件应标记 isError
       const toolResultEvent = events.find((e) => e.type === "tool_result");
@@ -513,8 +512,7 @@ describe("SimpleAgentLoop", () => {
       const toolTurnCalls = (
         memoryStore.addTurn as ReturnType<typeof vi.fn>
       ).mock.calls.filter(
-        (call: unknown[]) =>
-          (call[1] as { role: string }).role === "tool",
+        (call: unknown[]) => (call[1] as { role: string }).role === "tool",
       );
       expect(toolTurnCalls.length).toBe(1);
     });

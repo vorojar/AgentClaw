@@ -149,9 +149,7 @@ const SCRIPT_EXTS = new Set([
 function detectFilePaths(text: string): string[] {
   const matches = text.match(FILE_PATH_RE) || [];
   // Normalize backslashes, deduplicate, filter out script files
-  return [
-    ...new Set(matches.map((p) => p.replace(/\\/g, "/"))),
-  ].filter((p) => {
+  return [...new Set(matches.map((p) => p.replace(/\\/g, "/")))].filter((p) => {
     const ext = p.slice(p.lastIndexOf(".")).toLowerCase();
     return !SCRIPT_EXTS.has(ext);
   });
@@ -170,8 +168,14 @@ function validateCommand(command: string): string | null {
   // Dangerous patterns: each entry is [regex, description]
   const BLOCKED: [RegExp, string][] = [
     // rm -rf targeting root or system dirs
-    [/\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|(-[a-zA-Z]*f[a-zA-Z]*r))\s+\/(?:\s|$)/, "rm -rf /（根目录递归删除）"],
-    [/\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|(-[a-zA-Z]*f[a-zA-Z]*r))\s+\/(?:boot|etc|usr|var|bin|sbin|lib|proc|sys)\b/, "rm -rf 系统目录"],
+    [
+      /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|(-[a-zA-Z]*f[a-zA-Z]*r))\s+\/(?:\s|$)/,
+      "rm -rf /（根目录递归删除）",
+    ],
+    [
+      /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|(-[a-zA-Z]*f[a-zA-Z]*r))\s+\/(?:boot|etc|usr|var|bin|sbin|lib|proc|sys)\b/,
+      "rm -rf 系统目录",
+    ],
     // Windows destructive: del /s targeting system root, format, mkfs
     [/\bdel\s+\/[sS]\s+\/[qQ]\s+[A-Za-z]:\\\s*$/, "del /s /q 驱动器根目录"],
     [/\bformat\s+[A-Za-z]:/i, "format 磁盘"],
@@ -249,7 +253,9 @@ function runShell(
           resolve({
             content: output || error.message,
             isError: !hasOutput,
-            metadata: { exitCode: typeof error.code === "number" ? error.code : 1 },
+            metadata: {
+              exitCode: typeof error.code === "number" ? error.code : 1,
+            },
           });
           return;
         }

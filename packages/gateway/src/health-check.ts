@@ -67,7 +67,9 @@ async function checkGoogleOAuth(): Promise<HealthCheckResult | null> {
     return {
       name: "Google OAuth",
       ok: false,
-      message: msg.includes("abort") ? "token 刷新超时" : `token 刷新失败: ${msg}`,
+      message: msg.includes("abort")
+        ? "token 刷新超时"
+        : `token 刷新失败: ${msg}`,
     };
   }
 }
@@ -92,17 +94,29 @@ async function checkIMAP(): Promise<HealthCheckResult | null> {
 
     socket.on("connect", () => {
       cleanup();
-      resolve({ name: "IMAP 邮件", ok: true, message: `${host}:${port} 连接成功` });
+      resolve({
+        name: "IMAP 邮件",
+        ok: true,
+        message: `${host}:${port} 连接成功`,
+      });
     });
 
     socket.on("timeout", () => {
       cleanup();
-      resolve({ name: "IMAP 邮件", ok: false, message: `${host}:${port} 连接超时` });
+      resolve({
+        name: "IMAP 邮件",
+        ok: false,
+        message: `${host}:${port} 连接超时`,
+      });
     });
 
     socket.on("error", (err) => {
       cleanup();
-      resolve({ name: "IMAP 邮件", ok: false, message: `${host}:${port} 连接失败: ${err.message}` });
+      resolve({
+        name: "IMAP 邮件",
+        ok: false,
+        message: `${host}:${port} 连接失败: ${err.message}`,
+      });
     });
   });
 }
@@ -123,9 +137,7 @@ async function checkSearXNG(): Promise<HealthCheckResult | null> {
     // SearXNG 可能没有 /healthz，先尝试根路径
     const resp = await fetch(`${url}/healthz`, {
       signal: controller.signal,
-    }).catch(() =>
-      fetch(url, { signal: controller.signal }),
-    );
+    }).catch(() => fetch(url, { signal: controller.signal }));
 
     clearTimeout(timer);
 
@@ -233,9 +245,7 @@ export function formatHealthResults(results: HealthCheckResult[]): string {
     return "";
   }
 
-  const items = failed
-    .map((r) => `${r.name}（${r.message}）`)
-    .join("、");
+  const items = failed.map((r) => `${r.name}（${r.message}）`).join("、");
 
   return `[注意] 以下服务当前不可用：${items}。涉及这些服务的请求请告知用户。\n`;
 }

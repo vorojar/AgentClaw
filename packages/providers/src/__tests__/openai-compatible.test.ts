@@ -198,9 +198,7 @@ describe("OpenAICompatibleProvider", () => {
     it("应正确映射 finish_reason", async () => {
       // stop → end_turn
       mockCreateResponse = {
-        choices: [
-          { message: { content: "done" }, finish_reason: "stop" },
-        ],
+        choices: [{ message: { content: "done" }, finish_reason: "stop" }],
         usage: { prompt_tokens: 5, completion_tokens: 3 },
       };
       let resp = await provider.chat({
@@ -303,9 +301,7 @@ describe("OpenAICompatibleProvider", () => {
       const sseChunks = [
         // 文本内容
         {
-          choices: [
-            { delta: { content: "让我搜索" }, finish_reason: null },
-          ],
+          choices: [{ delta: { content: "让我搜索" }, finish_reason: null }],
         },
         // 工具调用开始
         {
@@ -328,9 +324,7 @@ describe("OpenAICompatibleProvider", () => {
           choices: [
             {
               delta: {
-                tool_calls: [
-                  { function: { arguments: '{"query":' } },
-                ],
+                tool_calls: [{ function: { arguments: '{"query":' } }],
               },
               finish_reason: null,
             },
@@ -460,9 +454,7 @@ describe("OpenAICompatibleProvider", () => {
   describe("消息格式转换", () => {
     it("应正确处理含 tool_use 的助手消息", async () => {
       mockCreateResponse = {
-        choices: [
-          { message: { content: "ok" }, finish_reason: "stop" },
-        ],
+        choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
         usage: { prompt_tokens: 50, completion_tokens: 10 },
       };
 
@@ -515,9 +507,7 @@ describe("OpenAICompatibleProvider", () => {
 
     it("应正确转换工具定义格式", async () => {
       mockCreateResponse = {
-        choices: [
-          { message: { content: "ok" }, finish_reason: "stop" },
-        ],
+        choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
         usage: { prompt_tokens: 30, completion_tokens: 5 },
       };
 
@@ -601,9 +591,7 @@ describe("OpenAICompatibleProvider", () => {
     it("stream 中应支持 reasoning 字段", async () => {
       const sseChunks = [
         {
-          choices: [
-            { delta: { reasoning: "思考中..." }, finish_reason: null },
-          ],
+          choices: [{ delta: { reasoning: "思考中..." }, finish_reason: null }],
         },
         {
           choices: [{ delta: {}, finish_reason: "stop" }],

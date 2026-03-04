@@ -18,15 +18,24 @@ const PLAYWRIGHT_MAX_BUFFER = 2 * 1024 * 1024;
 
 /** 已知 SPA/JS 渲染站点——命中时直接走 Playwright，不判断内容长度 */
 const SPA_DOMAINS = new Set([
-  "x.com", "twitter.com",
-  "zhihu.com", "www.zhihu.com",
-  "weibo.com", "m.weibo.com",
-  "bilibili.com", "www.bilibili.com",
-  "douyin.com", "www.douyin.com",
-  "xiaohongshu.com", "www.xiaohongshu.com",
-  "threads.net", "www.threads.net",
-  "reddit.com", "www.reddit.com",
-  "chatgpt.com", "chat.openai.com",
+  "x.com",
+  "twitter.com",
+  "zhihu.com",
+  "www.zhihu.com",
+  "weibo.com",
+  "m.weibo.com",
+  "bilibili.com",
+  "www.bilibili.com",
+  "douyin.com",
+  "www.douyin.com",
+  "xiaohongshu.com",
+  "www.xiaohongshu.com",
+  "threads.net",
+  "www.threads.net",
+  "reddit.com",
+  "www.reddit.com",
+  "chatgpt.com",
+  "chat.openai.com",
 ]);
 
 /** 登录墙关键词——命中任一则提示用户需要登录态 */
@@ -183,7 +192,8 @@ export const webFetchTool: Tool = {
 
       // Hint: content is already markdown, no need for LLM to rewrite
       if (content.length > 1000 && strategy !== "login_wall") {
-        content += "\n\n[提示] 以上内容已为 Markdown 格式，可直接用 file_write 保存，无需重新整理。";
+        content +=
+          "\n\n[提示] 以上内容已为 Markdown 格式，可直接用 file_write 保存，无需重新整理。";
       }
 
       // Truncate if needed
@@ -234,7 +244,10 @@ async function tryPlaywrightFetch(
   maxLength: number,
   scroll = false,
 ): Promise<string | null> {
-  const scriptPath = resolve(process.cwd(), "skills/web-fetch/scripts/fetch.py");
+  const scriptPath = resolve(
+    process.cwd(),
+    "skills/web-fetch/scripts/fetch.py",
+  );
   if (!existsSync(scriptPath)) {
     return null;
   }

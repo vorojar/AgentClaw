@@ -153,8 +153,7 @@ async function main(): Promise<void> {
       const changed = await ctx.refreshHealth();
       if (changed.length > 0) {
         const lines = changed.map(
-          (r) =>
-            `${r.ok ? "✅" : "❌"} ${r.name}：${r.message}`,
+          (r) => `${r.ok ? "✅" : "❌"} ${r.name}：${r.message}`,
         );
         const text = `[服务状态变化]\n${lines.join("\n")}`;
         console.log(`[health-check] ${text}`);

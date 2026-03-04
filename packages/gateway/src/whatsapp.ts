@@ -29,22 +29,9 @@ const MAX_PROCESSED_CACHE = 1000;
 const botSentMessages = new Set<string>();
 const MAX_BOT_SENT_CACHE = 500;
 
-const IMAGE_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "webp",
-  "bmp",
-]);
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp"]);
 
-const VIDEO_EXTENSIONS = new Set([
-  "mp4",
-  "mkv",
-  "avi",
-  "mov",
-  "webm",
-]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "mkv", "avi", "mov", "webm"]);
 
 function extractText(content: string | ContentBlock[]): string {
   if (typeof content === "string") return content;
@@ -91,13 +78,21 @@ function splitMessage(text: string, maxLen = 4096): string[] {
 }
 
 /** Send a text message and track its ID so self-chat doesn't re-trigger the bot */
-async function botSendText(sock: WASocket, jid: string, text: string): Promise<void> {
+async function botSendText(
+  sock: WASocket,
+  jid: string,
+  text: string,
+): Promise<void> {
   const sent = await sock.sendMessage(jid, { text });
   if (sent?.key?.id) trackBotMessageId(sent.key.id);
 }
 
 /** Send a voice note (ptt) and track its ID */
-async function botSendVoice(sock: WASocket, jid: string, audioPath: string): Promise<void> {
+async function botSendVoice(
+  sock: WASocket,
+  jid: string,
+  audioPath: string,
+): Promise<void> {
   const { readFileSync } = await import("node:fs");
   const sent = await sock.sendMessage(jid, {
     audio: readFileSync(audioPath),
@@ -213,7 +208,11 @@ async function handleTextMessage(
       appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
     } catch (err) {
       console.error("[whatsapp] Failed to create session:", err);
-      await botSendText(sock, jid, "❌ Failed to start session. Please try again.");
+      await botSendText(
+        sock,
+        jid,
+        "❌ Failed to start session. Please try again.",
+      );
       return;
     }
   }
@@ -290,7 +289,10 @@ async function handleTextMessage(
           accumulatedText += data.text;
           if (!sendBuffer) bufferStartTime = Date.now();
           sendBuffer += data.text;
-          if (sendBuffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)) {
+          if (
+            sendBuffer.includes("\n\n") ||
+            (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)
+          ) {
             await flushBuffer();
           }
           break;
@@ -317,15 +319,26 @@ async function handleTextMessage(
 
     const errMsg = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : "";
-    console.error("[whatsapp] Error processing text message:", errMsg, "\n", stack);
+    console.error(
+      "[whatsapp] Error processing text message:",
+      errMsg,
+      "\n",
+      stack,
+    );
 
     if (errMsg.includes("Session not found")) {
       chatSessionMap.delete(jid);
-      await botSendText(sock, jid, "⚠️ Session expired. Send your message again.").catch(() => {});
+      await botSendText(
+        sock,
+        jid,
+        "⚠️ Session expired. Send your message again.",
+      ).catch(() => {});
       return;
     }
 
-    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(() => {});
+    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(
+      () => {},
+    );
   }
 }
 
@@ -349,7 +362,11 @@ async function handleImageMessage(
       appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
     } catch (err) {
       console.error("[whatsapp] Failed to create session:", err);
-      await botSendText(sock, jid, "❌ Failed to start session. Please try again.");
+      await botSendText(
+        sock,
+        jid,
+        "❌ Failed to start session. Please try again.",
+      );
       return;
     }
   }
@@ -457,7 +474,10 @@ async function handleImageMessage(
           accumulatedText += data.text;
           if (!sendBuffer) bufferStartTime = Date.now();
           sendBuffer += data.text;
-          if (sendBuffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)) {
+          if (
+            sendBuffer.includes("\n\n") ||
+            (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)
+          ) {
             await flushBuffer();
           }
           break;
@@ -483,15 +503,26 @@ async function handleImageMessage(
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
 
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error("[whatsapp] Error processing image:", errMsg, "\n", err instanceof Error ? err.stack : "");
+    console.error(
+      "[whatsapp] Error processing image:",
+      errMsg,
+      "\n",
+      err instanceof Error ? err.stack : "",
+    );
 
     if (errMsg.includes("Session not found")) {
       chatSessionMap.delete(jid);
-      await botSendText(sock, jid, "⚠️ Session expired. Send your message again.").catch(() => {});
+      await botSendText(
+        sock,
+        jid,
+        "⚠️ Session expired. Send your message again.",
+      ).catch(() => {});
       return;
     }
 
-    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(() => {});
+    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(
+      () => {},
+    );
   }
 }
 
@@ -518,7 +549,11 @@ async function handleDocumentMessage(
       appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
     } catch (err) {
       console.error("[whatsapp] Failed to create session:", err);
-      await botSendText(sock, jid, "❌ Failed to start session. Please try again.");
+      await botSendText(
+        sock,
+        jid,
+        "❌ Failed to start session. Please try again.",
+      );
       return;
     }
   }
@@ -609,7 +644,12 @@ async function handleDocumentMessage(
           accumulatedText += data.text;
           if (!sendBuffer) bufferStartTime = Date.now();
           sendBuffer += data.text;
-          if (!isVoice && (sendBuffer.includes("\n\n") || (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL))) {
+          if (
+            !isVoice &&
+            (sendBuffer.includes("\n\n") ||
+              (bufferStartTime &&
+                Date.now() - bufferStartTime > FLUSH_INTERVAL))
+          ) {
             await flushBuffer();
           }
           break;
@@ -650,15 +690,26 @@ async function handleDocumentMessage(
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
 
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[whatsapp] Error processing ${fileType}:`, errMsg, "\n", err instanceof Error ? err.stack : "");
+    console.error(
+      `[whatsapp] Error processing ${fileType}:`,
+      errMsg,
+      "\n",
+      err instanceof Error ? err.stack : "",
+    );
 
     if (errMsg.includes("Session not found")) {
       chatSessionMap.delete(jid);
-      await botSendText(sock, jid, "⚠️ Session expired. Send your message again.").catch(() => {});
+      await botSendText(
+        sock,
+        jid,
+        "⚠️ Session expired. Send your message again.",
+      ).catch(() => {});
       return;
     }
 
-    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(() => {});
+    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(
+      () => {},
+    );
   }
 }
 
@@ -683,8 +734,13 @@ export async function startWhatsAppBot(
   const noop = () => {};
   const silentLogger = {
     level: "error",
-    child() { return silentLogger; },
-    trace: noop, debug: noop, info: noop, warn: noop,
+    child() {
+      return silentLogger;
+    },
+    trace: noop,
+    debug: noop,
+    info: noop,
+    warn: noop,
     error(obj: unknown, msg?: string) {
       console.error("[whatsapp]", msg ?? obj);
     },
@@ -697,7 +753,9 @@ export async function startWhatsAppBot(
       chatSessionMap.set(t.targetId, t.sessionId ?? "");
     }
     if (targets.length > 0) {
-      console.log(`[whatsapp] Restored ${targets.length} chat target(s) from database`);
+      console.log(
+        `[whatsapp] Restored ${targets.length} chat target(s) from database`,
+      );
     }
   } catch (err) {
     console.error("[whatsapp] Failed to restore chat targets:", err);
@@ -726,9 +784,9 @@ export async function startWhatsAppBot(
       }
 
       if (connection === "close") {
-        const statusCode =
-          (lastDisconnect?.error as { output?: { statusCode?: number } })
-            ?.output?.statusCode;
+        const statusCode = (
+          lastDisconnect?.error as { output?: { statusCode?: number } }
+        )?.output?.statusCode;
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
         console.log(
@@ -788,11 +846,16 @@ export async function startWhatsAppBot(
             // ── Document message ──
             if (message.documentMessage) {
               const fileName =
-                message.documentMessage.fileName ??
-                `file_${Date.now()}`;
+                message.documentMessage.fileName ?? `file_${Date.now()}`;
               const caption = message.documentMessage.caption ?? "";
               await handleDocumentMessage(
-                sock, appCtx, jid, msg, caption, fileName, "文件",
+                sock,
+                appCtx,
+                jid,
+                msg,
+                caption,
+                fileName,
+                "文件",
               );
               continue;
             }
@@ -800,11 +863,20 @@ export async function startWhatsAppBot(
             // ── Video message ──
             if (message.videoMessage) {
               const ext =
-                message.videoMessage.mimetype?.split("/")[1]?.split(";")[0].trim() ?? "mp4";
+                message.videoMessage.mimetype
+                  ?.split("/")[1]
+                  ?.split(";")[0]
+                  .trim() ?? "mp4";
               const fileName = `video_${Date.now()}.${ext}`;
               const caption = message.videoMessage.caption ?? "";
               await handleDocumentMessage(
-                sock, appCtx, jid, msg, caption, fileName, "视频",
+                sock,
+                appCtx,
+                jid,
+                msg,
+                caption,
+                fileName,
+                "视频",
               );
               continue;
             }
@@ -812,24 +884,37 @@ export async function startWhatsAppBot(
             // ── Audio message ──
             if (message.audioMessage) {
               const ext =
-                message.audioMessage.mimetype?.split("/")[1]?.split(";")[0].trim() ?? "ogg";
+                message.audioMessage.mimetype
+                  ?.split("/")[1]
+                  ?.split(";")[0]
+                  .trim() ?? "ogg";
               const fileName = `audio_${Date.now()}.${ext}`;
               await handleDocumentMessage(
-                sock, appCtx, jid, msg, "", fileName, "语音", true,
+                sock,
+                appCtx,
+                jid,
+                msg,
+                "",
+                fileName,
+                "语音",
+                true,
               );
               continue;
             }
 
             // ── Text message ──
             const text =
-              message.conversation ??
-              message.extendedTextMessage?.text;
+              message.conversation ?? message.extendedTextMessage?.text;
             if (text) {
               // Handle commands
               const trimmed = text.trim();
               if (trimmed === "/new") {
                 chatSessionMap.delete(jid);
-                await botSendText(sock, jid, "🔄 New conversation started. Send me a message!");
+                await botSendText(
+                  sock,
+                  jid,
+                  "🔄 New conversation started. Send me a message!",
+                );
                 continue;
               }
               if (trimmed === "/help") {
@@ -844,8 +929,15 @@ export async function startWhatsAppBot(
               await handleTextMessage(sock, appCtx, jid, text);
             }
           } catch (err) {
-            console.error("[whatsapp] Unhandled error processing message:", err instanceof Error ? err.stack : err);
-            await botSendText(sock, jid, "❌ Internal error. Please try again.").catch(() => {});
+            console.error(
+              "[whatsapp] Unhandled error processing message:",
+              err instanceof Error ? err.stack : err,
+            );
+            await botSendText(
+              sock,
+              jid,
+              "❌ Internal error. Please try again.",
+            ).catch(() => {});
           }
         }
       },
@@ -855,7 +947,9 @@ export async function startWhatsAppBot(
   // Bind events on the initial socket
   bindEvents(sock);
 
-  console.log("[whatsapp] WhatsApp bot initializing... Scan the QR code with your phone.");
+  console.log(
+    "[whatsapp] WhatsApp bot initializing... Scan the QR code with your phone.",
+  );
 
   return {
     stop: () => {

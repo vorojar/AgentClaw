@@ -1,5 +1,12 @@
 # 更新日志
 
+## [0.8.30] - 2026-03-04
+
+### 新增
+- **钉钉机器人**：`packages/gateway/src/dingtalk.ts`，基于 `dingtalk-stream-sdk-nodejs` Stream 模式（无需公网 IP）。支持文本消息收发、会话管理、ask_user 交互、文件链接推送、OpenAPI 群聊/单聊广播。环境变量 `DINGTALK_APP_KEY` + `DINGTALK_APP_SECRET`
+- **飞书机器人**：`packages/gateway/src/feishu.ts`，基于 `@larksuiteoapi/node-sdk` WebSocket 模式（无需公网 IP）。支持文本消息收发、@bot 提及过滤、会话管理、ask_user 交互、文件链接推送、主动消息广播。环境变量 `FEISHU_APP_ID` + `FEISHU_APP_SECRET`
+- 两个 bot 均已集成到 gateway 启动流程（env 按需启动）、broadcastAll 统一广播、优雅关停
+
 ## [0.8.29] - 2026-03-04
 
 ### 新增

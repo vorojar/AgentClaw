@@ -16,6 +16,8 @@ import { createServer } from "./server.js";
 import { TaskScheduler } from "./scheduler.js";
 import { startTelegramBot } from "./telegram.js";
 import { startWhatsAppBot } from "./whatsapp.js";
+import { startDingTalkBot } from "./dingtalk.js";
+import { startFeishuBot } from "./feishu.js";
 import { HeartbeatManager } from "./heartbeat.js";
 import { getWsClients } from "./ws.js";
 
@@ -27,6 +29,10 @@ export { TaskScheduler } from "./scheduler.js";
 export type { ScheduledTask } from "./scheduler.js";
 export { startTelegramBot } from "./telegram.js";
 export { startWhatsAppBot } from "./whatsapp.js";
+export { startDingTalkBot } from "./dingtalk.js";
+export type { DingTalkConfig } from "./dingtalk.js";
+export { startFeishuBot } from "./feishu.js";
+export type { FeishuConfig } from "./feishu.js";
 export { HeartbeatManager } from "./heartbeat.js";
 export type { HeartbeatConfig, HeartbeatDeps } from "./heartbeat.js";
 export { runHealthChecks, formatHealthResults } from "./health-check.js";
@@ -74,7 +80,37 @@ async function main(): Promise<void> {
     }
   }
 
-  // Unified broadcast: send text to all active gateways (Telegram + WhatsApp + WebSocket)
+  // DingTalk bot (optional — only starts if DINGTALK_APP_KEY is set)
+  let dingtalkBot: Awaited<ReturnType<typeof startDingTalkBot>> | undefined;
+  const dingtalkKey = process.env.DINGTALK_APP_KEY;
+  const dingtalkSecret = process.env.DINGTALK_APP_SECRET;
+  if (dingtalkKey && dingtalkSecret) {
+    try {
+      dingtalkBot = await startDingTalkBot(
+        { clientId: dingtalkKey, clientSecret: dingtalkSecret },
+        ctx,
+      );
+    } catch (err) {
+      console.error("[gateway] Failed to start DingTalk bot:", err);
+    }
+  }
+
+  // Feishu bot (optional — only starts if FEISHU_APP_ID is set)
+  let feishuBot: Awaited<ReturnType<typeof startFeishuBot>> | undefined;
+  const feishuAppId = process.env.FEISHU_APP_ID;
+  const feishuAppSecret = process.env.FEISHU_APP_SECRET;
+  if (feishuAppId && feishuAppSecret) {
+    try {
+      feishuBot = await startFeishuBot(
+        { appId: feishuAppId, appSecret: feishuAppSecret },
+        ctx,
+      );
+    } catch (err) {
+      console.error("[gateway] Failed to start Feishu bot:", err);
+    }
+  }
+
+  // Unified broadcast: send text to all active gateways (Telegram + WhatsApp + DingTalk + Feishu + WebSocket)
   const broadcastAll = async (text: string) => {
     await telegramBot
       ?.broadcast(text)
@@ -82,6 +118,12 @@ async function main(): Promise<void> {
     await whatsappBot
       ?.broadcast(text)
       .catch((err) => console.error("[broadcast] WhatsApp failed:", err));
+    await dingtalkBot
+      ?.broadcast(text)
+      .catch((err) => console.error("[broadcast] DingTalk failed:", err));
+    await feishuBot
+      ?.broadcast(text)
+      .catch((err) => console.error("[broadcast] Feishu failed:", err));
     // Broadcast to all WebSocket clients
     for (const ws of getWsClients()) {
       try {
@@ -187,6 +229,12 @@ async function main(): Promise<void> {
     } catch {}
     try {
       whatsappBot?.stop();
+    } catch {}
+    try {
+      dingtalkBot?.stop();
+    } catch {}
+    try {
+      feishuBot?.stop();
     } catch {}
     ctx.scheduler.stopAll();
 

@@ -13,7 +13,7 @@ AgentClaw 是一个指挥官级别的个人 AI 助理。它自己不写代码（
 AgentClaw（指挥官）
   ├── LLM 提供商 (Claude, OpenAI, Gemini, DeepSeek, Kimi, Qwen...)
   ├── 智能路由 (自动故障切换, Fast Provider 路由)
-  ├── 核心工具 (shell, file_read, file_write, ask_user, web_fetch, web_search)
+  ├── 核心工具 (shell, file_read, file_write, file_edit, glob, grep, ask_user, web_fetch, web_search)
   ├── 条件工具 (send_file, schedule, remember, use_skill, sandbox, subagent, browser_cdp...)
   ├── 记忆 (对话历史 + 长期记忆 + 自动压缩)
   ├── 规划器 (任务分解 → 步骤依赖 → 执行监控)
@@ -114,7 +114,7 @@ npm run cli          # 终端交互模式
 - **Docker 沙箱**：`sandbox` 工具在 Docker 容器内执行命令，资源限制（512MB/1CPU），超时控制，自动清理
 
 ### 子代理编排
-`subagent` 工具可派生独立子 agent 并行执行任务，拥有独立 agent-loop 和会话上下文。支持 spawn/result/kill/list 操作，适用于并行调研、独立计算等可隔离任务。
+`subagent` 工具可派生独立子 agent 并行执行任务，拥有独立 agent-loop 和会话上下文。支持 spawn/result/kill/list 操作，`mode: "explore"` 只读模式仅加载搜索/阅读工具子集，适用于并行调研、独立计算等可隔离任务。
 
 ### 对话压缩
 超过 20 轮对话后自动调用 LLM 生成摘要，减少 token 消耗。
@@ -134,6 +134,9 @@ npm run cli          # 终端交互模式
 | 核心 | `bash` | 执行 shell 命令（沙箱保护） |
 | 核心 | `file_read` | 读取文件内容 |
 | 核心 | `file_write` | 写入文件（自动创建目录） |
+| 核心 | `file_edit` | 精确字符串替换编辑文件 |
+| 核心 | `glob` | 按文件名模式搜索文件 |
+| 核心 | `grep` | 按正则搜索文件内容 |
 | 核心 | `ask_user` | 向用户提问 |
 | 条件 | `send_file` | 发送文件给用户 |
 | 条件 | `set_reminder` | 设置提醒 |

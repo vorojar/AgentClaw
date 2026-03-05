@@ -73,3 +73,8 @@ Baileys (WhatsApp) 默认 Pino logger 输出海量 info/warn 日志（pre-key sy
 Playwright 1.58 移除了 `page.accessibility.snapshot()` API。代码中直接用会编译通过但运行时报错。改为 `page.evaluate()` 内联 JS 字符串生成 DOM 快照。
 
 **教训**：使用 `any` 类型 lazy-load 第三方库时，类型检查不会报错，只能靠运行时验证发现 API 变化。
+
+### 顶层 index.ts 导出遗漏
+`builtin/index.ts` 新增了 `fileEditTool`/`globTool`/`grepTool` 的 export，但 `packages/tools/src/index.ts`（包的顶层入口）没有 re-export。tsup 打包时代码被内联进 dist，但不作为 named export 暴露。外部包（如 core）通过 `@agentclaw/tools` 导入时取不到这三个工具。
+
+**教训**：新增工具必须在**两处** export——`builtin/index.ts` 和 `src/index.ts`。CLAUDE.md 的开发约定已更新。

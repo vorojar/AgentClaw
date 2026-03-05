@@ -3,6 +3,9 @@
 > 对比时间：2026-03-05 | 核心评估维度：**"给目标就能自己干活、自己验收"**
 >
 > ⚠️ 本文基于 OpenClaw GitHub 仓库源码实际核查，非 README 级别对比
+>
+> - AgentClaw：https://github.com/vorojar/AgentClaw
+> - OpenClaw：https://github.com/openclaw/openclaw
 
 ## 一、Agent 自主性（能不能自己干活）
 

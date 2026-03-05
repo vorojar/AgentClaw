@@ -171,7 +171,6 @@
 
 ### 4.8 Other Platform Bots（其他平台机器人）
 - [ ] Discord bot
-- [ ] WeChat bot（微信机器人）
 
 ---
 
@@ -478,5 +477,5 @@
 ### 待规划方向
 - **权限门控增强**：敏感操作弹窗确认（Web UI / IM）
 - **视频生成**：Remotion 程序化生成视频
-- **更多 IM 网关**：Discord、微信
+- **更多 IM 网关**：Discord
 - **Schedule 安全防护**：最小间隔限制、最大任务数上限、before 钩子拦截

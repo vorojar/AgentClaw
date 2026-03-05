@@ -9,10 +9,10 @@
 
 ## Q2 重要 + 不紧急
 
-- [ ] **Skill 安装机制** — 从 URL/Git 安装第三方 skill 到 `~/.agentclaw/skills/`，带版本管理
-- [ ] **多 Agent 路由** — 按任务类型分发到不同 agent（编码/研究/创作），各自独立上下文和工具集
+- [x] **Skill 安装机制** — Web UI 设置页支持从 GitHub/zip 导入技能
+- [x] **多 Agent 路由** — SubAgentManager 子代理编排，主 agent 按任务派发独立子 agent
 - [ ] **OAuth 认证** — 替代纯 API Key，支持 Google/GitHub OAuth 登录 Web UI
-- [ ] **浏览器登录态** — 持久化 cookie/session，skill 复用已登录状态而非每次重新登录
+- [x] **浏览器登录态** — browser_cdp 专用 profile `~/.agentclaw/browser/`，cookie/登录态持久化
 
 ## Phase 9: 借鉴 Manus — Agent 智能提升
 
@@ -23,9 +23,9 @@
 - [x] 前端实时展示任务进度清单（WebSocket `todo_update` 事件）
 - [x] 双重作用：用户看进度 + Agent 上下文末尾持续写入目标（防 lost-in-the-middle）
 
-### 9.2 步骤时间线可视化
-- [ ] 工具调用事件 → 时间线视图（每步带摘要，可展开详情）
-- [ ] 步骤状态标识：进行中（spinner）→ 成功（✓）→ 失败（✗）
+### 9.2 步骤时间线可视化 ✅
+- [x] 工具调用事件 → Traces 时间线视图（每步带摘要，可展开详情）
+- [x] 步骤状态标识：进行中（spinner）→ 成功（✓）→ 失败（✗）
 
 ### 9.3 会话回放
 - [ ] 记录每步操作快照（工具调用 + 结果 + 时间戳）

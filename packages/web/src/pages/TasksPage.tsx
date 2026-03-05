@@ -96,6 +96,7 @@ interface TaskFormProps {
     description: string;
     priority: TodoInfo["priority"];
     dueDate: string;
+    assignee: string;
     status?: TodoStatus;
   }) => Promise<void>;
   onCancel: () => void;
@@ -117,6 +118,7 @@ function TaskForm({
     initial?.priority ?? "medium",
   );
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
+  const [assignee, setAssignee] = useState(initial?.assignee ?? "human");
   const [status, setStatus] = useState<TodoStatus>(initial?.status ?? "todo");
 
   const handleSubmit = () => {
@@ -126,12 +128,14 @@ function TaskForm({
       description: string;
       priority: TodoInfo["priority"];
       dueDate: string;
+      assignee: string;
       status?: TodoStatus;
     } = {
       title: title.trim(),
       description: description.trim(),
       priority,
       dueDate,
+      assignee,
     };
     if (showStatus) data.status = status;
     onSave(data);
@@ -166,6 +170,14 @@ function TaskForm({
               {p.charAt(0).toUpperCase() + p.slice(1)}
             </option>
           ))}
+        </select>
+        <select
+          className="tasks-form-select"
+          value={assignee}
+          onChange={(e) => setAssignee(e.target.value)}
+        >
+          <option value="human">Human</option>
+          <option value="bot">Bot</option>
         </select>
         <input
           type="date"
@@ -221,6 +233,7 @@ function TaskCard({ todo, onUpdate, onDelete }: TaskCardProps) {
     description: string;
     priority: TodoInfo["priority"];
     dueDate: string;
+    assignee: string;
     status?: TodoStatus;
   }) => {
     setSaving(true);
@@ -274,10 +287,10 @@ function TaskCard({ todo, onUpdate, onDelete }: TaskCardProps) {
           <span className="tasks-card-due">{formatDate(todo.dueDate)}</span>
         )}
         <span
-          className="tasks-card-creator"
-          title={`Created by: ${todo.createdBy}`}
+          className={`tasks-assignee tasks-assignee-${todo.assignee ?? "human"}`}
+          title={`Assignee: ${todo.assignee ?? "human"}`}
         >
-          {todo.createdBy === "agent" ? "\uD83E\uDD16" : "\uD83D\uDC64"}
+          {(todo.assignee ?? "human") === "bot" ? "Bot" : "Human"}
         </span>
         <div className="tasks-card-spacer" />
         {confirmDelete ? (
@@ -397,6 +410,7 @@ export function TasksPage() {
     description: string;
     priority: TodoInfo["priority"];
     dueDate: string;
+    assignee: string;
   }) => {
     setAddingSaving(true);
     try {
@@ -405,6 +419,7 @@ export function TasksPage() {
         description: data.description || undefined,
         priority: data.priority,
         dueDate: data.dueDate || undefined,
+        assignee: data.assignee,
       });
       setTodos((prev) => [...prev, newTodo]);
       setShowAddForm(false);

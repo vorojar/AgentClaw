@@ -172,9 +172,21 @@
   color: var(--text-muted);
 }
 
-.tasks-card-creator {
-  font-size: 14px;
-  line-height: 1;
+.tasks-assignee {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.tasks-assignee-human {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.tasks-assignee-bot {
+  background: var(--accent);
+  color: #fff;
 }
 
 .tasks-card-spacer {

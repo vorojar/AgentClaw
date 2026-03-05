@@ -152,6 +152,59 @@ async function main(): Promise<void> {
     }
   });
 
+  // Task Runner: 自动执行 assignee=bot 的任务
+  let taskRunnerBusy = false;
+  const taskRunner = setInterval(async () => {
+    if (taskRunnerBusy) return;
+    taskRunnerBusy = true;
+    try {
+      const { items } = ctx.memoryStore.listTasks(
+        { status: "todo", assignee: "bot" },
+        5,
+        0,
+      );
+      for (const task of items) {
+        console.log(`[task-runner] 执行任务: ${task.title}`);
+        ctx.memoryStore.updateTask(task.id, { status: "in_progress" });
+
+        try {
+          const session = await ctx.orchestrator.createSession();
+          ctx.memoryStore.updateTask(task.id, { sessionId: session.id });
+
+          const prompt = task.description
+            ? `${task.title}\n\n${task.description}`
+            : task.title;
+
+          let result = "";
+          for await (const event of ctx.orchestrator.processInputStream(
+            session.id,
+            prompt,
+          )) {
+            if (event.type === "response_chunk") {
+              result += (event.data as { text: string }).text;
+            }
+          }
+
+          ctx.memoryStore.updateTask(task.id, { status: "done" });
+          const summary = result.trim().slice(0, 200) || "已完成";
+          await broadcastAll(`✅ 任务「${task.title}」已完成：${summary}`);
+          console.log(`[task-runner] ✅ 完成: ${task.title}`);
+        } catch (err) {
+          Sentry.captureException(err);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[task-runner] ❌ 失败: ${task.title}`, msg);
+          // 失败后重置为 todo，下次重试
+          ctx.memoryStore.updateTask(task.id, { status: "todo" });
+          await broadcastAll(`❌ 任务「${task.title}」执行失败：${msg}`);
+        }
+      }
+    } catch (err) {
+      console.error("[task-runner] 扫描失败:", err);
+    } finally {
+      taskRunnerBusy = false;
+    }
+  }, 15_000); // 每 15 秒扫描一次
+
   // 优雅关停
   const shutdown = async (signal: string) => {
     console.log(`[shutdown] Received ${signal}, closing gracefully...`);
@@ -165,6 +218,7 @@ async function main(): Promise<void> {
 
     heartbeat.stop();
     healthJob.stop();
+    clearInterval(taskRunner);
     channelManager.stopAll();
     ctx.scheduler.stopAll();
 

@@ -16,6 +16,8 @@
 - **Store CRUD 扩展**：新增 `addTask/updateTask/deleteTask/listTasks/getCalendarItems/addSubAgent/updateSubAgent/listSubAgents/getSubAgent` 方法
 - **4 组后端 API**：`/api/todos`（任务 CRUD）、`/api/calendar`（日历聚合）、`/api/subagents`（子代理查询）、`/api/channels`（频道控制）
 - **侧边栏导航分层**：Chat + Tasks 为主导航（始终可见），Channels/Subagents/Memory/Traces/Token Logs/Skills 收入可折叠 "More" 组，默认折叠，当前路径在组内时自动展开
+- **Task Runner 自动执行**：后台每 15 秒扫描 `assignee=bot, status=todo` 的任务，自动创建 session 执行，完成后标记 Done 并广播结果。失败自动重置为 Todo 下次重试
+- **任务 Assignee 字段**：TaskForm 新增 Human/Bot 选择器，卡片显示 assignee 标签，`listTasks` 支持 assignee 过滤
 
 ## [0.9.2] - 2026-03-05
 

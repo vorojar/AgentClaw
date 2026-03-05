@@ -769,6 +769,8 @@ export class SQLiteMemoryStore implements MemoryStore {
       dueDate?: string | null;
       assignee?: string;
       tags?: string[];
+      sessionId?: string;
+      traceId?: string;
     },
   ): boolean {
     const sets: string[] = [];
@@ -802,6 +804,14 @@ export class SQLiteMemoryStore implements MemoryStore {
       sets.push("tags = ?");
       params.push(JSON.stringify(updates.tags));
     }
+    if (updates.sessionId !== undefined) {
+      sets.push("session_id = ?");
+      params.push(updates.sessionId);
+    }
+    if (updates.traceId !== undefined) {
+      sets.push("trace_id = ?");
+      params.push(updates.traceId);
+    }
 
     if (sets.length === 0) return false;
 
@@ -820,7 +830,7 @@ export class SQLiteMemoryStore implements MemoryStore {
   }
 
   listTasks(
-    filters?: { status?: string; priority?: string },
+    filters?: { status?: string; priority?: string; assignee?: string },
     limit = 100,
     offset = 0,
   ): { items: TaskRow[]; total: number } {
@@ -834,6 +844,10 @@ export class SQLiteMemoryStore implements MemoryStore {
     if (filters?.priority) {
       conditions.push("priority = ?");
       params.push(filters.priority);
+    }
+    if (filters?.assignee) {
+      conditions.push("assignee = ?");
+      params.push(filters.assignee);
     }
 
     const where =

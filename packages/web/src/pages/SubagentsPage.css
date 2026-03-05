@@ -1,0 +1,321 @@
+/* SubagentsPage styles */
+
+/* ── Filter chips ────────────────────────────────── */
+
+.sa-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.sa-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.sa-chip:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sa-chip-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.sa-chip-active:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
+/* ── Toolbar ─────────────────────────────────────── */
+
+.sa-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sa-total {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.sa-pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sa-page-info {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ── Loading / Empty / Error ─────────────────────── */
+
+.sa-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.sa-empty {
+  font-size: 15px;
+  color: var(--text-muted);
+  padding: 12px 0;
+}
+
+.sa-error {
+  padding: 12px 16px;
+  background: rgba(234, 67, 53, 0.1);
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  color: var(--error);
+  margin-bottom: 16px;
+  font-size: 15px;
+}
+
+/* ── Card list ───────────────────────────────────── */
+
+.sa-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Sub-agent card ──────────────────────────────── */
+
+.sa-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.sa-card-running {
+  border-left: 3px solid var(--accent);
+  animation: sa-pulse 2s ease-in-out infinite;
+}
+
+@keyframes sa-pulse {
+  0%,
+  100% {
+    border-left-color: var(--accent);
+  }
+  50% {
+    border-left-color: transparent;
+  }
+}
+
+/* ── Card header ─────────────────────────────────── */
+
+.sa-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sa-card-header:hover {
+  background: var(--bg-tertiary);
+}
+
+.sa-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sa-expand {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 14px;
+}
+
+/* ── Status icons ────────────────────────────────── */
+
+.sa-status-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+  line-height: 1;
+}
+
+@keyframes sa-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sa-status-running {
+  animation: sa-spin 1.5s linear infinite;
+  color: var(--accent);
+}
+
+.sa-status-completed {
+  color: #27ae60;
+}
+
+.sa-status-failed {
+  color: #e74c3c;
+}
+
+.sa-status-killed {
+  color: var(--text-secondary);
+}
+
+/* ── Goal text ───────────────────────────────────── */
+
+.sa-goal {
+  font-size: 15px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Meta row ────────────────────────────────────── */
+
+.sa-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.sa-model {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(108, 158, 255, 0.12);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.sa-tokens {
+  font-size: 13px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sa-iterations {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.sa-duration {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.sa-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Expanded body ───────────────────────────────── */
+
+.sa-card-body {
+  border-top: 1px solid var(--border);
+  padding: 16px 16px 16px 20px;
+}
+
+/* ── Result / Error ──────────────────────────────── */
+
+.sa-section {
+  margin-bottom: 12px;
+}
+
+.sa-section:last-child {
+  margin-bottom: 0;
+}
+
+.sa-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.sa-section-pre {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.sa-section-error {
+  border-color: rgba(234, 67, 53, 0.3);
+  color: var(--error);
+}
+
+/* ── Tool chips ──────────────────────────────────── */
+
+.sa-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sa-tool-chip {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}

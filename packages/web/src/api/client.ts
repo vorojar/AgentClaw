@@ -338,6 +338,153 @@ export function deleteScheduledTask(id: string): Promise<void> {
   return request(`/tasks/${id}`, { method: "DELETE" });
 }
 
+// ── Todos (Task Management) ──────────────────────────
+
+export interface TodoInfo {
+  id: string;
+  title: string;
+  description: string;
+  status: "todo" | "in_progress" | "done";
+  priority: "low" | "medium" | "high";
+  dueDate?: string;
+  assignee: string;
+  createdBy: string;
+  sessionId?: string;
+  traceId?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listTodos(
+  status?: string,
+  priority?: string,
+  limit = 100,
+  offset = 0,
+): Promise<{ items: TodoInfo[]; total: number }> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (priority) params.set("priority", priority);
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  return request(`/todos?${params}`);
+}
+
+export function createTodo(
+  todo: Pick<TodoInfo, "title"> &
+    Partial<
+      Pick<
+        TodoInfo,
+        "description" | "priority" | "dueDate" | "assignee" | "tags"
+      >
+    >,
+): Promise<TodoInfo> {
+  return request("/todos", {
+    method: "POST",
+    body: JSON.stringify(todo),
+  });
+}
+
+export function updateTodo(
+  id: string,
+  updates: Partial<
+    Pick<
+      TodoInfo,
+      | "title"
+      | "description"
+      | "status"
+      | "priority"
+      | "dueDate"
+      | "assignee"
+      | "tags"
+    >
+  >,
+): Promise<{ success: boolean }> {
+  return request(`/todos/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export function deleteTodo(id: string): Promise<void> {
+  return request(`/todos/${id}`, { method: "DELETE" });
+}
+
+// ── Calendar ───────────────────────────────────────
+
+export interface CalendarItem {
+  date: string;
+  type: "task" | "schedule";
+  id: string;
+  title: string;
+  status?: string;
+  priority?: string;
+  cron?: string;
+}
+
+export function getCalendar(
+  year: number,
+  month: number,
+): Promise<{ year: number; month: number; items: CalendarItem[] }> {
+  return request(`/calendar?year=${year}&month=${month}`);
+}
+
+// ── SubAgents ──────────────────────────────────────
+
+export interface SubAgentInfo {
+  id: string;
+  sessionId?: string;
+  goal: string;
+  model?: string;
+  status: "running" | "completed" | "failed" | "killed";
+  result?: string;
+  error?: string;
+  tokensIn: number;
+  tokensOut: number;
+  toolsUsed: string[];
+  iterations: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export function listSubAgents(
+  status?: string,
+  limit = 20,
+  offset = 0,
+): Promise<{ items: SubAgentInfo[]; total: number }> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  return request(`/subagents?${params}`);
+}
+
+export function getSubAgent(id: string): Promise<SubAgentInfo> {
+  return request(`/subagents/${id}`);
+}
+
+// ── Channels ───────────────────────────────────────
+
+export interface ChannelInfo {
+  id: string;
+  name: string;
+  status: "connected" | "disconnected" | "error" | "not_configured";
+  statusMessage?: string;
+  connectedAt?: string;
+}
+
+export function listChannels(): Promise<ChannelInfo[]> {
+  return request("/channels");
+}
+
+export function startChannel(id: string): Promise<ChannelInfo> {
+  return request(`/channels/${id}/start`, { method: "POST" });
+}
+
+export function stopChannel(id: string): Promise<ChannelInfo> {
+  return request(`/channels/${id}/stop`, { method: "POST" });
+}
+
 // ── Upload ─────────────────────────────────────────
 
 export async function uploadFile(

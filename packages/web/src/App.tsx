@@ -6,6 +6,9 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { SkillsPage } from "./pages/SkillsPage";
 import { TokenLogsPage } from "./pages/TokenLogsPage";
 import { TracesPage } from "./pages/TracesPage";
+import { TasksPage } from "./pages/TasksPage";
+import { ChannelsPage } from "./pages/ChannelsPage";
+import { SubagentsPage } from "./pages/SubagentsPage";
 import { ApiPage } from "./pages/ApiPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./auth";
@@ -42,6 +45,9 @@ function AppRoutes() {
           <Route path="/" element={<Navigate to="/chat" replace />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:sessionId" element={<ChatPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/channels" element={<ChannelsPage />} />
+          <Route path="/subagents" element={<SubagentsPage />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/token-logs" element={<TokenLogsPage />} />
           <Route path="/traces" element={<TracesPage />} />

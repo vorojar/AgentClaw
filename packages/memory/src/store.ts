@@ -721,6 +721,301 @@ export class SQLiteMemoryStore implements MemoryStore {
     deleteInTransaction(id);
   }
 
+  // ─── Tasks (human & bot shared) ──────────────────────
+
+  addTask(task: {
+    id: string;
+    title: string;
+    description?: string;
+    status?: string;
+    priority?: string;
+    dueDate?: string;
+    assignee?: string;
+    createdBy?: string;
+    sessionId?: string;
+    traceId?: string;
+    tags?: string[];
+  }): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO tasks (id, title, description, status, priority, due_date, assignee, created_by, session_id, trace_id, tags, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        task.id,
+        task.title,
+        task.description ?? "",
+        task.status ?? "todo",
+        task.priority ?? "medium",
+        task.dueDate ?? null,
+        task.assignee ?? "human",
+        task.createdBy ?? "human",
+        task.sessionId ?? null,
+        task.traceId ?? null,
+        JSON.stringify(task.tags ?? []),
+        now,
+        now,
+      );
+  }
+
+  updateTask(
+    id: string,
+    updates: {
+      title?: string;
+      description?: string;
+      status?: string;
+      priority?: string;
+      dueDate?: string | null;
+      assignee?: string;
+      tags?: string[];
+    },
+  ): boolean {
+    const sets: string[] = [];
+    const params: unknown[] = [];
+
+    if (updates.title !== undefined) {
+      sets.push("title = ?");
+      params.push(updates.title);
+    }
+    if (updates.description !== undefined) {
+      sets.push("description = ?");
+      params.push(updates.description);
+    }
+    if (updates.status !== undefined) {
+      sets.push("status = ?");
+      params.push(updates.status);
+    }
+    if (updates.priority !== undefined) {
+      sets.push("priority = ?");
+      params.push(updates.priority);
+    }
+    if (updates.dueDate !== undefined) {
+      sets.push("due_date = ?");
+      params.push(updates.dueDate);
+    }
+    if (updates.assignee !== undefined) {
+      sets.push("assignee = ?");
+      params.push(updates.assignee);
+    }
+    if (updates.tags !== undefined) {
+      sets.push("tags = ?");
+      params.push(JSON.stringify(updates.tags));
+    }
+
+    if (sets.length === 0) return false;
+
+    sets.push("updated_at = datetime('now')");
+    params.push(id);
+
+    const result = this.db
+      .prepare(`UPDATE tasks SET ${sets.join(", ")} WHERE id = ?`)
+      .run(...params);
+    return result.changes > 0;
+  }
+
+  deleteTask(id: string): boolean {
+    const result = this.db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
+    return result.changes > 0;
+  }
+
+  listTasks(
+    filters?: { status?: string; priority?: string },
+    limit = 100,
+    offset = 0,
+  ): { items: TaskRow[]; total: number } {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters?.status) {
+      conditions.push("status = ?");
+      params.push(filters.status);
+    }
+    if (filters?.priority) {
+      conditions.push("priority = ?");
+      params.push(filters.priority);
+    }
+
+    const where =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const { total } = this.db
+      .prepare(`SELECT COUNT(*) AS total FROM tasks ${where}`)
+      .get(...params) as { total: number };
+
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM tasks ${where} ORDER BY
+           CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
+           updated_at DESC
+         LIMIT ? OFFSET ?`,
+      )
+      .all(...params, limit, offset) as TaskRow[];
+
+    return { items: rows, total };
+  }
+
+  getCalendarItems(
+    year: number,
+    month: number,
+  ): Array<{
+    date: string;
+    type: "task" | "schedule";
+    id: string;
+    title: string;
+    status?: string;
+    priority?: string;
+  }> {
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const endMonth = month === 12 ? 1 : month + 1;
+    const endYear = month === 12 ? year + 1 : year;
+    const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+
+    const tasks = this.db
+      .prepare(
+        `SELECT id, title, due_date, status, priority FROM tasks
+         WHERE due_date >= ? AND due_date < ?
+         ORDER BY due_date`,
+      )
+      .all(startDate, endDate) as Array<{
+      id: string;
+      title: string;
+      due_date: string;
+      status: string;
+      priority: string;
+    }>;
+
+    return tasks.map((t) => ({
+      date: t.due_date,
+      type: "task" as const,
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+    }));
+  }
+
+  // ─── SubAgents (persistent records) ─────────────────
+
+  addSubAgent(agent: {
+    id: string;
+    sessionId?: string;
+    goal: string;
+    model?: string;
+  }): void {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO subagents (id, session_id, goal, model, status, created_at)
+         VALUES (?, ?, ?, ?, 'running', ?)`,
+      )
+      .run(
+        agent.id,
+        agent.sessionId ?? null,
+        agent.goal,
+        agent.model ?? null,
+        now,
+      );
+  }
+
+  updateSubAgent(
+    id: string,
+    updates: {
+      status?: string;
+      result?: string;
+      error?: string;
+      tokensIn?: number;
+      tokensOut?: number;
+      toolsUsed?: string[];
+      iterations?: number;
+      completedAt?: string;
+    },
+  ): boolean {
+    const sets: string[] = [];
+    const params: unknown[] = [];
+
+    if (updates.status !== undefined) {
+      sets.push("status = ?");
+      params.push(updates.status);
+    }
+    if (updates.result !== undefined) {
+      sets.push("result = ?");
+      params.push(updates.result);
+    }
+    if (updates.error !== undefined) {
+      sets.push("error = ?");
+      params.push(updates.error);
+    }
+    if (updates.tokensIn !== undefined) {
+      sets.push("tokens_in = ?");
+      params.push(updates.tokensIn);
+    }
+    if (updates.tokensOut !== undefined) {
+      sets.push("tokens_out = ?");
+      params.push(updates.tokensOut);
+    }
+    if (updates.toolsUsed !== undefined) {
+      sets.push("tools_used = ?");
+      params.push(JSON.stringify(updates.toolsUsed));
+    }
+    if (updates.iterations !== undefined) {
+      sets.push("iterations = ?");
+      params.push(updates.iterations);
+    }
+    if (updates.completedAt !== undefined) {
+      sets.push("completed_at = ?");
+      params.push(updates.completedAt);
+    }
+
+    if (sets.length === 0) return false;
+
+    params.push(id);
+    const result = this.db
+      .prepare(`UPDATE subagents SET ${sets.join(", ")} WHERE id = ?`)
+      .run(...params);
+    return result.changes > 0;
+  }
+
+  listSubAgents(
+    filters?: { sessionId?: string; status?: string },
+    limit = 20,
+    offset = 0,
+  ): { items: SubAgentRow[]; total: number } {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters?.sessionId) {
+      conditions.push("session_id = ?");
+      params.push(filters.sessionId);
+    }
+    if (filters?.status) {
+      conditions.push("status = ?");
+      params.push(filters.status);
+    }
+
+    const where =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const { total } = this.db
+      .prepare(`SELECT COUNT(*) AS total FROM subagents ${where}`)
+      .get(...params) as { total: number };
+
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM subagents ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      )
+      .all(...params, limit, offset) as SubAgentRow[];
+
+    return { items: rows, total };
+  }
+
+  getSubAgent(id: string): SubAgentRow | null {
+    const row = this.db
+      .prepare("SELECT * FROM subagents WHERE id = ?")
+      .get(id) as SubAgentRow | undefined;
+    return row ?? null;
+  }
+
   // ─── Traces ──────────────────────────────────────────────────
 
   async addTrace(trace: Trace): Promise<void> {
@@ -944,6 +1239,38 @@ function mmrRerank(
   }
 
   return selected;
+}
+
+export interface TaskRow {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  assignee: string;
+  created_by: string;
+  session_id: string | null;
+  trace_id: string | null;
+  tags: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubAgentRow {
+  id: string;
+  session_id: string | null;
+  goal: string;
+  model: string | null;
+  status: string;
+  result: string | null;
+  error: string | null;
+  tokens_in: number;
+  tokens_out: number;
+  tools_used: string;
+  iterations: number;
+  created_at: string;
+  completed_at: string | null;
 }
 
 interface TraceRow {

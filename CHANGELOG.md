@@ -1,5 +1,21 @@
 # 更新日志
 
+## [0.9.3] - 2026-03-05
+
+### 新增
+- **频道管理面板**：`/channels` 页面，运行时控制 Telegram/WhatsApp/钉钉/飞书/WebSocket 五个频道的启停。每张卡片显示频道图标、状态指示灯、连接时长、错误信息，toggle 开关可实时 start/stop。5 秒自动刷新，未配置频道灰显禁用
+- **任务管理系统**：`/tasks` 页面，人机共享的看板 + 日历双视图
+  - **看板视图**：Todo / In Progress / Done 三列，支持新建、编辑、删除任务，优先级颜色标记（高/中/低），指派人（human/bot）标签
+  - **日历视图**：月度网格，彩色圆点标记任务截止日和定时任务，点击日期展开详情面板，定时任务 CRUD（从 Settings 页迁移过来）
+- **子代理可视化**：`/subagents` 页面，展示所有子代理的运行记录（持久化到 SQLite）。状态筛选芯片（All/Running/Completed/Failed/Killed），可展开卡片显示目标、模型、token 用量、工具列表、迭代次数、耗时。运行中的子代理带脉冲动画
+- **ChannelManager 统一管理**：`packages/gateway/src/channel-manager.ts`，封装五个频道的生命周期管理（start/stop/list/broadcast），替代 index.ts 中分散的 bot 初始化逻辑，代码大幅精简
+
+### 改进
+- **Settings 页精简**：移除定时任务管理（已迁移至 Tasks 日历视图），新增 Provider/Model 系统信息显示
+- **数据库新增两张表**：`tasks`（任务管理，含优先级/截止日/指派人/标签）和 `subagents`（子代理历史记录，含 token/工具/迭代数据）
+- **Store CRUD 扩展**：新增 `addTask/updateTask/deleteTask/listTasks/getCalendarItems/addSubAgent/updateSubAgent/listSubAgents/getSubAgent` 方法
+- **4 组后端 API**：`/api/todos`（任务 CRUD）、`/api/calendar`（日历聚合）、`/api/subagents`（子代理查询）、`/api/channels`（频道控制）
+
 ## [0.9.2] - 2026-03-05
 
 ### 修复

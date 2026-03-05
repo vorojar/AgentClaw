@@ -17,6 +17,9 @@ import {
   IconX,
   IconEdit,
   IconMenu,
+  IconTasks,
+  IconChannels,
+  IconSubAgents,
 } from "./Icons";
 
 function formatSessionLabel(s: {
@@ -141,6 +144,27 @@ export function Layout() {
             onClick={closeSidebarOnMobile}
           >
             <IconChat size={16} /> Chat
+          </NavLink>
+          <NavLink
+            to="/tasks"
+            className={({ isActive }) => (isActive ? "active" : "")}
+            onClick={closeSidebarOnMobile}
+          >
+            <IconTasks size={16} /> Tasks
+          </NavLink>
+          <NavLink
+            to="/channels"
+            className={({ isActive }) => (isActive ? "active" : "")}
+            onClick={closeSidebarOnMobile}
+          >
+            <IconChannels size={16} /> Channels
+          </NavLink>
+          <NavLink
+            to="/subagents"
+            className={({ isActive }) => (isActive ? "active" : "")}
+            onClick={closeSidebarOnMobile}
+          >
+            <IconSubAgents size={16} /> Subagents
           </NavLink>
           <NavLink
             to="/memory"

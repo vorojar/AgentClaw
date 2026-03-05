@@ -13,13 +13,9 @@ import "dotenv/config";
 import { Cron } from "croner";
 import { bootstrap } from "./bootstrap.js";
 import { createServer } from "./server.js";
-import { TaskScheduler } from "./scheduler.js";
-import { startTelegramBot } from "./telegram.js";
-import { startWhatsAppBot } from "./whatsapp.js";
-import { startDingTalkBot } from "./dingtalk.js";
-import { startFeishuBot } from "./feishu.js";
 import { HeartbeatManager } from "./heartbeat.js";
 import { getWsClients } from "./ws.js";
+import { ChannelManager } from "./channel-manager.js";
 
 export { bootstrap } from "./bootstrap.js";
 export type { AppContext, AppRuntimeConfig } from "./bootstrap.js";
@@ -37,6 +33,8 @@ export { HeartbeatManager } from "./heartbeat.js";
 export type { HeartbeatConfig, HeartbeatDeps } from "./heartbeat.js";
 export { runHealthChecks, formatHealthResults } from "./health-check.js";
 export type { HealthCheckResult } from "./health-check.js";
+export { ChannelManager } from "./channel-manager.js";
+export type { ChannelInfo } from "./channel-manager.js";
 
 async function main(): Promise<void> {
   const port = parseInt(process.env.PORT || "3100", 10);
@@ -45,8 +43,11 @@ async function main(): Promise<void> {
   console.log("[gateway] Bootstrapping...");
   const ctx = await bootstrap();
 
+  // Channel Manager: unified lifecycle for all bot channels
+  const channelManager = new ChannelManager(ctx);
+
   console.log("[gateway] Creating server...");
-  const app = await createServer({ ctx, scheduler: ctx.scheduler });
+  const app = await createServer({ ctx, scheduler: ctx.scheduler, channelManager });
 
   // Start listening
   try {
@@ -58,80 +59,12 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Telegram bot (optional — only starts if TELEGRAM_BOT_TOKEN is set)
-  let telegramBot: Awaited<ReturnType<typeof startTelegramBot>> | undefined;
-  const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (telegramToken) {
-    try {
-      telegramBot = await startTelegramBot(telegramToken, ctx);
-    } catch (err) {
-      console.error("[gateway] Failed to start Telegram bot:", err);
-    }
-  }
+  // Start all configured channels
+  await channelManager.startAll();
 
-  // WhatsApp bot (optional — only starts if WHATSAPP_ENABLED is "true")
-  let whatsappBot: Awaited<ReturnType<typeof startWhatsAppBot>> | undefined;
-  const whatsappEnabled = process.env.WHATSAPP_ENABLED === "true";
-  if (whatsappEnabled) {
-    try {
-      whatsappBot = await startWhatsAppBot(ctx);
-    } catch (err) {
-      console.error("[gateway] Failed to start WhatsApp bot:", err);
-    }
-  }
-
-  // DingTalk bot (optional — only starts if DINGTALK_APP_KEY is set)
-  let dingtalkBot: Awaited<ReturnType<typeof startDingTalkBot>> | undefined;
-  const dingtalkKey = process.env.DINGTALK_APP_KEY;
-  const dingtalkSecret = process.env.DINGTALK_APP_SECRET;
-  if (dingtalkKey && dingtalkSecret) {
-    try {
-      dingtalkBot = await startDingTalkBot(
-        {
-          clientId: dingtalkKey,
-          clientSecret: dingtalkSecret,
-          allowedUsers: process.env.DINGTALK_ALLOWED_USERS,
-        },
-        ctx,
-      );
-    } catch (err) {
-      console.error("[gateway] Failed to start DingTalk bot:", err);
-    }
-  }
-
-  // Feishu bot (optional — only starts if FEISHU_APP_ID is set)
-  let feishuBot: Awaited<ReturnType<typeof startFeishuBot>> | undefined;
-  const feishuAppId = process.env.FEISHU_APP_ID;
-  const feishuAppSecret = process.env.FEISHU_APP_SECRET;
-  if (feishuAppId && feishuAppSecret) {
-    try {
-      feishuBot = await startFeishuBot(
-        {
-          appId: feishuAppId,
-          appSecret: feishuAppSecret,
-          allowedUsers: process.env.FEISHU_ALLOWED_USERS,
-        },
-        ctx,
-      );
-    } catch (err) {
-      console.error("[gateway] Failed to start Feishu bot:", err);
-    }
-  }
-
-  // Unified broadcast: send text to all active gateways (Telegram + WhatsApp + DingTalk + Feishu + WebSocket)
+  // Unified broadcast: send text to all active channels + WebSocket clients
   const broadcastAll = async (text: string) => {
-    await telegramBot
-      ?.broadcast(text)
-      .catch((err) => console.error("[broadcast] Telegram failed:", err));
-    await whatsappBot
-      ?.broadcast(text)
-      .catch((err) => console.error("[broadcast] WhatsApp failed:", err));
-    await dingtalkBot
-      ?.broadcast(text)
-      .catch((err) => console.error("[broadcast] DingTalk failed:", err));
-    await feishuBot
-      ?.broadcast(text)
-      .catch((err) => console.error("[broadcast] Feishu failed:", err));
+    await channelManager.broadcast(text);
     // Broadcast to all WebSocket clients
     for (const ws of getWsClients()) {
       try {
@@ -232,18 +165,7 @@ async function main(): Promise<void> {
 
     heartbeat.stop();
     healthJob.stop();
-    try {
-      telegramBot?.stop();
-    } catch {}
-    try {
-      whatsappBot?.stop();
-    } catch {}
-    try {
-      dingtalkBot?.stop();
-    } catch {}
-    try {
-      feishuBot?.stop();
-    } catch {}
+    channelManager.stopAll();
     ctx.scheduler.stopAll();
 
     try {

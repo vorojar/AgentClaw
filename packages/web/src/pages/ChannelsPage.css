@@ -1,0 +1,214 @@
+/* ChannelsPage styles */
+
+.channels-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.channels-error {
+  padding: 10px 16px;
+  background: rgba(234, 67, 53, 0.1);
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  color: var(--error);
+  margin-bottom: 16px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.channels-error button {
+  background: none;
+  border: none;
+  color: var(--error);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.channels-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 48px 0;
+  font-size: 16px;
+}
+
+/* Card grid — 2 columns, 1 on mobile */
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .channels-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card */
+.channels-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.15s;
+}
+
+.channels-card:hover {
+  border-color: var(--accent);
+}
+
+.channels-card-dimmed {
+  opacity: 0.5;
+}
+
+.channels-card-dimmed:hover {
+  border-color: var(--border);
+}
+
+/* Left section: icon + name */
+.channels-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.channels-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.channels-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.channels-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* Middle section: status info */
+.channels-card-middle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.channels-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.channels-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.channels-status-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.channels-status-notconfigured {
+  text-decoration: line-through;
+  text-transform: none;
+}
+
+.channels-connected-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-left: 14px;
+}
+
+.channels-error-msg {
+  font-size: 12px;
+  color: #e74c3c;
+  padding-left: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right section: toggle */
+.channels-card-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Toggle switch — pill shape */
+.channels-toggle {
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--text-secondary);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.channels-toggle.on {
+  background: #27ae60;
+}
+
+.channels-toggle .channels-toggle-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s;
+}
+
+.channels-toggle.on .channels-toggle-knob {
+  left: 22px;
+}
+
+.channels-toggle.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.channels-toggle.loading {
+  animation: channels-toggle-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes channels-toggle-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

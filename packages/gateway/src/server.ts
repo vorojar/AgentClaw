@@ -21,12 +21,18 @@ import { registerWebSocket } from "./ws.js";
 import { registerBrowserExtension } from "./routes/browser-ext.js";
 import { registerUploadRoutes } from "./routes/upload.js";
 import { registerPreviewRoutes } from "./routes/preview.js";
+import { registerTodoRoutes } from "./routes/todos.js";
+import { registerCalendarRoutes } from "./routes/calendar.js";
+import { registerSubAgentRoutes } from "./routes/subagents.js";
+import { registerChannelRoutes } from "./routes/channels.js";
 import { registerAuth } from "./auth.js";
+import type { ChannelManager } from "./channel-manager.js";
 import * as Sentry from "@sentry/node";
 
 export interface ServerOptions {
   ctx: AppContext;
   scheduler?: TaskScheduler;
+  channelManager?: ChannelManager;
 }
 
 export async function createServer(
@@ -71,6 +77,12 @@ export async function createServer(
   registerTokenLogRoutes(app, ctx);
   registerTraceRoutes(app, ctx);
   registerTaskRoutes(app, scheduler);
+  registerTodoRoutes(app, ctx);
+  registerCalendarRoutes(app, ctx, scheduler);
+  registerSubAgentRoutes(app, ctx);
+  if (options.channelManager) {
+    registerChannelRoutes(app, options.channelManager);
+  }
 
   // Register upload & WebSocket
   await registerUploadRoutes(app);

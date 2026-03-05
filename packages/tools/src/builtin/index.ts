@@ -9,6 +9,9 @@ import { rememberTool } from "./remember.js";
 import { useSkillTool } from "./use-skill.js";
 import { claudeCodeTool } from "./claude-code.js";
 import { updateTodoTool } from "./update-todo.js";
+import { sandboxTool } from "./sandbox.js";
+import { subagentTool } from "./subagent.js";
+import { browserCdpTool } from "./browser-cdp.js";
 import { webFetchTool } from "./web-fetch.js";
 import { webSearchTool } from "./web-search.js";
 
@@ -20,6 +23,9 @@ export { askUserTool } from "./ask-user.js";
 export { sendFileTool } from "./send-file.js";
 export { scheduleTool } from "./schedule.js";
 export { rememberTool } from "./remember.js";
+export { sandboxTool } from "./sandbox.js";
+export { subagentTool } from "./subagent.js";
+export { browserCdpTool } from "./browser-cdp.js";
 
 /** Options for configuring which conditional tools to include */
 export interface BuiltinToolsOptions {
@@ -47,7 +53,14 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
 
   // Conditional tools — loaded based on configuration
   if (options?.gateway) {
-    tools.push(sendFileTool, scheduleTool, updateTodoTool);
+    tools.push(
+      sendFileTool,
+      scheduleTool,
+      updateTodoTool,
+      sandboxTool,
+      subagentTool,
+      browserCdpTool,
+    );
   }
   if (options?.memory) {
     tools.push(rememberTool);

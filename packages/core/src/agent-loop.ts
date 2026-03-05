@@ -508,57 +508,116 @@ export class SimpleAgentLoop implements AgentLoop {
           input: toolCall.input,
         } as TraceStep);
 
-        // Check if this tool has already failed too many times across iterations
-        // For bash, key by command prefix so different commands don't share counts
-        const failKey =
-          toolCall.name === "bash" &&
-          typeof toolCall.input?.command === "string"
-            ? `bash:${toolCall.input.command.slice(0, 80)}`
-            : toolCall.name;
-        const priorFails = toolFailCounts.get(failKey) ?? 0;
-        let result: Awaited<ReturnType<typeof this.toolRegistry.execute>>;
+        // Mutable tool name/input — hooks may modify these
+        let effectiveToolName = toolCall.name;
+        let effectiveToolInput = toolCall.input;
+
+        // Check tool access policy
+        let result: Awaited<ReturnType<typeof this.toolRegistry.execute>> =
+          undefined!;
+        let blockedByPolicy = false;
+
+        if (context?.toolPolicy) {
+          const { allow, deny } = context.toolPolicy;
+          const denied = deny?.includes(effectiveToolName);
+          const notAllowed = allow && !allow.includes(effectiveToolName);
+          if (denied || notAllowed) {
+            result = {
+              content: `Tool "${effectiveToolName}" is blocked by policy`,
+              isError: true,
+            };
+            blockedByPolicy = true;
+          }
+        }
+
+        // Run before hooks (skip if already blocked by policy)
+        if (!blockedByPolicy && context?.toolHooks?.before) {
+          const modified = await context.toolHooks.before({
+            name: effectiveToolName,
+            input: effectiveToolInput,
+          });
+          if (modified === null) {
+            result = {
+              content: `Tool "${effectiveToolName}" was blocked by a before hook`,
+              isError: true,
+            };
+            blockedByPolicy = true;
+          } else {
+            effectiveToolName = modified.name;
+            effectiveToolInput = modified.input;
+          }
+        }
 
         const toolStart = Date.now();
 
-        if (priorFails >= MAX_TOOL_FAILURES) {
-          result = {
-            content: `This tool has failed ${priorFails} times in this conversation. Stop retrying and tell the user what went wrong.`,
-            isError: true,
-          };
-        } else {
-          result = await this.toolRegistry.execute(
-            toolCall.name,
-            toolCall.input,
-            context,
-          );
+        if (!blockedByPolicy) {
+          // Check if this tool has already failed too many times across iterations
+          // For bash, key by command prefix so different commands don't share counts
+          const failKey =
+            effectiveToolName === "bash" &&
+            typeof effectiveToolInput?.command === "string"
+              ? `bash:${effectiveToolInput.command.slice(0, 80)}`
+              : effectiveToolName;
+          const priorFails = toolFailCounts.get(failKey) ?? 0;
 
-          // Retry retryable tools on failure
-          if (result.isError && RETRYABLE_TOOLS.has(toolCall.name)) {
-            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-              if (this.aborted) break;
-              const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
-              console.log(
-                `[agent-loop] Retrying ${toolCall.name} (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms...`,
-              );
-              await new Promise((r) => setTimeout(r, delay));
-              if (this.aborted) break;
-              result = await this.toolRegistry.execute(
-                toolCall.name,
-                toolCall.input,
-                context,
-              );
-              if (!result.isError) break;
+          if (priorFails >= MAX_TOOL_FAILURES) {
+            result = {
+              content: `This tool has failed ${priorFails} times in this conversation. Stop retrying and tell the user what went wrong.`,
+              isError: true,
+            };
+          } else {
+            result = await this.toolRegistry.execute(
+              effectiveToolName,
+              effectiveToolInput,
+              context,
+            );
+
+            // Retry retryable tools on failure
+            if (result.isError && RETRYABLE_TOOLS.has(effectiveToolName)) {
+              for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                if (this.aborted) break;
+                const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
+                console.log(
+                  `[agent-loop] Retrying ${effectiveToolName} (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms...`,
+                );
+                await new Promise((r) => setTimeout(r, delay));
+                if (this.aborted) break;
+                result = await this.toolRegistry.execute(
+                  effectiveToolName,
+                  effectiveToolInput,
+                  context,
+                );
+                if (!result.isError) break;
+              }
             }
+          }
+
+          // Run after hooks
+          if (context?.toolHooks?.after) {
+            result = await context.toolHooks.after(
+              { name: effectiveToolName, input: effectiveToolInput },
+              result!,
+            );
           }
         }
 
         const toolDurationMs = Date.now() - toolStart;
 
-        // Update per-tool failure tracking
-        if (result.isError) {
-          toolFailCounts.set(failKey, priorFails + 1);
-        } else {
-          toolFailCounts.delete(failKey);
+        // Update per-tool failure tracking (skip for policy/hook blocks)
+        if (!blockedByPolicy) {
+          const failKeyForTracking =
+            effectiveToolName === "bash" &&
+            typeof effectiveToolInput?.command === "string"
+              ? `bash:${effectiveToolInput.command.slice(0, 80)}`
+              : effectiveToolName;
+          if (result!.isError) {
+            toolFailCounts.set(
+              failKeyForTracking,
+              (toolFailCounts.get(failKeyForTracking) ?? 0) + 1,
+            );
+          } else {
+            toolFailCounts.delete(failKeyForTracking);
+          }
         }
 
         if (result.autoComplete) hasAutoComplete = true;

@@ -28,11 +28,13 @@ export interface MemoryQuery {
   limit?: number;
   /** Minimum importance threshold */
   minImportance?: number;
-  /** Weight for semantic similarity (default 0.5) */
+  /** Weight for BM25 full-text search score (default 0.2) */
+  bm25Weight?: number;
+  /** Weight for semantic/vector similarity (default 0.4) */
   semanticWeight?: number;
-  /** Weight for recency (default 0.2) */
+  /** Weight for recency (default 0.15) */
   recencyWeight?: number;
-  /** Weight for importance (default 0.3) */
+  /** Weight for importance (default 0.25) */
   importanceWeight?: number;
 }
 

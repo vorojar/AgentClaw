@@ -20,6 +20,7 @@
     "@agentclaw/types": "workspace:*",
     "@mozilla/readability": "^0.6.0",
     "linkedom": "^0.18.12",
+    "playwright-core": "^1.58.2",
     "turndown": "^7.2.2"
   },
   "devDependencies": {

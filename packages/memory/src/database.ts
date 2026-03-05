@@ -71,6 +71,13 @@ CREATE TABLE IF NOT EXISTS traces (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_traces_created ON traces(created_at DESC);
+
+-- FTS5 full-text search index for hybrid memory retrieval (BM25 + vector)
+CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+  id UNINDEXED,
+  content,
+  tokenize='unicode61'
+);
 `;
 
 /**
@@ -106,6 +113,23 @@ export function initDatabase(dbPath: string): Database.Database {
   }>;
   if (!sessionCols.some((c) => c.name === "title")) {
     db.exec("ALTER TABLE sessions ADD COLUMN title TEXT");
+  }
+
+  // Migration: populate FTS5 index from existing memories (one-time sync)
+  const ftsCount = (
+    db.prepare("SELECT COUNT(*) AS cnt FROM memories_fts").get() as {
+      cnt: number;
+    }
+  ).cnt;
+  const memCount = (
+    db.prepare("SELECT COUNT(*) AS cnt FROM memories").get() as {
+      cnt: number;
+    }
+  ).cnt;
+  if (ftsCount === 0 && memCount > 0) {
+    db.exec(
+      "INSERT INTO memories_fts (id, content) SELECT id, content FROM memories",
+    );
   }
 
   return db;

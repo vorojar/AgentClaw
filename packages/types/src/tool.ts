@@ -88,6 +88,12 @@ export interface ToolExecutionContext {
   originalUserText?: string;
   /** Per-trace working directory (absolute path, forward slashes) */
   workDir?: string;
+  /** Tool execution hooks (before/after) */
+  toolHooks?: ToolHooks;
+  /** Tool access policy (allow/deny lists) */
+  toolPolicy?: ToolPolicy;
+  /** Sub-agent manager for spawning/managing sub-agents */
+  subAgentManager?: import("./subagent.js").SubAgentManager;
 }
 
 /** A tool that can be executed */
@@ -122,6 +128,28 @@ export interface ToolRegistry {
     input: Record<string, unknown>,
     context?: ToolExecutionContext,
   ): Promise<ToolResult>;
+}
+
+/** Hook called before/after tool execution */
+export interface ToolHooks {
+  /** Called before tool execution. Return modified input, or null to block execution. */
+  before?: (call: {
+    name: string;
+    input: Record<string, unknown>;
+  }) => Promise<{ name: string; input: Record<string, unknown> } | null>;
+  /** Called after tool execution. Can modify the result. */
+  after?: (
+    call: { name: string; input: Record<string, unknown> },
+    result: ToolResult,
+  ) => Promise<ToolResult>;
+}
+
+/** Tool access policy */
+export interface ToolPolicy {
+  /** If set, only these tools are allowed */
+  allow?: string[];
+  /** These tools are always blocked */
+  deny?: string[];
 }
 
 /** MCP Server connection configuration */

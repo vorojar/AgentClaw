@@ -17,9 +17,13 @@ export type EmbedFn = (texts: string[]) => Promise<number[][]>;
  * SQLite-backed implementation of the MemoryStore interface.
  *
  * Supports hybrid retrieval:
- *   score = semantic_similarity × semanticWeight
- *         + recency × recencyWeight
- *         + importance × importanceWeight
+ *   score = bm25Weight × bm25Score
+ *         + semanticWeight × vectorScore
+ *         + recencyWeight × recencyScore
+ *         + importanceWeight × importanceScore
+ *
+ * BM25 scoring uses FTS5 full-text search. Results are then deduplicated
+ * using MMR (Maximal Marginal Relevance) to ensure diversity.
  *
  * When no LLM embed function is provided, falls back to SimpleBagOfWords.
  */
@@ -27,11 +31,29 @@ export class SQLiteMemoryStore implements MemoryStore {
   private db: Database.Database;
   private embedFn?: EmbedFn;
   private bow: SimpleBagOfWords;
+  private hasFts: boolean;
 
   constructor(db: Database.Database, embedFn?: EmbedFn) {
     this.db = db;
     this.embedFn = embedFn;
     this.bow = new SimpleBagOfWords(512);
+    this.hasFts = this.checkFtsAvailable();
+  }
+
+  /** Check whether the memories_fts table exists (old DBs may lack it) */
+  private checkFtsAvailable(): boolean {
+    try {
+      this.db
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type='table' AND name='memories_fts'",
+        )
+        .get();
+      // Also do a lightweight probe to make sure FTS5 module is loaded
+      this.db.prepare("SELECT COUNT(*) FROM memories_fts").get();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Set or update the embedding function (e.g. after provider is ready) */
@@ -70,6 +92,13 @@ export class SQLiteMemoryStore implements MemoryStore {
         entry.metadata ? JSON.stringify(entry.metadata) : null,
       );
 
+    // Sync FTS5 index
+    if (this.hasFts) {
+      this.db
+        .prepare("INSERT INTO memories_fts (id, content) VALUES (?, ?)")
+        .run(id, entry.content);
+    }
+
     return {
       id,
       type: entry.type,
@@ -100,14 +129,16 @@ export class SQLiteMemoryStore implements MemoryStore {
 
     // NOTE: query.query is intentionally NOT used as a SQL LIKE pre-filter.
     // LIKE '%full sentence%' eliminates almost all memories before semantic
-    // scoring gets a chance to run. The query is used only for embedding-based
-    // and token-overlap scoring below.
+    // scoring gets a chance to run. The query is used only for embedding-based,
+    // token-overlap, and BM25 scoring below.
 
     const where =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
+    const limit = query.limit ?? 20;
+
     // Fetch more candidates than needed — we re-rank with hybrid scoring
-    const fetchLimit = Math.max((query.limit ?? 20) * 3, 60);
+    const fetchLimit = Math.max(limit * 3, 60);
 
     const rows = this.db
       .prepare(
@@ -115,10 +146,17 @@ export class SQLiteMemoryStore implements MemoryStore {
       )
       .all(...params, fetchLimit) as MemoryRow[];
 
-    // Hybrid scoring weights
-    const wSemantic = query.semanticWeight ?? 0.5;
-    const wRecency = query.recencyWeight ?? 0.2;
-    const wImportance = query.importanceWeight ?? 0.3;
+    // Hybrid scoring weights (new defaults: bm25=0.2, vector=0.4, recency=0.15, importance=0.25)
+    const wBm25 = query.bm25Weight ?? 0.2;
+    const wSemantic = query.semanticWeight ?? 0.4;
+    const wRecency = query.recencyWeight ?? 0.15;
+    const wImportance = query.importanceWeight ?? 0.25;
+
+    // Run BM25 search via FTS5
+    const bm25Scores =
+      query.query && wBm25 > 0
+        ? this.bm25Search(query.query, fetchLimit)
+        : new Map<string, number>();
 
     // Generate query embedding for semantic scoring
     let queryEmbedding: number[] | undefined;
@@ -131,6 +169,9 @@ export class SQLiteMemoryStore implements MemoryStore {
 
     const scored: MemorySearchResult[] = rows.map((row) => {
       const entry = rowToMemoryEntry(row);
+
+      // BM25 score (0-1), 0 if not found in FTS results
+      const bm25Score = bm25Scores.get(entry.id) ?? 0;
 
       // Semantic similarity score (0-1)
       let semanticScore = 0;
@@ -161,6 +202,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       const importanceScore = entry.importance;
 
       const score =
+        wBm25 * bm25Score +
         wSemantic * semanticScore +
         wRecency * recencyScore +
         wImportance * importanceScore;
@@ -168,9 +210,11 @@ export class SQLiteMemoryStore implements MemoryStore {
       return { entry, score };
     });
 
-    // Sort by hybrid score, return top N
+    // Sort by hybrid score
     scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, query.limit ?? 20);
+
+    // Apply MMR dedup to ensure diversity in final results
+    return mmrRerank(scored, limit);
   }
 
   /**
@@ -187,6 +231,7 @@ export class SQLiteMemoryStore implements MemoryStore {
     const results = await this.search({
       query: content,
       limit: 10,
+      bm25Weight: 0,
       semanticWeight: 1.0,
       recencyWeight: 0,
       importanceWeight: 0,
@@ -269,6 +314,14 @@ export class SQLiteMemoryStore implements MemoryStore {
         .run(...params);
     }
 
+    // Sync FTS5 index when content changes
+    if (updates.content !== undefined && this.hasFts) {
+      this.db.prepare("DELETE FROM memories_fts WHERE id = ?").run(id);
+      this.db
+        .prepare("INSERT INTO memories_fts (id, content) VALUES (?, ?)")
+        .run(id, updates.content);
+    }
+
     // Fetch the updated row
     const row = this.db
       .prepare("SELECT * FROM memories WHERE id = ?")
@@ -279,6 +332,10 @@ export class SQLiteMemoryStore implements MemoryStore {
 
   async delete(id: string): Promise<void> {
     this.db.prepare("DELETE FROM memories WHERE id = ?").run(id);
+    // Sync FTS5 index
+    if (this.hasFts) {
+      this.db.prepare("DELETE FROM memories_fts WHERE id = ?").run(id);
+    }
   }
 
   // ─── Usage stats ─────────────────────────────────────────────
@@ -470,7 +527,7 @@ export class SQLiteMemoryStore implements MemoryStore {
 
   // ─── Reindex ──────────────────────────────────────────────────
 
-  /** Regenerate embeddings for all memories using the current embedFn */
+  /** Regenerate embeddings for all memories and rebuild FTS index */
   async reindexEmbeddings(): Promise<{ total: number; updated: number }> {
     const rows = this.db
       .prepare("SELECT id, content FROM memories")
@@ -484,7 +541,60 @@ export class SQLiteMemoryStore implements MemoryStore {
         .run(Buffer.from(new Float64Array(embedding).buffer), row.id);
       updated++;
     }
+
+    // Rebuild FTS5 index
+    if (this.hasFts) {
+      this.db.exec("DELETE FROM memories_fts");
+      this.db.exec(
+        "INSERT INTO memories_fts (id, content) SELECT id, content FROM memories",
+      );
+    }
+
     return { total: rows.length, updated };
+  }
+
+  // ─── BM25 / FTS5 helpers ──────────────────────────────────────
+
+  /**
+   * Run FTS5 BM25 search and return a map of memory id → normalized score (0-1).
+   * Returns an empty map if FTS is unavailable or the query is empty.
+   */
+  private bm25Search(query: string, limit: number): Map<string, number> {
+    const result = new Map<string, number>();
+    if (!this.hasFts || !query) return result;
+
+    const escaped = escapeFtsQuery(query);
+    if (!escaped) return result;
+
+    try {
+      const rows = this.db
+        .prepare(
+          `SELECT id, bm25(memories_fts) AS rank
+           FROM memories_fts
+           WHERE content MATCH ?
+           ORDER BY rank
+           LIMIT ?`,
+        )
+        .all(escaped, limit) as Array<{ id: string; rank: number }>;
+
+      if (rows.length === 0) return result;
+
+      // BM25 returns negative scores (lower = better match).
+      // Normalize to 0-1 where 1 = best match.
+      const ranks = rows.map((r) => r.rank);
+      const minRank = Math.min(...ranks); // most negative = best
+      const maxRank = Math.max(...ranks); // least negative = worst
+      const range = maxRank - minRank;
+
+      for (const row of rows) {
+        const normalized = range === 0 ? 1 : (maxRank - row.rank) / range;
+        result.set(row.id, normalized);
+      }
+    } catch {
+      // FTS query failed (e.g. syntax error after escaping) — degrade gracefully
+    }
+
+    return result;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────
@@ -758,6 +868,82 @@ function tokenizeForOverlap(text: string): Set<string> {
     for (const p of parts) tokens.add(p);
   }
   return tokens;
+}
+
+/**
+ * Escape a user query for FTS5 MATCH syntax.
+ * Wraps each token in double quotes to prevent syntax errors from special chars.
+ * Returns null if the query has no usable tokens.
+ */
+function escapeFtsQuery(query: string): string | null {
+  // Extract tokens: CJK characters individually, Latin/Cyrillic words (2+ chars)
+  const tokens = query.match(
+    /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[\p{L}\p{N}]{2,}/gu,
+  );
+  if (!tokens || tokens.length === 0) return null;
+
+  // Quote each token and join with OR for broad matching
+  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(" OR ");
+}
+
+/**
+ * MMR (Maximal Marginal Relevance) reranking for result diversity.
+ *
+ * Iteratively selects results that balance relevance (score) with diversity
+ * (dissimilarity to already-selected entries). This prevents returning
+ * multiple near-duplicate memories.
+ *
+ * @param results - Scored results sorted by relevance (descending)
+ * @param limit - Maximum number of results to return
+ * @param lambda - Balance factor: 1.0 = pure relevance, 0.0 = pure diversity
+ */
+function mmrRerank(
+  results: MemorySearchResult[],
+  limit: number,
+  lambda = 0.7,
+): MemorySearchResult[] {
+  if (results.length <= 1 || limit <= 0) return results.slice(0, limit);
+
+  const selected: MemorySearchResult[] = [];
+  const remaining = new Set(results.map((_, i) => i));
+
+  // Start with the highest-scored result
+  selected.push(results[0]);
+  remaining.delete(0);
+
+  while (selected.length < limit && remaining.size > 0) {
+    let bestIdx = -1;
+    let bestMmr = -Infinity;
+
+    for (const idx of remaining) {
+      const candidate = results[idx];
+
+      // Find max similarity to any already-selected entry
+      let maxSim = 0;
+      for (const sel of selected) {
+        const sim = tokenOverlapScore(
+          candidate.entry.content,
+          sel.entry.content,
+        );
+        if (sim > maxSim) maxSim = sim;
+      }
+
+      // MMR score: balance relevance vs diversity
+      const mmrScore = lambda * candidate.score - (1 - lambda) * maxSim;
+
+      if (mmrScore > bestMmr) {
+        bestMmr = mmrScore;
+        bestIdx = idx;
+      }
+    }
+
+    if (bestIdx === -1) break;
+
+    selected.push(results[bestIdx]);
+    remaining.delete(bestIdx);
+  }
+
+  return selected;
 }
 
 interface TraceRow {

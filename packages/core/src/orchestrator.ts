@@ -15,6 +15,7 @@ import { generateId } from "@agentclaw/providers";
 import { SimpleAgentLoop } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 import { MemoryExtractor } from "./memory-extractor.js";
+import { SimpleSubAgentManager } from "./subagent-manager.js";
 import { readdirSync, unlinkSync } from "fs";
 import { join } from "path";
 
@@ -153,6 +154,14 @@ export class SimpleOrchestrator implements Orchestrator {
       },
       scheduler: this.scheduler,
       skillRegistry: this.skillRegistry,
+      subAgentManager: new SimpleSubAgentManager({
+        provider: this.provider,
+        toolRegistry: this.toolRegistry,
+        memoryStore: this.memoryStore,
+        agentConfig: this.agentConfig,
+        skillRegistry: this.skillRegistry,
+        parentContext: context,
+      }),
     };
 
     const inputHasImage = hasImage(input);

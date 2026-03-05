@@ -1,5 +1,17 @@
 # 更新日志
 
+## [0.9.0] - 2026-03-05
+
+### 新增
+- **P0 子代理编排**：`subagent` 工具 + `SimpleSubAgentManager`。主 agent 可派生独立子 agent 并行处理任务（spawn/result/kill/list），子代理拥有独立 agent-loop 和会话上下文，不干扰主会话。类型定义 `packages/types/src/subagent.ts`
+- **P1 Docker 沙箱**：`sandbox` 工具，在 Docker 容器内安全执行命令。默认 `node:22-slim` 镜像，`--rm` 自动清理，`--memory=512m --cpus=1` 资源限制，超时控制，Docker 可用性缓存检测，Windows 路径自动转换
+- **P2 浏览器 CDP 直连**：`browser_cdp` 工具，通过 Playwright `connectOverCDP()` 直连 Chrome（专用 profile `~/.agentclaw/browser/`）。支持 navigate/snapshot/click/type/screenshot/tabs/evaluate/wait/close，DOM 快照自动标记交互元素 ref ID
+- **P3 混合记忆搜索**：FTS5 全文索引 + BM25 评分 + 向量语义 + 时间衰减 + MMR 去重，四路融合提升记忆召回。权重可配置（bm25=0.2, vector=0.4, recency=0.15, importance=0.25），`escapeFtsQuery()` 安全转义
+- **P4 工具执行钩子**：`ToolHooks`（before/after）+ `ToolPolicy`（allow/deny）类型定义，`ToolHookManager` 管理器，agent-loop 集成策略检查和钩子执行链
+
+### 依赖
+- 新增 `playwright-core` 用于浏览器 CDP 直连
+
 ## [0.8.30] - 2026-03-04
 
 ### 新增

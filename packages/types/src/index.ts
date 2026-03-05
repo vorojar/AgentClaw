@@ -28,6 +28,8 @@ export type {
   ToolResult,
   ToolCategory,
   ToolExecutionContext,
+  ToolHooks,
+  ToolPolicy,
   Tool,
   ToolRegistry,
   MCPServerConfig,
@@ -65,6 +67,13 @@ export type {
   SkillMatch,
   SkillRegistry,
 } from "./skill.js";
+
+export type {
+  SubAgentStatus,
+  SubAgentInfo,
+  SubAgentSpawnOptions,
+  SubAgentManager,
+} from "./subagent.js";
 
 export type {
   ProviderConfig,

@@ -156,7 +156,20 @@
 - [x] System prompt 注入运行环境信息（OS、Shell 类型、临时目录路径），LLM 不再盲猜平台
 - [x] `sendFile` 智能发送：图片扩展名用 `sendPhoto`（内联预览），其他用 `sendDocument`
 
-### 4.6 Other Platform Bots（其他平台机器人）
+### 4.6 DingTalk Bot（钉钉机器人）✅
+- [x] dingtalk-stream-sdk-nodejs Stream 模式（无需公网 IP）
+- [x] 文本消息收发、会话管理、ask_user 交互、文件链接推送
+- [x] 用户白名单（默认拒绝所有）
+- [x] 环境变量：`DINGTALK_APP_KEY` + `DINGTALK_APP_SECRET`
+
+### 4.7 Feishu Bot（飞书机器人）✅
+- [x] @larksuiteoapi/node-sdk WebSocket 模式（无需公网 IP）
+- [x] 文本消息收发、@bot 提及过滤、会话管理、ask_user 交互
+- [x] 用户白名单（默认拒绝所有）
+- [x] 回调异步化，避免 3 秒超时阻塞
+- [x] 环境变量：`FEISHU_APP_ID` + `FEISHU_APP_SECRET`
+
+### 4.8 Other Platform Bots（其他平台机器人）
 - [ ] Discord bot
 - [ ] WeChat bot（微信机器人）
 

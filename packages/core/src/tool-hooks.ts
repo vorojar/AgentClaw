@@ -1,4 +1,8 @@
 import type { ToolHooks, ToolPolicy, ToolResult } from "@agentclaw/types";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Manages tool execution hooks (before/after) and access policies.
@@ -68,6 +72,44 @@ export class ToolHookManager {
     }
 
     return current;
+  }
+
+  /** Register preset hooks (Biome lint on file_write, shell exit code warning) */
+  registerPresetHooks(): void {
+    // file_write: auto-run Biome lint on .ts/.js files
+    this.addToolHook("file_write", {
+      after: async (call, result) => {
+        const filePath = call.input.path as string | undefined;
+        if (!filePath || result.isError) return result;
+        if (!/\.(ts|js|tsx|jsx)$/i.test(filePath)) return result;
+        try {
+          await execFileAsync("npx", ["biome", "check", "--write", filePath], {
+            timeout: 15000,
+          });
+          return {
+            ...result,
+            content: `${result.content}\n[hook] Biome lint applied to ${filePath}`,
+          };
+        } catch {
+          // Biome not available or lint failed — don't block
+          return result;
+        }
+      },
+    });
+
+    // shell: warn on non-zero exit code
+    this.addToolHook("shell", {
+      after: async (call, result) => {
+        const exitCode = result.metadata?.exitCode as number | undefined;
+        if (exitCode !== undefined && exitCode !== 0) {
+          return {
+            ...result,
+            content: `⚠️ [hook] Command exited with code ${exitCode}\n${result.content}`,
+          };
+        }
+        return result;
+      },
+    });
   }
 
   /** Run all after hooks for a tool result */

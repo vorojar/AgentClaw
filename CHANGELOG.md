@@ -8,6 +8,10 @@
 - **P2 浏览器 CDP 直连**：`browser_cdp` 工具，通过 Playwright `connectOverCDP()` 直连 Chrome（专用 profile `~/.agentclaw/browser/`）。支持 navigate/snapshot/click/type/screenshot/tabs/evaluate/wait/close，DOM 快照自动标记交互元素 ref ID
 - **P3 混合记忆搜索**：FTS5 全文索引 + BM25 评分 + 向量语义 + 时间衰减 + MMR 去重，四路融合提升记忆召回。权重可配置（bm25=0.2, vector=0.4, recency=0.15, importance=0.25），`escapeFtsQuery()` 安全转义
 - **P4 工具执行钩子**：`ToolHooks`（before/after）+ `ToolPolicy`（allow/deny）类型定义，`ToolHookManager` 管理器，agent-loop 集成策略检查和钩子执行链
+- **P4 预置钩子**：`file_write` 后自动 Biome lint（.ts/.js 文件）、`shell` 非零 exit code 自动警告。orchestrator 启动时注册
+
+### 修复
+- **Browser CDP ESM 兼容**：`require("node:fs")` 改为顶层 `import { existsSync }`，修复 ESM 构建中 Dynamic require 错误
 
 ### 依赖
 - 新增 `playwright-core` 用于浏览器 CDP 直连

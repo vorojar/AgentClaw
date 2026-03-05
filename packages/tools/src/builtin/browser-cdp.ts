@@ -2,7 +2,7 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 
@@ -40,7 +40,6 @@ async function loadPlaywright(): Promise<void> {
 
 /** Find Chrome/Chromium executable path */
 function findChromePath(): string | undefined {
-  const { existsSync } = require("node:fs") as typeof import("node:fs");
   const candidates =
     process.platform === "win32"
       ? [

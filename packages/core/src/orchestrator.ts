@@ -16,6 +16,7 @@ import { SimpleAgentLoop } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 import { MemoryExtractor } from "./memory-extractor.js";
 import { SimpleSubAgentManager } from "./subagent-manager.js";
+import { ToolHookManager } from "./tool-hooks.js";
 import { readdirSync, unlinkSync } from "fs";
 import { join } from "path";
 
@@ -154,6 +155,18 @@ export class SimpleOrchestrator implements Orchestrator {
       },
       scheduler: this.scheduler,
       skillRegistry: this.skillRegistry,
+      toolHooks: (() => {
+        const hm = new ToolHookManager();
+        hm.registerPresetHooks();
+        return {
+          before: (call: { name: string; input: Record<string, unknown> }) =>
+            hm.runBeforeHooks(call),
+          after: (
+            call: { name: string; input: Record<string, unknown> },
+            result: import("@agentclaw/types").ToolResult,
+          ) => hm.runAfterHooks(call, result),
+        };
+      })(),
       subAgentManager: new SimpleSubAgentManager({
         provider: this.provider,
         toolRegistry: this.toolRegistry,

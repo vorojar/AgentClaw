@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.9.5] - 2026-03-05
+
+### 新增
+- **Google Workspace CLI (gws) 集成**：通过 Skill 方式接入 gws CLI，新增 5 个 Skill——gws-calendar、gws-tasks、gws-gmail、gws-drive、gws-sheets，覆盖日历、待办、邮件、网盘、电子表格全场景。相比 MCP 方式（204 个工具定义）几乎零 token 开销
+- **gws MCP 配置示例**：`data/mcp-servers.example.json` 新增 gws MCP server 配置，供需要 MCP 方式的用户参考
+
 ## [0.9.4] - 2026-03-05
 
 ### 新增

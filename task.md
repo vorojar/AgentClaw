@@ -18,10 +18,10 @@
 
 > 参考 Manus AI（manus.im）的设计理念，重点提升任务执行透明度和 Agent 自主性
 
-### 9.1 Todo.md 实时进度追踪 🔥 进行中
-- [ ] Agent 执行复杂任务时自动创建 todo.md，每步完成后打勾
-- [ ] 前端实时展示任务进度清单（WebSocket `todo_update` 事件）
-- [ ] 双重作用：用户看进度 + Agent 上下文末尾持续写入目标（防 lost-in-the-middle）
+### 9.1 Todo.md 实时进度追踪 ✅
+- [x] Agent 执行复杂任务时自动创建 todo.md，每步完成后打勾
+- [x] 前端实时展示任务进度清单（WebSocket `todo_update` 事件）
+- [x] 双重作用：用户看进度 + Agent 上下文末尾持续写入目标（防 lost-in-the-middle）
 
 ### 9.2 步骤时间线可视化
 - [ ] 工具调用事件 → 时间线视图（每步带摘要，可展开详情）
@@ -32,12 +32,20 @@
 - [ ] 前端回放界面：时间轴滑块，快进/后退
 - [ ] 回放可分享（生成链接）
 
-### 9.4 KV-Cache 上下文优化
-- [ ] System prompt 前缀稳定，append-only 上下文
-- [ ] 工具注册表固定不变，条件约束代替动态增删
-- [ ] 目标：缓存命中率提升，token 成本降 10x
+### 9.4 KV-Cache 上下文优化 ✅
+- [x] System prompt 前缀稳定，append-only 上下文
+- [x] 工具注册表固定不变，条件约束代替动态增删
+- [x] 目标：缓存命中率提升，token 成本降 10x
 
 ### 9.5 文件系统即上下文
 - [ ] 长任务中间结果存文件而非聊天上下文
 - [ ] Agent 自动管理工作目录，跨步骤共享文件
 - [ ] 结合 todo.md 追踪文件产物
+
+## v0.9.0 五大能力升级 ✅
+
+- [x] **P0 子代理编排** — SubAgentManager + subagent 工具，并行任务派发
+- [x] **P1 Docker 沙箱** — sandbox 工具，容器级隔离执行
+- [x] **P2 浏览器 CDP 直连** — browser_cdp 工具，Playwright connectOverCDP
+- [x] **P3 混合记忆搜索** — FTS5 BM25 + 向量 + 时间衰减 + MMR 四路融合
+- [x] **P4 工具执行钩子** — ToolHooks before/after + ToolPolicy allow/deny + 预置钩子

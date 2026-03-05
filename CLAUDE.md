@@ -40,10 +40,10 @@ types → providers/tools/memory → core → gateway/cli
 |---|---|
 | `types` | 所有共享接口：LLMProvider, Message, ContentBlock, AgentEvent, Tool, ToolExecutionContext, MemoryStore, Skill, Planner |
 | `providers` | LLM 适配器：ClaudeProvider, OpenAICompatibleProvider, GeminiProvider, SmartRouter |
-| `tools` | 工具注册表 + 内置工具（shell, file_read/write, web_search, web_fetch, comfyui, browser 等）+ MCP 客户端 |
-| `memory` | SQLite 持久化（better-sqlite3）：对话历史、长期记忆、向量嵌入 |
-| `core` | SimpleAgentLoop（思考-行动-观察循环）、SimpleOrchestrator（会话管理）、SimplePlanner（任务分解）、ContextManager、MemoryExtractor、SkillRegistry |
-| `gateway` | Fastify HTTP/WS 服务 + Telegram/WhatsApp bot + REST API + 定时任务调度 |
+| `tools` | 工具注册表 + 内置工具（shell, file_read/write, web_search, web_fetch, sandbox, subagent, browser_cdp 等）+ MCP 客户端 |
+| `memory` | SQLite 持久化（better-sqlite3）：对话历史、长期记忆、向量嵌入、FTS5 全文索引 |
+| `core` | SimpleAgentLoop（思考-行动-观察循环）、SimpleOrchestrator（会话管理）、SimplePlanner（任务分解）、ContextManager、MemoryExtractor、SkillRegistry、ToolHookManager（工具钩子）、SimpleSubAgentManager（子代理） |
+| `gateway` | Fastify HTTP/WS 服务 + Telegram/WhatsApp/钉钉/飞书 bot + REST API + 定时任务调度 |
 | `cli` | 终端交互式对话 |
 | `web` | React 19 + Vite 前端（ChatPage, PlansPage, MemoryPage, SettingsPage） |
 

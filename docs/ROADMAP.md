@@ -346,12 +346,12 @@
 
 | 能力 | LobsterAI | AgentClaw | 评价 |
 |---|---|---|---|
-| **沙箱隔离执行** | Alpine Linux VM (QCOW2)，进程级隔离 | **命令黑名单防护**（拦截 rm -rf /、格式化、关机等） | LobsterAI 胜（进程级隔离 vs 命令黑名单） |
+| **沙箱隔离执行** | Alpine Linux VM (QCOW2)，进程级隔离 | **Docker 容器隔离（sandbox 工具）+ 命令黑名单双重防护** | **持平**（AgentClaw 也有容器级隔离） |
 | **Office 文档生成** | DOCX / XLSX / PPTX / PDF 全套内置 | **DOCX / XLSX / PPTX / PDF 全套 Skill**（python-docx/openpyxl/python-pptx/PyMuPDF） | **持平** |
 | **视频生成** | Remotion 程序化生成视频 | 无 | LobsterAI 完胜 |
-| **IM 远程操控** | 钉钉 + 飞书 + Telegram + Discord (4个) | Telegram + WhatsApp (2个) | LobsterAI 覆盖广（尤其国内 IM） |
+| **IM 远程操控** | 钉钉 + 飞书 + Telegram + Discord (4个) | Telegram + WhatsApp + 钉钉 + 飞书 (4个) | **持平**（覆盖主流 IM） |
 | **技能自扩展** | skill-creator 让 AI 自己创建新技能并热加载 | **create_skill 工具 + 热加载 + 用户确认 + 提炼正确路径** | **持平**（我们多了用户确认和智能提炼） |
-| **记忆系统** | 5 种记忆类型 + 置信度排序 + 可调严格度 + LLM 判断过滤 | MemoryExtractor + 向量搜索 | LobsterAI 分类更精细；AgentClaw 有向量搜索 |
+| **记忆系统** | 5 种记忆类型 + 置信度排序 + 可调严格度 + LLM 判断过滤 | **MemoryExtractor + FTS5 BM25 + 向量语义 + 时间衰减 + MMR 去重四路融合** | **AgentClaw 胜**（四路融合 vs 置信度排序） |
 | **权限门控** | 敏感操作弹窗确认 | 无 | LobsterAI 更安全 |
 | **Artifacts 预览** | HTML / SVG / Mermaid / React 组件实时渲染 | **HTML / SVG / Mermaid 代码块预览 + HTML 文件全屏 overlay 渲染** | **持平**（LobsterAI 多 React 组件） |
 | **LLM 提供商数量** | 11 个（含 DeepSeek/Kimi/智谱/通义等国产） | 4 个（Claude/OpenAI/Gemini/Ollama） | LobsterAI 数量多 |
@@ -367,11 +367,11 @@
 
 ### 最值得借鉴的方向（优先级排序）
 
-1. **沙箱执行** — 当前仅命令黑名单防护，需真正的容器隔离（Docker/VM）
+1. ~~**沙箱执行**~~ ✅ 已实现（Docker sandbox 工具，容器级隔离）
 2. ~~**Office 文档生成**~~ ✅ 已实现（DOCX/XLSX/PPTX 三个 Skill + PDF Skill）
 3. ~~**技能自创建**~~ ✅ 已实现（create_skill + 热加载 + 用户确认）
-4. **更多 IM 网关** — 钉钉、飞书对国内用户至关重要
-5. **权限门控** — 敏感操作需用户确认，提升安全性
+4. ~~**更多 IM 网关**~~ ✅ 已实现（钉钉 Stream + 飞书 WebSocket）
+5. **权限门控** — ToolPolicy allow/deny 列表 + ToolHooks before 钩子可拦截，基础能力已具备
 6. ~~**Artifacts 渲染**~~ ✅ 已实现（HTML/SVG/Mermaid 代码块预览 + HTML 文件全屏 overlay）
 
 ---
@@ -420,13 +420,50 @@
 
 ---
 
+## Phase 11: Agent Autonomy — "自己干活" (Work Autonomously)
+
+**Goal**: 子代理编排 + Docker 沙箱 + CDP 浏览器 + 混合记忆 + 工具钩子，让 Agent 能拆活、试错、验收
+
+### 11.1 子代理编排 (Sub-Agent Orchestration) ✅
+- [x] SubAgentManager：spawn/steer/getResult/kill/list
+- [x] subagent 工具：LLM 可派生独立子 agent 并行执行任务
+- [x] 子代理独立会话和 agent-loop，不干扰主会话
+- [x] 运行时验证：2 个子代理并行计算，结果正确汇总
+
+### 11.2 Docker 沙箱 (Docker Sandbox) ✅
+- [x] sandbox 工具：Docker 容器内安全执行命令
+- [x] 资源限制（512MB/1CPU）、超时控制（120s）、自动清理（--rm）
+- [x] Docker 可用性检测（缓存 60s）
+- [x] 运行时验证：容器内执行 node 命令成功
+
+### 11.3 浏览器 CDP 直连 (Browser CDP) ✅
+- [x] browser_cdp 工具：Playwright connectOverCDP() 直连 Chrome
+- [x] 9 种操作：navigate/snapshot/click/type/screenshot/tabs/evaluate/wait/close
+- [x] DOM Snapshot 用 ref ID 标记交互元素，token 节省 70%+
+- [x] 运行时验证：navigate + snapshot + screenshot 成功
+
+### 11.4 混合记忆搜索 (Hybrid Memory Search) ✅
+- [x] SQLite FTS5 全文索引 + BM25 评分
+- [x] 四路融合：BM25(0.2) + 向量(0.4) + 时间衰减(0.15) + 重要性(0.25)
+- [x] MMR 去重（lambda=0.7）
+- [x] 写入/删除/更新自动同步 FTS 索引
+
+### 11.5 工具执行钩子 (Tool Execution Hooks) ✅
+- [x] ToolHooks: before（可阻止/修改）+ after（可修改结果）
+- [x] ToolPolicy: allow/deny 白名单黑名单
+- [x] 预置钩子：file_write 自动 Biome lint、shell 非零 exit code 警告
+- [x] agent-loop 已集成钩子和策略检查
+
+---
+
 ## Current Focus（当前重点）
 
-**Phase 1-9 已完成。**
+**Phase 1-11 已完成。**
 
-**Phase 10 进行中**：工程质量提升——Biome/CI/Vitest/knip 已完成，测试覆盖扩展和 LLM Embedding 接入待做。
+**Phase 10 进行中**：测试覆盖扩展和 LLM Embedding 接入待做。
 
 ### 待规划方向
-- **权限门控**：敏感操作（rm、格式化）需用户确认
-- **沙箱执行**：Docker 容器隔离替代命令黑名单
-- **更多 IM 网关**：钉钉、飞书
+- **权限门控增强**：敏感操作弹窗确认（Web UI / IM）
+- **视频生成**：Remotion 程序化生成视频
+- **更多 IM 网关**：Discord、微信
+- **Schedule 安全防护**：最小间隔限制、最大任务数上限、before 钩子拦截

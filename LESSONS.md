@@ -56,3 +56,20 @@ Baileys (WhatsApp) 默认 Pino logger 输出海量 info/warn 日志（pre-key sy
 | Skill 指令注入 | 始终全量注入 / 按需加载 | 按需加载 | 省 ~2500 tok/次，代价仅多 1 轮迭代 |
 | 工具发送给 LLM | 按关键词动态筛选 / 始终全量 | 始终全量 | 动态筛选逻辑复杂且易误判，全量更可靠 |
 | 系统提示词位置 | 代码内硬编码 / 外置文件 | 外置 system-prompt.md | 便于调试和非开发者修改，支持模板变量 |
+
+## v0.9.0 新踩坑
+
+### ESM 中不能用 require()
+`browser-cdp.ts` 中用 `require("node:fs")` 获取 `existsSync`，tsup 构建为 ESM 后运行时报 `Dynamic require of "fs" is not supported`。顶部已有 `import { mkdirSync } from "node:fs"`，只需把 `existsSync` 加到同一行 import。
+
+**教训**：ESM 模块中永远不要用 `require()`，即使是 Node.js 内置模块。
+
+### LLM 误调 schedule 创建高频定时任务
+测试子代理时 prompt 说"等待10秒后获取结果"，doubao 模型把"等待"理解成定时任务，调了 `schedule` 创建 `*/1 * * * *`（每分钟）的 cron job，疯狂创建新会话轮询已完成的子代理。
+
+**教训**：schedule 工具需要安全防护——最小间隔限制、最大任务数上限。弱模型更容易误解"等待"="定时"。
+
+### Playwright 版本 API 变化
+Playwright 1.58 移除了 `page.accessibility.snapshot()` API。代码中直接用会编译通过但运行时报错。改为 `page.evaluate()` 内联 JS 字符串生成 DOM 快照。
+
+**教训**：使用 `any` 类型 lazy-load 第三方库时，类型检查不会报错，只能靠运行时验证发现 API 变化。

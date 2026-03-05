@@ -13,11 +13,14 @@ AgentClaw 是一个指挥官级别的个人 AI 助理。它自己不写代码（
 AgentClaw（指挥官）
   ├── LLM 提供商 (Claude, OpenAI, Gemini, DeepSeek, Kimi, Qwen...)
   ├── 智能路由 (自动故障切换, Fast Provider 路由)
-  ├── 核心工具 (shell, file_read, file_write, ask_user)
-  ├── 条件工具 (send_file, set_reminder, schedule, remember, plan_task, use_skill)
+  ├── 核心工具 (shell, file_read, file_write, ask_user, web_fetch, web_search)
+  ├── 条件工具 (send_file, schedule, remember, use_skill, sandbox, subagent, browser_cdp...)
   ├── 记忆 (对话历史 + 长期记忆 + 自动压缩)
   ├── 规划器 (任务分解 → 步骤依赖 → 执行监控)
-  └── 技能 x19 (coding, research, browser, pdf, email, yt-dlp...)
+  ├── 技能 x19 (coding, research, browser, pdf, email, yt-dlp...)
+  ├── 子代理 (并行任务派发与汇总)
+  ├── 工具钩子 (before/after 拦截 + allow/deny 策略)
+  └── MCP 集成 (外部工具服务器)
 ```
 
 ## 技术栈
@@ -25,7 +28,7 @@ AgentClaw（指挥官）
 - **语言**: TypeScript monorepo (pnpm + Turborepo)
 - **LLM**: Claude + OpenAI 兼容 (DeepSeek/Kimi/Qwen/Doubao) + Gemini
 - **存储**: SQLite (better-sqlite3)
-- **网关**: Fastify HTTP + WebSocket + Telegram Bot + WhatsApp Bot
+- **网关**: Fastify HTTP + WebSocket + Telegram Bot + WhatsApp Bot + 钉钉 + 飞书
 - **前端**: React 19 + Vite (Light/Dark 主题)
 - **调度**: Cron 定时任务 + 心跳检查
 - **构建**: tsup (ESM) + Turborepo
@@ -40,7 +43,7 @@ agentclaw/
 │   ├── tools/       — 工具注册表 + 分层内置工具 + MCP 客户端
 │   ├── memory/      — SQLite 持久化 (会话/消息/记忆/Traces/Token日志)
 │   ├── core/        — Agent Loop + Orchestrator + Planner + ContextManager + SkillRegistry
-│   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp Bot + 定时调度
+│   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp/DingTalk/Feishu Bot + 定时调度
 │   ├── cli/         — 终端交互式对话
 │   └── web/         — React 19 + Vite 前端
 ├── skills/          — 19 个技能定义 (SKILL.md)
@@ -99,16 +102,19 @@ npm run cli          # 终端交互模式
 - **Web UI** — 现代化聊天界面，Light/Dark 主题，文件上传/拖拽，视频/音频播放器嵌入，多模态图片理解
 - **Telegram Bot** — 支持文字/图片/文档/语音/视频消息
 - **WhatsApp Bot** — 自聊模式，QR 扫码认证
+- **钉钉** — Stream 模式，无需公网 IP
+- **飞书** — WebSocket 模式，无需公网 IP
 - **REST API** — 会话、消息、Traces、Token 日志、配置、记忆
 
 ### 模型 Failover
 配置多个 LLM API Key 时自动按优先级尝试，主 provider 失败后无缝切换备用 provider，失败 provider 进入 60 秒冷却期。
 
-### Shell 沙箱
-拦截不可逆破坏性命令（`rm -rf /`、`shutdown`、`format`、fork bomb 等），不拦截日常开发命令。`SHELL_SANDBOX=false` 可禁用。
+### 安全执行
+- **Shell 沙箱**：拦截不可逆破坏性命令（`rm -rf /`、`shutdown`、`format`、fork bomb 等），`SHELL_SANDBOX=false` 可禁用
+- **Docker 沙箱**：`sandbox` 工具在 Docker 容器内执行命令，资源限制（512MB/1CPU），超时控制，自动清理
 
-### 子 Agent 委派
-`delegate_task` 工具可 spawn 独立子 agent 执行子任务，拥有独立上下文，适用于并行调研、独立计算等可隔离任务。
+### 子代理编排
+`subagent` 工具可派生独立子 agent 并行执行任务，拥有独立 agent-loop 和会话上下文。支持 spawn/result/kill/list 操作，适用于并行调研、独立计算等可隔离任务。
 
 ### 对话压缩
 超过 20 轮对话后自动调用 LLM 生成摘要，减少 token 消耗。
@@ -135,6 +141,9 @@ npm run cli          # 终端交互模式
 | 条件 | `remember` | 保存长期记忆 |
 | 条件 | `plan_task` | 任务规划和分解 |
 | 条件 | `use_skill` | 调用技能 |
+| 条件 | `sandbox` | Docker 容器内安全执行命令 |
+| 条件 | `subagent` | 子代理编排（spawn/result/kill/list） |
+| 条件 | `browser_cdp` | 浏览器 CDP 自动化（Playwright） |
 
 ## 技能系统
 
@@ -198,6 +207,8 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 | `PUBLIC_URL` | 否 | 大文件下载链接的外部地址 |
 | `EMAIL_IMAP_HOST` / `EMAIL_SMTP_HOST` | 否 | 邮件服务器 (启用 email 技能) |
 | `EMAIL_USER` / `EMAIL_PASSWORD` | 否 | 邮箱账号和应用专用密码 |
+| `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET` | 否 | 启用钉钉 Bot |
+| `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 否 | 启用飞书 Bot |
 
 ## Web UI
 

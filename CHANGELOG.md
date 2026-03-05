@@ -13,6 +13,14 @@
 ### 修复
 - **Browser CDP ESM 兼容**：`require("node:fs")` 改为顶层 `import { existsSync }`，修复 ESM 构建中 Dynamic require 错误
 
+### 文档
+- ARCHITECTURE.md：新增子代理/沙箱/CDP浏览器/混合记忆/工具钩子/钉钉飞书/FTS5 Schema
+- ROADMAP.md：新增 Phase 11（Agent Autonomy）、更新竞品对比（沙箱/IM/记忆反超）、更新 Current Focus
+- README.md：新增 sandbox/subagent/browser_cdp 工具、钉钉飞书接入、安全执行/子代理编排描述
+- CLAUDE.md：更新各包职责描述（tools/core/memory/gateway）
+- task.md：标记 9.1/9.4 完成、新增 v0.9.0 五大能力升级清单
+- LESSONS.md：新增 v0.9.0 踩坑（ESM require/schedule 误调/Playwright API 变化）
+
 ### 依赖
 - 新增 `playwright-core` 用于浏览器 CDP 直连
 

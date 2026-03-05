@@ -13,7 +13,7 @@
 | 能力 | OpenClaw | AgentClaw | 判定 |
 |---|---|---|---|
 | **任务规划/分解** | 无独立 Planner，依赖 LLM 自行规划 | SimplePlanner 自动分解 → 按依赖执行 → 失败重规划 | **AgentClaw 胜** |
-| **子代理编排** | `sessions_spawn` 工具，完整生命周期（spawn/monitor/steer/kill/announce） | SubAgentManager spawn 独立子 agent，并行执行，汇总结果 | **持平** |
+| **子代理编排** | `sessions_spawn` 工具，完整生命周期（spawn/monitor/steer/kill/announce） | SubAgentManager spawn 独立子 agent，并行执行，汇总结果；explore 只读模式节省 token | **持平** |
 | **工具钩子** | `before_tool_call` / `after_tool_call` 钩子 + 循环检测 + 参数修改 | ToolHooks before/after + ToolPolicy allow/deny + 预置 Biome lint 钩子 | **持平** |
 | **自动验收** | after 钩子可用于检查，但无预置验收逻辑 | 预置 after 钩子：Biome lint 自动格式化 + exit code 警告 | **AgentClaw 小胜** |
 | **进度追踪** | 无独立进度追踪机制 | todo.md 实时追踪 + 前端 WebSocket 推送 | **AgentClaw 胜** |
@@ -111,7 +111,7 @@
 |---|---|---|---|
 | **System Prompt** | 每轮全量发送，无缓存优化 | 固定前缀 + Claude `cache_control` / Gemini `cachedContent` | AgentClaw 缓存命中后输入 token 成本降 ~90% |
 | **Skill 指令注入** | 架构未明确，skill 加载方式不详 | 按需加载：仅在 LLM 调用 `use_skill` 时注入 1 个 skill (~200 tok)，不用时 0 开销 | AgentClaw 省 ~2400 tok/轮（vs 全量注入 ~2600 tok） |
-| **工具定义** | 工具数量多（21 IM + 设备工具），定义体积更大 | 核心 6 + 条件 6，总量精简 | AgentClaw 工具定义 token 更少 |
+| **工具定义** | 工具数量多（21 IM + 设备工具），定义体积更大 | 核心 9 + 条件 9，总量精简 | AgentClaw 工具定义 token 更少 |
 
 ### 6.2 长对话的 token 膨胀控制
 
@@ -147,8 +147,8 @@
 
 | 指标 | AgentClaw | OpenClaw | 倍数 |
 |---|---|---|---|
-| **源代码总行数** | ~27,700 行 | ~1,068,700 行（估算） | **39x** |
-| **业务代码（排除测试）** | ~26,000 行 | — | — |
+| **源代码总行数** | ~28,100 行 | ~1,068,700 行（估算） | **38x** |
+| **业务代码（排除测试）** | ~26,400 行 | — | — |
 | **源文件数** | 114 个 | 7,683 个 | **67x** |
 | **主力语言** | TypeScript 100% | TypeScript 87% + Swift 9% + Kotlin 2% |  |
 | **原生客户端** | 无 | iOS (Swift ~94K行) + Android (Kotlin ~22K行) |  |
@@ -164,19 +164,19 @@
 | `packages/web` | 541 | 5,234 | 3,719 | **9,494** |
 | `packages/gateway` | 5,692 | — | — | **5,692** |
 | `packages/core` | 4,284 | — | — | **4,284** |
-| `packages/tools` | 3,127 | — | — | **3,127** |
+| `packages/tools` | 3,523 | — | — | **3,523** |
 | `packages/providers` | 2,402 | — | — | **2,402** |
 | `packages/memory` | 1,251 | — | — | **1,251** |
 | `packages/types` | 936 | — | — | **936** |
 | `packages/cli` | 515 | — | — | **515** |
-| **合计** | **18,748** | **5,234** | **3,719** | **27,701** |
+| **合计** | **19,144** | **5,234** | **3,719** | **28,097** |
 
 ### 规模解读
 
-AgentClaw 用 **不到 3 万行代码**实现了与百万行级项目**功能对等的核心 Agent 能力**（子代理、沙箱、记忆、钩子）。差距主要在：
+AgentClaw 用 **约 2.8 万行代码**实现了与百万行级项目**功能对等的核心 Agent 能力**（子代理、沙箱、记忆、钩子、精确编辑/搜索）。差距主要在：
 
 1. **平台覆盖**：OpenClaw 的 21 个 IM 适配器 + iOS/Android 原生 App 贡献了大量代码
 2. **生态成熟度**：OpenClaw 263K Stars、1.7 万次提交，社区驱动迭代远更密集
-3. **代码密度**：AgentClaw 27K 行 = OpenClaw 1/39 的代码量，但在 Agent 自主性维度（Planner/进度追踪/自动验收）有独特优势
+3. **代码密度**：AgentClaw 28K 行 = OpenClaw 1/38 的代码量，但在 Agent 自主性维度（Planner/进度追踪/自动验收）有独特优势
 
-> **结论**：代码量不是竞争力，架构选择才是。AgentClaw 选择了"小而精"的路线——用最少的代码实现最核心的 Agent 自主能力，而非追求平台铺量。
+> **结论**：代码量不是竞争力，架构选择才是。AgentClaw 选择了"小而精"的路线——用最少的代码实现最核心的 Agent 自主能力（含精确编辑/搜索等 Claude Code 级工具），而非追求平台铺量。

@@ -20,6 +20,7 @@ import {
   IconTasks,
   IconChannels,
   IconSubAgents,
+  IconChevronDown,
 } from "./Icons";
 
 function formatSessionLabel(s: {
@@ -56,6 +57,17 @@ export function Layout() {
   } = useSession();
 
   const [searchVisible, setSearchVisible] = useState(false);
+
+  const MORE_PATHS = [
+    "/channels",
+    "/subagents",
+    "/memory",
+    "/traces",
+    "/token-logs",
+    "/skills",
+  ];
+  const isMoreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
+  const [moreOpen, setMoreOpen] = useState(isMoreActive);
 
   const isMobile =
     typeof matchMedia !== "undefined" &&
@@ -152,49 +164,68 @@ export function Layout() {
           >
             <IconTasks size={16} /> Tasks
           </NavLink>
-          <NavLink
-            to="/channels"
-            className={({ isActive }) => (isActive ? "active" : "")}
-            onClick={closeSidebarOnMobile}
-          >
-            <IconChannels size={16} /> Channels
-          </NavLink>
-          <NavLink
-            to="/subagents"
-            className={({ isActive }) => (isActive ? "active" : "")}
-            onClick={closeSidebarOnMobile}
-          >
-            <IconSubAgents size={16} /> Subagents
-          </NavLink>
-          <NavLink
-            to="/memory"
-            className={({ isActive }) => (isActive ? "active" : "")}
-            onClick={closeSidebarOnMobile}
-          >
-            <IconMemory size={16} /> Memory
-          </NavLink>
-          <NavLink
-            to="/traces"
-            className={({ isActive }) => (isActive ? "active" : "")}
-            onClick={closeSidebarOnMobile}
-          >
-            <IconTraces size={16} /> Traces
-          </NavLink>
-          <NavLink
-            to="/token-logs"
-            className={({ isActive }) => (isActive ? "active" : "")}
-            onClick={closeSidebarOnMobile}
-          >
-            <IconTokens size={16} /> Token Logs
-          </NavLink>
-          <NavLink
-            to="/skills"
-            className={({ isActive }) => (isActive ? "active" : "")}
-            onClick={closeSidebarOnMobile}
-          >
-            <IconSkills size={16} /> Skills
-          </NavLink>
         </nav>
+
+        {/* More group (collapsible) */}
+        <div className="sidebar-more">
+          <button
+            className={`sidebar-more-toggle${isMoreActive ? " active" : ""}`}
+            onClick={() => setMoreOpen((v) => !v)}
+          >
+            <span>More</span>
+            <span
+              className={`sidebar-more-chevron${moreOpen ? " expanded" : ""}`}
+            >
+              <IconChevronDown size={14} />
+            </span>
+          </button>
+          {moreOpen && (
+            <nav className="sidebar-nav sidebar-nav-more">
+              <NavLink
+                to="/channels"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconChannels size={16} /> Channels
+              </NavLink>
+              <NavLink
+                to="/subagents"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconSubAgents size={16} /> Subagents
+              </NavLink>
+              <NavLink
+                to="/memory"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconMemory size={16} /> Memory
+              </NavLink>
+              <NavLink
+                to="/traces"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconTraces size={16} /> Traces
+              </NavLink>
+              <NavLink
+                to="/token-logs"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconTokens size={16} /> Token Logs
+              </NavLink>
+              <NavLink
+                to="/skills"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconSkills size={16} /> Skills
+              </NavLink>
+            </nav>
+          )}
+        </div>
 
         {/* Session list (when on chat) */}
         {isChat &&

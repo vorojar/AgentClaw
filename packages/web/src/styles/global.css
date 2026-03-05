@@ -312,6 +312,46 @@ textarea:focus {
   flex-shrink: 0;
 }
 
+/* More group */
+.sidebar-more {
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.sidebar-more-toggle:hover {
+  color: var(--text-secondary);
+}
+.sidebar-more-toggle.active {
+  color: var(--accent);
+}
+
+.sidebar-more-chevron {
+  display: flex;
+  transition: transform 0.2s;
+}
+.sidebar-more-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.sidebar-nav-more {
+  padding-top: 0;
+}
+
 /* Divider */
 .sidebar-divider {
   padding: 10px 14px 4px;

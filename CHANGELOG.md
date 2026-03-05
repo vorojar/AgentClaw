@@ -15,6 +15,7 @@
 - **数据库新增两张表**：`tasks`（任务管理，含优先级/截止日/指派人/标签）和 `subagents`（子代理历史记录，含 token/工具/迭代数据）
 - **Store CRUD 扩展**：新增 `addTask/updateTask/deleteTask/listTasks/getCalendarItems/addSubAgent/updateSubAgent/listSubAgents/getSubAgent` 方法
 - **4 组后端 API**：`/api/todos`（任务 CRUD）、`/api/calendar`（日历聚合）、`/api/subagents`（子代理查询）、`/api/channels`（频道控制）
+- **侧边栏导航分层**：Chat + Tasks 为主导航（始终可见），Channels/Subagents/Memory/Traces/Token Logs/Skills 收入可折叠 "More" 组，默认折叠，当前路径在组内时自动展开
 
 ## [0.9.2] - 2026-03-05
 

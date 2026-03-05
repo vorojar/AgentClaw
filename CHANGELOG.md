@@ -10,6 +10,7 @@
 - `SimpleAgentLoop` 在 `stop()` 时触发 `AbortController.abort()`，信号传导到正在执行的工具
 - `claude_code` 工具：监听 abort 信号，立即杀死 Claude CLI 子进程
 - `bash` 工具：监听 abort 信号，立即杀死 shell 子进程
+- **Traces 页 token 显示**：卡片头部从合计 `N tok` 改为 `tokensIn↑ tokensOut↓` 分开显示，与展开后格式一致，方便按不同单价计算成本
 
 ## [0.9.1] - 2026-03-05
 

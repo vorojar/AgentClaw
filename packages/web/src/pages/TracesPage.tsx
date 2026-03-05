@@ -253,7 +253,7 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
             <span className="badge badge-error">{trace.error}</span>
           )}
           <span className="trace-tokens">
-            {formatNumber(trace.tokensIn + trace.tokensOut)} tok
+            {formatNumber(trace.tokensIn)}&uarr; {formatNumber(trace.tokensOut)}&darr;
           </span>
           <span className="trace-duration">
             {formatDuration(trace.durationMs)}

@@ -32,6 +32,13 @@ export const subagentTool: Tool = {
         type: "string",
         description: "Override model name (only for spawn)",
       },
+      mode: {
+        type: "string",
+        description:
+          'Spawn mode: "full" (default, all tools) or "explore" (read-only: file_read, glob, grep, web_fetch, web_search). Use explore for searching/reading tasks to save tokens.',
+        enum: ["full", "explore"],
+        default: "full",
+      },
     },
     required: ["action"],
   },
@@ -56,9 +63,19 @@ export const subagentTool: Tool = {
         if (!goal) {
           return { content: "Missing required parameter: goal", isError: true };
         }
+        const mode = (input.mode as string) || "full";
+        const EXPLORE_TOOLS = [
+          "file_read",
+          "glob",
+          "grep",
+          "web_fetch",
+          "web_search",
+          "shell",
+        ];
         const id = manager.spawn(goal, {
           maxIterations: (input.maxIterations as number) ?? undefined,
           model: (input.model as string) ?? undefined,
+          allowedTools: mode === "explore" ? EXPLORE_TOOLS : undefined,
         });
         return {
           content: `Sub-agent spawned with ID: ${id}\nGoal: ${goal}\nUse action "result" with this ID to check progress.`,

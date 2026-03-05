@@ -18,6 +18,8 @@ export interface SubAgentSpawnOptions {
   model?: string;
   /** Max iterations (default: 8) */
   maxIterations?: number;
+  /** If set, sub-agent can only use these tools (read-only mode etc.) */
+  allowedTools?: string[];
 }
 
 /** Sub-agent manager — manages spawned sub-agents */

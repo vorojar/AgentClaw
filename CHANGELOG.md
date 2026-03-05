@@ -1,5 +1,19 @@
 # 更新日志
 
+## [0.9.1] - 2026-03-05
+
+### 新增
+- **file_edit 工具**：精确字符串替换编辑文件，比 file_write 更安全——只修改匹配部分，其余内容不变。支持唯一匹配校验（多匹配时报错要求更多上下文）、`replace_all` 全量替换、空 old_string/相同值防御
+- **glob 工具**：按文件名模式搜索文件（`**/*.ts`、`*.json` 等），基于 `fast-glob`。自动忽略 node_modules/dist/.git，支持 max_results 限制，替代 `shell('find ...')`
+- **grep 工具**：按正则搜索文件内容，返回匹配行+文件路径+行号。支持大小写忽略、上下文行、文件类型过滤，自动跳过二进制/lock 文件，替代 `shell('grep ...')`
+- **子代理 explore 模式**：`subagent spawn` 新增 `mode: "explore"` 参数，只读子代理仅可使用 file_read/glob/grep/web_fetch/web_search/shell 六个工具，专用系统提示词，搜索/阅读任务节省 token
+
+### 修复
+- **新工具导出缺失**：`packages/tools/src/index.ts` 顶层入口未 re-export `fileEditTool`/`globTool`/`grepTool`，外部包通过 `@agentclaw/tools` 导入时取不到这三个工具
+
+### 依赖
+- 新增 `fast-glob` ^3.3.3 用于 glob 工具
+
 ## [0.9.0] - 2026-03-05
 
 ### 新增

@@ -8,7 +8,7 @@ import type {
   ToolExecutionContext,
   Message,
 } from "@agentclaw/types";
-import type { ToolRegistryImpl } from "@agentclaw/tools";
+import { ToolRegistryImpl } from "@agentclaw/tools";
 import type { SkillRegistryImpl } from "./skills/registry.js";
 import { generateId } from "@agentclaw/providers";
 import { SimpleAgentLoop } from "./agent-loop.js";
@@ -56,10 +56,26 @@ export class SimpleSubAgentManager implements SubAgentManager {
     const convId = generateId();
     const maxIterations = options?.maxIterations ?? 8;
 
+    // Build tool registry — filter if allowedTools specified
+    let toolRegistry = this.toolRegistry;
+    if (options?.allowedTools && options.allowedTools.length > 0) {
+      const allowed = new Set(options.allowedTools);
+      const filtered = new ToolRegistryImpl();
+      for (const tool of this.toolRegistry.list()) {
+        if (allowed.has(tool.name)) {
+          filtered.register(tool);
+        }
+      }
+      toolRegistry = filtered;
+    }
+
+    const isExplore = options?.allowedTools && options.allowedTools.length > 0;
     const contextManager = new SimpleContextManager({
-      systemPrompt:
-        "You are a focused sub-agent. Complete the assigned task concisely. " +
-        "No greetings, no unnecessary explanations — just do it and report the result.",
+      systemPrompt: isExplore
+        ? "You are a read-only explore agent. Search and read files to answer questions. " +
+          "You CANNOT modify files. Report findings concisely."
+        : "You are a focused sub-agent. Complete the assigned task concisely. " +
+          "No greetings, no unnecessary explanations — just do it and report the result.",
       memoryStore: this.memoryStore,
       skillRegistry: this.skillRegistry,
       provider: this.provider,
@@ -67,7 +83,7 @@ export class SimpleSubAgentManager implements SubAgentManager {
 
     const loop = new SimpleAgentLoop({
       provider: this.provider,
-      toolRegistry: this.toolRegistry,
+      toolRegistry,
       contextManager,
       memoryStore: this.memoryStore,
       config: {

@@ -2,6 +2,9 @@ import type { Tool } from "@agentclaw/types";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file-read.js";
 import { fileWriteTool } from "./file-write.js";
+import { fileEditTool } from "./file-edit.js";
+import { globTool } from "./glob.js";
+import { grepTool } from "./grep.js";
 import { askUserTool } from "./ask-user.js";
 import { sendFileTool } from "./send-file.js";
 import { scheduleTool } from "./schedule.js";
@@ -19,6 +22,9 @@ import { webSearchTool } from "./web-search.js";
 export { shellTool, shellInfo } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
 export { fileWriteTool } from "./file-write.js";
+export { fileEditTool } from "./file-edit.js";
+export { globTool } from "./glob.js";
+export { grepTool } from "./grep.js";
 export { askUserTool } from "./ask-user.js";
 export { sendFileTool } from "./send-file.js";
 export { scheduleTool } from "./schedule.js";
@@ -46,6 +52,9 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
     shellTool,
     fileReadTool,
     fileWriteTool,
+    fileEditTool,
+    globTool,
+    grepTool,
     askUserTool,
     webFetchTool,
     webSearchTool,

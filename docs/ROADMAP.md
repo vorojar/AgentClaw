@@ -257,7 +257,7 @@
 
 ### 6.5 Token Optimization（Token 优化）✅
 - [x] 去掉 system prompt 中重复的工具描述（LLM 已通过 `tools` API 参数获取结构化定义）
-- [x] 工具分层加载：核心工具（6 个）永远加载，条件工具（6 个）按 gateway/memory/skills/claudeCode 配置加载
+- [x] 工具分层加载：核心工具（9 个）永远加载，条件工具（9 个）按 gateway/memory/skills/claudeCode 配置加载
 - [x] Agent loop 始终发送所有已注册工具（已移除关键词动态筛选，避免误判）
 - [x] 每轮对话节省约 2000 tokens
 
@@ -441,6 +441,7 @@
 - [x] subagent 工具：LLM 可派生独立子 agent 并行执行任务
 - [x] 子代理独立会话和 agent-loop，不干扰主会话
 - [x] 运行时验证：2 个子代理并行计算，结果正确汇总
+- [x] explore 模式：`mode: "explore"` 只读子代理，仅加载 file_read/glob/grep/web_fetch/web_search/shell，专用系统提示词，搜索任务节省 token
 
 ### 11.2 Docker 沙箱 (Docker Sandbox) ✅
 - [x] sandbox 工具：Docker 容器内安全执行命令
@@ -465,6 +466,11 @@
 - [x] ToolPolicy: allow/deny 白名单黑名单
 - [x] 预置钩子：file_write 自动 Biome lint、shell 非零 exit code 警告
 - [x] agent-loop 已集成钩子和策略检查
+
+### 11.6 精确编辑与搜索工具 (Precise Edit & Search Tools) ✅
+- [x] `file_edit` 工具：精确字符串替换，唯一匹配校验，replace_all 全量替换
+- [x] `glob` 工具：基于 fast-glob 的文件名模式搜索，替代 shell('find ...')
+- [x] `grep` 工具：正则内容搜索，支持上下文行、大小写、文件类型过滤，替代 shell('grep ...')
 
 ---
 

@@ -147,7 +147,7 @@ The brain of the system:（系统的大脑：）
 - **ContextManager**: Builds the optimal context window for each LLM call by combining system prompts, conversation history, memory retrieval results, and **skill catalog**.（通过组合系统提示、对话历史、记忆检索结果和**技能目录**，为每次 LLM 调用构建最优上下文窗口。）Supports `reuseContext` to skip redundant memory/skill lookups across agent loop iterations. When `preSelectedSkillName` is set (via `use_skill` tool), injects the full skill instructions.（支持 `reuseContext` 跳过 agent loop 多轮迭代中的重复查询。当 `preSelectedSkillName` 被设置（通过 `use_skill` 工具）时，注入完整技能指令。）
 - **Orchestrator**: Top-level coordinator.（顶层协调器。）Manages sessions, injects skill/planner/scheduler into tool execution context, handles lifecycle.（管理会话，将 skill/planner/scheduler 注入工具执行上下文，处理生命周期。）
 - **SkillRegistry** ✅: Loads skills from SKILL.md files (YAML frontmatter + natural language instructions).（从 SKILL.md 文件加载技能：YAML 元数据 + 自然语言指令。）Injects a lightweight skill catalog (~100 tokens: name + description) into system prompt; LLM autonomously decides whether to call `use_skill(name)` tool to activate a skill.（在系统提示词中注入轻量技能目录（~100 token：name + description），由 LLM 自主判断是否调用 `use_skill(name)` 工具激活技能。）
-- **SubAgentManager** ✅: Spawns independent sub-agents with their own AgentLoop for parallel task execution.（生成独立子智能体，各自拥有独立的 AgentLoop，用于并行任务执行。）Sub-agents have isolated sessions and toolsets.（子智能体拥有隔离的会话和工具集。）
+- **SubAgentManager** ✅: Spawns independent sub-agents with their own AgentLoop for parallel task execution.（生成独立子智能体，各自拥有独立的 AgentLoop，用于并行任务执行。）Sub-agents have isolated sessions and toolsets. Supports "explore" mode with read-only tool subset (file_read/glob/grep/web_fetch/web_search/shell) for search tasks.（子智能体拥有隔离的会话和工具集。支持 "explore" 只读模式，仅限搜索/阅读工具子集。）
 - **ToolHookManager** ✅: Manages before/after hooks and tool access policies.（管理工具执行前后钩子和工具访问策略。）Preset hooks: file_write auto Biome lint, shell exit code warning.（预设钩子：file_write 自动 Biome lint、shell 非零退出码警告。）
 - **MemoryExtractor** ✅: Uses LLM to extract long-term memories (facts, preferences, entities, episodic) from conversations.（使用 LLM 从对话中提取长期记忆：事实、偏好、实体、情景。）Runs periodically every 5 turns.（每 5 轮对话自动运行。）
 
@@ -165,7 +165,7 @@ LLM abstraction layer with 3 adapters covering 8+ providers:（LLM 抽象层，3
 
 Layered tool system with core + conditional loading:（分层工具系统，核心 + 条件加载：）
 
-- **Core tools (6, always loaded)（核心工具，6 个，永远加载）**: shell, file_read, file_write, ask_user, web_fetch, web_search
+- **Core tools (9, always loaded)（核心工具，9 个，永远加载）**: shell, file_read, file_write, file_edit, glob, grep, ask_user, web_fetch, web_search
 - **Conditional tools (9, config-driven)（条件工具，9 个，按配置加载）**:
   - `gateway: true` → send_file, schedule, update_todo, sandbox, subagent, browser_cdp
   - `memory: true` → remember

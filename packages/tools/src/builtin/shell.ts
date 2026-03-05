@@ -212,6 +212,7 @@ function runShell(
   command: string,
   timeout: number,
   shellChoice?: string,
+  abortSignal?: AbortSignal,
 ): Promise<ToolResult> {
   const useShell =
     shellChoice === "powershell" && process.platform === "win32"
@@ -220,7 +221,8 @@ function runShell(
   const { shell, args } = useShell;
 
   return new Promise<ToolResult>((resolve) => {
-    execFile(
+    let aborted = false;
+    const child = execFile(
       shell,
       args(command),
       {
@@ -235,6 +237,14 @@ function runShell(
         },
       },
       (error, stdout, stderr) => {
+        if (aborted) {
+          resolve({
+            content: "Command aborted by user.",
+            isError: true,
+            metadata: { exitCode: null, aborted: true },
+          });
+          return;
+        }
         const stdoutStr = stdout ? decodeOutput(stdout) : "";
         const stderrStr = stderr ? decodeOutput(stderr) : "";
         const output = [stdoutStr, stderrStr].filter(Boolean).join("\n");
@@ -267,6 +277,31 @@ function runShell(
         });
       },
     );
+
+    // Abort signal: kill child process when user stops the agent
+    if (abortSignal) {
+      const killChild = () => {
+        aborted = true;
+        if (process.platform === "win32" && child.pid) {
+          execFile(
+            "taskkill",
+            ["/F", "/T", "/PID", String(child.pid)],
+            { windowsHide: true },
+            () => {},
+          );
+        } else {
+          child.kill();
+        }
+      };
+      if (abortSignal.aborted) {
+        killChild();
+      } else {
+        abortSignal.addEventListener("abort", killChild, { once: true });
+        child.on("close", () =>
+          abortSignal.removeEventListener("abort", killChild),
+        );
+      }
+    }
   });
 }
 
@@ -349,7 +384,7 @@ export const shellTool: Tool = {
       }
     }
 
-    const result = await runShell(effectiveCommand, timeout, effectiveShell);
+    const result = await runShell(effectiveCommand, timeout, effectiveShell, context?.abortSignal);
 
     const MAX_CONTENT = 12_000;
     if (result.content.length > MAX_CONTENT) {

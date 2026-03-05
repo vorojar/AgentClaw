@@ -46,6 +46,32 @@ async function runClaudeCode(
     let toolCallCount = 0;
     const filesChanged: string[] = [];
 
+    // Abort signal: kill child process when user stops the agent
+    let aborted = false;
+    if (context?.abortSignal) {
+      const killChild = () => {
+        aborted = true;
+        if (process.platform === "win32" && child.pid) {
+          spawn("taskkill", ["/F", "/T", "/PID", String(child.pid)], {
+            windowsHide: true,
+            stdio: "ignore",
+          });
+        } else {
+          child.kill();
+        }
+      };
+      if (context.abortSignal.aborted) {
+        killChild();
+      } else {
+        context.abortSignal.addEventListener("abort", killChild, {
+          once: true,
+        });
+        child.on("close", () =>
+          context.abortSignal!.removeEventListener("abort", killChild),
+        );
+      }
+    }
+
     const notify = context?.notifyUser;
 
     const rl = createInterface({ input: child.stdout! });
@@ -110,6 +136,14 @@ async function runClaudeCode(
     child.stdin!.end();
 
     child.on("close", async (code) => {
+      if (aborted) {
+        resolve({
+          content: "Claude Code task aborted by user.",
+          isError: true,
+          metadata: { aborted: true },
+        });
+        return;
+      }
       if (code !== 0 && code !== null && !resultSummary) {
         resolve({
           content: stderrBuf || `Claude Code exited with code ${code}`,

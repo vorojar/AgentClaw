@@ -1,5 +1,16 @@
 # 更新日志
 
+## [0.9.2] - 2026-03-05
+
+### 修复
+- **工具停止机制**：用户点击"停止"后，正在执行的 `claude_code`/`bash` 子进程无法终止。新增 `AbortSignal` 传导链——`agent-loop.stop()` → `AbortController.abort()` → 工具监听信号 → 杀死子进程。Windows 使用 `taskkill /F /T` 确保进程树完全终止
+
+### 改进
+- `ToolExecutionContext` 新增 `abortSignal?: AbortSignal` 字段，所有工具均可感知用户停止操作
+- `SimpleAgentLoop` 在 `stop()` 时触发 `AbortController.abort()`，信号传导到正在执行的工具
+- `claude_code` 工具：监听 abort 信号，立即杀死 Claude CLI 子进程
+- `bash` 工具：监听 abort 信号，立即杀死 shell 子进程
+
 ## [0.9.1] - 2026-03-05
 
 ### 新增

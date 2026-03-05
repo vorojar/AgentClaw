@@ -60,6 +60,7 @@ export class SimpleAgentLoop implements AgentLoop {
   private memoryStore: MemoryStore;
   private listeners: Set<AgentEventListener> = new Set();
   private aborted = false;
+  private abortController: AbortController | null = null;
 
   get state(): AgentState {
     return this._state;
@@ -110,6 +111,10 @@ export class SimpleAgentLoop implements AgentLoop {
     context?: ToolExecutionContext,
   ): AsyncIterable<AgentEvent> {
     this.aborted = false;
+    this.abortController = new AbortController();
+    if (context) {
+      context.abortSignal = this.abortController.signal;
+    }
     const convId = conversationId ?? generateId();
     const startTime = Date.now();
 
@@ -803,6 +808,7 @@ export class SimpleAgentLoop implements AgentLoop {
 
   stop(): void {
     this.aborted = true;
+    this.abortController?.abort();
     this.setState("idle");
   }
 

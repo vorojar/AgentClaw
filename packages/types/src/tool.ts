@@ -92,6 +92,8 @@ export interface ToolExecutionContext {
   toolHooks?: ToolHooks;
   /** Tool access policy (allow/deny lists) */
   toolPolicy?: ToolPolicy;
+  /** Abort signal — tools should listen to this and terminate early when user stops the agent */
+  abortSignal?: AbortSignal;
   /** Sub-agent manager for spawning/managing sub-agents */
   subAgentManager?: import("./subagent.js").SubAgentManager;
 }

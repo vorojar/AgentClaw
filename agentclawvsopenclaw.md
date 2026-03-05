@@ -1,8 +1,9 @@
 # AgentClaw vs OpenClaw 核心能力对比
 
-> 对比时间：2026-03-05 | 核心评估维度：**"给目标就能自己干活、自己验收"**
->
-> ⚠️ 本文基于 OpenClaw GitHub 仓库源码实际核查，非 README 级别对比
+ 对比时间：2026-03-05
+核心评估维度：**给目标就能自己干活、自己验收**
+
+> 本文基于 **OpenClaw** 和 **AgentClaw** GitHub 仓库源码实际代码核查
 >
 > - AgentClaw：https://github.com/vorojar/AgentClaw
 > - OpenClaw：https://github.com/openclaw/openclaw

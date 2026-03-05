@@ -14,7 +14,7 @@
 - **Browser CDP ESM 兼容**：`require("node:fs")` 改为顶层 `import { existsSync }`，修复 ESM 构建中 Dynamic require 错误
 
 ### 文档
-- AgentClaw vs OpenClaw 对比文档：基于源码核查的准确对比（能力 7:7 持平 + 代码量 27K vs 1M 规模分析）
+- AgentClaw vs OpenClaw 对比文档：基于源码核查的准确对比（能力 7:7 持平 + Token 效率分析 + 代码量 27K vs 1M 规模分析）
 - ARCHITECTURE.md：新增子代理/沙箱/CDP浏览器/混合记忆/工具钩子/钉钉飞书/FTS5 Schema
 - ROADMAP.md：新增 Phase 11（Agent Autonomy）、更新竞品对比（沙箱/IM/记忆反超）、更新 Current Focus
 - README.md：新增 sandbox/subagent/browser_cdp 工具、钉钉飞书接入、安全执行/子代理编排描述

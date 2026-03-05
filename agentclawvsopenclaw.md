@@ -100,7 +100,49 @@
 
 ---
 
-## 六、项目规模对比
+## 六、Token 消耗效率（架构层面分析）
+
+> ⚠️ 以下为架构设计层面的定性分析，非同一任务实测数据（两个项目未做 A/B benchmark）
+
+### 6.1 每轮对话的固定开销
+
+| 开销项 | OpenClaw | AgentClaw | 差异 |
+|---|---|---|---|
+| **System Prompt** | 每轮全量发送，无缓存优化 | 固定前缀 + Claude `cache_control` / Gemini `cachedContent` | AgentClaw 缓存命中后输入 token 成本降 ~90% |
+| **Skill 指令注入** | 架构未明确，skill 加载方式不详 | 按需加载：仅在 LLM 调用 `use_skill` 时注入 1 个 skill (~200 tok)，不用时 0 开销 | AgentClaw 省 ~2400 tok/轮（vs 全量注入 ~2600 tok） |
+| **工具定义** | 工具数量多（21 IM + 设备工具），定义体积更大 | 核心 6 + 条件 6，总量精简 | AgentClaw 工具定义 token 更少 |
+
+### 6.2 长对话的 token 膨胀控制
+
+| 机制 | OpenClaw | AgentClaw | 判定 |
+|---|---|---|---|
+| **上下文压缩** | `/compact` 手动命令，用户不触发则持续膨胀 | 超 20 轮自动 LLM 摘要压缩 | **AgentClaw 胜** |
+| **进度追踪防跑偏** | 无 | todo.md 写在上下文末尾，LLM 始终能看到目标 | **AgentClaw 胜**（减少纠正轮次） |
+| **记忆召回精度** | 6 种 embedding + LanceDB，召回更精准 → 减少冗余上下文 | BM25 + 向量 + MMR，本地 embedding 精度较低 | **OpenClaw 胜** |
+
+### 6.3 Thinking Token 消耗
+
+| 机制 | OpenClaw | AgentClaw |
+|---|---|---|
+| **Thinking 级别** | 六档可调（off → xhigh） | 无分级，跟随模型默认 |
+| **影响** | high/xhigh 模式下思考 token 可达回复的 2-5 倍 | 无额外思考 token 开销 |
+| **判定** | 灵活但高档位极费 token | 省 token 但牺牲了可控性 |
+
+### 6.4 综合估算（假设同一个 10 轮任务，Claude Sonnet）
+
+| 环节 | OpenClaw 估算 | AgentClaw 估算 | 说明 |
+|---|---|---|---|
+| System Prompt（10 轮） | 10 × ~2000 = **20,000 tok** | 1 × 2000 + 9 × ~200 = **3,800 tok** | AgentClaw KV-Cache 命中后只计增量 |
+| Skill 指令 | 不确定 | 按需 1 次 ~200 tok = **200 tok** | 仅在需要时加载 |
+| 工具定义（10 轮） | 10 × ~3000 = **30,000 tok** | 10 × ~1500 = **15,000 tok** | 工具数量差异 + 缓存 |
+| Thinking（medium 档） | 10 × ~500 = **5,000 tok** | 0 | OpenClaw 独有开销 |
+| **输入 token 小计** | **~55,000 tok** | **~19,000 tok** | **AgentClaw 约为 1/3** |
+
+> 以上为粗略估算，实际取决于模型、任务复杂度、对话长度。核心结论：**AgentClaw 的 KV-Cache 优化 + Skill 按需加载 + 自动压缩三板斧，在 token 效率上有结构性优势。**
+
+---
+
+## 七、项目规模对比
 
 | 指标 | AgentClaw | OpenClaw | 倍数 |
 |---|---|---|---|

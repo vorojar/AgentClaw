@@ -67,6 +67,7 @@ export function Layout() {
     "/traces",
     "/token-logs",
     "/skills",
+    "/api",
   ];
   const isMoreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
   const [moreOpen, setMoreOpen] = useState(isMoreActive);
@@ -232,6 +233,13 @@ export function Layout() {
               >
                 <IconSkills size={16} /> Skills
               </NavLink>
+              <NavLink
+                to="/api"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconApi size={16} /> API
+              </NavLink>
             </nav>
           )}
         </div>
@@ -283,24 +291,15 @@ export function Layout() {
 
         {/* Footer */}
         <div className="sidebar-footer">
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `sidebar-footer-link${isActive ? " active" : ""}`
-            }
-            onClick={closeSidebarOnMobile}
-          >
-            <IconSettings size={16} /> Settings
-          </NavLink>
           <div className="sidebar-footer-row">
             <NavLink
-              to="/api"
+              to="/settings"
               className={({ isActive }) =>
                 `sidebar-footer-link${isActive ? " active" : ""}`
               }
               onClick={closeSidebarOnMobile}
             >
-              <IconApi size={16} /> API
+              <IconSettings size={16} /> Settings
             </NavLink>
             <button
               className="sidebar-theme-btn"

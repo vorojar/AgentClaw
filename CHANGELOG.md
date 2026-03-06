@@ -1,5 +1,16 @@
 # 更新日志
 
+## [0.9.6] - 2026-03-06
+
+### 新增
+- **Google Tasks 统一看板**：`/tasks` 页面重写，Google Tasks 作为唯一数据源。看板显示待办/已完成任务，支持创建、完成、重新打开、删除，所有操作直接同步到 Google Tasks
+- **Google Calendar 日程展示**：`/tasks` 页面下方展示未来 14 天的 Google Calendar 事件，按日期分组显示时间、标题、地点
+- **Google Tasks/Calendar 后端 API**：新增 `/api/google-tasks`（CRUD 代理到 gws CLI）和 `/api/google-calendar`（事件列表），通过 `gws` CLI 工具桥接 Google API
+- **Task Runner 智能执行**：重构后台任务执行器，从 Google Tasks 获取待办，LLM 自动判断任务可执行性（区分"查天气"类 AI 可执行 vs "买牛奶"类人类任务），可执行任务自动完成并标记 Google Tasks completed
+
+### 移除
+- 旧版本地 SQLite 任务看板（human/bot assignee 模式），统一由 Google Tasks 接管
+
 ## [0.9.5] - 2026-03-05
 
 ### 新增

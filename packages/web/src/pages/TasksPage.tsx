@@ -1,23 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "../components/PageHeader";
 import {
-  listTodos,
-  createTodo,
-  updateTodo,
-  deleteTodo,
-  type TodoInfo,
+  listGoogleTasks,
+  createGoogleTask,
+  updateGoogleTask,
+  deleteGoogleTask,
+  listGoogleCalendarEvents,
+  type GoogleTask,
+  type GoogleCalendarEvent,
 } from "../api/client";
 import "./TasksPage.css";
 
-type TodoStatus = "todo" | "in_progress" | "done";
-
-const STATUS_COLUMNS: { key: TodoStatus; label: string }[] = [
-  { key: "todo", label: "Todo" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "done", label: "Done" },
-];
-
-const PRIORITY_OPTIONS: TodoInfo["priority"][] = ["low", "medium", "high"];
+// ── Helpers ──────────────────────────────────────────
 
 function formatDate(iso: string | undefined): string {
   if (!iso) return "";
@@ -29,57 +23,41 @@ function formatDate(iso: string | undefined): string {
   }
 }
 
-// ── Inline Task Form ────────────────────────────────
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso;
+  }
+}
 
-interface TaskFormProps {
-  onSave: (data: {
-    title: string;
-    description: string;
-    priority: TodoInfo["priority"];
-    dueDate: string;
-    assignee: string;
-    status?: TodoStatus;
-  }) => Promise<void>;
+function formatEventDate(iso: string, allDay: boolean): string {
+  if (allDay) return formatDate(iso);
+  try {
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  } catch {
+    return iso;
+  }
+}
+
+// ── Add Task Form ────────────────────────────────────
+
+interface AddTaskFormProps {
+  onSave: (title: string, notes: string, due: string) => Promise<void>;
   onCancel: () => void;
-  initial?: Partial<TodoInfo>;
-  showStatus?: boolean;
   saving: boolean;
 }
 
-function TaskForm({
-  onSave,
-  onCancel,
-  initial,
-  showStatus,
-  saving,
-}: TaskFormProps) {
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [priority, setPriority] = useState<TodoInfo["priority"]>(
-    initial?.priority ?? "medium",
-  );
-  const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
-  const [assignee, setAssignee] = useState(initial?.assignee ?? "human");
-  const [status, setStatus] = useState<TodoStatus>(initial?.status ?? "todo");
+function AddTaskForm({ onSave, onCancel, saving }: AddTaskFormProps) {
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [due, setDue] = useState("");
 
   const handleSubmit = () => {
     if (!title.trim()) return;
-    const data: {
-      title: string;
-      description: string;
-      priority: TodoInfo["priority"];
-      dueDate: string;
-      assignee: string;
-      status?: TodoStatus;
-    } = {
-      title: title.trim(),
-      description: description.trim(),
-      priority,
-      dueDate,
-      assignee,
-    };
-    if (showStatus) data.status = status;
-    onSave(data);
+    onSave(title.trim(), notes.trim(), due);
   };
 
   return (
@@ -95,50 +73,18 @@ function TaskForm({
       />
       <textarea
         className="tasks-form-textarea"
-        placeholder="Description (optional)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Notes (optional)"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
         rows={2}
       />
       <div className="tasks-form-row">
-        <select
-          className="tasks-form-select"
-          value={priority}
-          onChange={(e) => setPriority(e.target.value as TodoInfo["priority"])}
-        >
-          {PRIORITY_OPTIONS.map((p) => (
-            <option key={p} value={p}>
-              {p.charAt(0).toUpperCase() + p.slice(1)}
-            </option>
-          ))}
-        </select>
-        <select
-          className="tasks-form-select"
-          value={assignee}
-          onChange={(e) => setAssignee(e.target.value)}
-        >
-          <option value="human">Human</option>
-          <option value="bot">Bot</option>
-        </select>
         <input
           type="date"
           className="tasks-form-date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
+          value={due}
+          onChange={(e) => setDue(e.target.value)}
         />
-        {showStatus && (
-          <select
-            className="tasks-form-select"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as TodoStatus)}
-          >
-            {STATUS_COLUMNS.map((col) => (
-              <option key={col.key} value={col.key}>
-                {col.label}
-              </option>
-            ))}
-          </select>
-        )}
       </div>
       <div className="tasks-form-actions">
         <button
@@ -156,33 +102,30 @@ function TaskForm({
   );
 }
 
-// ── Task Card ───────────────────────────────────────
+// ── Task Card ────────────────────────────────────────
 
 interface TaskCardProps {
-  todo: TodoInfo;
-  onUpdate: (id: string, updates: Partial<TodoInfo>) => Promise<void>;
+  task: GoogleTask;
+  onComplete: (id: string) => Promise<void>;
+  onReopen: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
-function TaskCard({ todo, onUpdate, onDelete }: TaskCardProps) {
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+function TaskCard({ task, onComplete, onReopen, onDelete }: TaskCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const isCompleted = task.status === "completed";
 
-  const handleSave = async (data: {
-    title: string;
-    description: string;
-    priority: TodoInfo["priority"];
-    dueDate: string;
-    assignee: string;
-    status?: TodoStatus;
-  }) => {
-    setSaving(true);
+  const handleToggle = async () => {
+    setBusy(true);
     try {
-      await onUpdate(todo.id, data);
-      setEditing(false);
+      if (isCompleted) {
+        await onReopen(task.id);
+      } else {
+        await onComplete(task.id);
+      }
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   };
 
@@ -191,48 +134,37 @@ function TaskCard({ todo, onUpdate, onDelete }: TaskCardProps) {
       setConfirmDelete(true);
       return;
     }
-    setSaving(true);
+    setBusy(true);
     try {
-      await onDelete(todo.id);
+      await onDelete(task.id);
     } finally {
-      setSaving(false);
+      setBusy(false);
       setConfirmDelete(false);
     }
   };
 
-  if (editing) {
-    return (
-      <div className="tasks-card tasks-card-editing">
-        <TaskForm
-          initial={todo}
-          onSave={handleSave}
-          onCancel={() => setEditing(false)}
-          showStatus
-          saving={saving}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="tasks-card" onClick={() => setEditing(true)}>
-      <div className="tasks-card-title">{todo.title}</div>
-      {todo.description && (
-        <div className="tasks-card-desc">{todo.description}</div>
-      )}
-      <div className="tasks-card-footer">
-        <span className={`tasks-priority tasks-priority-${todo.priority}`}>
-          {todo.priority}
-        </span>
-        {todo.dueDate && (
-          <span className="tasks-card-due">{formatDate(todo.dueDate)}</span>
-        )}
-        <span
-          className={`tasks-assignee tasks-assignee-${todo.assignee ?? "human"}`}
-          title={`Assignee: ${todo.assignee ?? "human"}`}
+    <div className={`tasks-card ${isCompleted ? "tasks-card-completed" : ""}`}>
+      <div className="tasks-card-header">
+        <button
+          className={`tasks-check-btn ${isCompleted ? "checked" : ""}`}
+          onClick={handleToggle}
+          disabled={busy}
+          title={isCompleted ? "Reopen" : "Complete"}
         >
-          {(todo.assignee ?? "human") === "bot" ? "Bot" : "Human"}
+          {isCompleted ? "✓" : "○"}
+        </button>
+        <span
+          className={`tasks-card-title ${isCompleted ? "tasks-title-done" : ""}`}
+        >
+          {task.title}
         </span>
+      </div>
+      {task.notes && <div className="tasks-card-desc">{task.notes}</div>}
+      <div className="tasks-card-footer">
+        {task.due && (
+          <span className="tasks-card-due">{formatDate(task.due)}</span>
+        )}
         <div className="tasks-card-spacer" />
         {confirmDelete ? (
           <span
@@ -242,9 +174,9 @@ function TaskCard({ todo, onUpdate, onDelete }: TaskCardProps) {
             <button
               className="btn-danger tasks-card-btn"
               onClick={handleDelete}
-              disabled={saving}
+              disabled={busy}
             >
-              {saving ? "..." : "Yes"}
+              {busy ? "..." : "Yes"}
             </button>
             <button
               className="btn-secondary tasks-card-btn"
@@ -270,55 +202,72 @@ function TaskCard({ todo, onUpdate, onDelete }: TaskCardProps) {
   );
 }
 
-// ── Main Page ───────────────────────────────────────
+// ── Calendar Event Card ──────────────────────────────
+
+function EventCard({ event }: { event: GoogleCalendarEvent }) {
+  return (
+    <div className="tasks-event-card">
+      <div className="tasks-event-time">
+        {event.allDay
+          ? "All day"
+          : `${formatTime(event.start)} – ${formatTime(event.end)}`}
+      </div>
+      <div className="tasks-event-summary">{event.summary}</div>
+      {event.location && (
+        <div className="tasks-event-location">{event.location}</div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────
 
 export function TasksPage() {
-  const [todos, setTodos] = useState<TodoInfo[]>([]);
+  const [tasks, setTasks] = useState<GoogleTask[]>([]);
+  const [events, setEvents] = useState<GoogleCalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Add task form visibility
+  const [showCompleted, setShowCompleted] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addingSaving, setAddingSaving] = useState(false);
 
   // ── Data fetching ──────────────────────────────────
 
-  const fetchTodos = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await listTodos();
-      setTodos(data.items);
+      const [tasksRes, eventsRes] = await Promise.all([
+        listGoogleTasks("@default", showCompleted),
+        listGoogleCalendarEvents(14),
+      ]);
+      setTasks(tasksRes.items);
+      setEvents(eventsRes.items);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load tasks");
+      setError(
+        err instanceof Error ? err.message : "Failed to load Google data",
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showCompleted]);
 
   useEffect(() => {
-    fetchTodos();
-  }, [fetchTodos]);
+    fetchData();
+  }, [fetchData]);
 
   // ── Handlers ───────────────────────────────────────
 
-  const handleAddTodo = async (data: {
-    title: string;
-    description: string;
-    priority: TodoInfo["priority"];
-    dueDate: string;
-    assignee: string;
-  }) => {
+  const handleAddTask = async (title: string, notes: string, due: string) => {
     setAddingSaving(true);
     try {
-      const newTodo = await createTodo({
-        title: data.title,
-        description: data.description || undefined,
-        priority: data.priority,
-        dueDate: data.dueDate || undefined,
-        assignee: data.assignee,
+      const dueISO = due ? `${due}T00:00:00Z` : undefined;
+      const newTask = await createGoogleTask({
+        title,
+        notes: notes || undefined,
+        due: dueISO,
       });
-      setTodos((prev) => [...prev, newTodo]);
+      setTasks((prev) => [...prev, newTask]);
       setShowAddForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task");
@@ -327,21 +276,32 @@ export function TasksPage() {
     }
   };
 
-  const handleUpdateTodo = async (id: string, updates: Partial<TodoInfo>) => {
+  const handleComplete = async (id: string) => {
     try {
-      await updateTodo(id, updates);
-      setTodos((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+      await updateGoogleTask(id, { status: "completed" });
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, status: "completed" } : t)),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update task");
+      setError(err instanceof Error ? err.message : "Failed to complete task");
     }
   };
 
-  const handleDeleteTodo = async (id: string) => {
+  const handleReopen = async (id: string) => {
     try {
-      await deleteTodo(id);
-      setTodos((prev) => prev.filter((t) => t.id !== id));
+      await updateGoogleTask(id, { status: "needsAction" });
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, status: "needsAction" } : t)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reopen task");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteGoogleTask(id);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete task");
     }
@@ -349,25 +309,26 @@ export function TasksPage() {
 
   // ── Derived data ───────────────────────────────────
 
-  const todosByStatus: Record<TodoStatus, TodoInfo[]> = {
-    todo: [],
-    in_progress: [],
-    done: [],
-  };
-  for (const t of todos) {
-    if (todosByStatus[t.status]) {
-      todosByStatus[t.status].push(t);
-    }
+  const activeTasks = tasks.filter((t) => t.status === "needsAction");
+  const completedTasks = tasks.filter((t) => t.status === "completed");
+
+  // Group events by date
+  const eventsByDate: Record<string, GoogleCalendarEvent[]> = {};
+  for (const ev of events) {
+    const dateKey = ev.start.slice(0, 10);
+    if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+    eventsByDate[dateKey].push(ev);
   }
+  const sortedEventDates = Object.keys(eventsByDate).sort();
 
   // ── Render ─────────────────────────────────────────
 
-  if (loading && todos.length === 0) {
+  if (loading && tasks.length === 0) {
     return (
       <>
         <PageHeader>Tasks</PageHeader>
         <div className="page-body">
-          <div className="tasks-loading">Loading tasks...</div>
+          <div className="tasks-loading">Loading Google Tasks & Calendar...</div>
         </div>
       </>
     );
@@ -384,34 +345,51 @@ export function TasksPage() {
           </div>
         )}
 
-        {/* Toolbar */}
-        <div className="tasks-toolbar">
-          <span className="tasks-total">
-            {todos.length} {todos.length === 1 ? "task" : "tasks"}
-          </span>
-        </div>
+        {/* ── Google Tasks Section ──────────────────────── */}
+        <div className="tasks-section">
+          <div className="tasks-section-header">
+            <h2 className="tasks-section-title">
+              Google Tasks
+              <span className="tasks-column-count">{activeTasks.length}</span>
+            </h2>
+            <label className="tasks-show-completed">
+              <input
+                type="checkbox"
+                checked={showCompleted}
+                onChange={(e) => setShowCompleted(e.target.checked)}
+              />
+              Show completed
+            </label>
+            <button
+              className="btn-primary"
+              onClick={() => fetchData()}
+              disabled={loading}
+              style={{ marginLeft: "auto", padding: "4px 12px", fontSize: 13 }}
+            >
+              {loading ? "..." : "Refresh"}
+            </button>
+          </div>
 
-        {/* ── Kanban View ──────────────────────────────── */}
-        <div className="tasks-kanban">
-          {STATUS_COLUMNS.map((col) => (
-            <div className="tasks-column" key={col.key}>
+          <div className="tasks-kanban">
+            {/* Active column */}
+            <div className="tasks-column">
               <div className="tasks-column-header">
-                <span className="tasks-column-title">{col.label}</span>
+                <span className="tasks-column-title">To Do</span>
                 <span className="tasks-column-count">
-                  {todosByStatus[col.key].length}
+                  {activeTasks.length}
                 </span>
               </div>
               <div className="tasks-column-body">
-                {todosByStatus[col.key].map((todo) => (
+                {activeTasks.map((task) => (
                   <TaskCard
-                    key={todo.id}
-                    todo={todo}
-                    onUpdate={handleUpdateTodo}
-                    onDelete={handleDeleteTodo}
+                    key={task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onReopen={handleReopen}
+                    onDelete={handleDelete}
                   />
                 ))}
-
-                {col.key === "todo" && !showAddForm && (
+                {!showAddForm && (
                   <button
                     className="tasks-add-btn"
                     onClick={() => setShowAddForm(true)}
@@ -419,16 +397,72 @@ export function TasksPage() {
                     + Add Task
                   </button>
                 )}
-                {col.key === "todo" && showAddForm && (
-                  <TaskForm
-                    onSave={handleAddTodo}
+                {showAddForm && (
+                  <AddTaskForm
+                    onSave={handleAddTask}
                     onCancel={() => setShowAddForm(false)}
                     saving={addingSaving}
                   />
                 )}
               </div>
             </div>
-          ))}
+
+            {/* Completed column */}
+            {showCompleted && (
+              <div className="tasks-column">
+                <div className="tasks-column-header">
+                  <span className="tasks-column-title">Completed</span>
+                  <span className="tasks-column-count">
+                    {completedTasks.length}
+                  </span>
+                </div>
+                <div className="tasks-column-body">
+                  {completedTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onComplete={handleComplete}
+                      onReopen={handleReopen}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Google Calendar Section ───────────────────── */}
+        <div className="tasks-section" style={{ marginTop: 32 }}>
+          <div className="tasks-section-header">
+            <h2 className="tasks-section-title">
+              Upcoming Events
+              <span className="tasks-column-count">{events.length}</span>
+            </h2>
+          </div>
+
+          {events.length === 0 ? (
+            <div className="tasks-empty">No upcoming events in the next 14 days.</div>
+          ) : (
+            <div className="tasks-events-list">
+              {sortedEventDates.map((dateKey) => (
+                <div key={dateKey} className="tasks-events-day">
+                  <div className="tasks-events-day-header">
+                    {formatEventDate(dateKey, true)}
+                    <span className="tasks-events-day-name">
+                      {new Date(dateKey + "T00:00:00").toLocaleDateString(
+                        undefined,
+                        { weekday: "long" },
+                      )}
+                    </span>
+                  </div>
+                  {eventsByDate[dateKey].map((ev) => (
+                    <EventCard key={ev.id} event={ev} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </>

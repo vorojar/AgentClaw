@@ -429,6 +429,82 @@ export function getCalendar(
   return request(`/calendar?year=${year}&month=${month}`);
 }
 
+// ── Google Tasks ─────────────────────────────────
+
+export interface GoogleTask {
+  id: string;
+  title: string;
+  notes: string;
+  status: "needsAction" | "completed";
+  due?: string;
+  updated: string;
+  parent?: string;
+  position: string;
+}
+
+export function listGoogleTasks(
+  tasklist = "@default",
+  showCompleted = false,
+): Promise<{ items: GoogleTask[] }> {
+  const params = new URLSearchParams({
+    tasklist,
+    showCompleted: String(showCompleted),
+  });
+  return request(`/google-tasks?${params}`);
+}
+
+export function createGoogleTask(task: {
+  title: string;
+  notes?: string;
+  due?: string;
+  tasklist?: string;
+}): Promise<GoogleTask> {
+  return request("/google-tasks", {
+    method: "POST",
+    body: JSON.stringify(task),
+  });
+}
+
+export function updateGoogleTask(
+  id: string,
+  updates: Partial<Pick<GoogleTask, "title" | "notes" | "status" | "due">> & {
+    tasklist?: string;
+  },
+): Promise<GoogleTask> {
+  return request(`/google-tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export function deleteGoogleTask(
+  id: string,
+  tasklist = "@default",
+): Promise<void> {
+  return request(`/google-tasks/${id}?tasklist=${tasklist}`, {
+    method: "DELETE",
+  });
+}
+
+// ── Google Calendar ──────────────────────────────
+
+export interface GoogleCalendarEvent {
+  id: string;
+  summary: string;
+  description: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  location?: string;
+  htmlLink?: string;
+}
+
+export function listGoogleCalendarEvents(
+  days = 14,
+): Promise<{ items: GoogleCalendarEvent[] }> {
+  return request(`/google-calendar?days=${days}`);
+}
+
 // ── SubAgents ──────────────────────────────────────
 
 export interface SubAgentInfo {

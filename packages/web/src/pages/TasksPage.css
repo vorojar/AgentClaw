@@ -1,4 +1,4 @@
-/* TasksPage styles */
+/* TasksPage styles — Google Tasks + Calendar */
 
 .tasks-loading {
   display: flex;
@@ -31,44 +31,52 @@
   font-size: 14px;
 }
 
-/* ── Toolbar ──────────────────────────────────────── */
+.tasks-empty {
+  padding: 24px 0;
+  color: var(--text-muted);
+  font-size: 15px;
+}
 
-.tasks-toolbar {
+/* ── Section ─────────────────────────────────────── */
+
+.tasks-section-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-.tasks-total {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-.tasks-view-toggle {
+.tasks-section-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
   display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.tasks-show-completed {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
   gap: 4px;
+  cursor: pointer;
+  user-select: none;
 }
 
-.tasks-view-btn {
-  padding: 6px 14px;
-  font-size: 14px;
-}
-
-.tasks-view-btn.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+.tasks-show-completed input {
+  cursor: pointer;
 }
 
 /* ── Kanban ───────────────────────────────────────── */
 
 .tasks-kanban {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
-  min-height: 400px;
+  min-height: 200px;
 }
 
 .tasks-column {
@@ -111,6 +119,7 @@
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
+  max-height: 600px;
 }
 
 /* ── Task Card ────────────────────────────────────── */
@@ -120,7 +129,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
-  cursor: pointer;
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -131,21 +139,58 @@
   box-shadow: 0 2px 8px var(--shadow);
 }
 
-.tasks-card-editing {
-  cursor: default;
+.tasks-card-completed {
+  opacity: 0.6;
+}
+
+.tasks-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.tasks-check-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.tasks-check-btn:hover {
   border-color: var(--accent);
 }
 
-.tasks-card-editing:hover {
-  box-shadow: none;
+.tasks-check-btn.checked {
+  border-color: var(--success, #27ae60);
+  background: var(--success, #27ae60);
+  color: #fff;
 }
 
 .tasks-card-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 4px;
   word-break: break-word;
+  line-height: 1.3;
+}
+
+.tasks-title-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
 }
 
 .tasks-card-desc {
@@ -157,6 +202,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-bottom: 8px;
+  margin-left: 30px;
   word-break: break-word;
 }
 
@@ -164,29 +210,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: 30px;
   flex-wrap: wrap;
 }
 
 .tasks-card-due {
   font-size: 12px;
   color: var(--text-muted);
-}
-
-.tasks-assignee {
-  display: inline-block;
-  padding: 1px 7px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.tasks-assignee-human {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-}
-.tasks-assignee-bot {
-  background: var(--accent);
-  color: #fff;
 }
 
 .tasks-card-spacer {
@@ -222,29 +252,6 @@
 .tasks-card-btn {
   padding: 2px 8px;
   font-size: 12px;
-}
-
-/* ── Priority Chips ───────────────────────────────── */
-
-.tasks-priority {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-}
-
-.tasks-priority-low {
-  background: var(--text-secondary);
-}
-
-.tasks-priority-medium {
-  background: var(--accent);
-}
-
-.tasks-priority-high {
-  background: #e74c3c;
 }
 
 /* ── Add Task Button ──────────────────────────────── */
@@ -341,368 +348,69 @@
   font-size: 13px;
 }
 
-/* ── Calendar ─────────────────────────────────────── */
+/* ── Calendar Events ─────────────────────────────── */
 
-.tasks-calendar-section {
-  margin-bottom: 24px;
-}
-
-.tasks-cal-nav {
+.tasks-events-list {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   gap: 16px;
-  margin-bottom: 16px;
 }
 
-.tasks-cal-nav-btn {
-  padding: 6px 12px;
-  font-size: 16px;
-}
-
-.tasks-cal-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 180px;
-  text-align: center;
-}
-
-.tasks-cal-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.tasks-cal-weekday {
-  padding: 8px 4px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-}
-
-.tasks-cal-cell {
-  min-height: 72px;
-  padding: 6px;
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  background: var(--bg-secondary);
-  cursor: pointer;
-  transition: background 0.15s;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.tasks-cal-cell:nth-child(7n) {
-  border-right: none;
-}
-
-.tasks-cal-cell:hover {
-  background: var(--bg-tertiary);
-}
-
-.tasks-cal-cell-outside {
-  opacity: 0.35;
-}
-
-.tasks-cal-cell-selected {
-  background: var(--bg-tertiary);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-.tasks-cal-cell-today .tasks-cal-day {
-  background: var(--accent);
-  color: #fff;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tasks-cal-day {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.tasks-cal-dots {
-  display: flex;
-  gap: 3px;
-  flex-wrap: wrap;
-}
-
-.tasks-cal-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.tasks-cal-dot-task {
-  background: var(--accent);
-}
-
-.tasks-cal-dot-sched {
-  background: var(--success);
-}
-
-/* Calendar detail panel */
-
-.tasks-cal-detail {
-  margin-top: 16px;
-  padding: 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.tasks-cal-detail-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 12px;
-}
-
-.tasks-cal-detail-empty {
-  font-size: 14px;
-  color: var(--text-muted);
-  padding: 8px 0;
-}
-
-.tasks-cal-detail-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tasks-cal-detail-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius);
-  flex-wrap: wrap;
-}
-
-.tasks-cal-detail-type {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 10px;
-  color: #fff;
-}
-
-.tasks-cal-detail-type-task {
-  background: var(--accent);
-}
-
-.tasks-cal-detail-type-sched {
-  background: var(--success);
-}
-
-.tasks-cal-detail-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.tasks-cal-detail-cron {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  background: var(--bg-primary);
-  padding: 1px 6px;
-  border-radius: 4px;
-  color: var(--text-secondary);
-}
-
-/* ── Scheduled Tasks Section ──────────────────────── */
-
-.tasks-sched-section {
-  margin-top: 24px;
-}
-
-.tasks-sched-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tasks-sched-count {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.tasks-sched-add-btn {
-  margin-left: auto;
-  padding: 4px 14px;
-  font-size: 14px;
-}
-
-.tasks-sched-empty {
-  font-size: 15px;
-  color: var(--text-muted);
-  padding: 12px 0;
-}
-
-.tasks-sched-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius);
-  margin-bottom: 16px;
-}
-
-.tasks-sched-field {
+.tasks-events-day {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.tasks-sched-field-inline {
-  flex-direction: row;
+.tasks-events-day-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tasks-events-day-name {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.tasks-event-card {
+  display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.tasks-sched-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.tasks-sched-form-actions {
-  display: flex;
-  gap: 10px;
-  padding-top: 4px;
-}
-
-/* Toggle for scheduled tasks */
-.tasks-sched-toggle {
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
-  background: var(--bg-primary);
+  padding: 8px 12px;
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
-  position: relative;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
+  border-radius: var(--radius);
+  transition: border-color 0.15s;
 }
 
-.tasks-sched-toggle.enabled {
-  background: var(--accent);
+.tasks-event-card:hover {
   border-color: var(--accent);
 }
 
-.tasks-sched-toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  transition: transform 0.2s;
+.tasks-event-time {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  min-width: 120px;
 }
 
-.tasks-sched-toggle.enabled .tasks-sched-toggle-knob {
-  transform: translateX(16px);
-}
-
-.tasks-sched-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tasks-sched-item {
-  padding: 10px 14px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius);
-}
-
-.tasks-sched-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.tasks-sched-item-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tasks-sched-name {
-  font-size: 15px;
+.tasks-event-summary {
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
-.tasks-sched-item-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tasks-sched-confirm-delete {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tasks-sched-confirm-text {
-  font-size: 14px;
-  color: var(--error);
-  font-weight: 500;
-}
-
-.tasks-sched-action-btn {
-  padding: 4px 10px;
-  font-size: 13px;
-}
-
-.tasks-sched-item-details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.tasks-sched-detail-label {
-  font-weight: 500;
+.tasks-event-location {
+  font-size: 12px;
   color: var(--text-muted);
-}
-
-.tasks-sched-item-details code {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  background: var(--bg-primary);
-  padding: 1px 5px;
-  border-radius: 4px;
+  margin-left: auto;
 }
 
 /* ── Responsive ───────────────────────────────────── */
@@ -713,45 +421,21 @@
     gap: 12px;
   }
 
-  .tasks-column {
-    min-height: auto;
+  .tasks-section-header {
+    flex-wrap: wrap;
   }
 
-  .tasks-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .tasks-view-toggle {
-    justify-content: center;
-  }
-
-  .tasks-total {
-    text-align: center;
-  }
-
-  .tasks-cal-grid {
-    font-size: 12px;
-  }
-
-  .tasks-cal-cell {
-    min-height: 52px;
-    padding: 4px;
-  }
-
-  .tasks-cal-title {
-    font-size: 16px;
-    min-width: 140px;
-  }
-
-  .tasks-sched-item-details {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .tasks-cal-detail-item {
+  .tasks-event-card {
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .tasks-event-time {
+    min-width: auto;
+  }
+
+  .tasks-event-location {
+    margin-left: 0;
   }
 }

@@ -365,15 +365,14 @@ export class SimpleOrchestrator implements Orchestrator {
   ): SimpleAgentLoop {
     const effectiveProvider = provider ?? this.provider;
 
-    // Resolve system prompt: replace {{soul}} with agent's soul
+    // Resolve system prompt: inject agent's soul
     let systemPrompt = this.systemPrompt;
-    if (agent?.soul && systemPrompt) {
-      systemPrompt = systemPrompt.replace("{{soul}}", agent.soul);
-    } else if (systemPrompt) {
-      // Default agent: use first available soul or remove placeholder
-      const defaultAgent = this.agents.get("default");
-      const defaultSoul = defaultAgent?.soul ?? "";
-      systemPrompt = systemPrompt.replace("{{soul}}", defaultSoul);
+    const soul = agent?.soul ?? this.agents.get("default")?.soul ?? "";
+    if (systemPrompt && systemPrompt.includes("{{soul}}")) {
+      systemPrompt = systemPrompt.replace("{{soul}}", soul);
+    } else if (soul && systemPrompt) {
+      // No {{soul}} placeholder — prepend soul to system prompt
+      systemPrompt = soul + "\n\n" + systemPrompt;
     }
 
     const contextManager = new SimpleContextManager({

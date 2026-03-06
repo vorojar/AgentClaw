@@ -125,7 +125,7 @@ export function Layout() {
         </div>
 
         {/* Session search input */}
-        {searchVisible && isChat && (
+        {searchVisible && (
           <div className="sidebar-search-box">
             <input
               autoFocus
@@ -244,9 +244,8 @@ export function Layout() {
           )}
         </div>
 
-        {/* Session list (when on chat) */}
-        {isChat &&
-          sessions.length > 0 &&
+        {/* Session list */}
+        {sessions.length > 0 &&
           (() => {
             const q = searchQuery.toLowerCase();
             const filtered = q

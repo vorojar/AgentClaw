@@ -11,6 +11,7 @@ function serializeSession(session: {
   createdAt: Date;
   lastActiveAt: Date;
   title?: string;
+  metadata?: Record<string, unknown>;
 }) {
   return {
     id: session.id,
@@ -18,6 +19,7 @@ function serializeSession(session: {
     createdAt: session.createdAt.toISOString(),
     lastActiveAt: session.lastActiveAt.toISOString(),
     title: session.title,
+    agentId: (session.metadata?.agentId as string) || "default",
   };
 }
 
@@ -38,22 +40,32 @@ export function registerSessionRoutes(
   app: FastifyInstance,
   ctx: AppContext,
 ): void {
-  // POST /api/sessions - Create session
-  app.post("/api/sessions", async (_req, reply) => {
-    try {
-      const session = await ctx.orchestrator.createSession();
-      return reply.send(serializeSession(session));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
-  });
+  // POST /api/sessions - Create session (optional agentId in body)
+  app.post<{ Body: { agentId?: string } }>(
+    "/api/sessions",
+    async (req, reply) => {
+      try {
+        const agentId = req.body?.agentId || "default";
+        const session = await ctx.orchestrator.createSession({ agentId });
+        return reply.send(serializeSession(session));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
 
   // GET /api/sessions - List sessions
   app.get("/api/sessions", async (_req, reply) => {
     try {
       const sessions = await ctx.orchestrator.listSessions();
-      return reply.send(sessions.map(serializeSession));
+      return reply.send(
+        sessions.map((s) =>
+          serializeSession(
+            s as typeof s & { metadata?: Record<string, unknown> },
+          ),
+        ),
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       return reply.status(500).send({ error: message });

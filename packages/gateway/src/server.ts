@@ -26,6 +26,7 @@ import { registerCalendarRoutes } from "./routes/calendar.js";
 import { registerGoogleTasksRoutes } from "./routes/google-tasks.js";
 import { registerGoogleCalendarRoutes } from "./routes/google-calendar.js";
 import { registerSubAgentRoutes } from "./routes/subagents.js";
+import { registerAgentRoutes } from "./routes/agents.js";
 import { registerChannelRoutes } from "./routes/channels.js";
 import { registerAuth } from "./auth.js";
 import type { ChannelManager } from "./channel-manager.js";
@@ -84,6 +85,7 @@ export async function createServer(
   registerGoogleTasksRoutes(app);
   registerGoogleCalendarRoutes(app);
   registerSubAgentRoutes(app, ctx);
+  registerAgentRoutes(app, ctx);
   if (options.channelManager) {
     registerChannelRoutes(app, options.channelManager);
   }

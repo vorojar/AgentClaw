@@ -246,6 +246,17 @@ export function IconSkills({ size }: { size?: number }) {
   );
 }
 
+export function IconAgents({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <circle cx="9" cy="7" r="3" />
+      <circle cx="17" cy="10" r="2.5" />
+      <path d="M3 20c0-3.3 2.7-6 6-6 1.5 0 2.8.5 3.8 1.4" />
+      <path d="M17 15c2.2 0 4 1.8 4 4" />
+    </I>
+  );
+}
+
 export function IconChevronDown({ size }: { size?: number }) {
   return (
     <I size={size}>

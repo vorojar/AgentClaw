@@ -39,6 +39,17 @@ export class ToolRegistryImpl implements ToolRegistry {
     }));
   }
 
+  /** Create a filtered copy containing only tools that pass the predicate */
+  filter(predicate: (tool: Tool) => boolean): ToolRegistryImpl {
+    const filtered = new ToolRegistryImpl();
+    for (const tool of this.tools.values()) {
+      if (predicate(tool)) {
+        filtered.tools.set(tool.name, tool);
+      }
+    }
+    return filtered;
+  }
+
   async execute(
     name: string,
     input: Record<string, unknown>,

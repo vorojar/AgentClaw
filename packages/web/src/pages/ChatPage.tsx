@@ -7,6 +7,7 @@ import {
   type ChatMessage,
   type WSMessage,
   type SkillInfo,
+  type AgentInfo,
   getHistory,
   createSession,
   connectWebSocket,
@@ -14,6 +15,7 @@ import {
   renameSession,
   closeSession,
   listSkills,
+  listAgents,
 } from "../api/client";
 import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
@@ -697,6 +699,8 @@ export function ChatPage() {
     setSidebarOpen,
     refreshSessions,
     ensureSession,
+    pendingAgentId,
+    setPendingAgentId,
   } = useSession();
   const navigate = useNavigate();
 
@@ -719,6 +723,7 @@ export function ChatPage() {
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [skillMenuOpen, setSkillMenuOpen] = useState(false);
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
@@ -768,6 +773,9 @@ export function ChatPage() {
         });
         setSkills(enabled);
       })
+      .catch(() => {});
+    listAgents()
+      .then((list) => setAgents(list))
       .catch(() => {});
   }, []);
 
@@ -1619,6 +1627,23 @@ export function ChatPage() {
         {/* Messages */}
         {messages.length === 0 && !loadingHistory ? (
           <div className="chat-welcome">
+            {agents.length > 1 && (
+              <div className="agent-selector">
+                {agents.map((a) => (
+                  <button
+                    key={a.id}
+                    className={`agent-chip${pendingAgentId === a.id ? " active" : ""}`}
+                    onClick={() => setPendingAgentId(a.id)}
+                    title={a.description || a.name}
+                  >
+                    {a.avatar && (
+                      <span className="agent-avatar">{a.avatar}</span>
+                    )}
+                    <span>{a.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <h2 className="chat-welcome-title">What can I do for you?</h2>
             <div className="chat-welcome-input">
               <div className="chat-input-box">

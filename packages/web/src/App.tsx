@@ -9,6 +9,7 @@ import { TracesPage } from "./pages/TracesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { ChannelsPage } from "./pages/ChannelsPage";
 import { SubagentsPage } from "./pages/SubagentsPage";
+import { AgentsPage } from "./pages/AgentsPage";
 import { ApiPage } from "./pages/ApiPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./auth";
@@ -52,6 +53,7 @@ function AppRoutes() {
           <Route path="/token-logs" element={<TokenLogsPage />} />
           <Route path="/traces" element={<TracesPage />} />
           <Route path="/api" element={<ApiPage />} />
+          <Route path="/agents" element={<AgentsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>

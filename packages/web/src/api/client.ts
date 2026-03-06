@@ -60,12 +60,56 @@ export interface SessionInfo {
   id: string;
   conversationId: string;
   title?: string;
+  agentId?: string;
   createdAt: string;
   lastActiveAt: string;
 }
 
-export function createSession(): Promise<SessionInfo> {
-  return request("/sessions", { method: "POST", body: "{}" });
+export function createSession(agentId?: string): Promise<SessionInfo> {
+  return request("/sessions", {
+    method: "POST",
+    body: JSON.stringify(agentId ? { agentId } : {}),
+  });
+}
+
+// ── Agents ─────────────────────────────────────────
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+  description: string;
+  avatar: string;
+  soul?: string;
+  model?: string;
+  tools?: string[];
+  maxIterations?: number;
+  temperature?: number;
+  sortOrder?: number;
+}
+
+export function listAgents(): Promise<AgentInfo[]> {
+  return request("/agents");
+}
+
+export function createAgent(agent: AgentInfo): Promise<AgentInfo> {
+  return request("/agents", {
+    method: "POST",
+    body: JSON.stringify(agent),
+  });
+}
+
+export function updateAgent(
+  id: string,
+  updates: Partial<Omit<AgentInfo, "id">>,
+): Promise<AgentInfo> {
+  return request(`/agents/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
+export function deleteAgent(id: string): Promise<void> {
+  return request(`/agents/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 export function listSessions(): Promise<SessionInfo[]> {

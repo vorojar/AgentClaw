@@ -93,6 +93,20 @@ export interface ContextManager {
 /** Session — represents a user session (alias for SessionData) */
 export type Session = SessionData;
 
+/** Agent profile — defines a persona with custom soul, model, tools */
+export interface AgentProfile {
+  id: string;
+  name: string;
+  description: string;
+  avatar: string;
+  soul: string;
+  model?: string;
+  tools?: string[];
+  maxIterations?: number;
+  temperature?: number;
+  sortOrder?: number;
+}
+
 /** Orchestrator — top-level coordinator */
 export interface Orchestrator {
   /** Start a new session */

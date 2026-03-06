@@ -110,6 +110,22 @@ CREATE TABLE IF NOT EXISTS subagents (
 CREATE INDEX IF NOT EXISTS idx_subagents_session ON subagents(session_id);
 CREATE INDEX IF NOT EXISTS idx_subagents_created ON subagents(created_at DESC);
 
+-- Agent profiles (persona with custom soul, model, tools)
+CREATE TABLE IF NOT EXISTS agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  avatar TEXT NOT NULL DEFAULT '',
+  soul TEXT NOT NULL DEFAULT '',
+  model TEXT,
+  tools TEXT,
+  max_iterations INTEGER,
+  temperature REAL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- FTS5 full-text search index for hybrid memory retrieval (BM25 + vector)
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
   id UNINDEXED,

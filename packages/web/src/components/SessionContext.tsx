@@ -22,8 +22,10 @@ interface SessionContextValue {
   activeSessionId: string | null;
   sidebarOpen: boolean;
   searchQuery: string;
+  pendingAgentId: string;
   setSidebarOpen: (v: boolean) => void;
   setSearchQuery: (v: string) => void;
+  setPendingAgentId: (v: string) => void;
   handleNewChat: () => void;
   handleDeleteSession: (id: string) => Promise<void>;
   handleSelectSession: (id: string) => void;
@@ -58,6 +60,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       !matchMedia("(max-width: 768px)").matches,
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingAgentId, setPendingAgentId] = useState("default");
 
   /* Load sessions on mount */
   useEffect(() => {
@@ -87,6 +90,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   /** New Chat = navigate to /chat (no session ID) */
   const handleNewChat = useCallback(() => {
     setActiveSessionId(null);
+    setPendingAgentId("default");
     navigate("/chat");
   }, [navigate]);
 
@@ -122,7 +126,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (ensurePromiseRef.current) return ensurePromiseRef.current;
     ensurePromiseRef.current = (async () => {
       try {
-        const ns = await createSession();
+        const agentId = pendingAgentId || "default";
+        const ns = await createSession(
+          agentId !== "default" ? agentId : undefined,
+        );
         setSessions((prev) => [ns, ...prev]);
         setActiveSessionId(ns.id);
         navigate(`/chat/${ns.id}`, { replace: true });
@@ -132,7 +139,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     })();
     return ensurePromiseRef.current;
-  }, [activeSessionId, navigate]);
+  }, [activeSessionId, pendingAgentId, navigate]);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -391,8 +398,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         activeSessionId,
         sidebarOpen,
         searchQuery,
+        pendingAgentId,
         setSidebarOpen: setSidebarOpenWithHistory,
         setSearchQuery,
+        setPendingAgentId,
         handleNewChat,
         handleDeleteSession,
         handleSelectSession,

@@ -57,6 +57,7 @@ export type {
   ContextManager,
   Session,
   Orchestrator,
+  AgentProfile,
 } from "./agent.js";
 
 export type { PlanStatus, PlanStep, Plan, Planner } from "./planner.js";

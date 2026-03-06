@@ -20,8 +20,9 @@ import type {
   SkillRegistry,
   ToolRegistry,
   MemoryStore,
+  AgentProfile,
 } from "@agentclaw/types";
-import { mkdirSync, readFileSync, existsSync } from "fs";
+import { mkdirSync, readFileSync, existsSync, readdirSync } from "fs";
 import { execFileSync } from "child_process";
 import { dirname, resolve } from "path";
 import { platform, arch, homedir, tmpdir } from "os";
@@ -41,6 +42,9 @@ export interface AppContext {
   skillRegistry: SkillRegistryImpl;
   config: AppRuntimeConfig;
   scheduler: TaskScheduler;
+  agents: AgentProfile[];
+  /** Reload agents from DB and update orchestrator */
+  refreshAgents: () => void;
   /**
    * 重新运行健康检查并更新系统提示词。
    * 返回变化的检查项（从 ok→fail 或 fail→ok），便于外部决定是否通知。
@@ -178,6 +182,72 @@ function createOptionalProvider(
     `[bootstrap] ${envPrefix.charAt(0) + envPrefix.slice(1).toLowerCase()} provider: ${type}, model: ${model ?? "default"}`,
   );
   return { provider, type, model };
+}
+
+/**
+ * Seed agents from data/agents/ directory into DB (one-time migration).
+ * Then always read from DB.
+ */
+function seedAgentsFromFilesystem(
+  memoryStore: SQLiteMemoryStore,
+  defaultSoul: string,
+): void {
+  // Only seed if DB has no agents yet
+  const existing = memoryStore.listAgents();
+  if (existing.length > 0) return;
+
+  const agentsDir = resolve(process.cwd(), "data", "agents");
+  let order = 0;
+
+  // Seed "default" first
+  memoryStore.saveAgent({
+    id: "default",
+    name: "AgentClaw",
+    description: "Default assistant",
+    avatar: "",
+    soul: defaultSoul,
+    sortOrder: order++,
+  });
+
+  if (existsSync(agentsDir)) {
+    const entries = readdirSync(agentsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dir = resolve(agentsDir, entry.name);
+      const soulPath = resolve(dir, "SOUL.md");
+      const configPath = resolve(dir, "config.json");
+
+      const soul = existsSync(soulPath)
+        ? readFileSync(soulPath, "utf-8").trim()
+        : defaultSoul;
+
+      let config: Partial<AgentProfile> = {};
+      if (existsSync(configPath)) {
+        try {
+          config = JSON.parse(readFileSync(configPath, "utf-8"));
+        } catch {
+          console.warn(
+            `[bootstrap] Invalid config.json in agents/${entry.name}`,
+          );
+        }
+      }
+
+      memoryStore.saveAgent({
+        id: entry.name,
+        name: config.name ?? entry.name,
+        description: config.description ?? "",
+        avatar: config.avatar ?? "",
+        soul,
+        model: config.model || undefined,
+        tools: config.tools ?? undefined,
+        maxIterations: config.maxIterations,
+        temperature: config.temperature,
+        sortOrder: order++,
+      });
+    }
+  }
+
+  console.log("[bootstrap] Seeded agents from filesystem to DB");
 }
 
 export async function bootstrap(): Promise<AppContext> {
@@ -343,6 +413,14 @@ export async function bootstrap(): Promise<AppContext> {
     );
   }
 
+  // Load SOUL.md personality file (used as default agent soul)
+  const soulPath = resolve(process.cwd(), "data", "SOUL.md");
+  let soul = "You are AgentClaw, a powerful AI assistant.";
+  if (existsSync(soulPath)) {
+    soul = readFileSync(soulPath, "utf-8").trim();
+    console.log(`[bootstrap] Soul loaded from ${soulPath}`);
+  }
+
   if (existsSync(systemPromptPath)) {
     const template = readFileSync(systemPromptPath, "utf-8");
     const datetime = new Date().toLocaleString("zh-CN", {
@@ -355,16 +433,8 @@ export async function bootstrap(): Promise<AppContext> {
       weekday: "long",
       hour12: false,
     });
-    // Load SOUL.md personality file
-    const soulPath = resolve(process.cwd(), "data", "SOUL.md");
-    let soul = "You are AgentClaw, a powerful AI assistant.";
-    if (existsSync(soulPath)) {
-      soul = readFileSync(soulPath, "utf-8").trim();
-      console.log(`[bootstrap] Soul loaded from ${soulPath}`);
-    }
 
     const vars: Record<string, string> = {
-      soul,
       datetime,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       os: osName,
@@ -377,10 +447,9 @@ export async function bootstrap(): Promise<AppContext> {
       hasClaudeCode: availableCli.includes("claude") ? "true" : "",
       health: formatHealthResults(healthResults),
     };
-    // Replace {{var}} placeholders
-    defaultSystemPrompt = template.replace(
-      /\{\{(\w+)\}\}/g,
-      (_, key) => vars[key] ?? "",
+    // Replace {{var}} placeholders (keep {{soul}} for per-agent resolution)
+    defaultSystemPrompt = template.replace(/\{\{(\w+)\}\}/g, (match, key) =>
+      key === "soul" ? match : (vars[key] ?? ""),
     );
     // Handle {{#if var}}...{{/if}} conditionals
     defaultSystemPrompt = defaultSystemPrompt.replace(
@@ -406,6 +475,13 @@ export async function bootstrap(): Promise<AppContext> {
   );
   await skillRegistry.loadFromDirectory(skillsDir);
 
+  // Seed agents from filesystem (one-time), then load from DB
+  seedAgentsFromFilesystem(memoryStore, soul);
+  let agents = memoryStore.listAgents();
+  console.log(
+    `[bootstrap] Agents loaded: ${agents.map((a) => a.id).join(", ")}`,
+  );
+
   // Orchestrator
   const orchestrator = new SimpleOrchestrator({
     provider,
@@ -417,6 +493,7 @@ export async function bootstrap(): Promise<AppContext> {
     scheduler,
     skillRegistry,
     tmpDir: tempDir,
+    agents,
   });
 
   const config: AppRuntimeConfig = {
@@ -465,6 +542,11 @@ export async function bootstrap(): Promise<AppContext> {
     return changed;
   };
 
+  const refreshAgents = () => {
+    agents = memoryStore.listAgents();
+    orchestrator.updateAgents(agents);
+  };
+
   return {
     provider,
     visionProvider,
@@ -474,6 +556,8 @@ export async function bootstrap(): Promise<AppContext> {
     skillRegistry,
     config,
     scheduler,
+    agents,
+    refreshAgents,
     refreshHealth,
   };
 }

@@ -20,6 +20,7 @@ import {
   IconTasks,
   IconChannels,
   IconSubAgents,
+  IconAgents,
   IconChevronDown,
 } from "./Icons";
 
@@ -61,6 +62,7 @@ export function Layout() {
   const MORE_PATHS = [
     "/channels",
     "/subagents",
+    "/agents",
     "/memory",
     "/traces",
     "/token-logs",
@@ -194,6 +196,13 @@ export function Layout() {
                 onClick={closeSidebarOnMobile}
               >
                 <IconSubAgents size={16} /> Subagents
+              </NavLink>
+              <NavLink
+                to="/agents"
+                className={({ isActive }) => (isActive ? "active" : "")}
+                onClick={closeSidebarOnMobile}
+              >
+                <IconAgents size={16} /> Agents
               </NavLink>
               <NavLink
                 to="/memory"

@@ -8,6 +8,7 @@ import type {
   LLMProvider,
   MemoryStore,
   AgentConfig,
+  AgentProfile,
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 import type { SkillRegistryImpl } from "./skills/registry.js";
@@ -38,6 +39,7 @@ export class SimpleOrchestrator implements Orchestrator {
   private scheduler?: ToolExecutionContext["scheduler"];
   private skillRegistry?: SkillRegistryImpl;
   private tmpDir?: string;
+  private agents: Map<string, AgentProfile>;
 
   constructor(options: {
     provider: LLMProvider;
@@ -50,6 +52,7 @@ export class SimpleOrchestrator implements Orchestrator {
     scheduler?: ToolExecutionContext["scheduler"];
     skillRegistry?: SkillRegistryImpl;
     tmpDir?: string;
+    agents?: AgentProfile[];
   }) {
     this.provider = options.provider;
     this.visionProvider = options.visionProvider;
@@ -65,6 +68,7 @@ export class SimpleOrchestrator implements Orchestrator {
     this.scheduler = options.scheduler;
     this.skillRegistry = options.skillRegistry;
     this.tmpDir = options.tmpDir;
+    this.agents = new Map((options.agents ?? []).map((a) => [a.id, a]));
   }
 
   async createSession(metadata?: Record<string, unknown>): Promise<Session> {
@@ -195,7 +199,8 @@ export class SimpleOrchestrator implements Orchestrator {
       effectiveProvider = this.provider;
     }
 
-    const loop = this.createAgentLoop(effectiveProvider);
+    const agent = this.getSessionAgent(session);
+    const loop = this.createAgentLoop(effectiveProvider, agent);
     this.activeLoops.set(sessionId, loop);
     try {
       yield* loop.runStream(input, session.conversationId, mergedContext);
@@ -265,6 +270,11 @@ export class SimpleOrchestrator implements Orchestrator {
   /** 更新系统提示词（用于健康检查等动态内容刷新） */
   updateSystemPrompt(prompt: string): void {
     this.systemPrompt = prompt;
+  }
+
+  /** 更新 agent 配置（用于管理页面 CRUD 后刷新） */
+  updateAgents(agentList: AgentProfile[]): void {
+    this.agents = new Map(agentList.map((a) => [a.id, a]));
   }
 
   /**
@@ -342,21 +352,57 @@ export class SimpleOrchestrator implements Orchestrator {
     } catch {}
   }
 
-  private createAgentLoop(provider?: LLMProvider): SimpleAgentLoop {
+  /** Resolve the agent profile for a session */
+  private getSessionAgent(session: Session): AgentProfile | undefined {
+    const agentId = session.metadata?.agentId as string | undefined;
+    if (!agentId || agentId === "default") return undefined;
+    return this.agents.get(agentId);
+  }
+
+  private createAgentLoop(
+    provider?: LLMProvider,
+    agent?: AgentProfile,
+  ): SimpleAgentLoop {
     const effectiveProvider = provider ?? this.provider;
+
+    // Resolve system prompt: replace {{soul}} with agent's soul
+    let systemPrompt = this.systemPrompt;
+    if (agent?.soul && systemPrompt) {
+      systemPrompt = systemPrompt.replace("{{soul}}", agent.soul);
+    } else if (systemPrompt) {
+      // Default agent: use first available soul or remove placeholder
+      const defaultAgent = this.agents.get("default");
+      const defaultSoul = defaultAgent?.soul ?? "";
+      systemPrompt = systemPrompt.replace("{{soul}}", defaultSoul);
+    }
+
     const contextManager = new SimpleContextManager({
-      systemPrompt: this.systemPrompt,
+      systemPrompt,
       memoryStore: this.memoryStore,
       skillRegistry: this.skillRegistry,
       provider: this.fastProvider ?? this.provider,
     });
 
+    // Agent-specific config overrides
+    const config: Partial<AgentConfig> = { ...this.agentConfig };
+    if (agent?.model) config.model = agent.model;
+    if (agent?.maxIterations) config.maxIterations = agent.maxIterations;
+    if (agent?.temperature !== undefined)
+      config.temperature = agent.temperature;
+
+    // Agent-specific tool filtering
+    let toolRegistry = this.toolRegistry;
+    if (agent?.tools) {
+      const allowed = new Set(agent.tools);
+      toolRegistry = this.toolRegistry.filter((t) => allowed.has(t.name));
+    }
+
     return new SimpleAgentLoop({
       provider: effectiveProvider,
-      toolRegistry: this.toolRegistry,
+      toolRegistry,
       contextManager,
       memoryStore: this.memoryStore,
-      config: this.agentConfig,
+      config,
     });
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "agentclaw",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Your 24/7 AI Commander — intelligent dispatch center",
   "scripts": {

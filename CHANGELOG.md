@@ -1,6 +1,6 @@
 # 更新日志
 
-## [0.10.0] - 2026-03-06
+## [1.0.0] - 2026-03-06
 
 ### 新增
 - **多 Agent 系统**：支持创建、编辑、删除自定义 Agent，每个 Agent 拥有独立的 Soul（人格/行为指令）、可选的 Model、Temperature、Max Iterations、Tools 过滤

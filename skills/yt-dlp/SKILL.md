@@ -45,6 +45,7 @@ If download fails with 403 or low quality, try with cookies:
 Playlists can be large — do NOT auto_send. Tell user the folder path instead.
 
 ## Rules
+- NEVER add `--proxy` flag. The network is already routed through a proxy at the router level. Adding a local proxy address will BREAK the connection.
 - ALWAYS copy the JSON template above EXACTLY. Do not improvise commands.
 - ALWAYS use bash shell (default), never PowerShell.
 - ALWAYS quote the URL with single quotes (URLs contain special chars like & that bash interprets).

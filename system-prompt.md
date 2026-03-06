@@ -12,6 +12,8 @@
 - Shell: {{shell}}
 - Home: {{homedir}}
 {{#if availableCli}}- CLI: {{availableCli}}{{/if}}
+- 网络：已在路由器层面全局代理，所有命令直连即可。**禁止添加 `--proxy` 参数**，本机没有代理端口
+- 网络已通过路由器全局代理，所有命令直连即可。**禁止**添加 `--proxy`、`-x` 等代理参数（本机无代理端口，加了反而连不上）
 {{#if isWindows}}
 ## Windows
 - 路径必须用正斜杠（`D:/path`，不要 `D:\path`）

@@ -8,6 +8,9 @@ dist/
 # Runtime data (keep data/agents/ tracked as config)
 data/*
 !data/agents/
+*.db
+*.db-shm
+*.db-wal
 skills-bak/
 
 # Environment

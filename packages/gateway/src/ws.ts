@@ -1,12 +1,6 @@
 import { basename, join, extname, resolve, relative } from "node:path";
 import { readFile } from "node:fs/promises";
-import {
-  existsSync,
-  renameSync,
-  unlinkSync,
-  copyFileSync,
-  mkdirSync,
-} from "node:fs";
+import { existsSync, renameSync, copyFileSync, mkdirSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "./bootstrap.js";
 import type {
@@ -59,7 +53,7 @@ async function parseUserContent(
     const filePath = join(process.cwd(), "data", "tmp", savedName);
 
     if (IMAGE_EXTS.has(ext)) {
-      // 图片：转为 base64 ContentBlock，读完后删除上传临时文件
+      // 图片：转为 base64 ContentBlock + 保留文件供工具使用
       if (existsSync(filePath)) {
         try {
           const buf = await readFile(filePath);
@@ -68,11 +62,24 @@ async function parseUserContent(
             data: buf.toString("base64"),
             mediaType: MIME_MAP[ext] ?? "image/jpeg",
           });
+          // rename 到原始文件名，保留文件供 comfyui 等工具使用
+          const origPath = join(
+            process.cwd(),
+            "data",
+            "tmp",
+            originalName,
+          ).replace(/\\/g, "/");
           try {
-            unlinkSync(filePath);
+            renameSync(filePath, origPath);
           } catch {
-            /* ignore */
+            /* rename 失败则保留原路径 */
           }
+          const usePath = existsSync(origPath)
+            ? origPath
+            : filePath.replace(/\\/g, "/");
+          fileHints.push(
+            `[用户上传图片：${usePath}]（直接使用此绝对路径，不要修改）`,
+          );
         } catch {
           /* 跳过不可读文件 */
         }

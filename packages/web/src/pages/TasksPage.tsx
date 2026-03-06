@@ -6,8 +6,12 @@ import {
   updateGoogleTask,
   deleteGoogleTask,
   listGoogleCalendarEvents,
+  listScheduledTasks,
+  createScheduledTask,
+  deleteScheduledTask,
   type GoogleTask,
   type GoogleCalendarEvent,
+  type ScheduledTaskInfo,
 } from "../api/client";
 import "./TasksPage.css";
 
@@ -231,21 +235,33 @@ export function TasksPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addingSaving, setAddingSaving] = useState(false);
 
+  // Automations (scheduled tasks)
+  const [automations, setAutomations] = useState<ScheduledTaskInfo[]>([]);
+  const [showAutoForm, setShowAutoForm] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [autoName, setAutoName] = useState("");
+  const [autoCron, setAutoCron] = useState("");
+  const [autoAction, setAutoAction] = useState("");
+  const [confirmAutoDeleteId, setConfirmAutoDeleteId] = useState<string | null>(null);
+  const [deletingAutoId, setDeletingAutoId] = useState<string | null>(null);
+
   // ── Data fetching ──────────────────────────────────
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tasksRes, eventsRes] = await Promise.all([
+      const [tasksRes, eventsRes, autoRes] = await Promise.all([
         listGoogleTasks("@default", showCompleted),
         listGoogleCalendarEvents(14),
+        listScheduledTasks(),
       ]);
       setTasks(tasksRes.items);
       setEvents(eventsRes.items);
+      setAutomations(autoRes);
       setError(null);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load Google data",
+        err instanceof Error ? err.message : "Failed to load data",
       );
     } finally {
       setLoading(false);
@@ -304,6 +320,51 @@ export function TasksPage() {
       setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete task");
+    }
+  };
+
+  // ── Automation handlers ────────────────────────────
+
+  const handleCreateAuto = async () => {
+    if (!autoName.trim() || !autoCron.trim() || !autoAction.trim()) return;
+    setAutoSaving(true);
+    try {
+      const task = await createScheduledTask({
+        name: autoName.trim(),
+        cron: autoCron.trim(),
+        action: autoAction.trim(),
+        enabled: true,
+      });
+      setAutomations((prev) => [...prev, task]);
+      setShowAutoForm(false);
+      setAutoName("");
+      setAutoCron("");
+      setAutoAction("");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create automation",
+      );
+    } finally {
+      setAutoSaving(false);
+    }
+  };
+
+  const handleDeleteAuto = async (id: string) => {
+    if (confirmAutoDeleteId !== id) {
+      setConfirmAutoDeleteId(id);
+      return;
+    }
+    setDeletingAutoId(id);
+    try {
+      await deleteScheduledTask(id);
+      setAutomations((prev) => prev.filter((t) => t.id !== id));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to delete automation",
+      );
+    } finally {
+      setDeletingAutoId(null);
+      setConfirmAutoDeleteId(null);
     }
   };
 
@@ -459,6 +520,134 @@ export function TasksPage() {
                   {eventsByDate[dateKey].map((ev) => (
                     <EventCard key={ev.id} event={ev} />
                   ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Automations Section ──────────────────────── */}
+        <div className="tasks-section" style={{ marginTop: 32 }}>
+          <div className="tasks-section-header">
+            <h2 className="tasks-section-title">
+              Automations
+              <span className="tasks-column-count">{automations.length}</span>
+            </h2>
+            {!showAutoForm && (
+              <button
+                className="btn-secondary"
+                onClick={() => setShowAutoForm(true)}
+                style={{ marginLeft: "auto", padding: "4px 12px", fontSize: 13 }}
+              >
+                + Add
+              </button>
+            )}
+          </div>
+
+          {showAutoForm && (
+            <div className="auto-form">
+              <input
+                type="text"
+                className="tasks-form-input"
+                placeholder="Name (e.g. Daily weather report)"
+                value={autoName}
+                onChange={(e) => setAutoName(e.target.value)}
+                autoFocus
+              />
+              <input
+                type="text"
+                className="tasks-form-input"
+                placeholder="Cron (e.g. 0 9 * * *)"
+                value={autoCron}
+                onChange={(e) => setAutoCron(e.target.value)}
+              />
+              <input
+                type="text"
+                className="tasks-form-input"
+                placeholder="Action — what should the bot do?"
+                value={autoAction}
+                onChange={(e) => setAutoAction(e.target.value)}
+              />
+              <div className="tasks-form-actions">
+                <button
+                  className="btn-primary"
+                  onClick={handleCreateAuto}
+                  disabled={
+                    autoSaving ||
+                    !autoName.trim() ||
+                    !autoCron.trim() ||
+                    !autoAction.trim()
+                  }
+                >
+                  {autoSaving ? "Saving..." : "Save"}
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowAutoForm(false)}
+                  disabled={autoSaving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {automations.length === 0 && !showAutoForm ? (
+            <div className="tasks-empty">
+              No automations yet. Add a cron-based recurring task.
+            </div>
+          ) : (
+            <div className="auto-list">
+              {automations.map((auto) => (
+                <div key={auto.id} className="auto-item">
+                  <div className="auto-item-header">
+                    <div className="auto-item-left">
+                      <div
+                        className={`auto-toggle ${auto.enabled ? "enabled" : ""}`}
+                        title={auto.enabled ? "Enabled" : "Disabled"}
+                      >
+                        <div className="auto-toggle-knob" />
+                      </div>
+                      <span className="auto-name">{auto.name}</span>
+                    </div>
+                    <div className="auto-item-actions">
+                      {confirmAutoDeleteId === auto.id ? (
+                        <span className="auto-confirm-delete">
+                          <span className="auto-confirm-text">Delete?</span>
+                          <button
+                            className="btn-danger tasks-card-btn"
+                            onClick={() => handleDeleteAuto(auto.id)}
+                            disabled={deletingAutoId === auto.id}
+                          >
+                            {deletingAutoId === auto.id ? "..." : "Yes"}
+                          </button>
+                          <button
+                            className="btn-secondary tasks-card-btn"
+                            onClick={() => setConfirmAutoDeleteId(null)}
+                          >
+                            No
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          className="btn-secondary tasks-card-btn"
+                          onClick={() => handleDeleteAuto(auto.id)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="auto-item-details">
+                    <span>
+                      <span className="auto-detail-label">Cron</span>{" "}
+                      <code>{auto.cron}</code>
+                    </span>
+                    <span>
+                      <span className="auto-detail-label">Action</span>{" "}
+                      {auto.action}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

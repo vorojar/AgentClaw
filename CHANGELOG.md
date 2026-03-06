@@ -7,9 +7,11 @@
 - **Google Calendar 日程展示**：`/tasks` 页面下方展示未来 14 天的 Google Calendar 事件，按日期分组显示时间、标题、地点
 - **Google Tasks/Calendar 后端 API**：新增 `/api/google-tasks`（CRUD 代理到 gws CLI）和 `/api/google-calendar`（事件列表），通过 `gws` CLI 工具桥接 Google API
 - **Task Runner 智能执行**：重构后台任务执行器，从 Google Tasks 获取待办，LLM 自动判断任务可执行性（区分"查天气"类 AI 可执行 vs "买牛奶"类人类任务），可执行任务自动完成并标记 Google Tasks completed
+- **Automations 面板**：定时任务（Cron Jobs）管理从 Settings 迁移至 `/tasks` 页面，更名为 Automations，与 Tasks + Calendar 统一展示
 
 ### 移除
 - 旧版本地 SQLite 任务看板（human/bot assignee 模式），统一由 Google Tasks 接管
+- Settings 页中的 Scheduled Tasks 面板（已迁移到 Tasks 页的 Automations 区域）
 
 ## [0.9.5] - 2026-03-05
 

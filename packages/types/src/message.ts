@@ -20,6 +20,8 @@ export interface ImageContent {
   data: string;
   /** MIME type (e.g. "image/jpeg", "image/png") */
   mediaType: string;
+  /** Original filename from upload (e.g. "photo.jpg") */
+  filename?: string;
 }
 
 export interface ToolResultContent {

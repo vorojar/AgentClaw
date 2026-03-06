@@ -3,7 +3,8 @@
 ## [0.9.9] - 2026-03-06
 
 ### 修复
-- **WebUI 图片上传路径丢失**：上传图片后 LLM 只收到 base64 看图内容但无文件路径，导致 comfyui 等需要文件路径的工具无法工作。现在图片转 base64 后保留文件并注入绝对路径提示（`[用户上传图片：/path/to/file]`），LLM 既能看到图片又能获取路径
+- **WebUI 图片上传路径丢失**：上传图片与 Telegram/WhatsApp 统一存储到 `data/uploads/`，文本格式与 Telegram 一致（`[用户发送了图片，已保存到 {path}]`），不再经过 base64→traceTmpDir 重建。comfyui 等需要文件路径的工具可直接使用
+- **comfyui 图片路径兜底**：`comfyui.py` 新增 `resolve_image_path`，即使 LLM 传错路径，也会在 `--output-dir` 中按文件名查找
 - **textarea 聚焦边框**：聊天输入框聚焦时不再显示全局 focus 样式（border + box-shadow）
 - **后台任务会话污染侧边栏**：Task Runner 等后台任务创建的会话不再出现在 Recent 列表
 

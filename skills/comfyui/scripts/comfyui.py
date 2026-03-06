@@ -31,6 +31,16 @@ def submit_prompt(workflow: dict) -> str:
     return data["prompt_id"]
 
 
+def resolve_image_path(image_path: str) -> str:
+    """Resolve image path: try as-is, then fall back to OUTPUT_DIR/basename."""
+    if os.path.isfile(image_path):
+        return image_path
+    candidate = os.path.join(OUTPUT_DIR, os.path.basename(image_path))
+    if os.path.isfile(candidate):
+        return candidate
+    return image_path  # let it fail with original path for clear error
+
+
 def upload_image(local_path: str) -> str:
     import mimetypes
 
@@ -262,11 +272,11 @@ def main():
         run_workflow(wf, f"generate (seed={seed})")
         print(f"Seed: {seed}, Size: {args.width}x{args.height}, Steps: {args.steps}")
     elif args.action == "remove_bg":
-        uploaded = upload_image(args.image)
+        uploaded = upload_image(resolve_image_path(args.image))
         wf = build_rmbg_workflow(uploaded)
         run_workflow(wf, "remove_background")
     elif args.action == "upscale":
-        uploaded = upload_image(args.image)
+        uploaded = upload_image(resolve_image_path(args.image))
         wf = build_upscale_workflow(uploaded)
         run_workflow(wf, "upscale")
 

@@ -175,8 +175,9 @@ export class SimpleAgentLoop implements AgentLoop {
       for (const block of input) {
         if (block.type === "image" && (block as ImageContent).data) {
           const img = block as ImageContent;
+          // 优先使用上传时的原始文件名，fallback 到通用名
           const ext = img.mediaType?.includes("png") ? "png" : "jpg";
-          const filename = `user_image_${Date.now()}.${ext}`;
+          const filename = img.filename || `user_image_${Date.now()}.${ext}`;
           const filePath = join(traceTmpDir, filename).replace(/\\/g, "/");
           try {
             writeFileSync(filePath, Buffer.from(img.data, "base64"));
@@ -186,11 +187,12 @@ export class SimpleAgentLoop implements AgentLoop {
           }
         }
         // Relocate non-image attachments referenced in text blocks
+        // ws.ts format: "用户上传了附件，已保存到：/abs/path\n注意：..."
         if (block.type === "text") {
-          const re = /\[用户附件：([^\]]+)\]/g;
+          const re = /已保存到：([^\n]+)/g;
           let m;
           while ((m = re.exec(block.text)) !== null) {
-            const origPath = m[1];
+            const origPath = m[1].trim();
             if (existsSync(origPath)) {
               const newPath = join(traceTmpDir, basename(origPath)).replace(
                 /\\/g,
@@ -214,18 +216,10 @@ export class SimpleAgentLoop implements AgentLoop {
     }
 
     // Build runtime hints — injected into messages after buildContext
+    // 图片路径已在 ws.ts 的 fileHints 中（格式同附件），relocate 逻辑会自动重写到 trace 目录
     const runtimeHints: string[] = [
       `[工作目录：${traceTmpDir}]（所有文件都在此目录下，输出也保存到这里）`,
     ];
-    if (savedImagePaths.length === 1) {
-      runtimeHints.push(
-        `[用户发送了图片，已保存到：${savedImagePaths[0]}]（直接使用此路径，不要截图）`,
-      );
-    } else if (savedImagePaths.length > 1) {
-      runtimeHints.push(
-        `[用户发送了 ${savedImagePaths.length} 张图片，已保存到：${savedImagePaths.join(", ")}]（直接使用这些路径，不要截图）`,
-      );
-    }
     const hintText = runtimeHints.join("\n");
 
     // 存储原始用户消息（不含注入的提示），刷新后用户看到的是原始内容

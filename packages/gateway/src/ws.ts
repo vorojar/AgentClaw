@@ -53,7 +53,7 @@ async function parseUserContent(
     const filePath = join(process.cwd(), "data", "tmp", savedName);
 
     if (IMAGE_EXTS.has(ext)) {
-      // 图片：转为 base64 ContentBlock + 保留文件供工具使用
+      // 图片：转为 base64 ContentBlock + 保存到 data/uploads/（与 Telegram 相同）
       if (existsSync(filePath)) {
         try {
           const buf = await readFile(filePath);
@@ -61,24 +61,27 @@ async function parseUserContent(
             type: "image",
             data: buf.toString("base64"),
             mediaType: MIME_MAP[ext] ?? "image/jpeg",
+            filename: originalName,
           });
-          // rename 到原始文件名，保留文件供 comfyui 等工具使用
-          const origPath = join(
-            process.cwd(),
-            "data",
-            "tmp",
-            originalName,
-          ).replace(/\\/g, "/");
+          // 保存到 data/uploads/（与 Telegram/WhatsApp 相同的持久路径）
+          const uploadsDir = join(process.cwd(), "data", "uploads");
+          mkdirSync(uploadsDir, { recursive: true });
+          const uploadPath = join(uploadsDir, originalName).replace(
+            /\\/g,
+            "/",
+          );
           try {
-            renameSync(filePath, origPath);
+            renameSync(filePath, uploadPath);
           } catch {
-            /* rename 失败则保留原路径 */
+            try {
+              copyFileSync(filePath, uploadPath);
+            } catch {
+              /* 保留原路径 */
+            }
           }
-          const usePath = existsSync(origPath)
-            ? origPath
-            : filePath.replace(/\\/g, "/");
+          // 与 Telegram 相同的文本格式（空格非冒号，避免 agent-loop relocate）
           fileHints.push(
-            `[用户上传图片：${usePath}]（直接使用此绝对路径，不要修改）`,
+            `[用户发送了图片，已保存到 ${uploadPath}]`,
           );
         } catch {
           /* 跳过不可读文件 */
@@ -102,7 +105,7 @@ async function parseUserContent(
           ? origPath
           : filePath.replace(/\\/g, "/");
         fileHints.push(
-          `[用户附件：${usePath}]（直接使用此绝对路径，不要修改）`,
+          `用户上传了附件，已保存到：${usePath}\n注意：需要用到此文件时直接使用上述完整路径，不要用 glob 搜索。`,
         );
       }
     }
@@ -114,10 +117,10 @@ async function parseUserContent(
     .replace(/\n{3,}/g, "\n")
     .trim();
 
-  // 拼接非图片文件路径提示
+  // 文件路径提示放在用户文本前面，确保 LLM 优先看到
   if (fileHints.length > 0) {
     cleanText = cleanText
-      ? `${cleanText}\n${fileHints.join("\n")}`
+      ? `${fileHints.join("\n")}\n${cleanText}`
       : fileHints.join("\n");
   }
 

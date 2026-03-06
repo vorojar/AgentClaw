@@ -5,6 +5,7 @@ import {
   createAgent,
   updateAgent,
   deleteAgent,
+  getConfig,
   type AgentInfo,
 } from "../api/client";
 import "./AgentsPage.css";
@@ -28,7 +29,6 @@ const EMOJI_PRESETS = [
 ];
 
 interface AgentFormData {
-  id: string;
   name: string;
   description: string;
   avatar: string;
@@ -39,7 +39,6 @@ interface AgentFormData {
 }
 
 const emptyForm: AgentFormData = {
-  id: "",
   name: "",
   description: "",
   avatar: "🤖",
@@ -51,7 +50,6 @@ const emptyForm: AgentFormData = {
 
 function agentToForm(a: AgentInfo): AgentFormData {
   return {
-    id: a.id,
     name: a.name,
     description: a.description,
     avatar: a.avatar || "🤖",
@@ -67,18 +65,22 @@ export function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [defaultModel, setDefaultModel] = useState("");
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null); // null = create
   const [form, setForm] = useState<AgentFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const fetchAgents = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await listAgents();
+      const [data, config] = await Promise.all([listAgents(), getConfig()]);
       setAgents(data);
+      setDefaultModel(config.model || "");
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load agents");
@@ -96,6 +98,7 @@ export function AgentsPage() {
     setForm(emptyForm);
     setModalOpen(true);
     setEmojiPickerOpen(false);
+    setShowAdvanced(false);
   };
 
   const openEdit = (agent: AgentInfo) => {
@@ -103,6 +106,8 @@ export function AgentsPage() {
     setForm(agentToForm(agent));
     setModalOpen(true);
     setEmojiPickerOpen(false);
+    // 如果有自定义高级设置，自动展开
+    setShowAdvanced(!!(agent.temperature !== undefined || agent.maxIterations !== undefined));
   };
 
   const closeModal = () => {
@@ -119,7 +124,7 @@ export function AgentsPage() {
     setSaving(true);
     try {
       const payload: AgentInfo = {
-        id: editingId ?? (form.id.trim().toLowerCase().replace(/\s+/g, "-") || form.name.trim().toLowerCase().replace(/\s+/g, "-")),
+        id: editingId ?? form.name.trim().toLowerCase().replace(/\s+/g, "-"),
         name: form.name.trim(),
         description: form.description.trim(),
         avatar: form.avatar,
@@ -282,15 +287,6 @@ export function AgentsPage() {
                       className="agents-input agents-input-name"
                       autoFocus
                     />
-                    {!editingId && (
-                      <input
-                        type="text"
-                        placeholder="ID (auto-generated from name)"
-                        value={form.id}
-                        onChange={(e) => updateField("id", e.target.value)}
-                        className="agents-input agents-input-id"
-                      />
-                    )}
                   </div>
                 </div>
 
@@ -325,48 +321,66 @@ export function AgentsPage() {
                   />
                 </div>
 
-                {/* Model + Temperature row */}
-                <div className="agents-form-row agents-form-inline">
-                  <div className="agents-form-field">
-                    <label className="agents-label">Model</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. claude-sonnet-4-20250514"
-                      value={form.model}
-                      onChange={(e) => updateField("model", e.target.value)}
-                      className="agents-input"
-                    />
-                  </div>
-                  <div className="agents-form-field agents-form-field-sm">
-                    <label className="agents-label">Temperature</label>
-                    <input
-                      type="number"
-                      placeholder="0.7"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={form.temperature}
-                      onChange={(e) =>
-                        updateField("temperature", e.target.value)
-                      }
-                      className="agents-input"
-                    />
-                  </div>
-                  <div className="agents-form-field agents-form-field-sm">
-                    <label className="agents-label">Max Iterations</label>
-                    <input
-                      type="number"
-                      placeholder="25"
-                      min="1"
-                      max="100"
-                      value={form.maxIterations}
-                      onChange={(e) =>
-                        updateField("maxIterations", e.target.value)
-                      }
-                      className="agents-input"
-                    />
-                  </div>
+                {/* Model */}
+                <div className="agents-form-row">
+                  <label className="agents-label">Model</label>
+                  <input
+                    type="text"
+                    placeholder={defaultModel ? `Default: ${defaultModel}` : "Use system default"}
+                    value={form.model}
+                    onChange={(e) => updateField("model", e.target.value)}
+                    className="agents-input"
+                  />
                 </div>
+
+                {/* Advanced toggle */}
+                <button
+                  type="button"
+                  className="agents-advanced-toggle"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                >
+                  {showAdvanced ? "▾" : "▸"} Advanced
+                </button>
+
+                {showAdvanced && (
+                  <div className="agents-form-row agents-form-inline">
+                    <div className="agents-form-field">
+                      <label className="agents-label">
+                        Temperature
+                        <span className="agents-label-hint">0 = deterministic, 2 = creative</span>
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="0.7"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={form.temperature}
+                        onChange={(e) =>
+                          updateField("temperature", e.target.value)
+                        }
+                        className="agents-input"
+                      />
+                    </div>
+                    <div className="agents-form-field">
+                      <label className="agents-label">
+                        Max Iterations
+                        <span className="agents-label-hint">Tool-use loops per turn</span>
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="25"
+                        min="1"
+                        max="100"
+                        value={form.maxIterations}
+                        onChange={(e) =>
+                          updateField("maxIterations", e.target.value)
+                        }
+                        className="agents-input"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="agents-modal-footer">

@@ -402,6 +402,22 @@
   background: var(--accent-subtle-bg);
 }
 
+/* Advanced toggle */
+.agents-advanced-toggle {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  transition: color 0.15s;
+}
+
+.agents-advanced-toggle:hover {
+  color: var(--text-secondary);
+}
+
 /* Buttons */
 .agents-btn-cancel {
   padding: 8px 18px;

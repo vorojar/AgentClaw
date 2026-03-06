@@ -123,7 +123,7 @@ const METHOD_COLORS: Record<string, string> = {
   POST: "var(--accent)",
   PUT: "var(--warning)",
   DELETE: "var(--error)",
-  WS: "#a78bfa",
+  WS: "var(--mcp-color)",
 };
 
 function TryPanel({ endpoint }: { endpoint: Endpoint }) {

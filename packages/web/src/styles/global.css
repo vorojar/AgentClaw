@@ -1,44 +1,60 @@
 /* AgentClaw Web UI — Global Styles */
 
-/* Dark theme (default) */
+/* Dark theme (default) — Serene Sage */
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0f1117;
-  --bg-secondary: #1a1d27;
-  --bg-tertiary: #242837;
-  --text-primary: #e8eaed;
-  --text-secondary: #9aa0a6;
-  --text-muted: #5f6368;
-  --accent: #6c9eff;
-  --accent-hover: #8ab4ff;
-  --success: #34a853;
-  --warning: #fbbc04;
-  --error: #ea4335;
-  --border: #2d3140;
+  --bg-primary: #1a1d17;
+  --bg-secondary: #222620;
+  --bg-tertiary: #2b2f27;
+  --text-primary: #e3e4db;
+  --text-secondary: #a3a895;
+  --text-muted: #6b705c;
+  --accent: #8fa87c;
+  --accent-hover: #a3ba90;
+  --success: #7aae78;
+  --warning: #c8a84e;
+  --error: #c97070;
+  --border: #353a2f;
   --sidebar-width: 300px;
   --header-height: 48px;
-  --radius: 8px;
+  --radius: 10px;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
-  --user-bubble: #2f3241;
-  --shadow: rgba(0, 0, 0, 0.3);
+  --user-bubble: #2b2f27;
+  --shadow: rgba(0, 0, 0, 0.2);
+  --accent-subtle-bg: rgba(143, 168, 124, 0.08);
+  --accent-subtle-border: rgba(143, 168, 124, 0.15);
+  --error-subtle-bg: rgba(201, 112, 112, 0.1);
+  --error-subtle-border: rgba(201, 112, 112, 0.25);
+  --success-subtle-bg: rgba(122, 174, 120, 0.12);
+  --warning-subtle-bg: rgba(200, 168, 78, 0.12);
+  --mcp-color: #9b8abf;
+  --text-on-accent: #1a1d17;
 }
 
-/* Light theme */
+/* Light theme — Serene Sage */
 [data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f7f7f8;
-  --bg-tertiary: #eeeff2;
-  --text-primary: #1a1a1a;
-  --text-secondary: #666666;
-  --text-muted: #999999;
-  --accent: #c96442;
-  --accent-hover: #b5573a;
-  --success: #16a34a;
-  --warning: #d97706;
-  --error: #dc2626;
-  --border: #e5e5e5;
-  --user-bubble: #f0ece4;
-  --shadow: rgba(0, 0, 0, 0.08);
+  --bg-primary: #fafaf7;
+  --bg-secondary: #f4f4f0;
+  --bg-tertiary: #edeee8;
+  --text-primary: #2c3025;
+  --text-secondary: #6b705c;
+  --text-muted: #a3a895;
+  --accent: #6b7f5e;
+  --accent-hover: #5a6d4f;
+  --success: #5f8a5e;
+  --warning: #b09343;
+  --error: #b85c5c;
+  --border: #e2e3dc;
+  --user-bubble: #edeee8;
+  --shadow: rgba(43, 48, 37, 0.06);
+  --accent-subtle-bg: rgba(107, 127, 94, 0.08);
+  --accent-subtle-border: rgba(107, 127, 94, 0.15);
+  --error-subtle-bg: rgba(184, 92, 92, 0.1);
+  --error-subtle-border: rgba(184, 92, 92, 0.25);
+  --success-subtle-bg: rgba(95, 138, 94, 0.12);
+  --warning-subtle-bg: rgba(176, 147, 67, 0.12);
+  --mcp-color: #9b8abf;
+  --text-on-accent: #fff;
 }
 
 * {
@@ -100,6 +116,7 @@ textarea {
 input:focus,
 textarea:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle-bg);
 }
 
 /* Scrollbar */
@@ -324,7 +341,8 @@ textarea:focus {
   justify-content: space-between;
   width: 100%;
   padding: 6px 10px;
-  border-radius: var(--radius);
+  border-radius: 0;
+  background: transparent;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
@@ -506,13 +524,13 @@ textarea:focus {
 .page-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 28px 32px;
 }
 
 /* Button variants */
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 .btn-primary:hover {
   background: var(--accent-hover);
@@ -529,10 +547,11 @@ textarea:focus {
 
 .btn-danger {
   background: var(--error);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 .btn-danger:hover {
-  background: #d33;
+  background: var(--error);
+  filter: brightness(0.9);
 }
 
 /* Generic icon button */
@@ -568,19 +587,19 @@ textarea:focus {
   font-weight: 500;
 }
 .badge-success {
-  background: rgba(52, 168, 83, 0.15);
+  background: var(--success-subtle-bg);
   color: var(--success);
 }
 .badge-warning {
-  background: rgba(251, 188, 4, 0.15);
+  background: var(--warning-subtle-bg);
   color: var(--warning);
 }
 .badge-error {
-  background: rgba(234, 67, 53, 0.15);
+  background: var(--error-subtle-bg);
   color: var(--error);
 }
 .badge-info {
-  background: rgba(108, 158, 255, 0.15);
+  background: var(--accent-subtle-bg);
   color: var(--accent);
 }
 

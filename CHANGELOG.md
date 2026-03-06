@@ -1,5 +1,10 @@
 # 更新日志
 
+## [0.9.7] - 2026-03-06
+
+### 改进
+- **Serene Sage 主题**：全站换肤为鼠尾草绿暖色调主题，Light 模式（暖白 #FAFAF7 + 橄榄绿强调色）和 Dark 模式（深橄榄 #1A1D17 + 亮鼠尾草绿）双套色板。替换 `global.css` 两套 CSS 变量 + 12 个页面级 CSS/TSX 文件中的 40+ 处硬编码颜色，统一使用语义化变量（`--accent-subtle-bg`、`--error-subtle-border`、`--mcp-color`、`--text-on-accent` 等）。圆角从 8px 提升至 10px，input:focus 增加 box-shadow 呼吸感，page-body 留白加大
+
 ## [0.9.6] - 2026-03-06
 
 ### 新增

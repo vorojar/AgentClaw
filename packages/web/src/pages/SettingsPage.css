@@ -11,8 +11,8 @@
 
 .settings-error {
   padding: 12px 16px;
-  background: rgba(234, 67, 53, 0.1);
-  border: 1px solid var(--error);
+  background: var(--error-subtle-bg);
+  border: 1px solid var(--error-subtle-border);
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
@@ -240,8 +240,8 @@
 }
 
 .tool-badge-mcp {
-  border-color: #a855f7;
-  color: #a855f7;
+  border-color: var(--mcp-color);
+  color: var(--mcp-color);
 }
 
 /* Tools list (expanded view) */
@@ -279,6 +279,6 @@
 
 /* Badge muted */
 .badge-muted {
-  background: rgba(95, 99, 104, 0.15);
+  background: var(--accent-subtle-bg);
   color: var(--text-muted);
 }

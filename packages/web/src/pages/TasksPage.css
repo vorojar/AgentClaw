@@ -11,8 +11,8 @@
 
 .tasks-error {
   padding: 10px 16px;
-  background: rgba(234, 67, 53, 0.1);
-  border: 1px solid var(--error);
+  background: var(--error-subtle-bg);
+  border: 1px solid var(--error-subtle-border);
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
@@ -175,9 +175,9 @@
 }
 
 .tasks-check-btn.checked {
-  border-color: var(--success, #27ae60);
-  background: var(--success, #27ae60);
-  color: #fff;
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--text-on-accent);
 }
 
 .tasks-card-title {

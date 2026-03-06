@@ -11,8 +11,8 @@
 
 .skills-page-error {
   padding: 10px 16px;
-  background: rgba(234, 67, 53, 0.1);
-  border: 1px solid var(--error);
+  background: var(--error-subtle-bg);
+  border: 1px solid var(--error-subtle-border);
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
@@ -118,7 +118,7 @@
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   cursor: pointer;
   font-size: 14px;
   white-space: nowrap;
@@ -225,7 +225,7 @@
 }
 
 .skill-card-delete:hover {
-  color: #ef4444;
+  color: var(--error);
 }
 
 .skill-card-desc {

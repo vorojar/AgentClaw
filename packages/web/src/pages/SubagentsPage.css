@@ -34,14 +34,14 @@
 
 .sa-chip-active {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   border-color: var(--accent);
 }
 
 .sa-chip-active:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 /* ── Toolbar ─────────────────────────────────────── */
@@ -92,8 +92,8 @@
 
 .sa-error {
   padding: 12px 16px;
-  background: rgba(234, 67, 53, 0.1);
-  border: 1px solid var(--error);
+  background: var(--error-subtle-bg);
+  border: 1px solid var(--error-subtle-border);
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
@@ -186,11 +186,11 @@
 }
 
 .sa-status-completed {
-  color: #27ae60;
+  color: var(--success);
 }
 
 .sa-status-failed {
-  color: #e74c3c;
+  color: var(--error);
 }
 
 .sa-status-killed {
@@ -221,7 +221,7 @@
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 4px;
-  background: rgba(108, 158, 255, 0.12);
+  background: var(--accent-subtle-bg);
   color: var(--accent);
   white-space: nowrap;
 }
@@ -297,7 +297,7 @@
 }
 
 .sa-section-error {
-  border-color: rgba(234, 67, 53, 0.3);
+  border-color: var(--error-subtle-border);
   color: var(--error);
 }
 

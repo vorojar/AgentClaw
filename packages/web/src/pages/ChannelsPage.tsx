@@ -135,9 +135,9 @@ function relativeTime(iso: string): string {
 }
 
 const STATUS_COLORS: Record<ChannelInfo["status"], string> = {
-  connected: "#27ae60",
+  connected: "var(--success)",
   disconnected: "var(--text-secondary)",
-  error: "#e74c3c",
+  error: "var(--error)",
   not_configured: "var(--text-secondary)",
 };
 

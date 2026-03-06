@@ -2,8 +2,8 @@
 
 .token-logs-error {
   padding: 12px 16px;
-  background: rgba(234, 67, 53, 0.1);
-  border: 1px solid var(--error);
+  background: var(--error-subtle-bg);
+  border: 1px solid var(--error-subtle-border);
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;

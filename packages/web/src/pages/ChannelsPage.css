@@ -11,8 +11,8 @@
 
 .channels-error {
   padding: 10px 16px;
-  background: rgba(234, 67, 53, 0.1);
-  border: 1px solid var(--error);
+  background: var(--error-subtle-bg);
+  border: 1px solid var(--error-subtle-border);
   border-radius: var(--radius);
   color: var(--error);
   margin-bottom: 16px;
@@ -149,7 +149,7 @@
 
 .channels-error-msg {
   font-size: 12px;
-  color: #e74c3c;
+  color: var(--error);
   padding-left: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -176,14 +176,14 @@
 }
 
 .channels-toggle.on {
-  background: #27ae60;
+  background: var(--success);
 }
 
 .channels-toggle .channels-toggle-knob {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: white;
+  background: var(--text-primary);
   position: absolute;
   top: 2px;
   left: 2px;

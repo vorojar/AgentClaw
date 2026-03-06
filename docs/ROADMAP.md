@@ -474,9 +474,39 @@
 
 ---
 
+## Phase 12: Multi-Agent — "多面手" (Multiple Personalities)（第十二阶段：多 Agent——让它有多种人格）✅ 已完成
+
+**Goal**: Customizable agent profiles with distinct personalities and configurations.（目标：可定制的 Agent 人格，拥有独立的个性和配置。）
+
+### 12.1 Agent Profile System（Agent 人格系统）✅
+- [x] File-system based agent storage: `data/agents/<id>/config.json` + `SOUL.md`（基于文件系统的 Agent 存储：config.json + SOUL.md）
+- [x] 5 preset agents: AgentClaw (default), Coder, Writer, Analyst, Researcher（5 个预设 Agent：AgentClaw、Coder、Writer、Analyst、Researcher）
+- [x] Per-agent Soul (personality/behavior instructions in SOUL.md)（每个 Agent 独立的 Soul 人格指令）
+- [x] Per-agent model, temperature, maxIterations overrides（每个 Agent 可覆盖 model、temperature、maxIterations）
+- [x] Per-agent tools filter (restrict available tools per agent)（每个 Agent 可过滤可用工具）
+
+### 12.2 Orchestrator Multi-Agent Support（Orchestrator 多 Agent 支持）✅
+- [x] Session-level agent binding via `agentId`（会话级 Agent 绑定）
+- [x] Soul injection into system prompt (auto-append when `{{soul}}` placeholder absent)（Soul 注入系统提示词，无占位符时自动追加）
+- [x] Runtime config overrides from agent profile（运行时从 Agent 配置覆盖系统默认值）
+- [x] Tool filtering based on agent's tools whitelist（基于 Agent 工具白名单过滤）
+
+### 12.3 Web UI Agent Management（Web UI Agent 管理）✅
+- [x] `/agents` page: create, edit, delete agents with form UI（Agent 管理页面：表单式创建/编辑/删除）
+- [x] Agent ID auto-generated from name（ID 从名称自动生成）
+- [x] Advanced settings (temperature, maxIterations) in collapsible section（高级设置折叠区）
+- [x] ChatPage agent selector for new sessions（ChatPage 新会话 Agent 选择器）
+- [x] All pages show Recent session list in sidebar（所有页面侧栏显示 Recent 会话列表）
+
+### 12.4 UI Layout Improvements（UI 布局优化）✅
+- [x] API entry moved from sidebar bottom to More menu（API 入口移入 More 菜单）
+- [x] Theme toggle placed alongside Settings（主题切换与 Settings 并排）
+
+---
+
 ## Current Focus（当前重点）
 
-**Phase 1-11 已完成。**
+**Phase 1-12 已完成。**
 
 **Phase 10 进行中**：测试覆盖扩展和 LLM Embedding 接入待做。
 

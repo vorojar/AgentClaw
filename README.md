@@ -18,6 +18,7 @@ AgentClaw（指挥官）
   ├── 记忆 (对话历史 + 长期记忆 + 自动压缩)
   ├── 规划器 (任务分解 → 步骤依赖 → 执行监控)
   ├── 技能 x19 (coding, research, browser, pdf, email, yt-dlp...)
+  ├── 多 Agent (AgentClaw/Coder/Writer/Analyst/Researcher)
   ├── 子代理 (并行任务派发与汇总)
   ├── 工具钩子 (before/after 拦截 + allow/deny 策略)
   └── MCP 集成 (外部工具服务器)
@@ -48,7 +49,8 @@ agentclaw/
 │   └── web/         — React 19 + Vite 前端
 ├── skills/          — 19 个技能定义 (SKILL.md)
 ├── docs/            — 架构文档 + 路线图
-└── data/            — 运行时数据 (gitignored)
+└── data/            — 运行时数据 (部分 gitignored)
+    └── agents/      — Agent 人格配置 (config.json + SOUL.md，纳入 git)
 ```
 
 ## 快速开始
@@ -112,6 +114,9 @@ npm run cli          # 终端交互模式
 ### 安全执行
 - **Shell 沙箱**：拦截不可逆破坏性命令（`rm -rf /`、`shutdown`、`format`、fork bomb 等），`SHELL_SANDBOX=false` 可禁用
 - **Docker 沙箱**：`sandbox` 工具在 Docker 容器内执行命令，资源限制（512MB/1CPU），超时控制，自动清理
+
+### 多 Agent 人格
+支持创建多个 Agent，每个 Agent 拥有独立的 Soul（人格/行为指令）、可选的 Model、Temperature、Max Iterations、Tools 过滤。5 个预设 Agent：AgentClaw（默认通用助理）、Coder（编程专家）、Writer（写作助手）、Analyst（数据分析师）、Researcher（研究员）。配置存储在 `data/agents/<id>/`，创建会话时可指定 Agent。
 
 ### 子代理编排
 `subagent` 工具可派生独立子 agent 并行执行任务，拥有独立 agent-loop 和会话上下文。支持 spawn/result/kill/list 操作，`mode: "explore"` 只读模式仅加载搜索/阅读工具子集，适用于并行调研、独立计算等可隔离任务。
@@ -217,7 +222,8 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 
 现代化 Web 界面，支持 Light/Dark 主题切换：
 
-- **聊天** — WebSocket 流式输出、工具调用卡片、文件上传/拖拽、视频/音频播放器、多模态图片、消息重新生成、对话导出
+- **聊天** — WebSocket 流式输出、工具调用卡片、文件上传/拖拽、视频/音频播放器、多模态图片、消息重新生成、对话导出、Agent 选择
+- **Agents** — 多 Agent 管理（创建/编辑/删除），5 个预设 Agent
 - **Traces** — LLM/工具执行时间线
 - **Token 日志** — 用量统计
 - **记忆** — 浏览/搜索/管理长期记忆

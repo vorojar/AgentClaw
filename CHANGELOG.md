@@ -1,5 +1,23 @@
 # 更新日志
 
+## [0.10.0] - 2026-03-06
+
+### 新增
+- **多 Agent 系统**：支持创建、编辑、删除自定义 Agent，每个 Agent 拥有独立的 Soul（人格/行为指令）、可选的 Model、Temperature、Max Iterations、Tools 过滤
+- **5 个预设 Agent**：AgentClaw（默认）、Coder、Writer、Analyst、Researcher，开箱即用
+- **Agent 管理页面**：Web UI 新增 `/agents` 路由，可视化管理所有 Agent 配置
+- **Agent 文件系统存储**：配置存储在 `data/agents/<id>/`（config.json + SOUL.md），纯文件系统方案，可纳入 git 管理
+- **会话级 Agent 选择**：创建会话时可指定 agentId，ChatPage 支持选择 Agent 发起新会话
+
+### 改进
+- **Agent 表单简化**：移除 ID 字段（从名称自动生成），Model 空时 placeholder 显示系统默认模型名，Temperature 和 Max Iterations 收到 Advanced 折叠区
+- **UI 布局优化**：API 入口从侧栏底部移入 More 菜单；主题切换按钮与 Settings 并排；所有页面都显示 Recent 会话列表
+- **Orchestrator 多 Agent 支持**：根据 Agent 配置注入 soul 到系统提示词、覆盖 model/temperature/maxIterations、过滤 tools
+
+### 修复
+- **Agent soul 注入失败**：当系统提示词不含 `{{soul}}` 占位符时 soul 被丢弃，现已修复为自动追加
+- **gitignore 遗漏 SQLite 文件**：添加 `*.db`、`*.db-shm`、`*.db-wal` 到 .gitignore
+
 ## [0.9.9] - 2026-03-06
 
 ### 修复

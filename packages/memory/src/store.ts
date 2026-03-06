@@ -5,6 +5,7 @@ import type {
   MemoryEntry,
   MemoryQuery,
   MemorySearchResult,
+  SessionData,
   ConversationTurn,
   Trace,
 } from "@agentclaw/types";
@@ -114,26 +115,14 @@ export class SQLiteMemoryStore implements MemoryStore {
   }
 
   async search(query: MemoryQuery): Promise<MemorySearchResult[]> {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-
-    if (query.type) {
-      conditions.push("type = ?");
-      params.push(query.type);
-    }
-
-    if (query.minImportance !== undefined) {
-      conditions.push("importance >= ?");
-      params.push(query.minImportance);
-    }
-
     // NOTE: query.query is intentionally NOT used as a SQL LIKE pre-filter.
     // LIKE '%full sentence%' eliminates almost all memories before semantic
     // scoring gets a chance to run. The query is used only for embedding-based,
     // token-overlap, and BM25 scoring below.
-
-    const where =
-      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const { where, params } = buildWhereClause({
+      type: query.type,
+      "importance >=": query.minImportance,
+    });
 
     const limit = query.limit ?? 20;
 
@@ -614,14 +603,7 @@ export class SQLiteMemoryStore implements MemoryStore {
 
   // ─── Sessions ────────────────────────────────────────────────
 
-  async saveSession(session: {
-    id: string;
-    conversationId: string;
-    createdAt: Date;
-    lastActiveAt: Date;
-    title?: string;
-    metadata?: Record<string, unknown>;
-  }): Promise<void> {
+  async saveSession(session: SessionData): Promise<void> {
     this.db
       .prepare(
         `INSERT OR REPLACE INTO sessions (id, conversation_id, created_at, last_active_at, title, metadata)
@@ -637,62 +619,19 @@ export class SQLiteMemoryStore implements MemoryStore {
       );
   }
 
-  async getSessionById(id: string): Promise<{
-    id: string;
-    conversationId: string;
-    createdAt: Date;
-    lastActiveAt: Date;
-    title?: string;
-    metadata?: Record<string, unknown>;
-  } | null> {
+  async getSessionById(id: string): Promise<SessionData | null> {
     const row = this.db
       .prepare("SELECT * FROM sessions WHERE id = ?")
-      .get(id) as
-      | {
-          id: string;
-          conversation_id: string;
-          created_at: string;
-          last_active_at: string;
-          title: string | null;
-          metadata: string | null;
-        }
-      | undefined;
+      .get(id) as SessionRow | undefined;
     if (!row) return null;
-    return {
-      id: row.id,
-      conversationId: row.conversation_id,
-      createdAt: new Date(row.created_at),
-      lastActiveAt: new Date(row.last_active_at),
-      title: row.title ?? undefined,
-      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
-    };
+    return rowToSession(row);
   }
 
-  async listSessions(): Promise<
-    Array<{
-      id: string;
-      conversationId: string;
-      createdAt: Date;
-      lastActiveAt: Date;
-      title?: string;
-    }>
-  > {
+  async listSessions(): Promise<Array<Omit<SessionData, "metadata">>> {
     const rows = this.db
       .prepare("SELECT * FROM sessions ORDER BY last_active_at DESC")
-      .all() as Array<{
-      id: string;
-      conversation_id: string;
-      created_at: string;
-      last_active_at: string;
-      title: string | null;
-    }>;
-    return rows.map((r) => ({
-      id: r.id,
-      conversationId: r.conversation_id,
-      createdAt: new Date(r.created_at),
-      lastActiveAt: new Date(r.last_active_at),
-      title: r.title ?? undefined,
-    }));
+      .all() as SessionRow[];
+    return rows.map(rowToSession);
   }
 
   async deleteSession(id: string): Promise<void> {
@@ -773,45 +712,17 @@ export class SQLiteMemoryStore implements MemoryStore {
       traceId?: string;
     },
   ): boolean {
-    const sets: string[] = [];
-    const params: unknown[] = [];
-
-    if (updates.title !== undefined) {
-      sets.push("title = ?");
-      params.push(updates.title);
-    }
-    if (updates.description !== undefined) {
-      sets.push("description = ?");
-      params.push(updates.description);
-    }
-    if (updates.status !== undefined) {
-      sets.push("status = ?");
-      params.push(updates.status);
-    }
-    if (updates.priority !== undefined) {
-      sets.push("priority = ?");
-      params.push(updates.priority);
-    }
-    if (updates.dueDate !== undefined) {
-      sets.push("due_date = ?");
-      params.push(updates.dueDate);
-    }
-    if (updates.assignee !== undefined) {
-      sets.push("assignee = ?");
-      params.push(updates.assignee);
-    }
-    if (updates.tags !== undefined) {
-      sets.push("tags = ?");
-      params.push(JSON.stringify(updates.tags));
-    }
-    if (updates.sessionId !== undefined) {
-      sets.push("session_id = ?");
-      params.push(updates.sessionId);
-    }
-    if (updates.traceId !== undefined) {
-      sets.push("trace_id = ?");
-      params.push(updates.traceId);
-    }
+    const { sets, params } = buildSetClause(updates, {
+      title: "title",
+      description: "description",
+      status: "status",
+      priority: "priority",
+      dueDate: "due_date",
+      assignee: "assignee",
+      tags: (v) => JSON.stringify(v),
+      sessionId: "session_id",
+      traceId: "trace_id",
+    });
 
     if (sets.length === 0) return false;
 
@@ -834,24 +745,11 @@ export class SQLiteMemoryStore implements MemoryStore {
     limit = 100,
     offset = 0,
   ): { items: TaskRow[]; total: number } {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-
-    if (filters?.status) {
-      conditions.push("status = ?");
-      params.push(filters.status);
-    }
-    if (filters?.priority) {
-      conditions.push("priority = ?");
-      params.push(filters.priority);
-    }
-    if (filters?.assignee) {
-      conditions.push("assignee = ?");
-      params.push(filters.assignee);
-    }
-
-    const where =
-      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const { where, params } = buildWhereClause({
+      status: filters?.status,
+      priority: filters?.priority,
+      assignee: filters?.assignee,
+    });
 
     const { total } = this.db
       .prepare(`SELECT COUNT(*) AS total FROM tasks ${where}`)
@@ -945,41 +843,16 @@ export class SQLiteMemoryStore implements MemoryStore {
       completedAt?: string;
     },
   ): boolean {
-    const sets: string[] = [];
-    const params: unknown[] = [];
-
-    if (updates.status !== undefined) {
-      sets.push("status = ?");
-      params.push(updates.status);
-    }
-    if (updates.result !== undefined) {
-      sets.push("result = ?");
-      params.push(updates.result);
-    }
-    if (updates.error !== undefined) {
-      sets.push("error = ?");
-      params.push(updates.error);
-    }
-    if (updates.tokensIn !== undefined) {
-      sets.push("tokens_in = ?");
-      params.push(updates.tokensIn);
-    }
-    if (updates.tokensOut !== undefined) {
-      sets.push("tokens_out = ?");
-      params.push(updates.tokensOut);
-    }
-    if (updates.toolsUsed !== undefined) {
-      sets.push("tools_used = ?");
-      params.push(JSON.stringify(updates.toolsUsed));
-    }
-    if (updates.iterations !== undefined) {
-      sets.push("iterations = ?");
-      params.push(updates.iterations);
-    }
-    if (updates.completedAt !== undefined) {
-      sets.push("completed_at = ?");
-      params.push(updates.completedAt);
-    }
+    const { sets, params } = buildSetClause(updates, {
+      status: "status",
+      result: "result",
+      error: "error",
+      tokensIn: "tokens_in",
+      tokensOut: "tokens_out",
+      toolsUsed: (v) => JSON.stringify(v),
+      iterations: "iterations",
+      completedAt: "completed_at",
+    });
 
     if (sets.length === 0) return false;
 
@@ -995,20 +868,10 @@ export class SQLiteMemoryStore implements MemoryStore {
     limit = 20,
     offset = 0,
   ): { items: SubAgentRow[]; total: number } {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-
-    if (filters?.sessionId) {
-      conditions.push("session_id = ?");
-      params.push(filters.sessionId);
-    }
-    if (filters?.status) {
-      conditions.push("status = ?");
-      params.push(filters.status);
-    }
-
-    const where =
-      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const { where, params } = buildWhereClause({
+      session_id: filters?.sessionId,
+      status: filters?.status,
+    });
 
     const { total } = this.db
       .prepare(`SELECT COUNT(*) AS total FROM subagents ${where}`)
@@ -1253,6 +1116,102 @@ function mmrRerank(
   }
 
   return selected;
+}
+
+// ─── SQL builder helpers ──────────────────────────────────────────
+
+/**
+ * Build a dynamic SET clause from an updates object.
+ *
+ * `mapping` maps each property key to either:
+ *  - a string (the SQL column name, value passed as-is)
+ *  - a function (transforms the value before binding, column name derived from camelCase → snake_case)
+ *
+ * Only defined (non-undefined) values are included.
+ */
+type ColumnMapping<T> = {
+  [K in keyof T]?: string | ((value: NonNullable<T[K]>) => unknown);
+};
+
+function buildSetClause<T extends Record<string, unknown>>(
+  updates: T,
+  mapping: ColumnMapping<T>,
+): { sets: string[]; params: unknown[] } {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+
+  for (const key of Object.keys(mapping) as Array<keyof T & string>) {
+    if (updates[key] === undefined) continue;
+    const spec = mapping[key]!;
+    if (typeof spec === "function") {
+      const column = camelToSnake(key);
+      sets.push(`${column} = ?`);
+      params.push(spec(updates[key] as NonNullable<T[typeof key]>));
+    } else {
+      sets.push(`${spec} = ?`);
+      params.push(updates[key]);
+    }
+  }
+
+  return { sets, params };
+}
+
+/**
+ * Build a WHERE clause from a filters object.
+ *
+ * Keys are SQL column names (optionally with operator like "importance >=").
+ * Undefined/null values are skipped.
+ */
+function buildWhereClause(filters: Record<string, unknown>): {
+  where: string;
+  params: unknown[];
+} {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === null) continue;
+    // Support operators in key, e.g. "importance >="
+    if (key.includes(" ")) {
+      conditions.push(`${key} ?`);
+    } else {
+      conditions.push(`${key} = ?`);
+    }
+    params.push(value);
+  }
+
+  const where =
+    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  return { where, params };
+}
+
+/** Convert camelCase to snake_case */
+function camelToSnake(str: string): string {
+  return str.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+// ─── Row types & mapping ──────────────────────────────────────────
+
+interface SessionRow {
+  id: string;
+  conversation_id: string;
+  created_at: string;
+  last_active_at: string;
+  title: string | null;
+  metadata: string | null;
+}
+
+function rowToSession(row: SessionRow): SessionData {
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    createdAt: new Date(row.created_at),
+    lastActiveAt: new Date(row.last_active_at),
+    title: row.title ?? undefined,
+    metadata: row.metadata
+      ? (JSON.parse(row.metadata) as Record<string, unknown>)
+      : undefined,
+  };
 }
 
 export interface TaskRow {

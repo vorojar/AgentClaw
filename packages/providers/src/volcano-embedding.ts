@@ -40,13 +40,7 @@ export class VolcanoEmbedding {
    * Compatible with the EmbedFn signature: (texts: string[]) => Promise<number[][]>
    */
   async embed(texts: string[]): Promise<number[][]> {
-    // The multimodal API accepts an array of input items per request,
-    // but each request produces a single embedding vector.
-    // For multiple texts we send parallel requests.
-    const results = await Promise.all(
-      texts.map((text) => this.embedSingle(text)),
-    );
-    return results;
+    return Promise.all(texts.map((text) => this.embedSingle(text)));
   }
 
   private async embedSingle(text: string): Promise<number[]> {

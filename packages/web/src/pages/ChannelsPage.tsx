@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { PageHeader } from "../components/PageHeader";
 import {
   listChannels,
@@ -8,19 +8,21 @@ import {
 } from "../api/client";
 import "./ChannelsPage.css";
 
-/** Inline SVG icons for each channel type */
+/** Shared SVG props for all channel icons */
+const svgProps = {
+  viewBox: "0 0 24 24",
+  width: 24,
+  height: 24,
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
 function TelegramIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="24"
-      height="24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg {...svgProps}>
       <path d="M22 2L11 13" />
       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
     </svg>
@@ -29,16 +31,7 @@ function TelegramIcon() {
 
 function WhatsAppIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="24"
-      height="24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg {...svgProps}>
       <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
       <path d="M9.5 10.5a1 1 0 001 1h3a1 1 0 001-1v-1a1 1 0 00-1-1h-3a1 1 0 00-1 1v1z" />
     </svg>
@@ -47,16 +40,7 @@ function WhatsAppIcon() {
 
 function DingTalkIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="24"
-      height="24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg {...svgProps}>
       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
     </svg>
   );
@@ -64,16 +48,7 @@ function DingTalkIcon() {
 
 function FeishuIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="24"
-      height="24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg {...svgProps}>
       <path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76z" />
       <line x1="16" y1="8" x2="2" y2="22" />
       <line x1="17.5" y1="15" x2="9" y2="15" />
@@ -83,16 +58,7 @@ function FeishuIcon() {
 
 function WebSocketIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="24"
-      height="24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg {...svgProps}>
       <path d="M12 2v6" />
       <path d="M8 4h8" />
       <rect x="7" y="8" width="10" height="8" rx="2" />
@@ -103,7 +69,7 @@ function WebSocketIcon() {
   );
 }
 
-const CHANNEL_ICONS: Record<string, () => JSX.Element> = {
+const CHANNEL_ICONS: Record<string, () => React.ReactElement> = {
   telegram: TelegramIcon,
   whatsapp: WhatsAppIcon,
   dingtalk: DingTalkIcon,
@@ -267,7 +233,14 @@ export function ChannelsPage() {
                 {/* Right: toggle */}
                 <div className="channels-card-right">
                   <span
-                    className={`channels-toggle${isToggleOn(ch) ? " on" : ""}${isToggleDisabled(ch) ? " disabled" : ""}${togglingIds.has(ch.id) ? " loading" : ""}`}
+                    className={[
+                      "channels-toggle",
+                      isToggleOn(ch) && "on",
+                      isToggleDisabled(ch) && "disabled",
+                      togglingIds.has(ch.id) && "loading",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     onClick={() => !isToggleDisabled(ch) && handleToggle(ch)}
                     role="switch"
                     aria-checked={isToggleOn(ch)}

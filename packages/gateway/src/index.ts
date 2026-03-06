@@ -17,6 +17,7 @@ import { HeartbeatManager } from "./heartbeat.js";
 import { getWsClients } from "./ws.js";
 import { ChannelManager } from "./channel-manager.js";
 import { runGws } from "./gws.js";
+import { collectResponse, errorMessage } from "./utils.js";
 
 export { bootstrap } from "./bootstrap.js";
 export type { AppContext, AppRuntimeConfig } from "./bootstrap.js";
@@ -79,38 +80,20 @@ async function main(): Promise<void> {
   // Scheduler: one-shot reminders broadcast directly; recurring tasks run through orchestrator
   ctx.scheduler.setOnTaskFire(async (task) => {
     if (task.oneShot) {
-      // Reminder — just broadcast the message to all channels
-      const text = `⏰ 提醒：${task.action}`;
       console.log(`[scheduler] Reminder fired: "${task.action}"`);
-      await broadcastAll(text);
+      await broadcastAll(`⏰ 提醒：${task.action}`);
       return;
     }
 
-    // Recurring task — run through orchestrator
     console.log(
       `[scheduler] Running task "${task.name}" through orchestrator...`,
     );
     try {
-      const session = await ctx.orchestrator.createSession();
-      let text = "";
-
-      for await (const event of ctx.orchestrator.processInputStream(
-        session.id,
-        task.action,
-      )) {
-        if (event.type === "response_chunk") {
-          text += (event.data as { text: string }).text;
-        }
-      }
-
-      if (!text.trim()) {
-        text = `✅ 定时任务「${task.name}」已执行完成。`;
-      }
-
-      await broadcastAll(text);
+      const text = await collectResponse(ctx.orchestrator, task.action);
+      await broadcastAll(text.trim() || `✅ 定时任务「${task.name}」已执行完成。`);
     } catch (err) {
       Sentry.captureException(err);
-      const msg = `❌ 定时任务「${task.name}」执行失败: ${err instanceof Error ? err.message : String(err)}`;
+      const msg = `❌ 定时任务「${task.name}」执行失败: ${errorMessage(err)}`;
       console.error("[scheduler]", msg);
       await broadcastAll(msg);
     }
@@ -146,10 +129,7 @@ async function main(): Promise<void> {
         console.log("[health-check] 定时检查完成，无状态变化");
       }
     } catch (err) {
-      console.error(
-        "[health-check] 定时检查失败:",
-        err instanceof Error ? err.message : err,
-      );
+      console.error("[health-check] 定时检查失败:", errorMessage(err));
     }
   });
 
@@ -180,17 +160,11 @@ async function main(): Promise<void> {
         if (!taskDecisions.has(task.id)) {
           console.log(`[task-runner] 判断任务可执行性: ${task.title}`);
           try {
-            const session = await ctx.orchestrator.createSession();
             const judgePrompt = `你是一个任务执行判断器。判断以下任务是否是你（AI助手）可以通过工具（搜索、发邮件、写文件、调API等）自动执行的。
 如果可以执行，回复"YES"。如果是需要人类亲自做的事（买东西、出门、运动等），回复"NO"。只回复YES或NO。
 
 任务标题: ${task.title}${task.notes ? `\n任务备注: ${task.notes}` : ""}`;
-            let answer = "";
-            for await (const event of ctx.orchestrator.processInputStream(session.id, judgePrompt)) {
-              if (event.type === "response_chunk") {
-                answer += (event.data as { text: string }).text;
-              }
-            }
+            const answer = await collectResponse(ctx.orchestrator, judgePrompt);
             const canExecute = answer.trim().toUpperCase().startsWith("YES");
             taskDecisions.set(task.id, canExecute);
             if (!canExecute) {
@@ -206,17 +180,10 @@ async function main(): Promise<void> {
         // 执行任务
         console.log(`[task-runner] 执行任务: ${task.title}`);
         try {
-          const session = await ctx.orchestrator.createSession();
           const prompt = task.notes
             ? `${task.title}\n\n${task.notes}`
             : task.title;
-
-          let result = "";
-          for await (const event of ctx.orchestrator.processInputStream(session.id, prompt)) {
-            if (event.type === "response_chunk") {
-              result += (event.data as { text: string }).text;
-            }
-          }
+          const result = await collectResponse(ctx.orchestrator, prompt);
 
           // 完成后标记 Google Tasks 为 completed
           await runGws([
@@ -231,7 +198,7 @@ async function main(): Promise<void> {
           console.log(`[task-runner] ✅ 完成: ${task.title}`);
         } catch (err) {
           Sentry.captureException(err);
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = errorMessage(err);
           console.error(`[task-runner] ❌ 失败: ${task.title}`, msg);
           await broadcastAll(`❌ 任务「${task.title}」执行失败：${msg}`);
         }

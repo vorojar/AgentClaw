@@ -81,21 +81,17 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       request.messages,
       request.systemPrompt,
     );
-    const tools = request.tools ? this.convertTools(request.tools) : undefined;
 
     const response = await this.client.chat.completions.create({
       model,
       messages,
-      ...(tools && tools.length > 0 ? { tools } : {}),
-      ...(request.temperature != null
-        ? { temperature: request.temperature }
-        : {}),
-      ...(request.maxTokens != null ? { max_tokens: request.maxTokens } : {}),
-      ...(request.stopSequences ? { stop: request.stopSequences } : {}),
+      ...this.buildParams(request),
     });
 
     const choice = response.choices[0];
     const contentBlocks = this.convertResponseMessage(choice.message);
+    const tokensIn = response.usage?.prompt_tokens ?? 0;
+    const tokensOut = response.usage?.completion_tokens ?? 0;
 
     const message: Message = {
       id: generateId(),
@@ -103,15 +99,15 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       content: contentBlocks,
       createdAt: new Date(),
       model,
-      tokensIn: response.usage?.prompt_tokens ?? 0,
-      tokensOut: response.usage?.completion_tokens ?? 0,
+      tokensIn,
+      tokensOut,
     };
 
     return {
       message,
       model,
-      tokensIn: response.usage?.prompt_tokens ?? 0,
-      tokensOut: response.usage?.completion_tokens ?? 0,
+      tokensIn,
+      tokensOut,
       stopReason: this.mapFinishReason(choice.finish_reason),
     };
   }
@@ -123,22 +119,6 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       request.systemPrompt,
     );
 
-    // Debug: detect if we're sending images
-    const hasImageContent = messages.some(
-      (m) =>
-        Array.isArray(m.content) &&
-        (m.content as Array<{ type: string }>).some(
-          (c) => c.type === "image_url",
-        ),
-    );
-    if (hasImageContent) {
-      console.log(
-        `[${this.name}] Sending request with image content to model: ${model}`,
-      );
-    }
-
-    const tools = request.tools ? this.convertTools(request.tools) : undefined;
-
     let stream;
     try {
       stream = await this.client.chat.completions.create({
@@ -146,15 +126,9 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
         messages,
         stream: true,
         stream_options: { include_usage: true },
-        ...(tools && tools.length > 0 ? { tools } : {}),
-        ...(request.temperature != null
-          ? { temperature: request.temperature }
-          : {}),
-        ...(request.maxTokens != null ? { max_tokens: request.maxTokens } : {}),
-        ...(request.stopSequences ? { stop: request.stopSequences } : {}),
+        ...this.buildParams(request),
       });
     } catch (err) {
-      // Enrich error with provider/model info for easier debugging
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`[${this.name}/${model}] ${msg}`);
     }
@@ -241,7 +215,20 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       .map((d) => d.embedding);
   }
 
-  // ---- Internal conversion helpers ----
+  // ---- Internal helpers ----
+
+  /** Build shared optional params for both chat() and stream(). */
+  private buildParams(request: LLMRequest): Record<string, unknown> {
+    const tools = request.tools ? this.convertTools(request.tools) : undefined;
+    return {
+      ...(tools && tools.length > 0 ? { tools } : {}),
+      ...(request.temperature != null
+        ? { temperature: request.temperature }
+        : {}),
+      ...(request.maxTokens != null ? { max_tokens: request.maxTokens } : {}),
+      ...(request.stopSequences ? { stop: request.stopSequences } : {}),
+    };
+  }
 
   private convertMessages(
     messages: Message[],

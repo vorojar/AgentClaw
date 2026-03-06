@@ -73,8 +73,8 @@ export const subagentTool: Tool = {
           "shell",
         ];
         const id = manager.spawn(goal, {
-          maxIterations: (input.maxIterations as number) ?? undefined,
-          model: (input.model as string) ?? undefined,
+          maxIterations: input.maxIterations as number | undefined,
+          model: input.model as string | undefined,
           allowedTools: mode === "explore" ? EXPLORE_TOOLS : undefined,
         });
         return {

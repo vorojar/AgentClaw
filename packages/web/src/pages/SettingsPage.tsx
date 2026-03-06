@@ -9,11 +9,8 @@ import {
   type ToolInfo,
 } from "../api/client";
 import { IconChevronDown } from "../components/Icons";
+import { formatNumber } from "../utils/format";
 import "./SettingsPage.css";
-
-function formatNumber(n: number): string {
-  return n.toLocaleString();
-}
 
 export function SettingsPage() {
   const [config, setConfig] = useState<AppConfigInfo | null>(null);

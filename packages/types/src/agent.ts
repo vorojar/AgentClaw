@@ -1,7 +1,6 @@
-import type { Message, Conversation, ContentBlock } from "./message.js";
-import type { LLMProvider } from "./llm.js";
-import type { ToolRegistry, ToolExecutionContext } from "./tool.js";
-import type { MemoryStore } from "./memory.js";
+import type { Message, ContentBlock } from "./message.js";
+import type { SessionData } from "./memory.js";
+import type { ToolExecutionContext } from "./tool.js";
 
 /** Agent loop state */
 export type AgentState =
@@ -91,15 +90,8 @@ export interface ContextManager {
   }>;
 }
 
-/** Session — represents a user session */
-export interface Session {
-  id: string;
-  conversationId: string;
-  createdAt: Date;
-  lastActiveAt: Date;
-  title?: string;
-  metadata?: Record<string, unknown>;
-}
+/** Session — represents a user session (alias for SessionData) */
+export type Session = SessionData;
 
 /** Orchestrator — top-level coordinator */
 export interface Orchestrator {

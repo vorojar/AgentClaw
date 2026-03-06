@@ -121,32 +121,6 @@ async function parseUserContent(
   return blocks.length > 0 ? blocks : text;
 }
 
-function extractTextFromMessage(message: Message): string {
-  if (typeof message.content === "string") return message.content;
-  return message.content
-    .filter((b): b is { type: "text"; text: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
-function extractToolCalls(
-  content: string | ContentBlock[],
-): Array<{ name: string; input: Record<string, unknown> }> {
-  if (typeof content === "string") return [];
-  return content
-    .filter(
-      (
-        b,
-      ): b is {
-        type: "tool_use";
-        id: string;
-        name: string;
-        input: Record<string, unknown>;
-      } => b.type === "tool_use",
-    )
-    .map((b) => ({ name: b.name, input: b.input }));
-}
-
 const wsClients = new Set<import("ws").WebSocket>();
 
 /** Get all active WebSocket clients for broadcasting */

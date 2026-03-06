@@ -1,5 +1,10 @@
 # 更新日志
 
+## [0.9.8] - 2026-03-06
+
+### 改进
+- **全栈代码重构**：44 个文件，净减 ~800 行。提取公共工具函数（`gateway/utils.ts`、`tools/resolve-path.ts`、`web/utils/format.ts`），消除跨包重复代码；简化 WhatsApp 适配器、Claude/Gemini provider、SQLite memory store 等模块；统一类型定义和错误处理模式
+
 ## [0.9.7] - 2026-03-06
 
 ### 改进

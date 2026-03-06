@@ -1,20 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type { AppContext } from "../bootstrap.js";
-import type {
-  Message,
-  ContentBlock,
-  ToolExecutionContext,
-} from "@agentclaw/types";
+import type { Message, ToolExecutionContext } from "@agentclaw/types";
 import { basename, join, resolve, relative } from "node:path";
 import { copyFileSync, mkdirSync } from "node:fs";
-
-function extractText(content: string | ContentBlock[]): string {
-  if (typeof content === "string") return content;
-  return content
-    .filter((b): b is { type: "text"; text: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
+import { extractText } from "../utils.js";
 
 function serializeSession(session: {
   id: string;

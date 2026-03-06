@@ -237,7 +237,7 @@ export class SimpleOrchestrator implements Orchestrator {
     // 优先从 SQLite 获取完整列表
     try {
       const stored = await this.memoryStore.listSessions();
-      if (stored && stored.length > 0) return stored;
+      if (stored.length > 0) return stored;
     } catch {}
     return Array.from(this.sessions.values());
   }
@@ -281,9 +281,7 @@ export class SimpleOrchestrator implements Orchestrator {
       sentFiles: parentContext?.sentFiles,
       promptUser: parentContext?.promptUser,
       notifyUser: parentContext?.notifyUser,
-      saveMemory: parentContext?.saveMemory
-        ? parentContext.saveMemory
-        : undefined,
+      saveMemory: parentContext?.saveMemory,
       scheduler: this.scheduler,
       skillRegistry: this.skillRegistry,
       // No delegateTask — prevents recursion
@@ -318,10 +316,11 @@ export class SimpleOrchestrator implements Orchestrator {
   /** Remove *.py temp scripts from tmpDir (fire-and-forget) */
   private cleanupTmpScripts(): void {
     if (!this.tmpDir) return;
+    const tmpDir = this.tmpDir;
     try {
-      const entries = readdirSync(this.tmpDir, { withFileTypes: true });
+      const entries = readdirSync(tmpDir, { withFileTypes: true });
       for (const entry of entries) {
-        const fullPath = join(this.tmpDir!, entry.name);
+        const fullPath = join(tmpDir, entry.name);
         if (entry.isFile() && entry.name.endsWith(".py")) {
           try {
             unlinkSync(fullPath);

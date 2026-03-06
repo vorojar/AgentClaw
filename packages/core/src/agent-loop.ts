@@ -51,6 +51,16 @@ const RETRY_BASE_DELAY = 2000; // ms
 /** Stop the loop if this many consecutive iterations produce only errors */
 const MAX_CONSECUTIVE_ERRORS = 3;
 
+/** Build a dedup key for per-tool failure tracking */
+function buildFailKey(
+  toolName: string,
+  toolInput: Record<string, unknown>,
+): string {
+  return toolName === "bash" && typeof toolInput?.command === "string"
+    ? `bash:${toolInput.command.slice(0, 80)}`
+    : toolName;
+}
+
 export class SimpleAgentLoop implements AgentLoop {
   private _state: AgentState = "idle";
   private _config: AgentConfig;
@@ -404,9 +414,7 @@ export class SimpleAgentLoop implements AgentLoop {
       if (fullText) {
         contentBlocks.push({ type: "text", text: fullText });
       }
-      for (const tc of toolCalls) {
-        contentBlocks.push(tc);
-      }
+      contentBlocks.push(...toolCalls);
 
       // When this is the final response (no tool calls), append file markdown
       // so that sent files persist in the conversation history.
@@ -518,8 +526,7 @@ export class SimpleAgentLoop implements AgentLoop {
         let effectiveToolInput = toolCall.input;
 
         // Check tool access policy
-        let result: Awaited<ReturnType<typeof this.toolRegistry.execute>> =
-          undefined!;
+        let result!: Awaited<ReturnType<typeof this.toolRegistry.execute>>;
         let blockedByPolicy = false;
 
         if (context?.toolPolicy) {
@@ -557,12 +564,7 @@ export class SimpleAgentLoop implements AgentLoop {
 
         if (!blockedByPolicy) {
           // Check if this tool has already failed too many times across iterations
-          // For bash, key by command prefix so different commands don't share counts
-          const failKey =
-            effectiveToolName === "bash" &&
-            typeof effectiveToolInput?.command === "string"
-              ? `bash:${effectiveToolInput.command.slice(0, 80)}`
-              : effectiveToolName;
+          const failKey = buildFailKey(effectiveToolName, effectiveToolInput);
           const priorFails = toolFailCounts.get(failKey) ?? 0;
 
           if (priorFails >= MAX_TOOL_FAILURES) {
@@ -610,18 +612,11 @@ export class SimpleAgentLoop implements AgentLoop {
 
         // Update per-tool failure tracking (skip for policy/hook blocks)
         if (!blockedByPolicy) {
-          const failKeyForTracking =
-            effectiveToolName === "bash" &&
-            typeof effectiveToolInput?.command === "string"
-              ? `bash:${effectiveToolInput.command.slice(0, 80)}`
-              : effectiveToolName;
+          const failKey = buildFailKey(effectiveToolName, effectiveToolInput);
           if (result!.isError) {
-            toolFailCounts.set(
-              failKeyForTracking,
-              (toolFailCounts.get(failKeyForTracking) ?? 0) + 1,
-            );
+            toolFailCounts.set(failKey, (toolFailCounts.get(failKey) ?? 0) + 1);
           } else {
-            toolFailCounts.delete(failKeyForTracking);
+            toolFailCounts.delete(failKey);
           }
         }
 

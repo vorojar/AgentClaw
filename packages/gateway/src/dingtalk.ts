@@ -7,7 +7,12 @@ import type {
   ContentBlock,
   ToolExecutionContext,
 } from "@agentclaw/types";
-import { getWsClients } from "./ws.js";
+import {
+  extractText,
+  stripFileMarkdown,
+  splitMessage,
+  broadcastSessionActivity,
+} from "./utils.js";
 
 /** Map DingTalk conversationId → AgentClaw session ID */
 const chatSessionMap = new Map<string, string>();
@@ -22,49 +27,6 @@ const chatInfoMap = new Map<string, ChatInfo>();
 
 /** Pending ask_user prompts: conversationId → resolve */
 const pendingPrompts = new Map<string, (answer: string) => void>();
-
-function broadcastSessionActivity(sessionId: string): void {
-  const msg = JSON.stringify({
-    type: "session_activity",
-    sessionId,
-    channel: "dingtalk",
-  });
-  for (const ws of getWsClients()) {
-    try {
-      ws.send(msg);
-    } catch {}
-  }
-}
-
-function extractText(content: string | ContentBlock[]): string {
-  if (typeof content === "string") return content;
-  return content
-    .filter((b): b is { type: "text"; text: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
-function stripFileMarkdown(text: string): string {
-  return text.replace(/!?\[[^\]]*\]\([^)]*\/files\/[^)]+\)\n?/g, "");
-}
-
-function splitMessage(text: string, maxLen = 5000): string[] {
-  if (text.length <= maxLen) return [text];
-  const chunks: string[] = [];
-  let remaining = text;
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLen) {
-      chunks.push(remaining);
-      break;
-    }
-    let splitIdx = remaining.lastIndexOf("\n", maxLen);
-    if (splitIdx <= 0) splitIdx = remaining.lastIndexOf(" ", maxLen);
-    if (splitIdx <= 0) splitIdx = maxLen;
-    chunks.push(remaining.slice(0, splitIdx));
-    remaining = remaining.slice(splitIdx).trimStart();
-  }
-  return chunks;
-}
 
 /** Reply to a DingTalk message via sessionWebhook */
 async function replyText(sessionWebhook: string, text: string): Promise<void> {
@@ -266,11 +228,11 @@ export async function startDingTalkBot(
           accumulatedText = "(empty response)";
         }
 
-        for (const chunk of splitMessage(accumulatedText)) {
+        for (const chunk of splitMessage(accumulatedText, 5000)) {
           await replyText(sessionWebhook, chunk);
         }
 
-        broadcastSessionActivity(sessionId);
+        broadcastSessionActivity(sessionId, "dingtalk");
       } catch (err) {
         Sentry.captureException(err);
         const errMsg = err instanceof Error ? err.message : String(err);

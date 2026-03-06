@@ -2,26 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { getTraces, type TraceInfo, type TraceStep } from "../api/client";
 import { getStoredApiKey } from "../auth";
+import { formatDateTime, formatDuration, formatNumber } from "../utils/format";
 import "./TracesPage.css";
 
 const PAGE_SIZE = 20;
-
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function formatNumber(n: number): string {
-  return n.toLocaleString();
-}
 
 function parseSteps(steps: TraceStep[] | string): TraceStep[] {
   if (typeof steps === "string") {
@@ -259,7 +243,7 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
             {formatDuration(trace.durationMs)}
           </span>
           <code className="model-name">{trace.model ?? "\u2014"}</code>
-          <span className="trace-time">{formatTime(trace.createdAt)}</span>
+          <span className="trace-time">{formatDateTime(trace.createdAt)}</span>
           <CopyTraceButton traceId={trace.id} />
         </div>
       </div>

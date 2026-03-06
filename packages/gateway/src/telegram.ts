@@ -6,7 +6,12 @@ import type {
   ContentBlock,
   ToolExecutionContext,
 } from "@agentclaw/types";
-import { getWsClients } from "./ws.js";
+import {
+  extractText,
+  stripFileMarkdown,
+  splitMessage,
+  broadcastSessionActivity,
+} from "./utils.js";
 
 /** Map Telegram chat ID → AgentClaw session ID */
 const chatSessionMap = new Map<number, string>();
@@ -17,33 +22,6 @@ const pendingPrompts = new Map<number, (answer: string) => void>();
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp"]);
 
 const VIDEO_EXTENSIONS = new Set(["mp4", "mkv", "avi", "mov", "webm"]);
-
-/** Notify all Web UI clients that a session was updated from another channel */
-function broadcastSessionActivity(sessionId: string): void {
-  const msg = JSON.stringify({
-    type: "session_activity",
-    sessionId,
-    channel: "telegram",
-  });
-  for (const ws of getWsClients()) {
-    try {
-      ws.send(msg);
-    } catch {}
-  }
-}
-
-function extractText(content: string | ContentBlock[]): string {
-  if (typeof content === "string") return content;
-  return content
-    .filter((b): b is { type: "text"; text: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
-/** Strip markdown image/link references to /files/ (already delivered via send_file) */
-function stripFileMarkdown(text: string): string {
-  return text.replace(/!?\[[^\]]*\]\([^)]*\/files\/[^)]+\)\n?/g, "");
-}
 
 /**
  * Create a sendFile callback for a specific chat.
@@ -95,40 +73,6 @@ function createSendFile(
       await bot.api.sendDocument(chatId, inputFile, { caption });
     }
   };
-}
-
-/**
- * Split a long message into chunks that fit Telegram's 4096-char limit.
- * Tries to split at newline boundaries for readability.
- */
-function splitMessage(text: string, maxLen = 4096): string[] {
-  if (text.length <= maxLen) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLen) {
-      chunks.push(remaining);
-      break;
-    }
-
-    // Try to split at a newline
-    let splitIdx = remaining.lastIndexOf("\n", maxLen);
-    if (splitIdx <= 0) {
-      // No good newline, split at space
-      splitIdx = remaining.lastIndexOf(" ", maxLen);
-    }
-    if (splitIdx <= 0) {
-      // No good boundary, hard cut
-      splitIdx = maxLen;
-    }
-
-    chunks.push(remaining.slice(0, splitIdx));
-    remaining = remaining.slice(splitIdx).trimStart();
-  }
-
-  return chunks;
 }
 
 /** Telegram Bot API base URL */
@@ -347,7 +291,7 @@ export async function startTelegramBot(
 
       if (!accumulatedText.trim()) {
         await replyFn("(empty response)");
-        broadcastSessionActivity(sessionId!);
+        broadcastSessionActivity(sessionId!, "telegram");
         return;
       }
 
@@ -367,7 +311,7 @@ export async function startTelegramBot(
         for (const chunk of splitMessage(accumulatedText)) await replyFn(chunk);
       }
 
-      broadcastSessionActivity(sessionId!);
+      broadcastSessionActivity(sessionId!, "telegram");
     } catch (err) {
       clearInterval(typingInterval);
       Sentry.captureException(err);

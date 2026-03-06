@@ -6,56 +6,18 @@ import type {
   ContentBlock,
   ToolExecutionContext,
 } from "@agentclaw/types";
-import { getWsClients } from "./ws.js";
+import {
+  extractText,
+  stripFileMarkdown,
+  splitMessage,
+  broadcastSessionActivity,
+} from "./utils.js";
 
 /** Map Feishu chat_id → AgentClaw session ID */
 const chatSessionMap = new Map<string, string>();
 
 /** Pending ask_user prompts: chat_id → resolve */
 const pendingPrompts = new Map<string, (answer: string) => void>();
-
-function broadcastSessionActivity(sessionId: string): void {
-  const msg = JSON.stringify({
-    type: "session_activity",
-    sessionId,
-    channel: "feishu",
-  });
-  for (const ws of getWsClients()) {
-    try {
-      ws.send(msg);
-    } catch {}
-  }
-}
-
-function extractText(content: string | ContentBlock[]): string {
-  if (typeof content === "string") return content;
-  return content
-    .filter((b): b is { type: "text"; text: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
-function stripFileMarkdown(text: string): string {
-  return text.replace(/!?\[[^\]]*\]\([^)]*\/files\/[^)]+\)\n?/g, "");
-}
-
-function splitMessage(text: string, maxLen = 4000): string[] {
-  if (text.length <= maxLen) return [text];
-  const chunks: string[] = [];
-  let remaining = text;
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLen) {
-      chunks.push(remaining);
-      break;
-    }
-    let splitIdx = remaining.lastIndexOf("\n", maxLen);
-    if (splitIdx <= 0) splitIdx = remaining.lastIndexOf(" ", maxLen);
-    if (splitIdx <= 0) splitIdx = maxLen;
-    chunks.push(remaining.slice(0, splitIdx));
-    remaining = remaining.slice(splitIdx).trimStart();
-  }
-  return chunks;
-}
 
 export interface FeishuConfig {
   appId: string;
@@ -246,11 +208,11 @@ export async function startFeishuBot(
         accumulatedText = "(empty response)";
       }
 
-      for (const chunk of splitMessage(accumulatedText)) {
+      for (const chunk of splitMessage(accumulatedText, 4000)) {
         await sendText(client, chat_id, chunk);
       }
 
-      broadcastSessionActivity(sessionId);
+      broadcastSessionActivity(sessionId, "feishu");
     } catch (err) {
       Sentry.captureException(err);
       const errMsg = err instanceof Error ? err.message : String(err);

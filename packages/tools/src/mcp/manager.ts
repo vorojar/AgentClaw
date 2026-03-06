@@ -64,15 +64,8 @@ export class MCPManager {
    * Disconnect from all MCP servers and clear internal state.
    */
   async disconnectAll(): Promise<void> {
-    const names = Array.from(this.clients.keys());
-
     await Promise.allSettled(
-      names.map(async (name) => {
-        const client = this.clients.get(name);
-        if (client) {
-          await client.disconnect();
-        }
-      }),
+      Array.from(this.clients.values()).map((client) => client.disconnect()),
     );
 
     this.clients.clear();

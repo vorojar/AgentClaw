@@ -154,9 +154,7 @@ export class SimpleSubAgentManager implements SubAgentManager {
       sentFiles: [],
       saveMemory: this.parentContext?.saveMemory,
       scheduler: this.parentContext?.scheduler,
-      skillRegistry: this.parentContext?.skillRegistry
-        ? this.parentContext.skillRegistry
-        : undefined,
+      skillRegistry: this.parentContext?.skillRegistry,
       // No subAgentManager — prevent sub-agent recursion
     };
 

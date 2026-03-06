@@ -4,6 +4,24 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 const execFileAsync = promisify(execFile);
 
+/** Combine stdout and stderr with labeled sections */
+function combineOutput(stdout?: string, stderr?: string): string {
+  let result = stdout || "";
+  if (stderr) result += (result ? "\n[stderr]\n" : "[stderr]\n") + stderr;
+  return result || "(no output)";
+}
+
+/** Truncate output to a maximum character length, keeping head and tail */
+function truncateOutput(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const half = Math.floor(max / 2);
+  return (
+    text.slice(0, half) +
+    `\n\n... (${text.length} chars total, truncated) ...\n\n` +
+    text.slice(-half)
+  );
+}
+
 const DEFAULT_TIMEOUT = 120_000;
 const DEFAULT_IMAGE = "node:22-slim";
 
@@ -113,31 +131,18 @@ export const sandboxTool: Tool = {
       command,
     ];
 
+    const MAX_CONTENT = 50_000;
+
     try {
       const { stdout, stderr } = await execFileAsync("docker", args, {
         timeout,
-        maxBuffer: 10 * 1024 * 1024, // 10 MB
+        maxBuffer: 10 * 1024 * 1024,
         windowsHide: true,
         encoding: "utf-8",
       });
 
-      let result = "";
-      if (stdout) result += stdout;
-      if (stderr) result += (result ? "\n[stderr]\n" : "[stderr]\n") + stderr;
-      if (!result) result = "(no output)";
-
-      // Truncate overly long output
-      const MAX_CONTENT = 50_000;
-      if (result.length > MAX_CONTENT) {
-        const half = Math.floor(MAX_CONTENT / 2);
-        result =
-          result.slice(0, half) +
-          `\n\n... (${result.length} chars total, truncated) ...\n\n` +
-          result.slice(-half);
-      }
-
       return {
-        content: result,
+        content: truncateOutput(combineOutput(stdout, stderr), MAX_CONTENT),
         isError: false,
         metadata: { exitCode: 0, image },
       };
@@ -158,16 +163,10 @@ export const sandboxTool: Tool = {
         };
       }
 
-      let output = "";
-      if (error.stdout) output += error.stdout;
-      if (error.stderr)
-        output += (output ? "\n[stderr]\n" : "[stderr]\n") + error.stderr;
-      if (!output) output = error.message || "Unknown error";
-
-      // Truncate
-      if (output.length > 50_000) {
-        output = output.slice(0, 50_000) + "\n... (truncated)";
-      }
+      const combined = combineOutput(error.stdout, error.stderr);
+      const output = combined === "(no output)"
+        ? (error.message || "Unknown error")
+        : combined;
 
       const exitCode =
         typeof error.code === "number"
@@ -177,7 +176,7 @@ export const sandboxTool: Tool = {
             : 1;
 
       return {
-        content: `Exit code: ${exitCode}\n${output}`,
+        content: `Exit code: ${exitCode}\n${truncateOutput(output, MAX_CONTENT)}`,
         isError: exitCode !== 0,
         metadata: { exitCode, image },
       };

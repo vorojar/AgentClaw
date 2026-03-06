@@ -1,22 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { dirname } from "node:path";
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
-
-/** On Windows, Git Bash /tmp/ ≠ Node.js /tmp/. Map to OS temp dir. */
-function resolveFilePath(filePath: string, workDir?: string): string {
-  if (
-    process.platform === "win32" &&
-    (filePath.startsWith("/tmp/") || filePath === "/tmp")
-  ) {
-    return filePath.replace(/^\/tmp/, tmpdir());
-  }
-  // Relative paths → resolve to per-trace workDir (data/tmp/{traceId}/)
-  if (workDir && !isAbsolute(filePath)) {
-    return resolve(workDir, filePath);
-  }
-  return filePath;
-}
+import { resolveFilePath } from "./resolve-path.js";
 
 export const fileWriteTool: Tool = {
   name: "file_write",

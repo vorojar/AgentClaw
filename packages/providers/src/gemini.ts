@@ -7,7 +7,6 @@ import type {
   Message,
   ContentBlock,
   ToolDefinition,
-  ToolUseContent,
   ToolResultContent,
 } from "@agentclaw/types";
 import { BaseLLMProvider, generateId } from "./base.js";
@@ -55,26 +54,12 @@ export class GeminiProvider extends BaseLLMProvider {
   async chat(request: LLMRequest): Promise<LLMResponse> {
     const model = request.model ?? this.defaultModel;
     const contents = this.convertMessages(request.messages);
-    const tools = request.tools ? this.convertTools(request.tools) : undefined;
+    const config = this.buildConfig(request);
 
     const response = await this.client.models.generateContent({
       model,
       contents,
-      config: {
-        ...(request.systemPrompt
-          ? { systemInstruction: request.systemPrompt }
-          : {}),
-        ...(tools ? { tools } : {}),
-        ...(request.temperature != null
-          ? { temperature: request.temperature }
-          : {}),
-        ...(request.maxTokens != null
-          ? { maxOutputTokens: request.maxTokens }
-          : {}),
-        ...(request.stopSequences
-          ? { stopSequences: request.stopSequences }
-          : {}),
-      },
+      config,
     });
 
     const contentBlocks = this.convertResponseParts(
@@ -109,26 +94,12 @@ export class GeminiProvider extends BaseLLMProvider {
   async *stream(request: LLMRequest): AsyncIterable<LLMStreamChunk> {
     const model = request.model ?? this.defaultModel;
     const contents = this.convertMessages(request.messages);
-    const tools = request.tools ? this.convertTools(request.tools) : undefined;
+    const config = this.buildConfig(request);
 
     const response = await this.client.models.generateContentStream({
       model,
       contents,
-      config: {
-        ...(request.systemPrompt
-          ? { systemInstruction: request.systemPrompt }
-          : {}),
-        ...(tools ? { tools } : {}),
-        ...(request.temperature != null
-          ? { temperature: request.temperature }
-          : {}),
-        ...(request.maxTokens != null
-          ? { maxOutputTokens: request.maxTokens }
-          : {}),
-        ...(request.stopSequences
-          ? { stopSequences: request.stopSequences }
-          : {}),
-      },
+      config,
     });
 
     let tokensIn = 0;
@@ -137,14 +108,10 @@ export class GeminiProvider extends BaseLLMProvider {
     let hasToolUse = false;
 
     for await (const chunk of response) {
-      // Track usage from each chunk
       if (chunk.usageMetadata) {
-        tokensIn =
-          (chunk.usageMetadata as unknown as { promptTokenCount?: number })
-            .promptTokenCount ?? tokensIn;
-        tokensOut =
-          (chunk.usageMetadata as unknown as { candidatesTokenCount?: number })
-            .candidatesTokenCount ?? tokensOut;
+        const usage = chunk.usageMetadata as Record<string, number>;
+        tokensIn = usage.promptTokenCount ?? tokensIn;
+        tokensOut = usage.candidatesTokenCount ?? tokensOut;
       }
 
       if (chunk.candidates?.[0]?.finishReason) {
@@ -181,7 +148,27 @@ export class GeminiProvider extends BaseLLMProvider {
     };
   }
 
-  // ---- Internal conversion helpers ----
+  // ---- Internal helpers ----
+
+  private buildConfig(request: LLMRequest): Record<string, unknown> {
+    const tools = request.tools ? this.convertTools(request.tools) : undefined;
+
+    return {
+      ...(request.systemPrompt
+        ? { systemInstruction: request.systemPrompt }
+        : {}),
+      ...(tools ? { tools } : {}),
+      ...(request.temperature != null
+        ? { temperature: request.temperature }
+        : {}),
+      ...(request.maxTokens != null
+        ? { maxOutputTokens: request.maxTokens }
+        : {}),
+      ...(request.stopSequences
+        ? { stopSequences: request.stopSequences }
+        : {}),
+    };
+  }
 
   private convertMessages(
     messages: Message[],

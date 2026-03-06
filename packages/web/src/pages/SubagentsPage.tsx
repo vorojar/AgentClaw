@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { listSubAgents, type SubAgentInfo } from "../api/client";
+import { formatDateTime, formatDuration, formatNumber } from "../utils/format";
 import "./SubagentsPage.css";
 
 const PAGE_SIZE = 20;
@@ -15,23 +16,10 @@ const STATUS_CHIPS: { label: string; value: StatusFilter }[] = [
   { label: "Killed", value: "killed" },
 ];
 
-function formatNumber(n: number): string {
-  return n.toLocaleString();
-}
-
-function formatDuration(createdAt: string, completedAt?: string): string {
+function formatAgentDuration(createdAt: string, completedAt?: string): string {
   if (!completedAt) return "running...";
   const ms = new Date(completedAt).getTime() - new Date(createdAt).getTime();
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
+  return formatDuration(ms);
 }
 
 function StatusIcon({ status }: { status: SubAgentInfo["status"] }) {
@@ -86,9 +74,9 @@ function SubagentCard({ agent }: { agent: SubAgentInfo }) {
             {agent.iterations} iter{agent.iterations !== 1 ? "s" : ""}
           </span>
           <span className="sa-duration">
-            {formatDuration(agent.createdAt, agent.completedAt)}
+            {formatAgentDuration(agent.createdAt, agent.completedAt)}
           </span>
-          <span className="sa-time">{formatTime(agent.createdAt)}</span>
+          <span className="sa-time">{formatDateTime(agent.createdAt)}</span>
         </div>
       </div>
 

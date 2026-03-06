@@ -1,20 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { searchMemories, deleteMemory, type MemoryInfo } from "../api/client";
+import { formatDateTime } from "../utils/format";
 import "./MemoryPage.css";
 
 const MEMORY_TYPES = ["all", "fact", "preference", "entity", "episodic"];
 
 type SortMode = "importance" | "time";
-
-function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString();
-  } catch {
-    return iso;
-  }
-}
 
 function typeBadgeClass(type: string): string {
   switch (type) {
@@ -210,8 +202,8 @@ export function MemoryPage() {
               </div>
               <div className="memory-content">{mem.content}</div>
               <div className="memory-card-meta">
-                <span>Created: {formatTime(mem.createdAt)}</span>
-                <span>Accessed: {formatTime(mem.accessedAt)}</span>
+                <span>Created: {formatDateTime(mem.createdAt)}</span>
+                <span>Accessed: {formatDateTime(mem.accessedAt)}</span>
                 <span>Views: {mem.accessCount}</span>
               </div>
             </div>

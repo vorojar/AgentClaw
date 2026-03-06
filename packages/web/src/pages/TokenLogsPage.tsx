@@ -1,21 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { getTokenLogs, type TokenLogEntry } from "../api/client";
+import { formatDateTime, formatNumber } from "../utils/format";
 import "./TokenLogsPage.css";
 
 const PAGE_SIZE = 50;
-
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
-function formatNumber(n: number): string {
-  return n.toLocaleString();
-}
 
 export function TokenLogsPage() {
   const [items, setItems] = useState<TokenLogEntry[]>([]);
@@ -99,7 +88,7 @@ export function TokenLogsPage() {
                   {items.map((row) => (
                     <tr key={row.id}>
                       <td className="token-logs-time">
-                        {formatTime(row.createdAt)}
+                        {formatDateTime(row.createdAt)}
                       </td>
                       <td>
                         <code className="trace-id">

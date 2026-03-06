@@ -253,6 +253,15 @@ export class SimpleContextManager implements ContextManager {
     };
   }
 
+  /** Add to summary cache with LRU eviction */
+  private cacheSummary(key: string, value: string): void {
+    this.summaryCache.set(key, value);
+    if (this.summaryCache.size > 100) {
+      const firstKey = this.summaryCache.keys().next().value;
+      if (firstKey) this.summaryCache.delete(firstKey);
+    }
+  }
+
   private async compressTurns(
     conversationId: string,
     turns: ConversationTurn[],
@@ -283,11 +292,7 @@ export class SimpleContextManager implements ContextManager {
         const text =
           typeof resp.message.content === "string" ? resp.message.content : "";
         const summary = `[Earlier conversation summary]\n${text}`;
-        this.summaryCache.set(cacheKey, summary);
-        if (this.summaryCache.size > 100) {
-          const firstKey = this.summaryCache.keys().next().value;
-          if (firstKey) this.summaryCache.delete(firstKey);
-        }
+        this.cacheSummary(cacheKey, summary);
         return summary;
       } catch {
         // LLM failed, fall through to truncation
@@ -298,30 +303,20 @@ export class SimpleContextManager implements ContextManager {
     const summary = `[Earlier conversation summary]\n${transcript}`;
     const result =
       summary.length > 2000 ? summary.slice(0, 2000) + "\n..." : summary;
-    this.summaryCache.set(cacheKey, result);
-    if (this.summaryCache.size > 100) {
-      const firstKey = this.summaryCache.keys().next().value;
-      if (firstKey) this.summaryCache.delete(firstKey);
-    }
+    this.cacheSummary(cacheKey, result);
     return result;
   }
 
   private buildTranscript(turns: ConversationTurn[]): string {
     const lines: string[] = [];
     for (const turn of turns) {
-      if (turn.role === "user") {
-        const text =
-          turn.content.length > 200
-            ? turn.content.slice(0, 200) + "..."
-            : turn.content;
-        lines.push(`User: ${text}`);
-      } else if (turn.role === "assistant") {
-        const text =
-          turn.content.length > 200
-            ? turn.content.slice(0, 200) + "..."
-            : turn.content;
-        lines.push(`Assistant: ${text}`);
-      }
+      if (turn.role !== "user" && turn.role !== "assistant") continue;
+      const label = turn.role === "user" ? "User" : "Assistant";
+      const text =
+        turn.content.length > 200
+          ? turn.content.slice(0, 200) + "..."
+          : turn.content;
+      lines.push(`${label}: ${text}`);
     }
     const transcript = lines.join("\n");
     return transcript.length > 4000
@@ -329,7 +324,6 @@ export class SimpleContextManager implements ContextManager {
       : transcript;
   }
 
-  /** Rebuild a full Message (with ContentBlock[]) from a stored ConversationTurn */
   /**
    * Strip `/files/hex` URLs from stored user text so LLM doesn't pick up wrong paths.
    * `[Uploaded: name](/files/hex.xlsx)` → `[name]`

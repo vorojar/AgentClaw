@@ -61,18 +61,14 @@ export class TaskScheduler {
   delete(id: string): boolean {
     const task = this.tasks.get(id);
     if (!task) return false;
-    if (task.job) {
-      task.job.stop();
-    }
+    task.job?.stop();
     this.tasks.delete(id);
     return true;
   }
 
   stopAll(): void {
     for (const task of this.tasks.values()) {
-      if (task.job) {
-        task.job.stop();
-      }
+      task.job?.stop();
     }
   }
 
@@ -88,7 +84,7 @@ export class TaskScheduler {
       }
       // One-shot tasks: stop and remove after firing
       if (task.oneShot) {
-        if (task.job) task.job.stop();
+        task.job?.stop();
         this.tasks.delete(task.id);
         console.log(
           `[scheduler] One-shot task "${task.name}" (${task.id}) auto-removed`,

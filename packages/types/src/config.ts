@@ -18,14 +18,20 @@ export interface OpenAICompatibleProviderConfig extends ProviderConfig {
   baseUrl: string;
 }
 
+/** A single routing rule — which provider+model to use */
+export interface RouteTarget {
+  provider: string;
+  model: string;
+}
+
 /** LLM routing configuration */
 export interface RoutingConfig {
-  planning: { provider: string; model: string };
-  coding: { provider: string; model: string };
-  chat: { provider: string; model: string };
-  classification: { provider: string; model: string };
-  embedding: { provider: string; model: string };
-  summarization: { provider: string; model: string };
+  planning: RouteTarget;
+  coding: RouteTarget;
+  chat: RouteTarget;
+  classification: RouteTarget;
+  embedding: RouteTarget;
+  summarization: RouteTarget;
 }
 
 /** Full application configuration */

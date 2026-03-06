@@ -14,6 +14,12 @@ import type {
   ContentBlock,
   ToolExecutionContext,
 } from "@agentclaw/types";
+import {
+  extractText,
+  stripFileMarkdown,
+  splitMessage,
+  errorMessage,
+} from "./utils.js";
 
 /** Map WhatsApp JID → AgentClaw session ID */
 const chatSessionMap = new Map<string, string>();
@@ -32,50 +38,6 @@ const MAX_BOT_SENT_CACHE = 500;
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp"]);
 
 const VIDEO_EXTENSIONS = new Set(["mp4", "mkv", "avi", "mov", "webm"]);
-
-function extractText(content: string | ContentBlock[]): string {
-  if (typeof content === "string") return content;
-  return content
-    .filter((b): b is { type: "text"; text: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
-/** Strip markdown image/link references to /files/ (already delivered via send_file) */
-function stripFileMarkdown(text: string): string {
-  return text.replace(/!?\[[^\]]*\]\([^)]*\/files\/[^)]+\)\n?/g, "");
-}
-
-/**
- * Split a long message into chunks that fit WhatsApp's display.
- * Uses same limit as Telegram (4096 chars) for readability.
- */
-function splitMessage(text: string, maxLen = 4096): string[] {
-  if (text.length <= maxLen) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLen) {
-      chunks.push(remaining);
-      break;
-    }
-
-    let splitIdx = remaining.lastIndexOf("\n", maxLen);
-    if (splitIdx <= 0) {
-      splitIdx = remaining.lastIndexOf(" ", maxLen);
-    }
-    if (splitIdx <= 0) {
-      splitIdx = maxLen;
-    }
-
-    chunks.push(remaining.slice(0, splitIdx));
-    remaining = remaining.slice(splitIdx).trimStart();
-  }
-
-  return chunks;
-}
 
 /** Send a text message and track its ID so self-chat doesn't re-trigger the bot */
 async function botSendText(
@@ -102,9 +64,6 @@ async function botSendVoice(
   if (sent?.key?.id) trackBotMessageId(sent.key.id);
 }
 
-/**
- * Create a sendFile callback for a specific WhatsApp chat.
- */
 /** Max file size (bytes) to send inline via WhatsApp. Larger files get a download link. */
 const MAX_SEND_SIZE = 50 * 1024 * 1024; // 50 MB
 
@@ -181,517 +140,178 @@ function trackBotMessageId(id: string): void {
   botSentMessages.add(id);
 }
 
-/**
- * Process a text message from WhatsApp.
- */
-async function handleTextMessage(
+/** Get or create a session for the given JID */
+async function ensureSession(
   sock: WASocket,
   appCtx: AppContext,
   jid: string,
-  text: string,
-): Promise<void> {
-  // If there's a pending ask_user prompt for this chat, resolve it and return
-  const pendingResolve = pendingPrompts.get(jid);
-  if (pendingResolve) {
-    pendingPrompts.delete(jid);
-    pendingResolve(text);
-    return;
-  }
-
-  // Get or create session
-  let sessionId = chatSessionMap.get(jid);
-  if (!sessionId) {
-    try {
-      const session = await appCtx.orchestrator.createSession();
-      sessionId = session.id;
-      chatSessionMap.set(jid, sessionId);
-      appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
-    } catch (err) {
-      console.error("[whatsapp] Failed to create session:", err);
-      await botSendText(
-        sock,
-        jid,
-        "❌ Failed to start session. Please try again.",
-      );
-      return;
-    }
-  }
-
-  // Show composing indicator (non-critical, don't let it crash)
-  await sock.sendPresenceUpdate("composing", jid).catch(() => {});
+): Promise<string | null> {
+  const existing = chatSessionMap.get(jid);
+  if (existing) return existing;
 
   try {
-    const sentFiles: Array<{ url: string; filename: string }> = [];
-    const toolContext: ToolExecutionContext = {
-      sentFiles,
-      promptUser: async (question: string) => {
-        await botSendText(sock, jid, `❓ ${question}`);
-        return new Promise<string>((resolve) => {
-          pendingPrompts.set(jid, resolve);
-        });
-      },
-      notifyUser: async (message: string) => {
-        await botSendText(sock, jid, message);
-      },
-      sendFile: createSendFile(sock, jid, sentFiles),
-    };
-
-    const eventStream = appCtx.orchestrator.processInputStream(
-      sessionId,
-      text,
-      toolContext,
-    );
-
-    let accumulatedText = "";
-    let sendBuffer = "";
-    let bufferStartTime = 0;
-    let activeSkill = "";
-    const FLUSH_INTERVAL = 3000;
-
-    const flushBuffer = async () => {
-      if (!sendBuffer.trim()) return;
-      sendBuffer = stripFileMarkdown(sendBuffer);
-      if (!sendBuffer.trim()) return;
-      const chunks = splitMessage(sendBuffer);
-      for (const chunk of chunks) {
-        await botSendText(sock, jid, chunk);
-      }
-      sendBuffer = "";
-      bufferStartTime = 0;
-    };
-
-    for await (const event of eventStream) {
-      switch (event.type) {
-        case "tool_call": {
-          await flushBuffer();
-          const data = event.data as {
-            name: string;
-            input: Record<string, unknown>;
-          };
-          if (data.name === "use_skill") {
-            activeSkill = (data.input.name as string) || "";
-            await botSendText(sock, jid, `⚙️ use_skill: ${activeSkill}`);
-            break;
-          }
-          let label: string;
-          if (data.name === "web_search") {
-            label = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
-          } else if (data.name === "bash") {
-            label = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
-          } else {
-            label = `⚙️ ${data.name}`;
-          }
-          await botSendText(sock, jid, label);
-          break;
-        }
-        case "response_chunk": {
-          const data = event.data as { text: string };
-          accumulatedText += data.text;
-          if (!sendBuffer) bufferStartTime = Date.now();
-          sendBuffer += data.text;
-          if (
-            sendBuffer.includes("\n\n") ||
-            (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)
-          ) {
-            await flushBuffer();
-          }
-          break;
-        }
-        case "response_complete": {
-          const data = event.data as { message: Message };
-          if (!accumulatedText) {
-            accumulatedText = extractText(data.message.content);
-            sendBuffer = accumulatedText;
-          }
-          break;
-        }
-      }
-    }
-
-    await flushBuffer();
-    await sock.sendPresenceUpdate("paused", jid).catch(() => {});
-
-    if (!accumulatedText.trim()) {
-      await botSendText(sock, jid, "(empty response)");
-    }
+    const session = await appCtx.orchestrator.createSession();
+    chatSessionMap.set(jid, session.id);
+    appCtx.memoryStore.saveChatTarget("whatsapp", jid, session.id);
+    return session.id;
   } catch (err) {
-    await sock.sendPresenceUpdate("paused", jid).catch(() => {});
-
-    const errMsg = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : "";
-    console.error(
-      "[whatsapp] Error processing text message:",
-      errMsg,
-      "\n",
-      stack,
-    );
-
-    if (errMsg.includes("Session not found")) {
-      chatSessionMap.delete(jid);
-      await botSendText(
-        sock,
-        jid,
-        "⚠️ Session expired. Send your message again.",
-      ).catch(() => {});
-      return;
-    }
-
-    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(
-      () => {},
-    );
+    console.error("[whatsapp] Failed to create session:", err);
+    await botSendText(sock, jid, "❌ Failed to start session. Please try again.");
+    return null;
   }
 }
 
-/**
- * Process an image message from WhatsApp.
- */
-async function handleImageMessage(
+/** Create ToolExecutionContext for WhatsApp messages */
+function createToolContext(
   sock: WASocket,
-  appCtx: AppContext,
   jid: string,
-  msg: WAMessage,
-  caption: string,
-): Promise<void> {
-  // Get or create session
-  let sessionId = chatSessionMap.get(jid);
-  if (!sessionId) {
-    try {
-      const session = await appCtx.orchestrator.createSession();
-      sessionId = session.id;
-      chatSessionMap.set(jid, sessionId);
-      appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
-    } catch (err) {
-      console.error("[whatsapp] Failed to create session:", err);
-      await botSendText(
-        sock,
-        jid,
-        "❌ Failed to start session. Please try again.",
-      );
-      return;
-    }
-  }
-
-  await sock.sendPresenceUpdate("composing", jid).catch(() => {});
-
-  try {
-    // Download image from WhatsApp
-    const buffer = await downloadMediaMessage(msg, "buffer", {});
-    const imageBuffer = buffer as Buffer;
-    const base64Data = imageBuffer.toString("base64");
-
-    // Determine MIME type from the image message
-    const imgMsg = msg.message?.imageMessage;
-    const mimetype = imgMsg?.mimetype ?? "image/jpeg";
-    const ext = mimetype.split("/")[1]?.split(";")[0].trim() ?? "jpg";
-
-    // Save to local disk
-    const { mkdirSync, writeFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const uploadsDir = join(process.cwd(), "data", "uploads");
-    mkdirSync(uploadsDir, { recursive: true });
-    const localImageName = `wa_photo_${Date.now()}.${ext}`;
-    const localImagePath = join(uploadsDir, localImageName);
-    writeFileSync(localImagePath, imageBuffer);
-
-    // Build multimodal content blocks
-    const contentBlocks: ContentBlock[] = [
-      {
-        type: "image",
-        data: base64Data,
-        mediaType: mimetype,
-      },
-      {
-        type: "text",
-        text: `[用户发送了图片，已保存到 ${localImagePath.replace(/\\/g, "/")}]\n${caption || "请描述这张图片"}`,
-      },
-    ];
-
-    const sentFiles: Array<{ url: string; filename: string }> = [];
-    const toolContext: ToolExecutionContext = {
-      sentFiles,
-      promptUser: async (question: string) => {
-        await botSendText(sock, jid, `❓ ${question}`);
-        return new Promise<string>((resolve) => {
-          pendingPrompts.set(jid, resolve);
-        });
-      },
-      notifyUser: async (message: string) => {
-        await botSendText(sock, jid, message);
-      },
-      sendFile: createSendFile(sock, jid, sentFiles),
-    };
-
-    const eventStream = appCtx.orchestrator.processInputStream(
-      sessionId,
-      contentBlocks,
-      toolContext,
-    );
-
-    let accumulatedText = "";
-    let sendBuffer = "";
-    let bufferStartTime = 0;
-    let activeSkill = "";
-    const FLUSH_INTERVAL = 3000;
-
-    const flushBuffer = async () => {
-      if (!sendBuffer.trim()) return;
-      sendBuffer = stripFileMarkdown(sendBuffer);
-      if (!sendBuffer.trim()) return;
-      const chunks = splitMessage(sendBuffer);
-      for (const chunk of chunks) {
-        await botSendText(sock, jid, chunk);
-      }
-      sendBuffer = "";
-      bufferStartTime = 0;
-    };
-
-    for await (const event of eventStream) {
-      switch (event.type) {
-        case "tool_call": {
-          await flushBuffer();
-          const data = event.data as {
-            name: string;
-            input: Record<string, unknown>;
-          };
-          if (data.name === "use_skill") {
-            activeSkill = (data.input.name as string) || "";
-            await botSendText(sock, jid, `⚙️ use_skill: ${activeSkill}`);
-            break;
-          }
-          let label: string;
-          if (data.name === "web_search") {
-            label = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
-          } else if (data.name === "bash") {
-            label = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
-          } else {
-            label = `⚙️ ${data.name}`;
-          }
-          await botSendText(sock, jid, label);
-          break;
-        }
-        case "response_chunk": {
-          const data = event.data as { text: string };
-          accumulatedText += data.text;
-          if (!sendBuffer) bufferStartTime = Date.now();
-          sendBuffer += data.text;
-          if (
-            sendBuffer.includes("\n\n") ||
-            (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL)
-          ) {
-            await flushBuffer();
-          }
-          break;
-        }
-        case "response_complete": {
-          const data = event.data as { message: Message };
-          if (!accumulatedText) {
-            accumulatedText = extractText(data.message.content);
-            sendBuffer = accumulatedText;
-          }
-          break;
-        }
-      }
-    }
-
-    await flushBuffer();
-    await sock.sendPresenceUpdate("paused", jid).catch(() => {});
-
-    if (!accumulatedText.trim()) {
-      await botSendText(sock, jid, "(empty response)");
-    }
-  } catch (err) {
-    await sock.sendPresenceUpdate("paused", jid).catch(() => {});
-
-    const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(
-      "[whatsapp] Error processing image:",
-      errMsg,
-      "\n",
-      err instanceof Error ? err.stack : "",
-    );
-
-    if (errMsg.includes("Session not found")) {
-      chatSessionMap.delete(jid);
-      await botSendText(
-        sock,
-        jid,
-        "⚠️ Session expired. Send your message again.",
-      ).catch(() => {});
-      return;
-    }
-
-    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(
-      () => {},
-    );
-  }
+): { context: ToolExecutionContext; sentFiles: Array<{ url: string; filename: string }> } {
+  const sentFiles: Array<{ url: string; filename: string }> = [];
+  const context: ToolExecutionContext = {
+    sentFiles,
+    promptUser: async (question: string) => {
+      await botSendText(sock, jid, `❓ ${question}`);
+      return new Promise<string>((resolve) => {
+        pendingPrompts.set(jid, resolve);
+      });
+    },
+    notifyUser: async (message: string) => {
+      await botSendText(sock, jid, message);
+    },
+    sendFile: createSendFile(sock, jid, sentFiles),
+  };
+  return { context, sentFiles };
 }
 
 /**
- * Process a document/file message from WhatsApp.
+ * Shared event-processing loop for all WhatsApp message types.
+ * Streams tool status and response text, with optional voice-only mode.
  */
-async function handleDocumentMessage(
+async function processEventStream(
   sock: WASocket,
-  appCtx: AppContext,
   jid: string,
-  msg: WAMessage,
-  caption: string,
-  fileName: string,
-  fileType: string,
+  eventStream: AsyncIterable<{ type: string; data: unknown }>,
   isVoice = false,
 ): Promise<void> {
-  // Get or create session
-  let sessionId = chatSessionMap.get(jid);
-  if (!sessionId) {
-    try {
-      const session = await appCtx.orchestrator.createSession();
-      sessionId = session.id;
-      chatSessionMap.set(jid, sessionId);
-      appCtx.memoryStore.saveChatTarget("whatsapp", jid, sessionId);
-    } catch (err) {
-      console.error("[whatsapp] Failed to create session:", err);
-      await botSendText(
-        sock,
-        jid,
-        "❌ Failed to start session. Please try again.",
-      );
-      return;
+  let accumulatedText = "";
+  let sendBuffer = "";
+  let bufferStartTime = 0;
+  let activeSkill = "";
+  const FLUSH_INTERVAL = 3000;
+
+  const flushBuffer = async (): Promise<void> => {
+    if (!sendBuffer.trim()) return;
+    sendBuffer = stripFileMarkdown(sendBuffer);
+    if (!sendBuffer.trim()) return;
+    for (const chunk of splitMessage(sendBuffer)) {
+      await botSendText(sock, jid, chunk);
+    }
+    sendBuffer = "";
+    bufferStartTime = 0;
+  };
+
+  for await (const event of eventStream) {
+    switch (event.type) {
+      case "tool_call": {
+        if (!isVoice) await flushBuffer();
+        const data = event.data as {
+          name: string;
+          input: Record<string, unknown>;
+        };
+        if (data.name === "use_skill") {
+          activeSkill = (data.input.name as string) || "";
+          if (!isVoice) await botSendText(sock, jid, `⚙️ use_skill: ${activeSkill}`);
+          break;
+        }
+        let label: string;
+        if (data.name === "web_search") {
+          label = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
+        } else if (data.name === "bash") {
+          label = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
+        } else {
+          label = `⚙️ ${data.name}`;
+        }
+        if (!isVoice) await botSendText(sock, jid, label);
+        break;
+      }
+      case "response_chunk": {
+        const data = event.data as { text: string };
+        accumulatedText += data.text;
+        if (!sendBuffer) bufferStartTime = Date.now();
+        sendBuffer += data.text;
+        if (
+          !isVoice &&
+          (sendBuffer.includes("\n\n") ||
+            (bufferStartTime && Date.now() - bufferStartTime > FLUSH_INTERVAL))
+        ) {
+          await flushBuffer();
+        }
+        break;
+      }
+      case "response_complete": {
+        const data = event.data as { message: Message };
+        if (!accumulatedText) {
+          accumulatedText = extractText(data.message.content);
+          sendBuffer = accumulatedText;
+        }
+        break;
+      }
     }
   }
+
+  if (isVoice) {
+    const cleanedText = stripFileMarkdown(accumulatedText).trim();
+    if (cleanedText) {
+      const { textToSpeech } = await import("./tts.js");
+      const ogg = await textToSpeech(cleanedText);
+      if (ogg) {
+        await botSendVoice(sock, jid, ogg);
+      } else {
+        sendBuffer = cleanedText;
+        await flushBuffer();
+      }
+    } else {
+      await botSendText(sock, jid, "(empty response)");
+    }
+  } else {
+    await flushBuffer();
+    if (!accumulatedText.trim()) {
+      await botSendText(sock, jid, "(empty response)");
+    }
+  }
+}
+
+/**
+ * Process any WhatsApp message through the orchestrator with shared error handling.
+ */
+async function processMessage(
+  sock: WASocket,
+  appCtx: AppContext,
+  jid: string,
+  input: string | ContentBlock[],
+  label: string,
+  isVoice = false,
+): Promise<void> {
+  const sessionId = await ensureSession(sock, appCtx, jid);
+  if (!sessionId) return;
 
   await sock.sendPresenceUpdate("composing", jid).catch(() => {});
 
   try {
-    // Download media
-    const buffer = await downloadMediaMessage(msg, "buffer", {});
-    const fileBuffer = buffer as Buffer;
-
-    // Save to uploads directory
-    const { mkdirSync, writeFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const tmpDir = join(process.cwd(), "data", "uploads");
-    mkdirSync(tmpDir, { recursive: true });
-    const filePath = join(tmpDir, fileName);
-    writeFileSync(filePath, fileBuffer);
-
-    const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
-
-    const sentFiles: Array<{ url: string; filename: string }> = [];
-    const toolContext: ToolExecutionContext = {
-      sentFiles,
-      promptUser: async (question: string) => {
-        await botSendText(sock, jid, `❓ ${question}`);
-        return new Promise<string>((resolve) => {
-          pendingPrompts.set(jid, resolve);
-        });
-      },
-      notifyUser: async (message: string) => {
-        await botSendText(sock, jid, message);
-      },
-      sendFile: createSendFile(sock, jid, sentFiles),
-    };
-
+    const { context } = createToolContext(sock, jid);
     const eventStream = appCtx.orchestrator.processInputStream(
       sessionId,
-      text,
-      toolContext,
+      input,
+      context,
     );
-
-    let accumulatedText = "";
-    let sendBuffer = "";
-    let bufferStartTime = 0;
-    let activeSkill = "";
-    const FLUSH_INTERVAL = 3000;
-
-    const flushBuffer = async () => {
-      if (!sendBuffer.trim()) return;
-      sendBuffer = stripFileMarkdown(sendBuffer);
-      if (!sendBuffer.trim()) return;
-      const chunks = splitMessage(sendBuffer);
-      for (const chunk of chunks) {
-        await botSendText(sock, jid, chunk);
-      }
-      sendBuffer = "";
-      bufferStartTime = 0;
-    };
-
-    for await (const event of eventStream) {
-      switch (event.type) {
-        case "tool_call": {
-          if (!isVoice) await flushBuffer();
-          const data = event.data as {
-            name: string;
-            input: Record<string, unknown>;
-          };
-          if (data.name === "use_skill") {
-            activeSkill = (data.input.name as string) || "";
-            break;
-          }
-          let label: string;
-          if (data.name === "web_search") {
-            label = `🔍 ${(data.input as { query?: string }).query ?? "searching"}...`;
-          } else if (data.name === "bash") {
-            label = activeSkill ? `⚙️ bash: ${activeSkill}` : "⚙️ bash";
-          } else {
-            label = `⚙️ ${data.name}`;
-          }
-          if (!isVoice) {
-            await botSendText(sock, jid, label);
-          }
-          break;
-        }
-        case "response_chunk": {
-          const data = event.data as { text: string };
-          accumulatedText += data.text;
-          if (!sendBuffer) bufferStartTime = Date.now();
-          sendBuffer += data.text;
-          if (
-            !isVoice &&
-            (sendBuffer.includes("\n\n") ||
-              (bufferStartTime &&
-                Date.now() - bufferStartTime > FLUSH_INTERVAL))
-          ) {
-            await flushBuffer();
-          }
-          break;
-        }
-        case "response_complete": {
-          const data = event.data as { message: Message };
-          if (!accumulatedText) {
-            accumulatedText = extractText(data.message.content);
-            sendBuffer = accumulatedText;
-          }
-          break;
-        }
-      }
-    }
-
-    if (isVoice) {
-      const cleanedText = stripFileMarkdown(accumulatedText).trim();
-      if (cleanedText) {
-        const { textToSpeech } = await import("./tts.js");
-        const ogg = await textToSpeech(cleanedText);
-        if (ogg) {
-          await botSendVoice(sock, jid, ogg);
-        } else {
-          sendBuffer = cleanedText;
-          await flushBuffer();
-        }
-      } else {
-        await botSendText(sock, jid, "(empty response)");
-      }
-    } else {
-      await flushBuffer();
-      if (!accumulatedText.trim()) {
-        await botSendText(sock, jid, "(empty response)");
-      }
-    }
+    await processEventStream(sock, jid, eventStream, isVoice);
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
   } catch (err) {
     await sock.sendPresenceUpdate("paused", jid).catch(() => {});
 
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const errMsg = errorMessage(err);
     console.error(
-      `[whatsapp] Error processing ${fileType}:`,
+      `[whatsapp] Error processing ${label}:`,
       errMsg,
       "\n",
       err instanceof Error ? err.stack : "",
@@ -699,17 +319,11 @@ async function handleDocumentMessage(
 
     if (errMsg.includes("Session not found")) {
       chatSessionMap.delete(jid);
-      await botSendText(
-        sock,
-        jid,
-        "⚠️ Session expired. Send your message again.",
-      ).catch(() => {});
+      await botSendText(sock, jid, "⚠️ Session expired. Send your message again.").catch(() => {});
       return;
     }
 
-    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(
-      () => {},
-    );
+    await botSendText(sock, jid, `❌ Error: ${errMsg.slice(0, 200)}`).catch(() => {});
   }
 }
 
@@ -762,12 +376,11 @@ export async function startWhatsAppBot(
   }
 
   function createSocket(): WASocket {
-    const s = makeWASocket({
+    return makeWASocket({
       auth: state,
       browser: Browsers.ubuntu("AgentClaw"),
       logger: silentLogger as any,
     });
-    return s;
   }
 
   sock = createSocket();
@@ -777,7 +390,6 @@ export async function startWhatsAppBot(
     s.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
 
-      // Display QR code in terminal when available
       if (qr) {
         console.log("[whatsapp] Scan this QR code with your WhatsApp app:");
         qrcode.generate(qr, { small: true });
@@ -811,16 +423,15 @@ export async function startWhatsAppBot(
     s.ev.on(
       "messages.upsert",
       async ({ messages, type }: BaileysEventMap["messages.upsert"]) => {
-        // Only handle "notify" type (real incoming messages)
         if (type !== "notify") return;
 
         for (const msg of messages) {
           const msgId = msg.key.id;
 
-          // Skip messages sent by the bot itself (avoid infinite loop in self-chat)
+          // Skip messages sent by the bot itself
           if (msgId && botSentMessages.has(msgId)) continue;
 
-          // Only respond in self-chat (own JID) — ignore all other conversations
+          // Only respond in self-chat
           const jid = msg.key.remoteJid;
           if (!jid || !sock.user) continue;
           const ownPN = sock.user.id.split(":")[0] + "@s.whatsapp.net";
@@ -839,82 +450,62 @@ export async function startWhatsAppBot(
             // ── Image message ──
             if (message.imageMessage) {
               const caption = message.imageMessage.caption ?? "";
-              await handleImageMessage(sock, appCtx, jid, msg, caption);
+              const buffer = await downloadMediaMessage(msg, "buffer", {});
+              const imageBuffer = buffer as Buffer;
+
+              const imgMsg = msg.message?.imageMessage;
+              const mimetype = imgMsg?.mimetype ?? "image/jpeg";
+              const ext = mimetype.split("/")[1]?.split(";")[0].trim() ?? "jpg";
+
+              const { mkdirSync, writeFileSync } = await import("node:fs");
+              const { join } = await import("node:path");
+              const uploadsDir = join(process.cwd(), "data", "uploads");
+              mkdirSync(uploadsDir, { recursive: true });
+              const localImagePath = join(uploadsDir, `wa_photo_${Date.now()}.${ext}`);
+              writeFileSync(localImagePath, imageBuffer);
+
+              const contentBlocks: ContentBlock[] = [
+                { type: "image", data: imageBuffer.toString("base64"), mediaType: mimetype },
+                {
+                  type: "text",
+                  text: `[用户发送了图片，已保存到 ${localImagePath.replace(/\\/g, "/")}]\n${caption || "请描述这张图片"}`,
+                },
+              ];
+
+              await processMessage(sock, appCtx, jid, contentBlocks, "image");
               continue;
             }
 
             // ── Document message ──
             if (message.documentMessage) {
-              const fileName =
-                message.documentMessage.fileName ?? `file_${Date.now()}`;
+              const fileName = message.documentMessage.fileName ?? `file_${Date.now()}`;
               const caption = message.documentMessage.caption ?? "";
-              await handleDocumentMessage(
-                sock,
-                appCtx,
-                jid,
-                msg,
-                caption,
-                fileName,
-                "文件",
-              );
+              await handleMediaMessage(sock, appCtx, jid, msg, caption, fileName, "文件");
               continue;
             }
 
             // ── Video message ──
             if (message.videoMessage) {
-              const ext =
-                message.videoMessage.mimetype
-                  ?.split("/")[1]
-                  ?.split(";")[0]
-                  .trim() ?? "mp4";
-              const fileName = `video_${Date.now()}.${ext}`;
+              const ext = message.videoMessage.mimetype?.split("/")[1]?.split(";")[0].trim() ?? "mp4";
               const caption = message.videoMessage.caption ?? "";
-              await handleDocumentMessage(
-                sock,
-                appCtx,
-                jid,
-                msg,
-                caption,
-                fileName,
-                "视频",
-              );
+              await handleMediaMessage(sock, appCtx, jid, msg, caption, `video_${Date.now()}.${ext}`, "视频");
               continue;
             }
 
             // ── Audio message ──
             if (message.audioMessage) {
-              const ext =
-                message.audioMessage.mimetype
-                  ?.split("/")[1]
-                  ?.split(";")[0]
-                  .trim() ?? "ogg";
-              const fileName = `audio_${Date.now()}.${ext}`;
-              await handleDocumentMessage(
-                sock,
-                appCtx,
-                jid,
-                msg,
-                "",
-                fileName,
-                "语音",
-                true,
-              );
+              const ext = message.audioMessage.mimetype?.split("/")[1]?.split(";")[0].trim() ?? "ogg";
+              await handleMediaMessage(sock, appCtx, jid, msg, "", `audio_${Date.now()}.${ext}`, "语音", true);
               continue;
             }
 
             // ── Text message ──
-            const text =
-              message.conversation ?? message.extendedTextMessage?.text;
+            const text = message.conversation ?? message.extendedTextMessage?.text;
             if (text) {
-              // Handle commands
               const trimmed = text.trim();
               if (trimmed === "/new") {
                 chatSessionMap.delete(jid);
-                await botSendText(
-                  sock,
-                  jid,
-                  "🔄 New conversation started. Send me a message!",
-                );
+                await botSendText(sock, jid, "🔄 New conversation started. Send me a message!");
                 continue;
               }
               if (trimmed === "/help") {
@@ -926,25 +517,28 @@ export async function startWhatsAppBot(
                 continue;
               }
 
-              await handleTextMessage(sock, appCtx, jid, text);
+              // Check for pending ask_user prompt
+              const pendingResolve = pendingPrompts.get(jid);
+              if (pendingResolve) {
+                pendingPrompts.delete(jid);
+                pendingResolve(text);
+                continue;
+              }
+
+              await processMessage(sock, appCtx, jid, text, "text");
             }
           } catch (err) {
             console.error(
               "[whatsapp] Unhandled error processing message:",
               err instanceof Error ? err.stack : err,
             );
-            await botSendText(
-              sock,
-              jid,
-              "❌ Internal error. Please try again.",
-            ).catch(() => {});
+            await botSendText(sock, jid, "❌ Internal error. Please try again.").catch(() => {});
           }
         }
       },
     );
   }
 
-  // Bind events on the initial socket
   bindEvents(sock);
 
   console.log(
@@ -964,4 +558,32 @@ export async function startWhatsAppBot(
       }
     },
   };
+}
+
+/**
+ * Download media, save to uploads dir, and process through orchestrator.
+ * Shared handler for document, video, and audio messages.
+ */
+async function handleMediaMessage(
+  sock: WASocket,
+  appCtx: AppContext,
+  jid: string,
+  msg: WAMessage,
+  caption: string,
+  fileName: string,
+  fileType: string,
+  isVoice = false,
+): Promise<void> {
+  const buffer = await downloadMediaMessage(msg, "buffer", {});
+  const fileBuffer = buffer as Buffer;
+
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const uploadsDir = join(process.cwd(), "data", "uploads");
+  mkdirSync(uploadsDir, { recursive: true });
+  const filePath = join(uploadsDir, fileName);
+  writeFileSync(filePath, fileBuffer);
+
+  const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
+  await processMessage(sock, appCtx, jid, text, fileType, isVoice);
 }

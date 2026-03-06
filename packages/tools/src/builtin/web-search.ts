@@ -10,6 +10,19 @@ interface SearchResult {
   snippet?: string;
 }
 
+/** Format search results into numbered lines */
+function formatResults(results: SearchResult[]): string[] {
+  const lines: string[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    lines.push(`${i + 1}. ${r.title}`);
+    lines.push(`   ${r.url}`);
+    if (r.snippet) lines.push(`   ${r.snippet}`);
+    lines.push("");
+  }
+  return lines;
+}
+
 /** Search via self-hosted SearXNG instance */
 async function searchSearXNG(
   query: string,
@@ -54,13 +67,7 @@ async function searchSearXNG(
 
     if (results.length === 0 && lines.length === 0) return null;
 
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      lines.push(`${i + 1}. ${r.title}`);
-      lines.push(`   ${r.url}`);
-      if (r.snippet) lines.push(`   ${r.snippet}`);
-      lines.push("");
-    }
+    lines.push(...formatResults(results));
 
     return lines.join("\n").trim() || null;
   } catch {
@@ -124,13 +131,14 @@ async function searchSerper(
       return `No results found for: ${query}`;
     }
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      lines.push(`${i + 1}. ${item.title ?? ""}`);
-      lines.push(`   ${item.link ?? ""}`);
-      if (item.snippet) lines.push(`   ${item.snippet}`);
-      lines.push("");
-    }
+    const results: SearchResult[] = items.map(
+      (item: Record<string, string>) => ({
+        title: item.title ?? "",
+        url: item.link ?? "",
+        snippet: item.snippet,
+      }),
+    );
+    lines.push(...formatResults(results));
 
     return lines.join("\n").trim();
   } catch (err) {

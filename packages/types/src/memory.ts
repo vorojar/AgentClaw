@@ -1,3 +1,5 @@
+import type { MessageRole } from "./message.js";
+
 /** Memory entry types */
 export type MemoryType = "fact" | "preference" | "entity" | "episodic";
 
@@ -67,6 +69,16 @@ export interface Trace {
   createdAt: Date;
 }
 
+/** Session data shared between MemoryStore and Orchestrator */
+export interface SessionData {
+  id: string;
+  conversationId: string;
+  createdAt: Date;
+  lastActiveAt: Date;
+  title?: string;
+  metadata?: Record<string, unknown>;
+}
+
 /** Memory store interface */
 export interface MemoryStore {
   /** Store a new memory */
@@ -103,35 +115,13 @@ export interface MemoryStore {
   ): Promise<ConversationTurn[]>;
 
   /** Save or update a session */
-  saveSession(session: {
-    id: string;
-    conversationId: string;
-    createdAt: Date;
-    lastActiveAt: Date;
-    title?: string;
-    metadata?: Record<string, unknown>;
-  }): Promise<void>;
+  saveSession(session: SessionData): Promise<void>;
 
   /** Get a session by ID */
-  getSessionById(id: string): Promise<{
-    id: string;
-    conversationId: string;
-    createdAt: Date;
-    lastActiveAt: Date;
-    title?: string;
-    metadata?: Record<string, unknown>;
-  } | null>;
+  getSessionById(id: string): Promise<SessionData | null>;
 
   /** List all sessions ordered by last active */
-  listSessions(): Promise<
-    Array<{
-      id: string;
-      conversationId: string;
-      createdAt: Date;
-      lastActiveAt: Date;
-      title?: string;
-    }>
-  >;
+  listSessions(): Promise<Array<Omit<SessionData, "metadata">>>;
 
   /** Delete a session */
   deleteSession(id: string): Promise<void>;
@@ -153,7 +143,7 @@ export interface MemoryStore {
 export interface ConversationTurn {
   id: string;
   conversationId: string;
-  role: "user" | "assistant" | "system" | "tool";
+  role: MessageRole;
   content: string;
   toolCalls?: string; // JSON
   toolResults?: string; // JSON

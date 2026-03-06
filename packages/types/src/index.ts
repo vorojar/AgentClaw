@@ -40,6 +40,7 @@ export type {
   MemoryEntry,
   MemoryQuery,
   MemorySearchResult,
+  SessionData,
   MemoryStore,
   ConversationTurn,
   TraceStep,
@@ -78,6 +79,7 @@ export type {
 export type {
   ProviderConfig,
   OpenAICompatibleProviderConfig,
+  RouteTarget,
   RoutingConfig,
   AppConfig,
 } from "./config.js";

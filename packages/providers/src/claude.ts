@@ -51,36 +51,12 @@ export class ClaudeProvider extends BaseLLMProvider {
 
   async chat(request: LLMRequest): Promise<LLMResponse> {
     const model = request.model ?? this.defaultModel;
-    const messages = this.convertMessages(request.messages);
-    const tools = request.tools ? this.convertTools(request.tools) : undefined;
-
-    const params: Anthropic.MessageCreateParamsNonStreaming = {
-      model,
-      max_tokens: request.maxTokens ?? 4096,
-      messages,
-      ...(request.systemPrompt
-        ? {
-            system: [
-              {
-                type: "text" as const,
-                text: request.systemPrompt,
-                cache_control: { type: "ephemeral" as const },
-              },
-            ],
-          }
-        : {}),
-      ...(tools && tools.length > 0 ? { tools } : {}),
-      ...(request.temperature != null
-        ? { temperature: request.temperature }
-        : {}),
-      ...(request.stopSequences
-        ? { stop_sequences: request.stopSequences }
-        : {}),
-    };
+    const params = this.buildParams(request, model);
 
     const response = await this.client.messages.create(params);
 
     const contentBlocks = this.convertResponseContent(response.content);
+    const { input_tokens: tokensIn, output_tokens: tokensOut } = response.usage;
 
     const message: Message = {
       id: generateId(),
@@ -88,48 +64,22 @@ export class ClaudeProvider extends BaseLLMProvider {
       content: contentBlocks,
       createdAt: new Date(),
       model,
-      tokensIn: response.usage.input_tokens,
-      tokensOut: response.usage.output_tokens,
+      tokensIn,
+      tokensOut,
     };
 
     return {
       message,
       model,
-      tokensIn: response.usage.input_tokens,
-      tokensOut: response.usage.output_tokens,
+      tokensIn,
+      tokensOut,
       stopReason: this.mapStopReason(response.stop_reason),
     };
   }
 
   async *stream(request: LLMRequest): AsyncIterable<LLMStreamChunk> {
     const model = request.model ?? this.defaultModel;
-    const messages = this.convertMessages(request.messages);
-    const tools = request.tools ? this.convertTools(request.tools) : undefined;
-
-    const params: Anthropic.MessageCreateParamsStreaming = {
-      model,
-      max_tokens: request.maxTokens ?? 4096,
-      messages,
-      stream: true,
-      ...(request.systemPrompt
-        ? {
-            system: [
-              {
-                type: "text" as const,
-                text: request.systemPrompt,
-                cache_control: { type: "ephemeral" as const },
-              },
-            ],
-          }
-        : {}),
-      ...(tools && tools.length > 0 ? { tools } : {}),
-      ...(request.temperature != null
-        ? { temperature: request.temperature }
-        : {}),
-      ...(request.stopSequences
-        ? { stop_sequences: request.stopSequences }
-        : {}),
-    };
+    const params = this.buildParams(request, model);
 
     const stream = this.client.messages.stream(params);
 
@@ -138,71 +88,94 @@ export class ClaudeProvider extends BaseLLMProvider {
     let stopReason: string | null = null;
 
     for await (const event of stream) {
-      if (event.type === "message_start") {
-        const msg = (
-          event as unknown as {
-            message?: {
-              usage?: { input_tokens?: number; output_tokens?: number };
+      const ev = event as unknown as Record<string, unknown>;
+
+      switch (event.type) {
+        case "message_start": {
+          const usage = (ev.message as Record<string, unknown>)?.usage as
+            | Record<string, number>
+            | undefined;
+          if (usage) {
+            tokensIn = usage.input_tokens ?? 0;
+            tokensOut = usage.output_tokens ?? 0;
+          }
+          break;
+        }
+        case "message_delta": {
+          const usage = ev.usage as Record<string, number> | undefined;
+          if (usage?.output_tokens) tokensOut = usage.output_tokens;
+          const delta = ev.delta as Record<string, string> | undefined;
+          if (delta?.stop_reason) stopReason = delta.stop_reason;
+          break;
+        }
+        case "content_block_start": {
+          const block = event.content_block;
+          if (block.type === "tool_use") {
+            yield {
+              type: "tool_use_start",
+              toolUse: { id: block.id, name: block.name, input: "" },
             };
           }
-        ).message;
-        if (msg?.usage) {
-          tokensIn = msg.usage.input_tokens ?? 0;
-          tokensOut = msg.usage.output_tokens ?? 0;
+          break;
         }
-      } else if (event.type === "message_delta") {
-        const delta = event as unknown as {
-          usage?: { output_tokens?: number };
-          delta?: { stop_reason?: string };
-        };
-        if (delta.usage?.output_tokens) {
-          tokensOut = delta.usage.output_tokens;
+        case "content_block_delta": {
+          const delta = event.delta;
+          if (delta.type === "text_delta") {
+            yield { type: "text", text: delta.text };
+          } else if (delta.type === "input_json_delta") {
+            yield {
+              type: "tool_use_delta",
+              toolUse: { id: "", name: "", input: delta.partial_json },
+            };
+          }
+          break;
         }
-        if (delta.delta?.stop_reason) {
-          stopReason = delta.delta.stop_reason;
-        }
-      } else if (event.type === "content_block_start") {
-        const block = event.content_block;
-        if (block.type === "text") {
-          // text block start — nothing to yield yet
-        } else if (block.type === "tool_use") {
+        case "message_stop":
           yield {
-            type: "tool_use_start",
-            toolUse: {
-              id: block.id,
-              name: block.name,
-              input: "",
-            },
+            type: "done",
+            usage: { tokensIn, tokensOut },
+            model,
+            stopReason: this.mapStopReason(stopReason),
           };
-        }
-      } else if (event.type === "content_block_delta") {
-        const delta = event.delta;
-        if (delta.type === "text_delta") {
-          yield { type: "text", text: delta.text };
-        } else if (delta.type === "input_json_delta") {
-          yield {
-            type: "tool_use_delta",
-            toolUse: {
-              id: "",
-              name: "",
-              input: delta.partial_json,
-            },
-          };
-        }
-      } else if (event.type === "content_block_stop") {
-        // Could be end of text or tool_use — emit tool_use_end if needed
-      } else if (event.type === "message_stop") {
-        yield {
-          type: "done",
-          usage: { tokensIn, tokensOut },
-          model,
-          stopReason: this.mapStopReason(stopReason),
-        };
+          break;
       }
     }
   }
 
-  // ---- Internal conversion helpers ----
+  // ---- Internal helpers ----
+
+  /** Build shared params for both chat() and stream(). */
+  private buildParams(
+    request: LLMRequest,
+    model: string,
+  ): Anthropic.MessageCreateParamsNonStreaming {
+    const messages = this.convertMessages(request.messages);
+    const tools = request.tools ? this.convertTools(request.tools) : undefined;
+
+    return {
+      model,
+      max_tokens: request.maxTokens ?? 4096,
+      messages,
+      ...(request.systemPrompt
+        ? {
+            system: [
+              {
+                type: "text" as const,
+                text: request.systemPrompt,
+                cache_control: { type: "ephemeral" as const },
+              },
+            ],
+          }
+        : {}),
+      ...(tools && tools.length > 0 ? { tools } : {}),
+      ...(request.temperature != null
+        ? { temperature: request.temperature }
+        : {}),
+      ...(request.stopSequences
+        ? { stop_sequences: request.stopSequences }
+        : {}),
+    };
+  }
 
   private convertMessages(messages: Message[]): Anthropic.MessageParam[] {
     const result: Anthropic.MessageParam[] = [];
@@ -212,17 +185,16 @@ export class ClaudeProvider extends BaseLLMProvider {
       if (msg.role === "system") continue;
 
       if (msg.role === "user" || msg.role === "assistant") {
-        const content = this.convertContent(msg.content, msg.role);
         result.push({
           role: msg.role,
-          content,
+          content: this.convertContent(msg.content),
         });
       } else if (msg.role === "tool") {
-        // Tool results go into a "user" message in Anthropic's API
-        const blocks = this.convertContent(msg.content, "tool");
         result.push({
           role: "user",
-          content: blocks as Anthropic.ToolResultBlockParam[],
+          content: this.convertContent(
+            msg.content,
+          ) as Anthropic.ToolResultBlockParam[],
         });
       }
     }
@@ -232,7 +204,6 @@ export class ClaudeProvider extends BaseLLMProvider {
 
   private convertContent(
     content: string | ContentBlock[],
-    role: string,
   ): string | Anthropic.ContentBlockParam[] {
     if (typeof content === "string") {
       return content;

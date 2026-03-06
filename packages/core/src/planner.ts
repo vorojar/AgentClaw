@@ -95,6 +95,38 @@ function buildSteps(items: unknown[]): PlanStep[] {
   });
 }
 
+/**
+ * Remap index-based dependsOn references to actual step IDs,
+ * then return a fallback single-step plan if parsing failed.
+ */
+function remapStepsOrFallback(
+  parsed: unknown[] | null,
+  fallbackDescription: string,
+): PlanStep[] {
+  if (parsed && parsed.length > 0) {
+    const rawSteps = buildSteps(parsed);
+    return rawSteps.map((step, _i, allSteps) => ({
+      ...step,
+      dependsOn: step.dependsOn
+        .map((dep) => {
+          const idx = typeof dep === "number" ? dep : Number(dep);
+          return Number.isFinite(idx) && idx >= 0 && idx < allSteps.length
+            ? allSteps[idx].id
+            : dep;
+        })
+        .filter((id): id is string => typeof id === "string"),
+    }));
+  }
+  return [
+    {
+      id: generateId(),
+      description: fallbackDescription,
+      status: "pending" as PlanStatus,
+      dependsOn: [],
+    },
+  ];
+}
+
 const PLAN_PROMPT = `You are a task planner. Break the following goal into a list of concrete, executable steps.
 
 Return ONLY a JSON array. Each element must be an object with these fields:
@@ -144,35 +176,7 @@ export class SimplePlanner implements Planner {
 
     const rawText = extractText(response.message);
     const parsed = extractJsonArray(rawText);
-
-    let steps: PlanStep[];
-
-    if (parsed && parsed.length > 0) {
-      const rawSteps = buildSteps(parsed);
-
-      // The LLM returns dependsOn as indices — remap to actual step IDs
-      steps = rawSteps.map((step, _i, allSteps) => ({
-        ...step,
-        dependsOn: step.dependsOn
-          .map((dep) => {
-            const idx = typeof dep === "number" ? dep : Number(dep);
-            return Number.isFinite(idx) && idx >= 0 && idx < allSteps.length
-              ? allSteps[idx].id
-              : dep; // keep as-is if already an id string
-          })
-          .filter((id): id is string => typeof id === "string"),
-      }));
-    } else {
-      // Fallback: create a single-step plan from the raw text
-      steps = [
-        {
-          id: generateId(),
-          description: rawText || goal,
-          status: "pending" as PlanStatus,
-          dependsOn: [],
-        },
-      ];
-    }
+    const steps = remapStepsOrFallback(parsed, rawText || goal);
 
     const plan: Plan = {
       id: generateId(),
@@ -301,33 +305,7 @@ export class SimplePlanner implements Planner {
 
     const rawText = extractText(response.message);
     const parsed = extractJsonArray(rawText);
-
-    let newSteps: PlanStep[];
-
-    if (parsed && parsed.length > 0) {
-      const rawSteps = buildSteps(parsed);
-      // Remap index-based dependsOn to IDs (same logic as createPlan)
-      newSteps = rawSteps.map((step, _i, allSteps) => ({
-        ...step,
-        dependsOn: step.dependsOn
-          .map((dep) => {
-            const idx = typeof dep === "number" ? dep : Number(dep);
-            return Number.isFinite(idx) && idx >= 0 && idx < allSteps.length
-              ? allSteps[idx].id
-              : dep;
-          })
-          .filter((id): id is string => typeof id === "string"),
-      }));
-    } else {
-      newSteps = [
-        {
-          id: generateId(),
-          description: rawText || plan.goal,
-          status: "pending" as PlanStatus,
-          dependsOn: [],
-        },
-      ];
-    }
+    const newSteps = remapStepsOrFallback(parsed, rawText || plan.goal);
 
     // Replace pending/active steps with the new ones, keep completed/failed
     const keptSteps = plan.steps.filter(

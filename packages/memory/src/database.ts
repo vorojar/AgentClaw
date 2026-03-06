@@ -133,37 +133,14 @@ export function initDatabase(dbPath: string): Database.Database {
   db.exec(SCHEMA_SQL);
 
   // Migrations: add columns to existing tables
-  const turnCols = db.prepare("PRAGMA table_info(turns)").all() as Array<{
-    name: string;
-  }>;
-  if (!turnCols.some((c) => c.name === "trace_id")) {
-    db.exec("ALTER TABLE turns ADD COLUMN trace_id TEXT");
-  }
-  if (!turnCols.some((c) => c.name === "duration_ms")) {
-    db.exec("ALTER TABLE turns ADD COLUMN duration_ms INTEGER");
-  }
-  if (!turnCols.some((c) => c.name === "tool_call_count")) {
-    db.exec("ALTER TABLE turns ADD COLUMN tool_call_count INTEGER");
-  }
-
-  const sessionCols = db.prepare("PRAGMA table_info(sessions)").all() as Array<{
-    name: string;
-  }>;
-  if (!sessionCols.some((c) => c.name === "title")) {
-    db.exec("ALTER TABLE sessions ADD COLUMN title TEXT");
-  }
+  addColumnIfMissing(db, "turns", "trace_id", "TEXT");
+  addColumnIfMissing(db, "turns", "duration_ms", "INTEGER");
+  addColumnIfMissing(db, "turns", "tool_call_count", "INTEGER");
+  addColumnIfMissing(db, "sessions", "title", "TEXT");
 
   // Migration: populate FTS5 index from existing memories (one-time sync)
-  const ftsCount = (
-    db.prepare("SELECT COUNT(*) AS cnt FROM memories_fts").get() as {
-      cnt: number;
-    }
-  ).cnt;
-  const memCount = (
-    db.prepare("SELECT COUNT(*) AS cnt FROM memories").get() as {
-      cnt: number;
-    }
-  ).cnt;
+  const ftsCount = countRows(db, "memories_fts");
+  const memCount = countRows(db, "memories");
   if (ftsCount === 0 && memCount > 0) {
     db.exec(
       "INSERT INTO memories_fts (id, content) SELECT id, content FROM memories",
@@ -171,4 +148,26 @@ export function initDatabase(dbPath: string): Database.Database {
   }
 
   return db;
+}
+
+/** Count rows in a table */
+function countRows(db: Database.Database, table: string): number {
+  return (
+    db.prepare(`SELECT COUNT(*) AS cnt FROM ${table}`).get() as { cnt: number }
+  ).cnt;
+}
+
+/** Add a column to a table if it doesn't already exist */
+function addColumnIfMissing(
+  db: Database.Database,
+  table: string,
+  column: string,
+  type: string,
+): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+    name: string;
+  }>;
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }

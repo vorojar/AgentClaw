@@ -112,12 +112,7 @@ export class MCPClient {
   async disconnect(): Promise<void> {
     if (!this._connected) return;
 
-    // Reject all pending requests
-    for (const [id, pending] of this.pending) {
-      clearTimeout(pending.timer);
-      pending.reject(new Error("Client disconnected"));
-      this.pending.delete(id);
-    }
+    this.rejectAllPending(new Error("Client disconnected"));
 
     if (this.config.transport === "stdio") {
       this.disconnectStdio();
@@ -195,29 +190,22 @@ export class MCPClient {
     this.process.on("exit", (code, signal) => {
       if (this._connected) {
         this._connected = false;
-        // Reject all pending requests
-        const reason = new Error(
-          `MCP server "${this.config.name}" exited unexpectedly (code=${code}, signal=${signal})`,
+        this.rejectAllPending(
+          new Error(
+            `MCP server "${this.config.name}" exited unexpectedly (code=${code}, signal=${signal})`,
+          ),
         );
-        for (const [id, pending] of this.pending) {
-          clearTimeout(pending.timer);
-          pending.reject(reason);
-          this.pending.delete(id);
-        }
       }
     });
 
     this.process.on("error", (err) => {
       if (this._connected) {
         this._connected = false;
-        const reason = new Error(
-          `MCP server "${this.config.name}" process error: ${err.message}`,
+        this.rejectAllPending(
+          new Error(
+            `MCP server "${this.config.name}" process error: ${err.message}`,
+          ),
         );
-        for (const [id, pending] of this.pending) {
-          clearTimeout(pending.timer);
-          pending.reject(reason);
-          this.pending.delete(id);
-        }
       }
     });
 
@@ -503,6 +491,15 @@ export class MCPClient {
   // ================================================================
   // Utilities
   // ================================================================
+
+  /** Reject all pending requests with the given reason and clear the map. */
+  private rejectAllPending(reason: Error): void {
+    for (const [id, pending] of this.pending) {
+      clearTimeout(pending.timer);
+      pending.reject(reason);
+      this.pending.delete(id);
+    }
+  }
 
   private ensureConnected(): void {
     if (!this._connected) {

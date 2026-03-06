@@ -68,77 +68,70 @@ function collectProviders(): {
   providerName: string;
   model?: string;
 } {
-  const providers: LLMProvider[] = [];
   const defaultModel = process.env.DEFAULT_MODEL;
-  let primaryName = "local";
-  let primaryModel: string | undefined;
+
+  // Provider candidates in priority order: first configured wins the default model
+  const candidates: Array<{
+    name: string;
+    create: (isFirst: boolean) => LLMProvider;
+  }> = [];
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey) {
-    const isFirst = providers.length === 0;
-    providers.push(
-      new ClaudeProvider({
-        apiKey: anthropicKey,
-        defaultModel: isFirst ? defaultModel : undefined,
-      }),
-    );
-    if (isFirst) {
-      primaryName = "claude";
-      primaryModel = defaultModel;
-    }
+    candidates.push({
+      name: "claude",
+      create: (isFirst) =>
+        new ClaudeProvider({
+          apiKey: anthropicKey,
+          defaultModel: isFirst ? defaultModel : undefined,
+        }),
+    });
   }
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
-    const isFirst = providers.length === 0;
     const baseURL = process.env.OPENAI_BASE_URL;
-    providers.push(
-      new OpenAICompatibleProvider({
-        apiKey: openaiKey,
-        baseURL,
-        defaultModel: isFirst ? defaultModel : undefined,
-        providerName: "openai",
-      }),
-    );
-    if (isFirst) {
-      primaryName = "openai";
-      primaryModel = defaultModel;
-    }
+    candidates.push({
+      name: "openai",
+      create: (isFirst) =>
+        new OpenAICompatibleProvider({
+          apiKey: openaiKey,
+          baseURL,
+          defaultModel: isFirst ? defaultModel : undefined,
+          providerName: "openai",
+        }),
+    });
   }
 
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
-    const isFirst = providers.length === 0;
-    providers.push(
-      new GeminiProvider({
-        apiKey: geminiKey,
-        defaultModel: isFirst ? defaultModel : undefined,
-      }),
-    );
-    if (isFirst) {
-      primaryName = "gemini";
-      primaryModel = defaultModel;
-    }
+    candidates.push({
+      name: "gemini",
+      create: (isFirst) =>
+        new GeminiProvider({
+          apiKey: geminiKey,
+          defaultModel: isFirst ? defaultModel : undefined,
+        }),
+    });
   }
 
   // Fallback: local Ollama when no cloud key is set
-  if (providers.length === 0) {
+  if (candidates.length === 0) {
     const baseURL =
       process.env.OLLAMA_BASE_URL ||
       process.env.LLM_BASE_URL ||
       "http://localhost:11434/v1";
     const model = process.env.OLLAMA_MODEL || defaultModel || "llama3";
-    providers.push(
-      new OpenAICompatibleProvider({
-        apiKey: "ollama",
-        baseURL,
-        defaultModel: model,
-        providerName: "local",
-      }),
-    );
-    primaryModel = model;
+    const localProvider = new OpenAICompatibleProvider({
+      apiKey: "ollama",
+      baseURL,
+      defaultModel: model,
+      providerName: "local",
+    });
+    return { provider: localProvider, providerName: "local", model };
   }
 
+  const providers = candidates.map((c, i) => c.create(i === 0));
   const provider =
     providers.length > 1 ? new FailoverProvider(providers) : providers[0];
 
@@ -148,96 +141,70 @@ function collectProviders(): {
     );
   }
 
-  return { provider, providerName: primaryName, model: primaryModel };
+  return { provider, providerName: candidates[0].name, model: defaultModel };
+}
+
+/**
+ * Create an optional provider from environment variables.
+ * Used for vision and fast providers which share the same configuration pattern.
+ * Returns null if the API key env var is not set.
+ */
+function createOptionalProvider(
+  envPrefix: string,
+  fallbackName: string,
+): { provider: LLMProvider; type: string; model?: string } | null {
+  const apiKey = process.env[`${envPrefix}_API_KEY`];
+  if (!apiKey) return null;
+
+  const baseURL = process.env[`${envPrefix}_BASE_URL`];
+  const model = process.env[`${envPrefix}_MODEL`];
+  const type = process.env[`${envPrefix}_PROVIDER`] || "openai";
+
+  let provider: LLMProvider;
+  if (type === "claude") {
+    provider = new ClaudeProvider({ apiKey, defaultModel: model });
+  } else if (type === "gemini") {
+    provider = new GeminiProvider({ apiKey, defaultModel: model });
+  } else {
+    provider = new OpenAICompatibleProvider({
+      apiKey,
+      baseURL,
+      defaultModel: model,
+      providerName: fallbackName,
+    });
+  }
+
+  console.log(
+    `[bootstrap] ${envPrefix.charAt(0) + envPrefix.slice(1).toLowerCase()} provider: ${type}, model: ${model ?? "default"}`,
+  );
+  return { provider, type, model };
 }
 
 export async function bootstrap(): Promise<AppContext> {
   // Database setup
   const databasePath = process.env.DB_PATH || "./data/agentclaw.db";
-  try {
-    mkdirSync(dirname(databasePath), { recursive: true });
-  } catch {
-    // directory may already exist
-  }
+  mkdirSync(dirname(databasePath), { recursive: true });
   const db = initDatabase(databasePath);
 
   // Provider (with automatic failover when multiple API keys are configured)
   const { provider, providerName, model } = collectProviders();
 
   // Vision provider (optional, for multimodal image support)
-  let visionProvider: LLMProvider | undefined;
-  let visionProviderName: string | undefined;
-  let visionModelName: string | undefined;
-  const visionApiKey = process.env.VISION_API_KEY;
-  if (visionApiKey) {
-    const visionBaseURL = process.env.VISION_BASE_URL;
-    const visionModel = process.env.VISION_MODEL;
-    const visionProviderType = process.env.VISION_PROVIDER || "openai";
-
-    if (visionProviderType === "claude") {
-      visionProvider = new ClaudeProvider({
-        apiKey: visionApiKey,
-        defaultModel: visionModel,
-      });
-    } else if (visionProviderType === "gemini") {
-      visionProvider = new GeminiProvider({
-        apiKey: visionApiKey,
-        defaultModel: visionModel,
-      });
-    } else {
-      visionProvider = new OpenAICompatibleProvider({
-        apiKey: visionApiKey,
-        baseURL: visionBaseURL,
-        defaultModel: visionModel,
-        providerName: "vision",
-      });
-    }
-
-    visionProviderName = visionProviderType;
-    visionModelName = visionModel;
-    console.log(
-      `[bootstrap] Vision provider: ${visionProviderType}, model: ${visionModel ?? "default"}`,
-    );
-  } else {
+  const visionResult = createOptionalProvider("VISION", "vision");
+  const visionProvider = visionResult?.provider;
+  const visionProviderName = visionResult?.type;
+  const visionModelName = visionResult?.model;
+  if (!visionResult) {
     console.log(
       "[bootstrap] No VISION_API_KEY set — vision routing disabled. Images will be sent as text descriptions.",
     );
   }
 
   // Fast provider (optional, for simple chat routing)
-  let fastProvider: LLMProvider | undefined;
-  let fastProviderName: string | undefined;
-  let fastModelName: string | undefined;
-  const fastApiKey = process.env.FAST_API_KEY;
-  if (fastApiKey) {
-    const fastBaseURL = process.env.FAST_BASE_URL;
-    const fastModel = process.env.FAST_MODEL;
-    const fastProviderType = process.env.FAST_PROVIDER || "openai";
-
-    if (fastProviderType === "claude") {
-      fastProvider = new ClaudeProvider({
-        apiKey: fastApiKey,
-        defaultModel: fastModel,
-      });
-    } else if (fastProviderType === "gemini") {
-      fastProvider = new GeminiProvider({
-        apiKey: fastApiKey,
-        defaultModel: fastModel,
-      });
-    } else {
-      fastProvider = new OpenAICompatibleProvider({
-        apiKey: fastApiKey,
-        baseURL: fastBaseURL,
-        defaultModel: fastModel,
-        providerName: "fast",
-      });
-    }
-    fastProviderName = fastProviderType;
-    fastModelName = fastModel;
-    console.log(
-      `[bootstrap] Fast provider: ${fastProviderType}, model: ${fastModel ?? "default"}`,
-    );
-  }
+  const fastResult = createOptionalProvider("FAST", "fast");
+  const fastProvider = fastResult?.provider;
+  const fastProviderName = fastResult?.type;
+  const fastModelName = fastResult?.model;
 
   // Tool registry
   const toolRegistry = new ToolRegistryImpl();
@@ -311,11 +278,7 @@ export async function bootstrap(): Promise<AppContext> {
   const osName =
     os === "win32" ? "Windows" : os === "darwin" ? "macOS" : "Linux";
   const tempDir = resolve(process.cwd(), "data", "tmp");
-  try {
-    mkdirSync(tempDir, { recursive: true });
-  } catch {
-    // may already exist
-  }
+  mkdirSync(tempDir, { recursive: true });
 
   // Detect available CLI tools
   const cliTools = [
@@ -369,10 +332,9 @@ export async function bootstrap(): Promise<AppContext> {
   let healthResults: HealthCheckResult[] = [];
   try {
     healthResults = await runHealthChecks();
-    const ok = healthResults.filter((r) => r.ok).length;
-    const fail = healthResults.filter((r) => !r.ok).length;
+    const failCount = healthResults.filter((r) => !r.ok).length;
     console.log(
-      `[bootstrap] Health check: ${ok} ok, ${fail} failed (${healthResults.length} total)`,
+      `[bootstrap] Health check: ${healthResults.length - failCount} ok, ${failCount} failed (${healthResults.length} total)`,
     );
   } catch (err) {
     console.error(
@@ -469,10 +431,7 @@ export async function bootstrap(): Promise<AppContext> {
   };
 
   // 保存上次健康状态，用于检测变化
-  let lastHealthMap = new Map<string, boolean>();
-  for (const r of healthResults) {
-    lastHealthMap.set(r.name, r.ok);
-  }
+  let lastHealthMap = new Map(healthResults.map((r) => [r.name, r.ok]));
 
   // 构建基准系统提示词（不含 health 部分），用于后续刷新
   const baseSystemPrompt = defaultSystemPrompt.replace(
@@ -496,19 +455,12 @@ export async function bootstrap(): Promise<AppContext> {
     orchestrator.updateSystemPrompt(newPrompt);
 
     // 只广播新增故障（ok→fail），恢复（fail→ok）静默更新提示词即可
-    const changed: HealthCheckResult[] = [];
-    for (const r of results) {
-      const prev = lastHealthMap.get(r.name);
-      if (prev !== undefined && prev !== r.ok && !r.ok) {
-        changed.push(r);
-      }
-    }
+    const changed = results.filter(
+      (r) => !r.ok && lastHealthMap.get(r.name) === true,
+    );
 
     // 更新缓存
-    lastHealthMap = new Map<string, boolean>();
-    for (const r of results) {
-      lastHealthMap.set(r.name, r.ok);
-    }
+    lastHealthMap = new Map(results.map((r) => [r.name, r.ok]));
 
     return changed;
   };

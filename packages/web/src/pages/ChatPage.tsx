@@ -41,6 +41,7 @@ import {
   IconSkills,
 } from "../components/Icons";
 import { exportAsMarkdown } from "../utils/export";
+import { formatDuration, formatTimeOnly } from "../utils/format";
 import {
   notifyIfHidden,
   requestNotificationPermission,
@@ -81,16 +82,6 @@ interface DisplayMessage {
 let msgCounter = 0;
 function nextKey(): string {
   return `msg-${++msgCounter}-${Date.now()}`;
-}
-
-function formatTime(iso?: string): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return "";
-  }
 }
 
 function chatMessageToDisplay(m: ChatMessage): DisplayMessage {
@@ -226,8 +217,7 @@ function formatUsageStats(msg: DisplayMessage): string | null {
     parts.push(
       `${total.toLocaleString()} tokens (${msg.tokensIn ?? 0}\u2191 ${msg.tokensOut ?? 0}\u2193)`,
     );
-  if (msg.durationMs != null)
-    parts.push(`${(msg.durationMs / 1000).toFixed(1)}s`);
+  if (msg.durationMs != null) parts.push(formatDuration(msg.durationMs));
   if (msg.toolCallCount) parts.push(`${msg.toolCallCount} tools`);
   return parts.length > 0 ? parts.join(" \u00B7 ") : null;
 }
@@ -348,32 +338,40 @@ function HtmlPreviewOverlay({
           <span>Loading preview...</span>
         </div>
       )}
-      {needsDevServer ? (
-        <>
+      {(() => {
+        if (needsDevServer) {
+          return (
+            <>
+              <iframe
+                src="http://localhost:5173"
+                {...iframeProp}
+                title="Vite dev server preview"
+              />
+              <div className="html-overlay-hint">
+                If blank, run:{" "}
+                <code>
+                  cd{" "}
+                  {href
+                    .replace(/^\/files\//, "data/tmp/")
+                    .replace(/\/[^/]+$/, "")}{" "}
+                  && npm run dev
+                </code>
+              </div>
+            </>
+          );
+        }
+        const isOfficeDoc = /\.(pptx|docx)$/i.test(filename);
+        return (
           <iframe
-            src="http://localhost:5173"
+            src={href}
+            sandbox={
+              isOfficeDoc ? undefined : "allow-scripts allow-same-origin"
+            }
             {...iframeProp}
-            title="Vite dev server preview"
+            title={isOfficeDoc ? "Document preview" : "HTML preview"}
           />
-          <div className="html-overlay-hint">
-            If blank, run:{" "}
-            <code>
-              cd{" "}
-              {href.replace(/^\/files\//, "data/tmp/").replace(/\/[^/]+$/, "")}{" "}
-              && npm run dev
-            </code>
-          </div>
-        </>
-      ) : /\.(pptx|docx)$/i.test(filename) ? (
-        <iframe src={href} {...iframeProp} title="PDF preview" />
-      ) : (
-        <iframe
-          src={href}
-          sandbox="allow-scripts allow-same-origin"
-          {...iframeProp}
-          title="HTML preview"
-        />
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -404,7 +402,15 @@ const mdComponents = {
     children,
     ...props
   }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
-    if (href && /\.(mp4|mkv|webm|mov|avi)$/i.test(href)) {
+    if (!href) {
+      return (
+        <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+          {children}
+        </a>
+      );
+    }
+    // Video files
+    if (/\.(mp4|mkv|webm|mov|avi)$/i.test(href)) {
       return (
         <video
           src={href}
@@ -414,7 +420,8 @@ const mdComponents = {
         />
       );
     }
-    if (href && /\.(mp3|wav|ogg|flac|m4a)$/i.test(href)) {
+    // Audio files
+    if (/\.(mp3|wav|ogg|flac|m4a)$/i.test(href)) {
       return (
         <audio
           src={href}
@@ -424,36 +431,24 @@ const mdComponents = {
         />
       );
     }
-    if (href && /\.html?$/i.test(href) && href.startsWith("/files/")) {
+    // Previewable files served from /files/
+    if (href.startsWith("/files/")) {
       const filename = decodeURIComponent(href.split("/").pop() || "");
-      return <HtmlPreviewCard href={href} filename={filename} />;
-    }
-    if (href && /\.md$/i.test(href) && href.startsWith("/files/")) {
-      const filename = decodeURIComponent(href.split("/").pop() || "");
-      // Route through /preview/ for server-side markdown rendering
-      const previewHref = href.replace(/^\/files\//, "/preview/");
-      return (
-        <HtmlPreviewCard
-          href={previewHref}
-          filename={filename}
-          downloadHref={href}
-        />
-      );
-    }
-    if (
-      href &&
-      /\.(docx|pptx|xlsx|xls|csv)$/i.test(href) &&
-      href.startsWith("/files/")
-    ) {
-      const filename = decodeURIComponent(href.split("/").pop() || "");
-      const previewHref = href.replace(/^\/files\//, "/preview/");
-      return (
-        <HtmlPreviewCard
-          href={previewHref}
-          filename={filename}
-          downloadHref={href}
-        />
-      );
+      // HTML files: preview directly
+      if (/\.html?$/i.test(href)) {
+        return <HtmlPreviewCard href={href} filename={filename} />;
+      }
+      // Markdown / Office documents: route through /preview/ for server rendering
+      if (/\.(md|docx|pptx|xlsx|xls|csv)$/i.test(href)) {
+        const previewHref = href.replace(/^\/files\//, "/preview/");
+        return (
+          <HtmlPreviewCard
+            href={previewHref}
+            filename={filename}
+            downloadHref={href}
+          />
+        );
+      }
     }
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
@@ -584,14 +579,12 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
     <div className="tool-call-card">
       <div className="tool-call-header" onClick={handleToggle}>
         <span className="tool-call-icon">
-          {entry.toolResult !== undefined ? (
-            entry.isError ? (
-              <IconXCircle size={14} />
-            ) : (
-              <IconCheck size={14} />
-            )
-          ) : (
+          {entry.toolResult === undefined ? (
             <IconClock size={14} />
+          ) : entry.isError ? (
+            <IconXCircle size={14} />
+          ) : (
+            <IconCheck size={14} />
           )}
         </span>
         <span className="tool-call-name" title={label}>
@@ -599,9 +592,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
         </span>
         {entry.durationMs !== undefined && (
           <span className="tool-call-duration">
-            {entry.durationMs < 1000
-              ? `${entry.durationMs}ms`
-              : `${(entry.durationMs / 1000).toFixed(1)}s`}
+            {formatDuration(entry.durationMs)}
           </span>
         )}
         <span
@@ -654,6 +645,44 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── PendingFilesList ─────────────────────────────── */
+
+interface PendingFilesListProps {
+  files: Array<{ file: File; preview?: string }>;
+  onRemove: (index: number) => void;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+function PendingFilesList({
+  files,
+  onRemove,
+  className,
+  style,
+}: PendingFilesListProps) {
+  if (files.length === 0) return null;
+  return (
+    <div className={className ?? "pending-files"} style={style}>
+      {files.map((pf, i) => (
+        <div key={i} className="pending-file-item">
+          {pf.preview ? (
+            <img
+              src={pf.preview}
+              alt={pf.file.name}
+              className="pending-file-preview"
+            />
+          ) : (
+            <span className="pending-file-name">{pf.file.name}</span>
+          )}
+          <button className="pending-file-remove" onClick={() => onRemove(i)}>
+            <IconX size={10} />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1385,35 +1414,29 @@ export function ChatPage() {
     [],
   );
 
-  // Close header menu on outside click
+  // Close header menu and skill menu on outside click
   useEffect(() => {
-    if (!headerMenuOpen) return;
+    if (!headerMenuOpen && !skillMenuOpen) return;
     const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
       if (
+        headerMenuOpen &&
         headerMenuRef.current &&
-        !headerMenuRef.current.contains(e.target as Node)
+        !headerMenuRef.current.contains(target)
       ) {
         setHeaderMenuOpen(false);
       }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [headerMenuOpen]);
-
-  // Close skill menu on outside click
-  useEffect(() => {
-    if (!skillMenuOpen) return;
-    const handler = (e: MouseEvent) => {
       if (
+        skillMenuOpen &&
         skillMenuRef.current &&
-        !skillMenuRef.current.contains(e.target as Node)
+        !skillMenuRef.current.contains(target)
       ) {
         setSkillMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [skillMenuOpen]);
+  }, [headerMenuOpen, skillMenuOpen]);
 
   const handleExport = useCallback(() => {
     const activeSession = sessions.find((s) => s.id === activeSessionId);
@@ -1448,6 +1471,13 @@ export function ChatPage() {
   }, [connectWs]);
 
   /* Render */
+  function getInputPlaceholder(): string {
+    if (pendingPrompt) return pendingPrompt;
+    if (isListening) return "Listening...";
+    if (isSending) return "Waiting for response...";
+    return "Reply to AgentClaw...";
+  }
+
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const isNewChat = messages.length === 0 && !loadingHistory;
   const canSend =
@@ -1677,34 +1707,11 @@ export function ChatPage() {
                   </div>
                 </div>
               </div>
-              {pendingFiles.length > 0 && (
-                <div
-                  className="pending-files"
-                  style={{ marginTop: 8, padding: 0 }}
-                >
-                  {pendingFiles.map((pf, i) => (
-                    <div key={i} className="pending-file-item">
-                      {pf.preview ? (
-                        <img
-                          src={pf.preview}
-                          alt={pf.file.name}
-                          className="pending-file-preview"
-                        />
-                      ) : (
-                        <span className="pending-file-name">
-                          {pf.file.name}
-                        </span>
-                      )}
-                      <button
-                        className="pending-file-remove"
-                        onClick={() => removePendingFile(i)}
-                      >
-                        <IconX size={10} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <PendingFilesList
+                files={pendingFiles}
+                onRemove={removePendingFile}
+                style={{ marginTop: 8, padding: 0 }}
+              />
             </div>
             <div className="chat-welcome-skills">
               {[
@@ -1837,13 +1844,16 @@ export function ChatPage() {
                                 {(m.createdAt ||
                                   (m.role === "assistant" && !m.streaming)) && (
                                   <div className="message-meta">
-                                    {formatTime(m.createdAt)}
-                                    {m.role === "assistant" &&
-                                    formatUsageStats(m)
-                                      ? ` \u00b7 ${formatUsageStats(m)}`
-                                      : m.model
-                                        ? ` \u00b7 ${m.model}`
-                                        : ""}
+                                    {formatTimeOnly(m.createdAt)}
+                                    {(() => {
+                                      const usage =
+                                        m.role === "assistant"
+                                          ? formatUsageStats(m)
+                                          : null;
+                                      if (usage) return ` \u00b7 ${usage}`;
+                                      if (m.model) return ` \u00b7 ${m.model}`;
+                                      return "";
+                                    })()}
                                   </div>
                                 )}
                                 {m.role === "user" && !isSending && (
@@ -1898,28 +1908,8 @@ export function ChatPage() {
         />
 
         {/* Pending file previews (only in chat mode, welcome has its own) */}
-        {!isNewChat && pendingFiles.length > 0 && (
-          <div className="pending-files">
-            {pendingFiles.map((pf, i) => (
-              <div key={i} className="pending-file-item">
-                {pf.preview ? (
-                  <img
-                    src={pf.preview}
-                    alt={pf.file.name}
-                    className="pending-file-preview"
-                  />
-                ) : (
-                  <span className="pending-file-name">{pf.file.name}</span>
-                )}
-                <button
-                  className="pending-file-remove"
-                  onClick={() => removePendingFile(i)}
-                >
-                  <IconX size={10} />
-                </button>
-              </div>
-            ))}
-          </div>
+        {!isNewChat && (
+          <PendingFilesList files={pendingFiles} onRemove={removePendingFile} />
         )}
 
         {/* Input Area — hidden on welcome screen */}
@@ -1931,15 +1921,7 @@ export function ChatPage() {
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder={
-                  pendingPrompt
-                    ? pendingPrompt
-                    : isListening
-                      ? "Listening..."
-                      : isSending
-                        ? "Waiting for response..."
-                        : "Reply to AgentClaw..."
-                }
+                placeholder={getInputPlaceholder()}
                 disabled={isSending && !pendingPrompt}
                 rows={2}
               />

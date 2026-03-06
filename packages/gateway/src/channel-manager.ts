@@ -67,11 +67,7 @@ export class ChannelManager {
   }
 
   list(): ChannelInfo[] {
-    const result: ChannelInfo[] = [];
-    for (const ch of this.channels.values()) {
-      result.push(this.toInfo(ch));
-    }
-    return result;
+    return Array.from(this.channels.values(), (ch) => this.toInfo(ch));
   }
 
   getInfo(id: string): ChannelInfo | undefined {

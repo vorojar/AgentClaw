@@ -89,17 +89,7 @@ export class SmartRouter implements LLMRouter {
 
   // -- Cost tracking --------------------------------------------------------
   /** Key: `${providerName}::${modelId}` */
-  private usageMap = new Map<
-    string,
-    {
-      provider: string;
-      model: string;
-      totalInputTokens: number;
-      totalOutputTokens: number;
-      totalCost: number;
-      callCount: number;
-    }
-  >();
+  private usageMap = new Map<string, ModelUsageStats>();
 
   // =========================================================================
   // Provider registration
@@ -263,17 +253,11 @@ export class SmartRouter implements LLMRouter {
       if (result) return result;
     }
 
-    // 2. Explicit tier route
-    const tierRoute = this.tierRoutes.get(taskType);
-    if (tierRoute) {
-      const result = this.resolveByTier(tierRoute.tier);
-      if (result) return result;
-    }
-
-    // 3. Default tier mapping
-    const defaultTier = DEFAULT_TIER_FOR_TASK[taskType];
-    if (defaultTier) {
-      const result = this.resolveByTier(defaultTier);
+    // 2. Tier-based routing (explicit tier route, then default mapping)
+    const tier =
+      this.tierRoutes.get(taskType)?.tier ?? DEFAULT_TIER_FOR_TASK[taskType];
+    if (tier) {
+      const result = this.resolveByTier(tier);
       if (result) return result;
     }
 
@@ -349,21 +333,15 @@ export class SmartRouter implements LLMRouter {
   private resolveRouteRule(
     rule: RouteRule,
   ): { provider: LLMProvider; model: string } | null {
-    // Try primary
-    if (!this.downProviders.has(rule.providerId)) {
-      const provider = this.providers.get(rule.providerId);
-      if (provider) {
-        return { provider, model: rule.modelId };
-      }
-    }
+    const entries: FallbackEntry[] = [
+      { providerId: rule.providerId, modelId: rule.modelId },
+      ...rule.fallbacks,
+    ];
 
-    // Walk fallback chain
-    for (const fb of rule.fallbacks) {
-      if (this.downProviders.has(fb.providerId)) continue;
-      const provider = this.providers.get(fb.providerId);
-      if (provider) {
-        return { provider, model: fb.modelId };
-      }
+    for (const entry of entries) {
+      if (this.downProviders.has(entry.providerId)) continue;
+      const provider = this.providers.get(entry.providerId);
+      if (provider) return { provider, model: entry.modelId };
     }
 
     return null;

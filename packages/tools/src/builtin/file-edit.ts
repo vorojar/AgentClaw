@@ -1,20 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { isAbsolute, resolve } from "node:path";
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
-
-function resolveFilePath(filePath: string, workDir?: string): string {
-  if (
-    process.platform === "win32" &&
-    (filePath.startsWith("/tmp/") || filePath === "/tmp")
-  ) {
-    return filePath.replace(/^\/tmp/, tmpdir());
-  }
-  if (workDir && !isAbsolute(filePath)) {
-    return resolve(workDir, filePath);
-  }
-  return filePath;
-}
+import { resolveFilePath } from "./resolve-path.js";
 
 export const fileEditTool: Tool = {
   name: "file_edit",

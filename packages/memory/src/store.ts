@@ -629,7 +629,9 @@ export class SQLiteMemoryStore implements MemoryStore {
 
   async listSessions(): Promise<Array<Omit<SessionData, "metadata">>> {
     const rows = this.db
-      .prepare("SELECT * FROM sessions ORDER BY last_active_at DESC")
+      .prepare(
+        "SELECT * FROM sessions WHERE metadata IS NULL OR json_extract(metadata, '$.hidden') IS NOT 1 ORDER BY last_active_at DESC",
+      )
       .all() as SessionRow[];
     return rows.map(rowToSession);
   }

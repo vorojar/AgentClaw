@@ -75,7 +75,9 @@ export function errorMessage(err: unknown): string {
  */
 export async function collectResponse(
   orchestrator: {
-    createSession: () => Promise<{ id: string }>;
+    createSession: (
+      metadata?: Record<string, unknown>,
+    ) => Promise<{ id: string }>;
     processInputStream: (
       id: string,
       input: string,
@@ -83,7 +85,8 @@ export async function collectResponse(
   },
   prompt: string,
 ): Promise<string> {
-  const session = await orchestrator.createSession();
+  // Background sessions are always hidden from the sidebar
+  const session = await orchestrator.createSession({ hidden: true });
   let text = "";
   for await (const event of orchestrator.processInputStream(
     session.id,

@@ -96,7 +96,7 @@ export type Session = SessionData;
 /** Orchestrator — top-level coordinator */
 export interface Orchestrator {
   /** Start a new session */
-  createSession(): Promise<Session>;
+  createSession(metadata?: Record<string, unknown>): Promise<Session>;
 
   /** Get or resume an existing session */
   getSession(sessionId: string): Promise<Session | undefined>;

@@ -67,12 +67,13 @@ export class SimpleOrchestrator implements Orchestrator {
     this.tmpDir = options.tmpDir;
   }
 
-  async createSession(): Promise<Session> {
+  async createSession(metadata?: Record<string, unknown>): Promise<Session> {
     const session: Session = {
       id: generateId(),
       conversationId: generateId(),
       createdAt: new Date(),
       lastActiveAt: new Date(),
+      metadata,
     };
     this.sessions.set(session.id, session);
     await this.memoryStore.saveSession(session);

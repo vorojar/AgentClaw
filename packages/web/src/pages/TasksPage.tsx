@@ -9,9 +9,11 @@ import {
   listScheduledTasks,
   createScheduledTask,
   deleteScheduledTask,
+  getTaskRunnerStats,
   type GoogleTask,
   type GoogleCalendarEvent,
   type ScheduledTaskInfo,
+  type TaskRunnerStats,
 } from "../api/client";
 import "./TasksPage.css";
 
@@ -235,6 +237,9 @@ export function TasksPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addingSaving, setAddingSaving] = useState(false);
 
+  // Task Runner stats
+  const [runnerStats, setRunnerStats] = useState<TaskRunnerStats | null>(null);
+
   // Automations (scheduled tasks)
   const [automations, setAutomations] = useState<ScheduledTaskInfo[]>([]);
   const [showAutoForm, setShowAutoForm] = useState(false);
@@ -250,14 +255,16 @@ export function TasksPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tasksRes, eventsRes, autoRes] = await Promise.all([
+      const [tasksRes, eventsRes, autoRes, statsRes] = await Promise.all([
         listGoogleTasks("@default", showCompleted),
         listGoogleCalendarEvents(14),
         listScheduledTasks(),
+        getTaskRunnerStats().catch(() => null),
       ]);
       setTasks(tasksRes.items);
       setEvents(eventsRes.items);
       setAutomations(autoRes);
+      setRunnerStats(statsRes);
       setError(null);
     } catch (err) {
       setError(
@@ -653,6 +660,39 @@ export function TasksPage() {
             </div>
           )}
         </div>
+
+        {/* ── Task Runner Stats ─────────────────────── */}
+        {runnerStats && (runnerStats.traces > 0 || runnerStats.sessions > 0) && (
+          <div className="tasks-section" style={{ marginTop: 32 }}>
+            <div className="tasks-section-header">
+              <h2 className="tasks-section-title">Task Runner (Today)</h2>
+            </div>
+            <div className="runner-stats">
+              <div className="runner-stat">
+                <span className="runner-stat-value">{runnerStats.sessions}</span>
+                <span className="runner-stat-label">Runs</span>
+              </div>
+              <div className="runner-stat">
+                <span className="runner-stat-value">{runnerStats.traces}</span>
+                <span className="runner-stat-label">LLM Calls</span>
+              </div>
+              <div className="runner-stat">
+                <span className="runner-stat-value">
+                  {(runnerStats.tokensIn + runnerStats.tokensOut).toLocaleString()}
+                </span>
+                <span className="runner-stat-label">Tokens</span>
+              </div>
+              <div className="runner-stat">
+                <span className="runner-stat-value">
+                  {runnerStats.durationMs < 1000
+                    ? `${runnerStats.durationMs}ms`
+                    : `${(runnerStats.durationMs / 1000).toFixed(1)}s`}
+                </span>
+                <span className="runner-stat-label">Duration</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

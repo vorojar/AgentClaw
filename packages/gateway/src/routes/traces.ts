@@ -52,6 +52,21 @@ export function registerTraceRoutes(
     }
   });
 
+  // Background task runner stats (today)
+  app.get<{
+    Querystring: { since?: string };
+  }>("/api/task-runner-stats", async (req, reply) => {
+    try {
+      const since =
+        req.query.since || new Date().toISOString().slice(0, 10) + "T00:00:00";
+      const stats = await ctx.memoryStore.getBackgroundStats(since);
+      return reply.send(stats);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(500).send({ error: message });
+    }
+  });
+
   // Get trace by ID
   app.get<{
     Params: { id: string };

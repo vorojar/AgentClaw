@@ -584,6 +584,21 @@ export async function uploadFile(
   return res.json();
 }
 
+// ── Task Runner Stats ────────────────────────────────
+
+export interface TaskRunnerStats {
+  sessions: number;
+  traces: number;
+  tokensIn: number;
+  tokensOut: number;
+  durationMs: number;
+}
+
+export function getTaskRunnerStats(since?: string): Promise<TaskRunnerStats> {
+  const params = since ? `?since=${encodeURIComponent(since)}` : "";
+  return request(`/task-runner-stats${params}`);
+}
+
 // ── WebSocket ───────────────────────────────────────
 
 export interface WSMessage {

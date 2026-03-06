@@ -137,6 +137,15 @@ export interface MemoryStore {
     limit?: number,
     offset?: number,
   ): Promise<{ items: Trace[]; total: number }>;
+
+  /** Aggregate stats for background (hidden) sessions */
+  getBackgroundStats(since: string): Promise<{
+    sessions: number;
+    traces: number;
+    tokensIn: number;
+    tokensOut: number;
+    durationMs: number;
+  }>;
 }
 
 /** A single conversation turn stored in memory */

@@ -942,6 +942,43 @@ export class SQLiteMemoryStore implements MemoryStore {
     return { items: rows.map(rowToTrace), total };
   }
 
+  /** Aggregate stats for background (hidden) sessions within a date range */
+  async getBackgroundStats(since: string): Promise<{
+    sessions: number;
+    traces: number;
+    tokensIn: number;
+    tokensOut: number;
+    durationMs: number;
+  }> {
+    const row = this.db
+      .prepare(
+        `SELECT
+           COUNT(DISTINCT t.id) AS traces,
+           COUNT(DISTINCT s.id) AS sessions,
+           COALESCE(SUM(t.tokens_in), 0) AS tokens_in,
+           COALESCE(SUM(t.tokens_out), 0) AS tokens_out,
+           COALESCE(SUM(t.duration_ms), 0) AS duration_ms
+         FROM traces t
+         JOIN sessions s ON s.conversation_id = t.conversation_id
+         WHERE json_extract(s.metadata, '$.hidden') = 1
+           AND t.created_at >= ?`,
+      )
+      .get(since) as {
+      traces: number;
+      sessions: number;
+      tokens_in: number;
+      tokens_out: number;
+      duration_ms: number;
+    };
+    return {
+      sessions: row.sessions,
+      traces: row.traces,
+      tokensIn: row.tokens_in,
+      tokensOut: row.tokens_out,
+      durationMs: row.duration_ms,
+    };
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────
 
   private ensureConversation(conversationId: string): void {

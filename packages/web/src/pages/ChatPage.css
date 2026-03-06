@@ -728,7 +728,7 @@
 }
 
 .chat-input-box:focus-within {
-  border-color: var(--border);
+  border-color: var(--accent);
 }
 
 .chat-input-box textarea {
@@ -748,6 +748,8 @@
 .chat-input-box textarea:focus {
   outline: none;
   border: none;
+  box-shadow: none;
+  border-color: transparent;
 }
 
 .chat-input-box textarea::placeholder {

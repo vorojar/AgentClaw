@@ -1,20 +1,82 @@
 import type { FastifyInstance } from "fastify";
 import type { AgentProfile } from "@agentclaw/types";
 import type { AppContext } from "../bootstrap.js";
-import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  existsSync,
+} from "fs";
 import { resolve } from "path";
 
 const AGENTS_DIR = resolve(process.cwd(), "data", "agents");
 
-/** Sync an agent profile to data/agents/<id>/ (config.json + SOUL.md) */
-function syncAgentToFs(agent: AgentProfile): void {
+/** Read a single agent from data/agents/<id>/ */
+function readAgentFromFs(id: string): AgentProfile | null {
+  const dir = resolve(AGENTS_DIR, id);
+  if (!existsSync(dir)) return null;
+
+  const soulPath = resolve(dir, "SOUL.md");
+  const configPath = resolve(dir, "config.json");
+
+  const soul = existsSync(soulPath)
+    ? readFileSync(soulPath, "utf-8").trim()
+    : "";
+
+  let config: Partial<AgentProfile> = {};
+  if (existsSync(configPath)) {
+    try {
+      config = JSON.parse(readFileSync(configPath, "utf-8"));
+    } catch {}
+  }
+
+  return {
+    id,
+    name: config.name ?? id,
+    description: config.description ?? "",
+    avatar: config.avatar ?? "",
+    soul,
+    model: config.model,
+    tools: config.tools,
+    maxIterations: config.maxIterations,
+    temperature: config.temperature,
+    sortOrder: config.sortOrder ?? 0,
+  };
+}
+
+/** Read all agents from data/agents/ */
+export function loadAgentsFromFs(): AgentProfile[] {
+  mkdirSync(AGENTS_DIR, { recursive: true });
+  const entries = readdirSync(AGENTS_DIR, { withFileTypes: true });
+  const agents: AgentProfile[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const agent = readAgentFromFs(entry.name);
+    if (agent) agents.push(agent);
+  }
+
+  // default first, then by sortOrder, then alphabetical
+  agents.sort((a, b) => {
+    if (a.id === "default") return -1;
+    if (b.id === "default") return 1;
+    if (a.sortOrder !== b.sortOrder)
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    return a.name.localeCompare(b.name);
+  });
+
+  return agents;
+}
+
+/** Write an agent profile to data/agents/<id>/ (config.json + SOUL.md) */
+function writeAgentToFs(agent: AgentProfile): void {
   const dir = resolve(AGENTS_DIR, agent.id);
   mkdirSync(dir, { recursive: true });
 
-  // SOUL.md
   writeFileSync(resolve(dir, "SOUL.md"), agent.soul || "", "utf-8");
 
-  // config.json (everything except id and soul)
   const config: Record<string, unknown> = {
     name: agent.name,
     description: agent.description,
@@ -25,6 +87,7 @@ function syncAgentToFs(agent: AgentProfile): void {
   if (agent.temperature !== undefined) config.temperature = agent.temperature;
   if (agent.maxIterations !== undefined)
     config.maxIterations = agent.maxIterations;
+  if (agent.sortOrder) config.sortOrder = agent.sortOrder;
   writeFileSync(
     resolve(dir, "config.json"),
     JSON.stringify(config, null, 2) + "\n",
@@ -44,26 +107,13 @@ export function registerAgentRoutes(
   app: FastifyInstance,
   ctx: AppContext,
 ): void {
-  // GET /api/agents - List available agent profiles
+  // GET /api/agents
   app.get("/api/agents", async (_req, reply) => {
-    const agents = ctx.memoryStore.listAgents();
-    return reply.send(
-      agents.map((a) => ({
-        id: a.id,
-        name: a.name,
-        description: a.description,
-        avatar: a.avatar,
-        soul: a.soul,
-        model: a.model,
-        tools: a.tools,
-        maxIterations: a.maxIterations,
-        temperature: a.temperature,
-        sortOrder: a.sortOrder,
-      })),
-    );
+    const agents = loadAgentsFromFs();
+    return reply.send(agents);
   });
 
-  // POST /api/agents - Create agent
+  // POST /api/agents
   app.post<{
     Body: {
       id: string;
@@ -82,14 +132,12 @@ export function registerAgentRoutes(
     if (!body?.id || !body?.name) {
       return reply.status(400).send({ error: "id and name are required" });
     }
-    // Check duplicate
-    const existing = ctx.memoryStore.getAgent(body.id);
-    if (existing) {
+    if (readAgentFromFs(body.id)) {
       return reply
         .status(409)
         .send({ error: `Agent "${body.id}" already exists` });
     }
-    const agent = {
+    const agent: AgentProfile = {
       id: body.id,
       name: body.name,
       description: body.description ?? "",
@@ -101,13 +149,12 @@ export function registerAgentRoutes(
       temperature: body.temperature,
       sortOrder: body.sortOrder ?? 0,
     };
-    ctx.memoryStore.saveAgent(agent);
-    syncAgentToFs(agent);
+    writeAgentToFs(agent);
     ctx.refreshAgents();
     return reply.status(201).send(agent);
   });
 
-  // PUT /api/agents/:id - Update agent
+  // PUT /api/agents/:id
   app.put<{
     Params: { id: string };
     Body: {
@@ -122,22 +169,21 @@ export function registerAgentRoutes(
       sortOrder?: number;
     };
   }>("/api/agents/:id", async (req, reply) => {
-    const existing = ctx.memoryStore.getAgent(req.params.id);
+    const existing = readAgentFromFs(req.params.id);
     if (!existing) {
       return reply.status(404).send({ error: "Agent not found" });
     }
-    const updated = {
+    const updated: AgentProfile = {
       ...existing,
       ...req.body,
-      id: req.params.id, // id cannot change
+      id: req.params.id,
     };
-    ctx.memoryStore.saveAgent(updated);
-    syncAgentToFs(updated);
+    writeAgentToFs(updated);
     ctx.refreshAgents();
     return reply.send(updated);
   });
 
-  // DELETE /api/agents/:id - Delete agent
+  // DELETE /api/agents/:id
   app.delete<{ Params: { id: string } }>(
     "/api/agents/:id",
     async (req, reply) => {
@@ -146,7 +192,6 @@ export function registerAgentRoutes(
           .status(400)
           .send({ error: "Cannot delete the default agent" });
       }
-      ctx.memoryStore.deleteAgent(req.params.id);
       removeAgentFromFs(req.params.id);
       ctx.refreshAgents();
       return reply.status(204).send();

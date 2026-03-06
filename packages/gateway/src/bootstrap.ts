@@ -22,7 +22,7 @@ import type {
   MemoryStore,
   AgentProfile,
 } from "@agentclaw/types";
-import { mkdirSync, readFileSync, existsSync, readdirSync } from "fs";
+import { mkdirSync, readFileSync, existsSync } from "fs";
 import { execFileSync } from "child_process";
 import { dirname, resolve } from "path";
 import { platform, arch, homedir, tmpdir } from "os";
@@ -182,72 +182,6 @@ function createOptionalProvider(
     `[bootstrap] ${envPrefix.charAt(0) + envPrefix.slice(1).toLowerCase()} provider: ${type}, model: ${model ?? "default"}`,
   );
   return { provider, type, model };
-}
-
-/**
- * Seed agents from data/agents/ directory into DB (one-time migration).
- * Then always read from DB.
- */
-function seedAgentsFromFilesystem(
-  memoryStore: SQLiteMemoryStore,
-  defaultSoul: string,
-): void {
-  // Only seed if DB has no agents yet
-  const existing = memoryStore.listAgents();
-  if (existing.length > 0) return;
-
-  const agentsDir = resolve(process.cwd(), "data", "agents");
-  let order = 0;
-
-  // Seed "default" first
-  memoryStore.saveAgent({
-    id: "default",
-    name: "AgentClaw",
-    description: "Default assistant",
-    avatar: "",
-    soul: defaultSoul,
-    sortOrder: order++,
-  });
-
-  if (existsSync(agentsDir)) {
-    const entries = readdirSync(agentsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const dir = resolve(agentsDir, entry.name);
-      const soulPath = resolve(dir, "SOUL.md");
-      const configPath = resolve(dir, "config.json");
-
-      const soul = existsSync(soulPath)
-        ? readFileSync(soulPath, "utf-8").trim()
-        : defaultSoul;
-
-      let config: Partial<AgentProfile> = {};
-      if (existsSync(configPath)) {
-        try {
-          config = JSON.parse(readFileSync(configPath, "utf-8"));
-        } catch {
-          console.warn(
-            `[bootstrap] Invalid config.json in agents/${entry.name}`,
-          );
-        }
-      }
-
-      memoryStore.saveAgent({
-        id: entry.name,
-        name: config.name ?? entry.name,
-        description: config.description ?? "",
-        avatar: config.avatar ?? "",
-        soul,
-        model: config.model || undefined,
-        tools: config.tools ?? undefined,
-        maxIterations: config.maxIterations,
-        temperature: config.temperature,
-        sortOrder: order++,
-      });
-    }
-  }
-
-  console.log("[bootstrap] Seeded agents from filesystem to DB");
 }
 
 export async function bootstrap(): Promise<AppContext> {
@@ -475,9 +409,9 @@ export async function bootstrap(): Promise<AppContext> {
   );
   await skillRegistry.loadFromDirectory(skillsDir);
 
-  // Seed agents from filesystem (one-time), then load from DB
-  seedAgentsFromFilesystem(memoryStore, soul);
-  let agents = memoryStore.listAgents();
+  // Load agents from filesystem (data/agents/)
+  const { loadAgentsFromFs } = await import("./routes/agents.js");
+  let agents = loadAgentsFromFs();
   console.log(
     `[bootstrap] Agents loaded: ${agents.map((a) => a.id).join(", ")}`,
   );
@@ -543,7 +477,7 @@ export async function bootstrap(): Promise<AppContext> {
   };
 
   const refreshAgents = () => {
-    agents = memoryStore.listAgents();
+    agents = loadAgentsFromFs();
     orchestrator.updateAgents(agents);
   };
 

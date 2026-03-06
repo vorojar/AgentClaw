@@ -8,7 +8,6 @@ import type {
   SessionData,
   ConversationTurn,
   Trace,
-  AgentProfile,
 } from "@agentclaw/types";
 import { cosineSimilarity, SimpleBagOfWords } from "./embeddings.js";
 
@@ -661,46 +660,6 @@ export class SQLiteMemoryStore implements MemoryStore {
       this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
     });
     deleteInTransaction(id);
-  }
-
-  // ─── Agents ─────────────────────────────────────────────────
-
-  listAgents(): AgentProfile[] {
-    const rows = this.db
-      .prepare("SELECT * FROM agents ORDER BY sort_order, created_at")
-      .all() as AgentRow[];
-    return rows.map(rowToAgent);
-  }
-
-  getAgent(id: string): AgentProfile | null {
-    const row = this.db.prepare("SELECT * FROM agents WHERE id = ?").get(id) as
-      | AgentRow
-      | undefined;
-    return row ? rowToAgent(row) : null;
-  }
-
-  saveAgent(agent: AgentProfile): void {
-    this.db
-      .prepare(
-        `INSERT OR REPLACE INTO agents (id, name, description, avatar, soul, model, tools, max_iterations, temperature, sort_order, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-      )
-      .run(
-        agent.id,
-        agent.name,
-        agent.description ?? "",
-        agent.avatar ?? "",
-        agent.soul ?? "",
-        agent.model || null,
-        agent.tools ? JSON.stringify(agent.tools) : null,
-        agent.maxIterations ?? null,
-        agent.temperature ?? null,
-        agent.sortOrder ?? 0,
-      );
-  }
-
-  deleteAgent(id: string): void {
-    this.db.prepare("DELETE FROM agents WHERE id = ?").run(id);
   }
 
   // ─── Tasks (human & bot shared) ──────────────────────
@@ -1363,36 +1322,6 @@ function rowToTrace(row: TraceRow): Trace {
     durationMs: row.duration_ms,
     error: row.error ?? undefined,
     createdAt: new Date(row.created_at),
-  };
-}
-
-interface AgentRow {
-  id: string;
-  name: string;
-  description: string;
-  avatar: string;
-  soul: string;
-  model: string | null;
-  tools: string | null;
-  max_iterations: number | null;
-  temperature: number | null;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-function rowToAgent(row: AgentRow): AgentProfile {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    avatar: row.avatar,
-    soul: row.soul,
-    model: row.model ?? undefined,
-    tools: row.tools ? (JSON.parse(row.tools) as string[]) : undefined,
-    maxIterations: row.max_iterations ?? undefined,
-    temperature: row.temperature ?? undefined,
-    sortOrder: row.sort_order,
   };
 }
 

@@ -5,8 +5,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Runtime data
-data/
+# Runtime data (keep data/agents/ tracked as config)
+data/*
+!data/agents/
 skills-bak/
 
 # Environment

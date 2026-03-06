@@ -1,0 +1,6 @@
+{
+  "name": "Researcher",
+  "description": "Research specialist, good at searching and analyzing information",
+  "avatar": "🔬",
+  "tools": ["web_search", "web_fetch", "file_read", "file_write", "glob", "grep", "shell", "send_file"]
+}

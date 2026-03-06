@@ -728,7 +728,7 @@
 }
 
 .chat-input-box:focus-within {
-  border-color: var(--accent);
+  border-color: var(--border);
 }
 
 .chat-input-box textarea {

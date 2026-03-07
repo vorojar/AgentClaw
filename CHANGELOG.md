@@ -1,5 +1,13 @@
 # 更新日志
 
+## [1.0.1] - 2026-03-07
+
+### 新增
+- **单元测试覆盖**：为 memory、tools、gateway 三个包新增测试套件，共 152 个用例全部通过
+  - `memory`：SQLite 存储层（会话/轮次/记忆 CRUD、FTS5 全文搜索、向量嵌入、Token 日志、Traces）— 63 个用例
+  - `tools`：工具注册表、Shell 沙箱验证（18 条安全规则）、createBuiltinTools 分层加载 — 54 个用例
+  - `gateway`：HTTP 认证中间件（Bearer/query 参数/免认证路由/SPA 路由）、路由集成测试（Session/Config/Agents）— 35 个用例
+
 ## [1.0.0] - 2026-03-06
 
 ### 新增

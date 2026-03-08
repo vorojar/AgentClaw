@@ -34,6 +34,8 @@ export { startFeishuBot } from "./feishu.js";
 export type { FeishuConfig } from "./feishu.js";
 export { startQQBot } from "./qqbot.js";
 export type { QQBotConfig } from "./qqbot.js";
+export { startWeComBot, registerWeComRoutes } from "./wecom.js";
+export type { WeComConfig } from "./wecom.js";
 export { HeartbeatManager } from "./heartbeat.js";
 export type { HeartbeatConfig, HeartbeatDeps } from "./heartbeat.js";
 export { runHealthChecks, formatHealthResults } from "./health-check.js";

@@ -4,6 +4,7 @@ import { startWhatsAppBot } from "./whatsapp.js";
 import { startDingTalkBot } from "./dingtalk.js";
 import { startFeishuBot } from "./feishu.js";
 import { startQQBot } from "./qqbot.js";
+import { startWeComBot } from "./wecom.js";
 
 export interface ChannelInfo {
   id: string;
@@ -64,6 +65,13 @@ export class ChannelManager {
       name: "QQ Bot",
       configured:
         !!process.env.QQ_BOT_APP_ID && !!process.env.QQ_BOT_APP_SECRET,
+    });
+    this.channels.set("wecom", {
+      id: "wecom",
+      name: "WeCom",
+      configured:
+        !!process.env.WECOM_BOT_TOKEN &&
+        !!process.env.WECOM_BOT_ENCODING_AES_KEY,
     });
     this.channels.set("websocket", {
       id: "websocket",
@@ -229,6 +237,14 @@ export class ChannelManager {
             appId: process.env.QQ_BOT_APP_ID!,
             appSecret: process.env.QQ_BOT_APP_SECRET!,
             sandbox: process.env.QQ_BOT_SANDBOX === "true",
+          },
+          this.ctx,
+        );
+      case "wecom":
+        return startWeComBot(
+          {
+            token: process.env.WECOM_BOT_TOKEN!,
+            encodingAesKey: process.env.WECOM_BOT_ENCODING_AES_KEY!,
           },
           this.ctx,
         );

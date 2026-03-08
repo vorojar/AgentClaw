@@ -72,7 +72,7 @@ Provider.stream() → LLMStreamChunk (text/tool_use_start/tool_use_delta/done)
     ↓
 AgentLoop.runStream() → AgentEvent (thinking/response_chunk/tool_call/tool_result/response_complete)
     ↓
-Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / QQ / 钉钉 / 飞书)
+Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / QQ / 钉钉 / 飞书 / 企业微信)
 ```
 
 - AgentLoop 驱动"LLM 调用 → 工具执行 → 结果反馈"循环，最多 `maxIterations` 轮
@@ -90,6 +90,7 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / QQ / 钉钉 
 | QQ Bot | `qqbot.ts` | `QQ_BOT_APP_ID` + `QQ_BOT_APP_SECRET` |
 | 钉钉 | `dingtalk.ts` | `DINGTALK_APP_KEY` + `DINGTALK_APP_SECRET` |
 | 飞书 | `feishu.ts` | `FEISHU_APP_ID` + `FEISHU_APP_SECRET` |
+| 企业微信 | `wecom.ts` | `WECOM_BOT_TOKEN` + `WECOM_BOT_ENCODING_AES_KEY` |
 | WebSocket | `ws.ts` | 始终启用 |
 
 新增渠道：创建 `packages/gateway/src/<channel>.ts`，实现 `start<Channel>Bot()` 返回 `{ stop, broadcast }`，在 `channel-manager.ts` 中注册，在 `index.ts` 中 re-export。

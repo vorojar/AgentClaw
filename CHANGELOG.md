@@ -6,6 +6,7 @@
 - **social_post 工具**（tools/social-post）：一次调用发帖到 X/小红书/即刻，LLM 零参与浏览器操作。内置字数限制校验、自动截图确认、auto_close 标签页。支持 `images` 参数附加图片（URL 或本地路径，最多 4 张），自动下载转 base64 + ClipboardEvent 粘贴
 - **浏览器扩展 click 文本选择器**：`cmdClick` 新增 `text=xxx` 格式，按可见文本匹配元素并点击（TreeWalker 精确匹配 + innerText fallback）
 - **paste_image 智能去重**：paste → drop → file_input 三级 fallback，仅在前一级未被处理时才尝试下一级，避免重复上传
+- **QQ Bot 富媒体消息支持**（gateway/qqbot）：处理 attachments 中的语音、图片、视频、文件，自动下载保存到 `data/uploads/`，兼容 QQ 省略协议的 URL（`//` 前缀）
 - **浏览器登录态持久化**：Chrome 扩展新增 `save_login` action（`chrome.cookies` + `localStorage` 导出）→ gateway 自动保存为 Playwright storageState 格式 → `browser_cdp` 工具 `load_state` 加载。完整链路：主浏览器登录 → 保存 → Playwright 无人值守复用登录态
 - **TaskManager 任务管理引擎**（core/task-manager）：完整的任务生命周期管理 — 自然语言捕获（LLM 解析）→ 分诊（agent/human）→ 队列调度 → 自动执行 → 决策请求 → 每日简报，60s 扫描器自动处理 queued 任务
 - **Automations API**（gateway/routes/tasks）：新增 `/api/tasks/scheduled` GET/POST/DELETE 路由，对接 TaskScheduler 实现定时任务的增删查

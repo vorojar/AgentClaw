@@ -249,7 +249,51 @@ export async function startQQBot(
     msg: QQMessageEvent,
   ): Promise<void> {
     // Strip @bot mention from content
-    const text = (msg.content || "").replace(/<@!\d+>/g, "").trim();
+    let text = (msg.content || "").replace(/<@!\d+>/g, "").trim();
+
+    // Handle attachments (voice, image, video, file)
+    if (msg.attachments?.length) {
+      const { mkdirSync, writeFileSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const uploadsDir = join(process.cwd(), "data", "uploads");
+      mkdirSync(uploadsDir, { recursive: true });
+
+      for (const att of msg.attachments) {
+        const ct = (att.content_type || "").toLowerCase();
+        let fileType = "文件";
+        let ext = "bin";
+        if (ct.includes("voice") || ct.includes("audio") || ct.includes("silk")) {
+          fileType = "语音";
+          ext = ct.includes("silk") ? "silk" : "ogg";
+        } else if (ct.includes("image")) {
+          fileType = "图片";
+          ext = ct.split("/")[1]?.split(";")[0] || "png";
+        } else if (ct.includes("video")) {
+          fileType = "视频";
+          ext = ct.split("/")[1]?.split(";")[0] || "mp4";
+        }
+
+        const fileName = att.filename || `${fileType}_${Date.now()}.${ext}`;
+        // QQ attachment URLs may omit protocol
+        const url = att.url.startsWith("//") ? `https:${att.url}` : att.url;
+
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const buf = Buffer.from(await res.arrayBuffer());
+            const filePath = join(uploadsDir, fileName).replace(/\\/g, "/");
+            writeFileSync(filePath, buf);
+            text += `\n[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath}]`;
+          } else {
+            text += `\n[用户发送了${fileType}, 下载失败: HTTP ${res.status}]`;
+          }
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          text += `\n[用户发送了${fileType}, 下载失败: ${errMsg}]`;
+        }
+      }
+    }
+
     if (!text) return;
 
     // Track for passive reply

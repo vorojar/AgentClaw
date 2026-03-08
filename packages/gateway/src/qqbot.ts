@@ -262,7 +262,8 @@ export async function startQQBot(
         const ct = (att.content_type || "").toLowerCase();
         let fileType = "文件";
         let ext = "bin";
-        if (ct.includes("voice") || ct.includes("audio") || ct.includes("silk")) {
+        const isVoice = ct.includes("voice") || ct.includes("audio") || ct.includes("silk");
+        if (isVoice) {
           fileType = "语音";
           ext = ct.includes("silk") ? "silk" : "ogg";
         } else if (ct.includes("image")) {
@@ -283,7 +284,27 @@ export async function startQQBot(
             const buf = Buffer.from(await res.arrayBuffer());
             const filePath = join(uploadsDir, fileName).replace(/\\/g, "/");
             writeFileSync(filePath, buf);
-            text += `\n[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath}]`;
+
+            // Auto-transcribe voice messages at framework level
+            if (isVoice) {
+              try {
+                const { execSync } = await import("node:child_process");
+                const scriptPath = join(process.cwd(), "scripts", "transcribe.py").replace(/\\/g, "/");
+                const result = execSync(`python "${scriptPath}" "${filePath}"`, {
+                  encoding: "utf-8",
+                  timeout: 30000,
+                }).trim();
+                if (result) {
+                  text += `\n[用户语音转文字: ${result}]`;
+                } else {
+                  text += `\n[用户发送了语音，转录为空]`;
+                }
+              } catch {
+                text += `\n[用户发送了语音: ${fileName}, 已保存到 ${filePath}]`;
+              }
+            } else {
+              text += `\n[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath}]`;
+            }
           } else {
             text += `\n[用户发送了${fileType}, 下载失败: HTTP ${res.status}]`;
           }

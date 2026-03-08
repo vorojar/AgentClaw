@@ -286,10 +286,20 @@ export interface AppConfigInfo {
   model?: string;
   databasePath: string;
   skillsDir: string;
+  dailyBriefTime?: string;
 }
 
 export function getConfig(): Promise<AppConfigInfo> {
   return request("/config");
+}
+
+export function updateConfig(
+  updates: Partial<Pick<AppConfigInfo, "model" | "dailyBriefTime">>,
+): Promise<AppConfigInfo> {
+  return request("/config", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
 }
 
 // ── Token Logs ─────────────────────────────────────

@@ -10,6 +10,8 @@ import {
   createScheduledTask,
   deleteScheduledTask,
   getTaskRunnerStats,
+  getConfig,
+  updateConfig,
   type TaskItem,
   type TaskStats,
   type TaskRunnerStats,
@@ -485,6 +487,7 @@ function TodayView({
 
       <QuickAdd onAdd={onAdd} />
       <TaskRunnerStatsCard />
+      <DailyBriefSettings />
     </div>
   );
 }
@@ -532,6 +535,61 @@ function TaskRunnerStatsCard() {
           <div className="tm-runner-stat-value">{durationSec}s</div>
           <div className="tm-runner-stat-label">Duration</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Daily Brief Settings ─────────────────────────────
+
+function DailyBriefSettings() {
+  const [time, setTime] = useState("09:00");
+  const [saved, setSaved] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    getConfig()
+      .then((cfg) => {
+        if (cfg.dailyBriefTime) setTime(cfg.dailyBriefTime);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  if (!loaded) return null;
+
+  const handleSave = async () => {
+    try {
+      await updateConfig({ dailyBriefTime: time });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <div className="tm-runner-section">
+      <h3 className="tasks-section-title">Daily Brief</h3>
+      <div className="tm-brief-settings">
+        <label className="tm-brief-label">
+          Send time
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => {
+              setTime(e.target.value);
+              setSaved(false);
+            }}
+            className="tm-brief-input"
+          />
+        </label>
+        <button className="tm-brief-save" onClick={handleSave} disabled={saved}>
+          {saved ? "Saved" : "Save"}
+        </button>
+        <span className="tm-brief-hint">
+          Daily brief is sent only when there are pending tasks.
+        </span>
       </div>
     </div>
   );

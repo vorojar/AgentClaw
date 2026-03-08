@@ -129,6 +129,13 @@ CREATE TABLE IF NOT EXISTS agents (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Key-value settings store
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- FTS5 full-text search index for hybrid memory retrieval (BM25 + vector)
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
   id UNINDEXED,

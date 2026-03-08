@@ -10,7 +10,10 @@
 ### 改进
 - **SQLite 任务表迁移**（memory/database）：自动检测旧 CHECK 约束并重建，新增 `executor`/`deadline`/`parent_id` 索引和 `metadata` 列
 - **任务状态扩展**（memory/store）：新增 `triaged`/`blocked` 状态统计，priority 排序支持 `urgent`/`normal`
-- **Tasks 页面样式优化**（web/TasksPage.css）：Tab 选中改用 box-shadow 避免浏览器默认 focus 圆角、Task Runner Stats 独立分区（顶部分割线 + 间距）、移除 QuickAdd 多余 border-top
+- **每日简报定时推送**（gateway/index）：Cron job 每天定时广播任务简报（默认 09:00），有待处理任务才发送，发送时间可在 Tasks 页面配置
+- **决策提醒机制**（gateway/heartbeat）：heartbeat tick 自动检查 waiting_decision 任务并广播提醒，不消耗 LLM token
+- **Settings KV 存储**（memory/database+store）：新增 `settings` 表和 `getSetting`/`setSetting` 方法，支持运行时配置持久化
+- **Tasks 页面样式优化**（web/TasksPage.css）：Tab 选中改用 box-shadow 避免浏览器默认 focus 圆角、Task Runner Stats 独立分区（顶部分割线 + 间距）、移除 QuickAdd 多余 border-top、Daily Brief 时间选择器
 
 ## [1.1.0] - 2026-03-08
 

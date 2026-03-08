@@ -33,11 +33,14 @@ export function registerConfigRoutes(
   // GET /api/config - Get config
   app.get("/api/config", async (_req, reply) => {
     try {
+      const dailyBriefTime =
+        (ctx.memoryStore as any).getSetting?.("daily_brief_time") || "09:00";
       return reply.send({
         provider: ctx.config.provider,
         model: ctx.config.model,
         databasePath: ctx.config.databasePath,
         skillsDir: ctx.config.skillsDir,
+        dailyBriefTime,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -45,20 +48,21 @@ export function registerConfigRoutes(
     }
   });
 
-  // PUT /api/config - Update config (only model can be changed at runtime)
+  // PUT /api/config - Update config (model + dailyBriefTime at runtime)
   app.put<{
     Body: {
       model?: string;
+      dailyBriefTime?: string;
     };
   }>(
     "/api/config",
     {
       schema: {
-        // 校验请求体：model 可选，字符串类型
         body: {
           type: "object",
           properties: {
             model: { type: "string", minLength: 1 },
+            dailyBriefTime: { type: "string", pattern: "^\\d{2}:\\d{2}$" },
           },
           additionalProperties: false,
         },
@@ -72,11 +76,25 @@ export function registerConfigRoutes(
           (ctx.orchestrator as any).setModel(updates.model);
         }
 
+        if (updates.dailyBriefTime !== undefined) {
+          (ctx.memoryStore as any).setSetting(
+            "daily_brief_time",
+            updates.dailyBriefTime,
+          );
+          // 重启 Cron job 以应用新时间
+          const restart = (ctx as unknown as Record<string, unknown>)
+            .restartDailyBrief as (() => void) | undefined;
+          if (restart) restart();
+        }
+
+        const dailyBriefTime =
+          (ctx.memoryStore as any).getSetting?.("daily_brief_time") || "09:00";
         return reply.send({
           provider: ctx.config.provider,
           model: ctx.config.model,
           databasePath: ctx.config.databasePath,
           skillsDir: ctx.config.skillsDir,
+          dailyBriefTime,
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

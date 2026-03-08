@@ -147,6 +147,42 @@ async function main(): Promise<void> {
   (ctx as unknown as Record<string, unknown>).taskManager = taskManager;
   taskManager.startScanner();
 
+  // 每日简报定时推送（默认 09:00，可通过 API 或页面设置修改）
+  let dailyBriefJob: Cron | null = null;
+
+  function startDailyBriefJob() {
+    if (dailyBriefJob) dailyBriefJob.stop();
+    const store = ctx.memoryStore as any;
+    const time = store.getSetting?.("daily_brief_time") || "09:00";
+    const [hour, minute] = time.split(":").map(Number);
+    const cronExpr = `${minute} ${hour} * * *`;
+
+    dailyBriefJob = new Cron(cronExpr, async () => {
+      try {
+        const stats = ctx.memoryStore.getTaskStats();
+        const totalPending = stats.total_pending ?? 0;
+
+        // 没有待处理任务则不发送
+        if (totalPending === 0) {
+          console.log("[daily-brief] No pending tasks, skipping");
+          return;
+        }
+
+        const brief = await taskManager.generateDailyBrief();
+        console.log("[daily-brief] Broadcasting daily brief");
+        await broadcastAll(brief);
+      } catch (err) {
+        console.error("[daily-brief] Failed:", errorMessage(err));
+      }
+    });
+    console.log(`[daily-brief] Scheduled at ${time} (cron: ${cronExpr})`);
+  }
+
+  startDailyBriefJob();
+  // 暴露刷新函数供 API 路由在时间变更后调用
+  (ctx as unknown as Record<string, unknown>).restartDailyBrief =
+    startDailyBriefJob;
+
   // 优雅关停
   const shutdown = async (signal: string) => {
     console.log(`[shutdown] Received ${signal}, closing gracefully...`);
@@ -160,6 +196,7 @@ async function main(): Promise<void> {
 
     heartbeat.stop();
     healthJob.stop();
+    if (dailyBriefJob) dailyBriefJob.stop();
     taskManager.stopScanner();
     channelManager.stopAll();
     ctx.scheduler.stopAll();

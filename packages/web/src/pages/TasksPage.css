@@ -1004,3 +1004,55 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── Daily Brief Settings ─────────────────────── */
+
+.tm-brief-settings {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.tm-brief-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.tm-brief-input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+}
+
+.tm-brief-input:focus {
+  border-color: var(--accent);
+}
+
+.tm-brief-save {
+  padding: 6px 16px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tm-brief-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tm-brief-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}

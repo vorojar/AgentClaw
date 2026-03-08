@@ -171,19 +171,32 @@ CREATE INDEX idx_tasks_due ON tasks(due_date);
 
 ### 验收标准
 
-- [ ] GET /api/todos 返回任务列表，支持 status/priority 筛选
-- [ ] POST /api/todos 创建任务成功
-- [ ] PATCH /api/todos/:id 更新任务状态/字段
-- [ ] DELETE /api/todos/:id 删除任务
-- [ ] GET /api/calendar 返回合并后的日历数据
-- [ ] Kanban 视图正确渲染三列，任务按状态分组
-- [ ] 可以在 Kanban 中添加新任务
-- [ ] 可以修改任务状态（拖拽或点击）
-- [ ] Calendar 视图正确渲染月历
-- [ ] Calendar 中显示任务和定时任务
-- [ ] 视图切换（Kanban ↔ Calendar）流畅无闪烁
-- [ ] 页面样式与现有页面风格一致
-- [ ] 构建无报错
+> 注：实现中 API 路径从 `/api/todos` 改为 `/api/tasks`（统一命名），UI 从 Kanban 改为标签页视图（更适合任务生命周期管理），新增了 TaskManager 引擎、Decisions、Automations、Daily Brief 等超出原 spec 的功能。
+
+- [x] GET /api/tasks 返回任务列表，支持 status/priority/executor 筛选
+- [x] POST /api/tasks 创建任务（支持自然语言 + 结构化两种方式）
+- [x] PATCH /api/tasks/:id 更新任务状态/字段
+- [x] DELETE /api/tasks/:id 删除任务
+- [x] GET /api/calendar 返回合并后的日历数据（tasks + scheduled tasks）
+- [x] GET /api/tasks/scheduled + POST + DELETE — Automations CRUD
+- [x] GET /api/tasks/stats — 任务统计
+- [x] GET /api/tasks/brief — 每日简报
+- [x] POST /api/tasks/:id/execute — 手动触发执行
+- [x] POST /api/tasks/:id/decide — 提交决策
+- [x] 前端 5 标签页：Today / All Tasks / Calendar / Decisions / Automations
+- [x] QuickAdd 快速添加任务
+- [x] Task Runner Stats 卡片（Runs / LLM Calls / Tokens / Duration）
+- [x] Calendar 视图正确渲染月历 + 任务 + 定时任务
+- [x] Decision Queue 展示待决策任务 + 提交决策
+- [x] Automations 展示定时任务 + 添加/删除
+- [x] 页面样式与现有页面风格一致（Serene Sage 主题）
+- [x] 构建无报错
+- [x] TaskManager 引擎：捕获 → 分诊 → 队列 → 执行 → 决策 → 简报
+- [x] 60s 扫描器自动处理 queued 任务
+- [x] SQLite 任务表迁移（CHECK 约束重建 + 索引 + metadata 列 + settings 表）
+- [x] 每日简报定时推送（Cron job，默认 09:00，页面可配置，有任务才发）
+- [x] 决策提醒机制（heartbeat tick 检查 waiting_decision 任务，直接广播，不消耗 LLM token）
+- [x] Daily Brief 发送时间可在 Tasks 页面设置（GET/PUT /api/config + 前端 time picker）
 
 ---
 
@@ -331,3 +344,73 @@ Chat | Tasks | Channels | Subagents | Memory | Skills | Traces | Token Logs | Se
    - 导航栏统一更新
    - 全局样式审查
    - 集成测试
+
+---
+
+## Feature 2 完成报告（2026-03-08）
+
+### 实现范围
+
+Feature 2 在原 spec 基础上大幅扩展，从简单的 Todo CRUD 演进为完整的 AI 任务管理引擎。
+
+### 架构概览
+
+```
+用户（Web/Telegram/WS）
+    ↓ 自然语言 / 结构化
+TaskManager.captureTask() → LLM 解析 → 自动分诊（agent/human）
+    ↓ agent 任务
+  入队（queued）→ 60s 扫描器 → executeTask() → LLM 执行 → done/failed
+    ↓ 需要决策
+  waiting_decision → heartbeat 提醒 → 用户提交决策 → 重新入队或完成
+    ↓ 每日简报
+  Cron job（可配置时间）→ 有任务才广播
+```
+
+### 改动文件清单
+
+| 文件 | 改动 |
+|------|------|
+| `packages/core/src/task-manager.ts` | **新建** — TaskManager 引擎（捕获/分诊/队列/执行/决策/简报/扫描器） |
+| `packages/core/src/index.ts` | export TaskManager |
+| `packages/memory/src/database.ts` | settings 表 DDL + tasks 表迁移（CHECK 重建 + 索引 + 扩展列） |
+| `packages/memory/src/store.ts` | getSetting/setSetting + getTaskStats 扩展 + updateTask decisionOptions 修复 |
+| `packages/gateway/src/index.ts` | TaskManager 初始化 + 每日简报 Cron job + restartDailyBrief |
+| `packages/gateway/src/heartbeat.ts` | checkDecisions() — 待决策任务直接广播提醒 |
+| `packages/gateway/src/server.ts` | 传 scheduler 给 registerTaskRoutes |
+| `packages/gateway/src/routes/tasks.ts` | 完整 Tasks API + Automations（/api/tasks/scheduled） |
+| `packages/gateway/src/routes/config.ts` | dailyBriefTime 读写 + 重启 Cron |
+| `packages/web/src/api/client.ts` | updateConfig + TaskRunnerStats + ScheduledTaskInfo 接口 |
+| `packages/web/src/pages/TasksPage.tsx` | 5 标签页 + TaskRunnerStatsCard + DailyBriefSettings |
+| `packages/web/src/pages/TasksPage.css` | Tab/Runner/Brief/Automations 样式 |
+
+### 关键设计决策
+
+1. **不过 LLM 的决策提醒**：heartbeat 直接查 SQLite + 广播，零 token 消耗
+2. **不过 LLM 的每日简报**：`generateDailyBrief()` 直接拼接格式化文本，无需 LLM 润色
+3. **有任务才发简报**：`total_pending === 0` 时跳过，避免每日空消息骚扰
+4. **简报时间可配置**：settings 表 KV 存储 + PUT /api/config 热更新 Cron job
+5. **Tab 样式用 box-shadow**：避免浏览器 focus 圆角 bug
+6. **Task Runner Stats 独立分区**：顶部分割线 + 间距，视觉层次清晰
+
+### 测试验证
+
+- [x] 全量构建通过（`npm run build`，8 packages，0 errors）
+- [x] Playwright 页面快照验证：5 标签页 + Stats + Daily Brief 控件
+- [x] Playwright 控制台零错误
+- [x] API 测试：GET/PUT /api/config 返回 dailyBriefTime
+- [x] API 测试：GET /api/tasks/scheduled 返回 200
+- [x] Automations 标签页渲染正常
+
+### 与原 spec 的差异
+
+| 原 spec | 实际实现 | 原因 |
+|---------|---------|------|
+| `/api/todos` | `/api/tasks` | 统一命名，tasks 更通用 |
+| Kanban 三列视图 | 5 标签页 | 任务状态从 3 种扩展到 10 种，Kanban 不适用 |
+| 简单 CRUD | TaskManager 引擎 | 支持 AI 自动捕获、分诊、执行 |
+| 无 | Decisions 标签页 | 支持 AI 请求人类决策 |
+| 无 | Automations 标签页 | 原 Settings 页 Scheduled Tasks 迁移至此 |
+| 无 | Task Runner Stats | 展示 AI 后台执行统计 |
+| 无 | Daily Brief 定时推送 | 每日自动广播任务摘要 |
+| 无 | 决策提醒机制 | heartbeat 检查 + 广播 |

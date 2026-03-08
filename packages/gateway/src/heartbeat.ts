@@ -51,6 +51,10 @@ export class HeartbeatManager {
   }
 
   async tick(): Promise<void> {
+    // 1. 检查待决策任务，直接广播（不过 LLM，省 token）
+    await this.checkDecisions();
+
+    // 2. 定时任务 + 记忆提醒（走 LLM）
     const { shouldCall, tasks, memories } = await this.shouldCallLLM();
 
     if (!shouldCall) {
@@ -126,6 +130,26 @@ ${tasksSummary}${memoriesSummary ? "\n" + memoriesSummary : ""}`;
       await this.deps.broadcast(text);
     } catch (err) {
       console.error("[heartbeat] LLM call failed:", err);
+    }
+  }
+
+  /** 检查 waiting_decision 状态的任务，有则直接广播提醒 */
+  private async checkDecisions(): Promise<void> {
+    try {
+      const store = this.deps.memoryStore as any;
+      if (!store.listTasks) return;
+      const { items } = store.listTasks({ status: "waiting_decision" }, 10);
+      if (items.length === 0) return;
+
+      const taskList = items.map((t: any) => `  - ${t.title}`).join("\n");
+      const text = `⏳ 你有 ${items.length} 个任务等待决策：\n${taskList}\n\n请在 Tasks 页面的 Decisions 标签中处理。`;
+
+      console.log(
+        `[heartbeat] ${items.length} task(s) waiting for decision, broadcasting reminder`,
+      );
+      await this.deps.broadcast(text);
+    } catch (err) {
+      console.error("[heartbeat] Decision check failed:", err);
     }
   }
 

@@ -22,5 +22,6 @@ export default defineConfig({
     "mammoth",
     "xlsx",
     "@sentry/node",
+    "ws",
   ],
 });

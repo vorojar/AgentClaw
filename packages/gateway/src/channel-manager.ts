@@ -3,6 +3,7 @@ import { startTelegramBot } from "./telegram.js";
 import { startWhatsAppBot } from "./whatsapp.js";
 import { startDingTalkBot } from "./dingtalk.js";
 import { startFeishuBot } from "./feishu.js";
+import { startQQBot } from "./qqbot.js";
 
 export interface ChannelInfo {
   id: string;
@@ -57,6 +58,12 @@ export class ChannelManager {
       name: "Feishu",
       configured:
         !!process.env.FEISHU_APP_ID && !!process.env.FEISHU_APP_SECRET,
+    });
+    this.channels.set("qqbot", {
+      id: "qqbot",
+      name: "QQ Bot",
+      configured:
+        !!process.env.QQ_BOT_APP_ID && !!process.env.QQ_BOT_APP_SECRET,
     });
     this.channels.set("websocket", {
       id: "websocket",
@@ -213,6 +220,15 @@ export class ChannelManager {
             appId: process.env.FEISHU_APP_ID!,
             appSecret: process.env.FEISHU_APP_SECRET!,
             allowedUsers: process.env.FEISHU_ALLOWED_USERS,
+          },
+          this.ctx,
+        );
+      case "qqbot":
+        return startQQBot(
+          {
+            appId: process.env.QQ_BOT_APP_ID!,
+            appSecret: process.env.QQ_BOT_APP_SECRET!,
+            sandbox: process.env.QQ_BOT_SANDBOX === "true",
           },
           this.ctx,
         );

@@ -19,6 +19,7 @@
 - **Tasks 页面重构**（web/TasksPage）：5 个标签页（Today/All Tasks/Calendar/Decisions/Automations）、Task Runner Stats 卡片、QuickAdd 快速添加、Decision Queue 决策队列、Calendar 视图
 
 ### 改进
+- **待办查询双源合并**（system-prompt）：系统提示词强制要求查待办/事项时同时查本地任务（update_todo）和 Google 端（gws-tasks/gws-calendar），合并结果统一回复
 - **输入框图片粘贴**（web/ChatPage）：textarea 支持 Ctrl+V 粘贴图片，自动提取剪贴板中的图片文件加入待上传列表，复用已有的文件上传流程
 - **语音输入 MediaRecorder fallback**（web/ChatPage）：不支持 Web Speech API 的浏览器（手机端）自动使用 MediaRecorder 录音，录完后作为音频附件发送；显示录音时长计时器，支持 webm/mp4 格式自适应
 - **图片 vision 修复**（core/agent-loop + context-manager）：修复用户发送图片时 LLM 无法"看到"图片的 bug — 之前 DB 存储的是纯文本（丢弃 base64），导致 buildContext 重建消息时图片缺失，LLM 只能通过 OCR 工具间接识别。现在 DB 存储 ContentBlock[] JSON（image block 用 filePath 引用替代 base64，避免 DB 膨胀），turnToMessage 时从磁盘加载还原

@@ -7,6 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **必须使用中文回答所有问题**，严格执行，无例外。
 - **你写的代码，我会让Codex review**
 
+## 标准工作流（每次任务必须完整执行，不可跳步）
+
+1. **写代码** — 完成所有改动
+2. **构建验证** — `npm run build` 确认编译通过
+3. **前端验证** — 改了前端代码时，用 Playwright MCP 打开页面验证渲染和交互
+4. **提交推送** — `git commit` + `git push`，同步更新 CHANGELOG.md
+5. **压缩不是借口** — 如果上下文被压缩，回来后先检查 `git status` 和 `git diff`，确认是否有未完成的步骤
+
 ## 构建与运行
 
 ```bash

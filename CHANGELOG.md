@@ -1,5 +1,21 @@
 # 更新日志
 
+## [1.0.2] - 2026-03-08
+
+### 修复
+- **WebSocket 自动重连增强**：移除 8 次重试上限改为无限重试；添加 visibilitychange/online 事件监听，切回标签页或网络恢复时立即重连
+- **LLM 流异常捕获**（core/agent-loop）：`for await` 流式迭代添加 try-catch，网络断开时 token 统计和 trace 仍能保存
+- **上下文截断污染修复**（core/context-manager）：截断工具结果前先浅拷贝消息数组，避免直接修改原始 Message 对象导致重复截断
+- **WebSocket error 事件处理**（gateway/ws）：添加 `socket.on("error")` 防止未处理错误导致进程崩溃
+- **promptUser 超时保护**（gateway/telegram+whatsapp）：5 分钟超时自动 resolve，防止 Promise 永远挂起
+- **eventStream 资源泄漏**（gateway/ws）：客户端断开后 `aborted` 标记中止 for-await 循环，停止无意义的 LLM/工具调用
+- **taskDecisions 内存泄漏**（gateway/index）：Map 超过 1000 条时自动清空
+- **语音输入过期闭包**（web/ChatPage）：toggleVoice 改用 ref 获取最新 inputValue
+- **Object URL 泄漏**（web/ChatPage）：页面卸载时 revoke 所有预览 URL
+- **WebSocket onerror 处理**（web/client）：连接错误时强制触发 close 流程
+- **FTS5 索引事务保护**（memory/store）：主表与 FTS5 的 insert/update/delete 用 transaction 包裹
+- **向量相似度维度修复**（memory/store）：不同维度的 embedding 改为截断到最短维度而非 padding 零
+
 ## [1.0.1] - 2026-03-07
 
 ### 新增

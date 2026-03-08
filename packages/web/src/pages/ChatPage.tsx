@@ -747,6 +747,10 @@ export function ChatPage() {
   const messagesRef = useRef<DisplayMessage[]>(messages);
   const toolCallIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inputValueRef = useRef(inputValue);
+  inputValueRef.current = inputValue;
+  const pendingFilesRef = useRef(pendingFiles);
+  pendingFilesRef.current = pendingFiles;
   const pendingSendRef = useRef<string | null>(null);
   const pendingSkillRef = useRef<string | null>(null);
 
@@ -895,6 +899,14 @@ export function ChatPage() {
       wsRef.current = null;
     };
   }, [connectWs]);
+
+  useEffect(() => {
+    return () => {
+      pendingFilesRef.current.forEach((pf) => {
+        if (pf.preview) URL.revokeObjectURL(pf.preview);
+      });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Auto-reconnect on visibility change (tab switch) and network recovery */
   const wsDisconnectedRef = useRef(false);
@@ -1219,7 +1231,7 @@ export function ChatPage() {
     rec.interimResults = true;
     rec.continuous = true;
 
-    const base = inputValue;
+    const base = inputValueRef.current;
 
     rec.onresult = (e: SpeechRecognitionEvent) => {
       let finals = "";

@@ -138,6 +138,8 @@ async function main(): Promise<void> {
   // 缓存已判断过的任务 ID → true=可执行 / false=跳过
   const taskDecisions = new Map<string, boolean>();
   const taskRunner = setInterval(async () => {
+    // 防止 taskDecisions 无限增长，超过 1000 条时清空
+    if (taskDecisions.size > 1000) taskDecisions.clear();
     if (taskRunnerBusy) return;
     taskRunnerBusy = true;
     try {

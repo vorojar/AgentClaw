@@ -172,7 +172,15 @@ function createToolContext(
     promptUser: async (question: string) => {
       await botSendText(sock, jid, `❓ ${question}`);
       return new Promise<string>((resolve) => {
-        pendingPrompts.set(jid, resolve);
+        // 5 分钟超时，防止 Promise 永远挂起
+        const timer = setTimeout(() => {
+          pendingPrompts.delete(jid);
+          resolve("[用户未在 5 分钟内回答]");
+        }, 5 * 60 * 1000);
+        pendingPrompts.set(jid, (answer: string) => {
+          clearTimeout(timer);
+          resolve(answer);
+        });
       });
     },
     notifyUser: async (message: string) => {

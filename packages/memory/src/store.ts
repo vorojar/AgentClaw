@@ -76,29 +76,32 @@ export class SQLiteMemoryStore implements MemoryStore {
       embedding = await this.generateEmbedding(entry.content);
     }
 
-    this.db
-      .prepare(
-        `INSERT INTO memories (id, type, content, source_turn_id, importance, embedding, created_at, accessed_at, access_count, metadata)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      )
-      .run(
-        id,
-        entry.type,
-        entry.content,
-        entry.sourceTurnId ?? null,
-        entry.importance,
-        embedding ? Buffer.from(new Float64Array(embedding).buffer) : null,
-        now,
-        now,
-        entry.metadata ? JSON.stringify(entry.metadata) : null,
-      );
-
-    // Sync FTS5 index
-    if (this.hasFts) {
+    const insertFn = this.db.transaction(() => {
       this.db
-        .prepare("INSERT INTO memories_fts (id, content) VALUES (?, ?)")
-        .run(id, entry.content);
-    }
+        .prepare(
+          `INSERT INTO memories (id, type, content, source_turn_id, importance, embedding, created_at, accessed_at, access_count, metadata)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        )
+        .run(
+          id,
+          entry.type,
+          entry.content,
+          entry.sourceTurnId ?? null,
+          entry.importance,
+          embedding ? Buffer.from(new Float64Array(embedding).buffer) : null,
+          now,
+          now,
+          entry.metadata ? JSON.stringify(entry.metadata) : null,
+        );
+
+      // Sync FTS5 index
+      if (this.hasFts) {
+        this.db
+          .prepare("INSERT INTO memories_fts (id, content) VALUES (?, ?)")
+          .run(id, entry.content);
+      }
+    });
+    insertFn();
 
     return {
       id,
@@ -165,19 +168,13 @@ export class SQLiteMemoryStore implements MemoryStore {
       // Semantic similarity score (0-1)
       let semanticScore = 0;
       if (queryEmbedding && entry.embedding) {
-        // Pad shorter vector with zeros for cosine similarity
+        // Truncate to shortest dimension to avoid zero-padding distortion
         const a = queryEmbedding;
         const b = entry.embedding;
-        const maxLen = Math.max(a.length, b.length);
-        const aPadded =
-          a.length < maxLen
-            ? [...a, ...new Array(maxLen - a.length).fill(0)]
-            : a;
-        const bPadded =
-          b.length < maxLen
-            ? [...b, ...new Array(maxLen - b.length).fill(0)]
-            : b;
-        semanticScore = Math.max(0, cosineSimilarity(aPadded, bPadded));
+        const minLen = Math.min(a.length, b.length);
+        const aTrunc = a.length > minLen ? a.slice(0, minLen) : a;
+        const bTrunc = b.length > minLen ? b.slice(0, minLen) : b;
+        semanticScore = Math.max(0, cosineSimilarity(aTrunc, bTrunc));
       } else if (query.query) {
         // Fallback: token-overlap score (works for both CJK and Latin text)
         semanticScore = tokenOverlapScore(query.query, entry.content);
@@ -296,20 +293,23 @@ export class SQLiteMemoryStore implements MemoryStore {
       params.push(updates.metadata ? JSON.stringify(updates.metadata) : null);
     }
 
-    if (sets.length > 0) {
-      params.push(id);
-      this.db
-        .prepare(`UPDATE memories SET ${sets.join(", ")} WHERE id = ?`)
-        .run(...params);
-    }
+    const updateFn = this.db.transaction(() => {
+      if (sets.length > 0) {
+        params.push(id);
+        this.db
+          .prepare(`UPDATE memories SET ${sets.join(", ")} WHERE id = ?`)
+          .run(...params);
+      }
 
-    // Sync FTS5 index when content changes
-    if (updates.content !== undefined && this.hasFts) {
-      this.db.prepare("DELETE FROM memories_fts WHERE id = ?").run(id);
-      this.db
-        .prepare("INSERT INTO memories_fts (id, content) VALUES (?, ?)")
-        .run(id, updates.content);
-    }
+      // Sync FTS5 index when content changes
+      if (updates.content !== undefined && this.hasFts) {
+        this.db.prepare("DELETE FROM memories_fts WHERE id = ?").run(id);
+        this.db
+          .prepare("INSERT INTO memories_fts (id, content) VALUES (?, ?)")
+          .run(id, updates.content);
+      }
+    });
+    updateFn();
 
     // Fetch the updated row
     const row = this.db
@@ -320,11 +320,14 @@ export class SQLiteMemoryStore implements MemoryStore {
   }
 
   async delete(id: string): Promise<void> {
-    this.db.prepare("DELETE FROM memories WHERE id = ?").run(id);
-    // Sync FTS5 index
-    if (this.hasFts) {
-      this.db.prepare("DELETE FROM memories_fts WHERE id = ?").run(id);
-    }
+    const deleteFn = this.db.transaction(() => {
+      this.db.prepare("DELETE FROM memories WHERE id = ?").run(id);
+      // Sync FTS5 index
+      if (this.hasFts) {
+        this.db.prepare("DELETE FROM memories_fts WHERE id = ?").run(id);
+      }
+    });
+    deleteFn();
   }
 
   // ─── Usage stats ─────────────────────────────────────────────

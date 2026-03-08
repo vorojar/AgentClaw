@@ -127,6 +127,8 @@ export class SimpleContextManager implements ContextManager {
       if (historyMessages[i].role === "tool") toolResultCount++;
     }
     if (toolResultCount > TOOL_RESULT_KEEP_RECENT) {
+      // 浅拷贝数组并对需要截断的消息创建新对象，避免修改原始 Message
+      historyMessages = historyMessages.map((m) => ({ ...m }));
       let seen = 0;
       // Walk from end, skip recent ones, truncate older ones
       for (let i = historyMessages.length - 1; i >= 0; i--) {

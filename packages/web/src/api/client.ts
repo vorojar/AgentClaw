@@ -702,6 +702,7 @@ export function connectWebSocket(
     }
   };
 
+  ws.onerror = () => ws.close();
   ws.onclose = () => onClose?.();
 
   return {

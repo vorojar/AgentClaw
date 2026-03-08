@@ -66,10 +66,7 @@ async function parseUserContent(
           // 保存到 data/uploads/（与 Telegram/WhatsApp 相同的持久路径）
           const uploadsDir = join(process.cwd(), "data", "uploads");
           mkdirSync(uploadsDir, { recursive: true });
-          const uploadPath = join(uploadsDir, originalName).replace(
-            /\\/g,
-            "/",
-          );
+          const uploadPath = join(uploadsDir, originalName).replace(/\\/g, "/");
           try {
             renameSync(filePath, uploadPath);
           } catch {
@@ -80,9 +77,7 @@ async function parseUserContent(
             }
           }
           // 与 Telegram 相同的文本格式（空格非冒号，避免 agent-loop relocate）
-          fileHints.push(
-            `[用户发送了图片，已保存到 ${uploadPath}]`,
-          );
+          fileHints.push(`[用户发送了图片，已保存到 ${uploadPath}]`);
         } catch {
           /* 跳过不可读文件 */
         }
@@ -176,6 +171,10 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
     socket.on("pong", () => {
       alive = true;
       missedPongs = 0;
+    });
+    // 处理 error 事件，防止 unhandled error 导致进程崩溃
+    socket.on("error", () => {
+      wsClients.delete(socket);
     });
     socket.on("close", () => {
       clearInterval(pingTimer);
@@ -317,7 +316,12 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           toolCallCount?: number;
         } = {};
 
+        // 客户端断开后停止迭代 eventStream，避免资源浪费
+        let aborted = false;
+        socket.once("close", () => { aborted = true; });
+
         for await (const event of eventStream) {
+          if (aborted) break;
           switch (event.type) {
             case "tool_call": {
               const data = event.data as { name: string; input: unknown };

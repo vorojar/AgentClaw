@@ -316,52 +316,61 @@ export class SimpleAgentLoop implements AgentLoop {
         maxTokens: this._config.maxTokens,
       });
 
-      for await (const chunk of stream) {
-        if (this.aborted) break;
+      // 流异常捕获：网络断开/API 错误时仍需保留 token 统计和 trace
+      let streamError: Error | undefined;
+      try {
+        for await (const chunk of stream) {
+          if (this.aborted) break;
 
-        switch (chunk.type) {
-          case "text":
-            if (chunk.text) {
-              fullText += chunk.text;
-              yield this.createEvent("response_chunk", { text: chunk.text });
-            }
-            break;
-          case "tool_use_start":
-            if (chunk.toolUse) {
-              pendingToolCalls.set(toolIndex, {
-                id: chunk.toolUse.id,
-                name: chunk.toolUse.name,
-                args: chunk.toolUse.input ?? "",
-              });
-              toolIndex++;
-            }
-            break;
-          case "tool_use_delta":
-            if (chunk.toolUse) {
-              // Find the most recent pending tool call to append to
-              const lastIdx = toolIndex - 1;
-              const pending = pendingToolCalls.get(lastIdx);
-              if (pending) {
-                pending.args += chunk.toolUse.input ?? "";
+          switch (chunk.type) {
+            case "text":
+              if (chunk.text) {
+                fullText += chunk.text;
+                yield this.createEvent("response_chunk", { text: chunk.text });
               }
-            }
-            break;
-          case "done":
-            // Accumulate usage from this LLM call
-            if (chunk.usage) {
-              totalTokensIn += chunk.usage.tokensIn;
-              totalTokensOut += chunk.usage.tokensOut;
-            }
-            if (chunk.model) {
-              usedModel = chunk.model;
-            }
-            if (chunk.stopReason === "max_tokens") {
-              console.warn(
-                `[agent-loop] LLM output truncated (max_tokens reached at ${this._config.maxTokens} tokens)`,
-              );
-            }
-            break;
+              break;
+            case "tool_use_start":
+              if (chunk.toolUse) {
+                pendingToolCalls.set(toolIndex, {
+                  id: chunk.toolUse.id,
+                  name: chunk.toolUse.name,
+                  args: chunk.toolUse.input ?? "",
+                });
+                toolIndex++;
+              }
+              break;
+            case "tool_use_delta":
+              if (chunk.toolUse) {
+                // Find the most recent pending tool call to append to
+                const lastIdx = toolIndex - 1;
+                const pending = pendingToolCalls.get(lastIdx);
+                if (pending) {
+                  pending.args += chunk.toolUse.input ?? "";
+                }
+              }
+              break;
+            case "done":
+              // Accumulate usage from this LLM call
+              if (chunk.usage) {
+                totalTokensIn += chunk.usage.tokensIn;
+                totalTokensOut += chunk.usage.tokensOut;
+              }
+              if (chunk.model) {
+                usedModel = chunk.model;
+              }
+              if (chunk.stopReason === "max_tokens") {
+                console.warn(
+                  `[agent-loop] LLM output truncated (max_tokens reached at ${this._config.maxTokens} tokens)`,
+                );
+              }
+              break;
+          }
         }
+      } catch (err) {
+        // 流中断时记录错误，但不阻断后续 token 统计和 trace 保存
+        streamError = err instanceof Error ? err : new Error(String(err));
+        console.error(`[agent-loop] LLM stream error: ${streamError.message}`);
+        yield this.createEvent("error", { error: streamError.message });
       }
 
       // Compute per-iteration delta
@@ -380,7 +389,11 @@ export class SimpleAgentLoop implements AgentLoop {
         tokensOut: iterTokensOut,
       };
       if (fullText) llmStep.text = fullText;
+      if (streamError) llmStep.error = streamError.message;
       trace.steps.push(llmStep as TraceStep);
+
+      // 流异常时跳过工具调用，直接结束本轮循环
+      if (streamError) break;
 
       // Build tool calls from accumulated chunks
       const toolCalls: ToolUseContent[] = [];

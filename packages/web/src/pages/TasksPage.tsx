@@ -544,13 +544,17 @@ function TaskRunnerStatsCard() {
 
 function DailyBriefSettings() {
   const [time, setTime] = useState("09:00");
+  const [originalTime, setOriginalTime] = useState("09:00");
   const [saved, setSaved] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     getConfig()
       .then((cfg) => {
-        if (cfg.dailyBriefTime) setTime(cfg.dailyBriefTime);
+        if (cfg.dailyBriefTime) {
+          setTime(cfg.dailyBriefTime);
+          setOriginalTime(cfg.dailyBriefTime);
+        }
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
@@ -558,9 +562,12 @@ function DailyBriefSettings() {
 
   if (!loaded) return null;
 
+  const dirty = time !== originalTime && !saved;
+
   const handleSave = async () => {
     try {
       await updateConfig({ dailyBriefTime: time });
+      setOriginalTime(time);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
@@ -584,9 +591,11 @@ function DailyBriefSettings() {
             className="tm-brief-input"
           />
         </label>
-        <button className="tm-brief-save" onClick={handleSave} disabled={saved}>
-          {saved ? "Saved" : "Save"}
-        </button>
+        {(dirty || saved) && (
+          <button className="tm-brief-save" onClick={handleSave} disabled={saved}>
+            {saved ? "Saved ✓" : "Save"}
+          </button>
+        )}
         <span className="tm-brief-hint">
           Daily brief is sent only when there are pending tasks.
         </span>

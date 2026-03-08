@@ -14,6 +14,7 @@
 - **决策提醒机制**（gateway/heartbeat）：heartbeat tick 自动检查 waiting_decision 任务并广播提醒，不消耗 LLM token
 - **Settings KV 存储**（memory/database+store）：新增 `settings` 表和 `getSetting`/`setSetting` 方法，支持运行时配置持久化
 - **Tasks 页面样式优化**（web/TasksPage.css）：Tab 选中改用 box-shadow 避免浏览器默认 focus 圆角、Task Runner Stats 独立分区（顶部分割线 + 间距）、移除 QuickAdd 多余 border-top、Daily Brief 时间选择器
+- **Daily Brief Save 按钮优化**（web/TasksPage）：Save 按钮仅在时间被修改后才显示，保存成功后短暂显示 "Saved ✓" 然后消失
 
 ## [1.1.0] - 2026-03-08
 

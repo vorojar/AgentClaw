@@ -2,7 +2,7 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { join } from "node:path";
-import { mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync, readdirSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 
@@ -26,6 +26,11 @@ const PROFILE_DIR = join(
   ".agentclaw",
   "browser",
 ).replace(/\\/g, "/");
+
+const STATES_DIR = join(process.cwd(), "data", "browser-states").replace(
+  /\\/g,
+  "/",
+);
 
 async function loadPlaywright(): Promise<void> {
   if (pw) return;
@@ -223,19 +228,30 @@ async function generateSnapshot(
   return snapshot || "(empty page)";
 }
 
+function listStateFiles(): string[] {
+  try {
+    if (!existsSync(STATES_DIR)) return [];
+    return readdirSync(STATES_DIR)
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => f.replace(/\.json$/, ""));
+  } catch {
+    return [];
+  }
+}
+
 export const browserCdpTool: Tool = {
   name: "browser_cdp",
   category: "builtin",
   description:
     "Browser automation via Chrome CDP (Playwright). " +
-    "Actions: navigate, snapshot, click, type, screenshot, tabs, evaluate, wait, close.",
+    "Actions: navigate, snapshot, click, type, screenshot, tabs, evaluate, wait, close, save_state, load_state, list_states.",
   parameters: {
     type: "object",
     properties: {
       action: {
         type: "string",
         description:
-          "Action: navigate | snapshot | click | type | screenshot | tabs | evaluate | wait | close",
+          "Action: navigate | snapshot | click | type | screenshot | tabs | evaluate | wait | close | save_state | load_state | list_states",
         enum: [
           "navigate",
           "snapshot",
@@ -246,6 +262,9 @@ export const browserCdpTool: Tool = {
           "evaluate",
           "wait",
           "close",
+          "save_state",
+          "load_state",
+          "list_states",
         ],
       },
       url: {
@@ -265,6 +284,11 @@ export const browserCdpTool: Tool = {
         type: "string",
         description:
           "JavaScript code to evaluate in the page (for evaluate action)",
+      },
+      name: {
+        type: "string",
+        description:
+          "State name for save_state/load_state, e.g. 'xiaohongshu', 'x-com', 'jike'",
       },
       timeout: {
         type: "number",
@@ -394,6 +418,78 @@ export const browserCdpTool: Tool = {
           }
           await page.waitForTimeout(Math.min(timeout, 5000));
           return { content: "Wait completed", isError: false };
+        }
+
+        case "save_state": {
+          const name = input.name as string;
+          if (!name)
+            return { content: "Missing name parameter", isError: true };
+          const page = await ensureBrowser();
+          const ctx = page.context();
+          mkdirSync(STATES_DIR, { recursive: true });
+          const statePath = join(STATES_DIR, `${name}.json`).replace(
+            /\\/g,
+            "/",
+          );
+          await ctx.storageState({ path: statePath });
+          return {
+            content: `Login state saved: ${statePath}\nThis state contains cookies and localStorage for all tabs in the current context.\nUse load_state with name="${name}" to restore it later.`,
+            isError: false,
+          };
+        }
+
+        case "load_state": {
+          const name = input.name as string;
+          if (!name)
+            return { content: "Missing name parameter", isError: true };
+          const statePath = join(STATES_DIR, `${name}.json`).replace(
+            /\\/g,
+            "/",
+          );
+          if (!existsSync(statePath))
+            return {
+              content: `State file not found: ${statePath}\nAvailable states: ${listStateFiles().join(", ") || "(none)"}`,
+              isError: true,
+            };
+          // Close existing browser and relaunch with saved state
+          if (browser) {
+            await browser.close().catch(() => {});
+            browser = null;
+            defaultContext = null;
+            activePage = null;
+          }
+          await loadPlaywright();
+          const chromePath = findChromePath();
+          if (!chromePath)
+            return { content: "Chrome not found", isError: true };
+          // Launch with Playwright (not CDP) to apply storageState
+          browser = await pw.chromium.launch({
+            executablePath: chromePath,
+            headless: false,
+            args: ["--no-first-run", "--no-default-browser-check"],
+          });
+          defaultContext = await browser.newContext({
+            storageState: statePath,
+          });
+          activePage = await defaultContext.newPage();
+          return {
+            content: `Login state loaded: ${name}\nBrowser launched with saved cookies and localStorage. Navigate to the target site to use the login session.`,
+            isError: false,
+          };
+        }
+
+        case "list_states": {
+          const states = listStateFiles();
+          if (states.length === 0)
+            return {
+              content:
+                "No saved states.\nUse save_state after logging into a site to save the session.",
+              isError: false,
+            };
+          return {
+            content: `Saved states (${states.length}):\n${states.map((s) => `  - ${s}`).join("\n")}\n\nUse load_state with the name to restore a session.`,
+            isError: false,
+          };
         }
 
         case "close": {

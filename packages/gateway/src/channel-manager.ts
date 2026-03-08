@@ -69,9 +69,7 @@ export class ChannelManager {
     this.channels.set("wecom", {
       id: "wecom",
       name: "WeCom",
-      configured:
-        !!process.env.WECOM_BOT_TOKEN &&
-        !!process.env.WECOM_BOT_ENCODING_AES_KEY,
+      configured: !!process.env.WECOM_BOT_ID && !!process.env.WECOM_BOT_SECRET,
     });
     this.channels.set("websocket", {
       id: "websocket",
@@ -243,8 +241,8 @@ export class ChannelManager {
       case "wecom":
         return startWeComBot(
           {
-            token: process.env.WECOM_BOT_TOKEN!,
-            encodingAesKey: process.env.WECOM_BOT_ENCODING_AES_KEY!,
+            botId: process.env.WECOM_BOT_ID!,
+            secret: process.env.WECOM_BOT_SECRET!,
           },
           this.ctx,
         );

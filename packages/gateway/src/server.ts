@@ -29,7 +29,6 @@ import { registerSubAgentRoutes } from "./routes/subagents.js";
 import { registerAgentRoutes } from "./routes/agents.js";
 import { registerChannelRoutes } from "./routes/channels.js";
 import { registerAuth } from "./auth.js";
-import { registerWeComRoutes } from "./wecom.js";
 import type { ChannelManager } from "./channel-manager.js";
 import * as Sentry from "@sentry/node";
 
@@ -69,9 +68,6 @@ export async function createServer(
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   }));
-
-  // WeCom 回调（企业微信发请求不带 API key，必须在 auth 之前注册）
-  registerWeComRoutes(app, ctx);
 
   // Register authentication (no-op if API_KEY not set)
   registerAuth(app);

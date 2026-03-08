@@ -3,7 +3,7 @@
 ## [1.2.0] - 2026-03-08
 
 ### 新增
-- **WeCom（企业微信）智能机器人渠道**（gateway/wecom）：完整接入企业微信智能机器人 API — AES-256-CBC 加解密（PKCS#7/32 字节块）、URL 验证、接收消息（text/image/voice/file/mixed）、被动流式回复（stream 模式，支持 Markdown + 思考过程）、主动回复 fallback（response_url，1 小时有效）、`/new` 会话重置、ask_user 5 分钟超时、会话持久化
+- **WeCom（企业微信）智能机器人渠道**（gateway/wecom）：使用 `@wecom/aibot-node-sdk` WebSocket 长连接模式接入（无需公网 IP）— 自动认证 + 心跳 + 指数退避重连、接收消息（text/image/voice/file/mixed，图片文件 SDK 内置 AES 解密）、流式回复（replyStream，支持 Markdown）、主动推送（sendMessage，支持 broadcast）、进入会话欢迎语、`/new` 会话重置、ask_user 5 分钟超时、会话持久化
 - **social_post 工具**（tools/social-post）：一次调用发帖到 X/小红书/即刻，LLM 零参与浏览器操作。内置字数限制校验、自动截图确认、auto_close 标签页。支持 `images` 参数附加图片（URL 或本地路径，最多 4 张），自动下载转 base64 + ClipboardEvent 粘贴
 - **浏览器扩展 click 文本选择器**：`cmdClick` 新增 `text=xxx` 格式，按可见文本匹配元素并点击（TreeWalker 精确匹配 + innerText fallback）
 - **paste_image 智能去重**：paste → drop → file_input 三级 fallback，仅在前一级未被处理时才尝试下一级，避免重复上传

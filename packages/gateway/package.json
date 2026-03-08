@@ -31,6 +31,7 @@
     "@fastify/websocket": "^11.2.0",
     "@larksuiteoapi/node-sdk": "^1.59.0",
     "@sentry/node": "^10.42.0",
+    "@wecom/aibot-node-sdk": "^1.0.1",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "croner": "^10.0.1",
     "dingtalk-stream-sdk-nodejs": "^2.0.4",

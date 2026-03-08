@@ -23,5 +23,6 @@ export default defineConfig({
     "xlsx",
     "@sentry/node",
     "ws",
+    "@wecom/aibot-node-sdk",
   ],
 });

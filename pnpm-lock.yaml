@@ -115,6 +115,9 @@ importers:
       '@sentry/node':
         specifier: ^10.42.0
         version: 10.42.0
+      '@wecom/aibot-node-sdk':
+        specifier: ^1.0.1
+        version: 1.0.1
       '@whiskeysockets/baileys':
         specifier: 7.0.0-rc.9
         version: 7.0.0-rc.9(sharp@0.34.5)
@@ -1856,6 +1859,9 @@ packages:
 
   '@vitest/utils@4.0.18':
     resolution: {integrity: sha512-msMRKLMVLWygpK3u2Hybgi4MNjcYJvwTb0Ru09+fOyCXIgT5raYP041DRRdiJiI3k/2U6SEbAETB3YtBrUkCFA==}
+
+  '@wecom/aibot-node-sdk@1.0.1':
+    resolution: {integrity: sha512-c/sa1IvRKIP+4rZfRV2v70FaXB92+BJIh+vedZkPa8wZ1dwIUyvGg7ydkfYRIwFDzjO9IJZUX5V14EUQYVopAg==}
 
   '@whiskeysockets/baileys@7.0.0-rc.9':
     resolution: {integrity: sha512-YFm5gKXfDP9byCXCW3OPHKXLzrAKzolzgVUlRosHHgwbnf2YOO3XknkMm6J7+F0ns8OA0uuSBhgkRHTDtqkacw==}
@@ -5573,6 +5579,16 @@ snapshots:
     dependencies:
       '@vitest/pretty-format': 4.0.18
       tinyrainbow: 3.0.3
+
+  '@wecom/aibot-node-sdk@1.0.1':
+    dependencies:
+      axios: 1.13.6(debug@4.4.3)
+      eventemitter3: 5.0.4
+      ws: 8.19.0
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - utf-8-validate
 
   '@whiskeysockets/baileys@7.0.0-rc.9(sharp@0.34.5)':
     dependencies:

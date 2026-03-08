@@ -15,12 +15,15 @@ npm run start          # 启动 gateway 守护进程（需先 build）
 npm run start:web      # 仅启动 Web UI 开发服务器
 npm run typecheck      # 全包类型检查
 npm run clean          # 清理所有 dist/
+npm run test           # 全包测试（vitest）
 ```
 
-单包构建/开发：
+单包操作：
 ```bash
 pnpm --filter @agentclaw/gateway build
 pnpm --filter @agentclaw/web dev
+pnpm --filter @agentclaw/memory test
+npx vitest run packages/memory/src/__tests__/store.test.ts   # 单文件测试
 ```
 
 ## 架构
@@ -43,7 +46,7 @@ types → providers/tools/memory → core → gateway/cli
 | `tools` | 工具注册表 + 内置工具（shell, file_read/write/edit, glob, grep, web_search, web_fetch, sandbox, subagent, browser_cdp 等）+ MCP 客户端 |
 | `memory` | SQLite 持久化（better-sqlite3）：对话历史、长期记忆、向量嵌入、FTS5 全文索引 |
 | `core` | SimpleAgentLoop（思考-行动-观察循环）、SimpleOrchestrator（会话管理）、SimplePlanner（任务分解）、ContextManager、MemoryExtractor、SkillRegistry、ToolHookManager（工具钩子）、SimpleSubAgentManager（子代理） |
-| `gateway` | Fastify HTTP/WS 服务 + Telegram/WhatsApp/钉钉/飞书 bot + REST API + 定时任务调度 |
+| `gateway` | Fastify HTTP/WS 服务 + ChannelManager（统一渠道生命周期）+ REST API + 定时任务调度 |
 | `cli` | 终端交互式对话 |
 | `web` | React 19 + Vite 前端（ChatPage, PlansPage, MemoryPage, SettingsPage） |
 
@@ -54,19 +57,43 @@ Provider.stream() → LLMStreamChunk (text/tool_use_start/tool_use_delta/done)
     ↓
 AgentLoop.runStream() → AgentEvent (thinking/response_chunk/tool_call/tool_result/response_complete)
     ↓
-Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / WhatsApp)
+Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / QQ / 钉钉 / 飞书)
 ```
 
 - AgentLoop 驱动"LLM 调用 → 工具执行 → 结果反馈"循环，最多 `maxIterations` 轮
 - ToolExecutionContext 由 gateway 层提供回调（sendFile, promptUser, notifyUser），工具通过它与用户交互
 - `sentFiles` 数组在 context 中跟踪已发送文件，agent-loop 在响应完成后将其持久化为 markdown 链接
 
+### 渠道系统
+
+`ChannelManager`（`packages/gateway/src/channel-manager.ts`）统一管理所有 bot 渠道的启停和广播。每个渠道是一个独立文件，返回 `{ stop, broadcast }` 接口：
+
+| 渠道 | 文件 | 环境变量 |
+|------|------|---------|
+| Telegram | `telegram.ts` | `TELEGRAM_BOT_TOKEN` |
+| WhatsApp | `whatsapp.ts` | `WHATSAPP_ENABLED=true` |
+| QQ Bot | `qqbot.ts` | `QQ_BOT_APP_ID` + `QQ_BOT_APP_SECRET` |
+| 钉钉 | `dingtalk.ts` | `DINGTALK_APP_KEY` + `DINGTALK_APP_SECRET` |
+| 飞书 | `feishu.ts` | `FEISHU_APP_ID` + `FEISHU_APP_SECRET` |
+| WebSocket | `ws.ts` | 始终启用 |
+
+新增渠道：创建 `packages/gateway/src/<channel>.ts`，实现 `start<Channel>Bot()` 返回 `{ stop, broadcast }`，在 `channel-manager.ts` 中注册，在 `index.ts` 中 re-export。
+
 ### 关键入口
 
-- **gateway 启动**：`packages/gateway/src/index.ts` → `bootstrap()` 初始化所有组件 → `createServer()` 启动 HTTP
-- **系统提示词**：`packages/gateway/src/bootstrap.ts` 中的 `defaultSystemPrompt`（可通过 `SYSTEM_PROMPT` 环境变量覆盖）
+- **gateway 启动**：`packages/gateway/src/index.ts` → `bootstrap()` 初始化所有组件 → `createServer()` 启动 HTTP → `channelManager.startAll()` 启动所有渠道
+- **系统提示词**：外置在 `system-prompt.md`，使用 `{{var}}` 模板变量（可通过 `SYSTEM_PROMPT` 环境变量覆盖）
 - **工具注册**：`packages/tools/src/builtin/index.ts` → `createBuiltinTools()`
-- **技能加载**：`skills/` 目录下的 `SKILL.md` 文件，通过触发器关键词动态匹配注入
+- **技能加载**：`skills/` 目录下的 `SKILL.md` 文件，LLM 通过 `use_skill` 工具按需加载
+
+### 工具分层
+
+- **核心工具（永远加载）**：shell, file_read, file_write, file_edit, glob, grep, ask_user, web_fetch, web_search
+- **条件工具（按配置加载）**：send_file/schedule/update_todo (gateway), remember (memory), use_skill (skills), claude_code (claudeCode)
+
+### Skill 系统
+
+系统提示词注入轻量技能目录（name + description），LLM 判断需要时调 `use_skill(name)` → 返回完整 SKILL.md 指令 → 下一轮执行。SKILL.md 只需 frontmatter `name` + `description`。
 
 ## 环境变量
 
@@ -74,8 +101,6 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / WhatsApp)
 - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`
 - `OPENAI_BASE_URL` — 用于 DeepSeek/Kimi/Qwen 等兼容 API
 - `DEFAULT_MODEL` — 默认模型名
-- `TELEGRAM_BOT_TOKEN` — 启用 Telegram bot
-- `WHATSAPP_ENABLED=true` — 启用 WhatsApp bot（QR 码扫码认证）
 - `PORT` / `HOST` — gateway 监听地址（默认 3100 / 0.0.0.0）
 
 ## 前端调试规则
@@ -93,6 +118,9 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / WhatsApp)
 
 - 新增工具：在 `packages/tools/src/builtin/` 创建文件，实现 `Tool` 接口，在 `builtin/index.ts` 的 `createBuiltinTools()` 中注册，**同时在 `src/index.ts` 中 re-export**
 - 新增 LLM provider：在 `packages/providers/src/` 实现 `LLMProvider` 接口
-- 新增网关：参照 `telegram.ts` / `whatsapp.ts` 模式，在 `packages/gateway/src/index.ts` 中集成
+- 新增网关渠道：参照 `telegram.ts` / `qqbot.ts` 模式，在 `channel-manager.ts` 中注册
 - 文件生成路径统一用 `data/tmp/`，通过 `/files/` 路由对外提供
 - WhatsApp bot 仅响应自聊（self-chat），凭证持久化在 `data/whatsapp-auth/`
+- 所有渠道的 `promptUser` 必须有 5 分钟超时保护，防止 Promise 永远挂起
+- `tsup.config.ts` 的 `external` 列表：新增第三方依赖时检查是否需要加入（避免与本地同名文件冲突，如 `ws` 包 vs `ws.ts`）
+- **git 提交时必须同步更新 CHANGELOG.md**

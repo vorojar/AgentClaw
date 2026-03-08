@@ -856,16 +856,17 @@ export function ChatPage() {
           setWsDisconnected(true);
           setIsSending(false);
           setActiveToolName(null);
-          // Exponential backoff reconnect (1s, 2s, 4s, 8s, 16s, cap 30s) + jitter
+          // Exponential backoff reconnect (1s, 2s, 4s, …, cap 30s) + jitter — no max retries
           const retry = wsRetryRef.current;
-          if (retry < 8) {
-            const baseDelay = Math.min(1000 * Math.pow(2, retry), 30000);
-            const jitter = Math.random() * 1000;
-            wsRetryRef.current = retry + 1;
-            setTimeout(() => {
-              if (wsGenRef.current === gen) connectWs();
-            }, baseDelay + jitter);
-          }
+          const baseDelay = Math.min(
+            1000 * Math.pow(2, Math.min(retry, 5)),
+            30000,
+          );
+          const jitter = Math.random() * 1000;
+          wsRetryRef.current = retry + 1;
+          setTimeout(() => {
+            if (wsGenRef.current === gen) connectWs();
+          }, baseDelay + jitter);
         }
       },
       () => {
@@ -894,6 +895,28 @@ export function ChatPage() {
       wsRef.current = null;
     };
   }, [connectWs]);
+
+  /* Auto-reconnect on visibility change (tab switch) and network recovery */
+  const wsDisconnectedRef = useRef(false);
+  wsDisconnectedRef.current = wsDisconnected;
+  useEffect(() => {
+    const tryReconnect = () => {
+      if (wsDisconnectedRef.current && activeSessionId) {
+        wsRetryRef.current = 0;
+        connectWs();
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tryReconnect();
+    };
+    const onOnline = () => tryReconnect();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [connectWs, activeSessionId]);
 
   /* WS message handler */
   const handleWsMessage = useCallback((msg: WSMessage) => {

@@ -9,6 +9,7 @@
 - **QQ Bot 富媒体消息支持**（gateway/qqbot）：处理 attachments 中的语音、图片、视频、文件，自动下载保存到 `data/uploads/`，兼容 QQ 省略协议的 URL（`//` 前缀）。语音消息在框架层自动调用 `transcribe.py` 转文字，LLM 直接收到 `[用户语音转文字: xxx]`
 - **语音转录脚本增强**（scripts/transcribe.py）：自动检测 SILK_V3 格式（QQ/微信语音）→ pilk 解码为 PCM → WAV → faster-whisper 转录；强制 UTF-8 输出修复 Windows GBK 乱码
 - **QQ Bot `/new` 命令**（gateway/qqbot）：发送 `/new` 或 `新会话` 重置会话
+- **QQ Bot 语音回复**（gateway/qqbot）：收到语音消息后，回复也用 TTS 语音（base64 上传 → 富媒体消息），文本过长时 fallback 为文字
 - **Telegram 语音框架层转录**（gateway/telegram）：语音消息在框架层自动调 transcribe.py，LLM 直接收到文字，省去 LLM 调 shell 转录的 ~50K tokens 和 ~60s 延迟
 - **浏览器登录态持久化**：Chrome 扩展新增 `save_login` action（`chrome.cookies` + `localStorage` 导出）→ gateway 自动保存为 Playwright storageState 格式 → `browser_cdp` 工具 `load_state` 加载。完整链路：主浏览器登录 → 保存 → Playwright 无人值守复用登录态
 - **TaskManager 任务管理引擎**（core/task-manager）：完整的任务生命周期管理 — 自然语言捕获（LLM 解析）→ 分诊（agent/human）→ 队列调度 → 自动执行 → 决策请求 → 每日简报，60s 扫描器自动处理 queued 任务

@@ -158,6 +158,47 @@ class QQApiClient {
     });
   }
 
+  /**
+   * Upload a file for rich media message via base64.
+   * file_type: 1=image, 2=video, 3=audio (silk), 4=file
+   */
+  async uploadFileBase64(
+    chatKey: string,
+    fileData: string,
+    fileType: number,
+  ): Promise<{ file_info: string }> {
+    const isGroup = chatKey.startsWith("group:");
+    const id = isGroup ? chatKey.slice(6) : chatKey.slice(4);
+    const path = isGroup
+      ? `/v2/groups/${id}/files`
+      : `/v2/users/${id}/files`;
+    const data = (await this.request("POST", path, {
+      file_type: fileType,
+      file_data: fileData,
+      srv_send_msg: false,
+    })) as { file_info: string };
+    return data;
+  }
+
+  /** Send a rich media message (image/audio/video/file) */
+  async sendMediaMessage(
+    chatKey: string,
+    mediaFileInfo: string,
+    msgId?: string,
+    msgSeq?: number,
+  ): Promise<void> {
+    const isGroup = chatKey.startsWith("group:");
+    const id = isGroup ? chatKey.slice(6) : chatKey.slice(4);
+    const path = isGroup
+      ? `/v2/groups/${id}/messages`
+      : `/v2/users/${id}/messages`;
+    await this.request("POST", path, {
+      msg_type: 7, // rich media
+      media: { file_info: mediaFileInfo },
+      ...(msgId ? { msg_id: msgId, msg_seq: msgSeq ?? 1 } : {}),
+    });
+  }
+
   /** Get WebSocket gateway URL */
   async getGateway(): Promise<string> {
     const data = (await this.request("GET", "/gateway")) as { url: string };
@@ -259,6 +300,7 @@ export async function startQQBot(
     }
 
     // Handle attachments (voice, image, video, file)
+    let hasVoice = false;
     if (msg.attachments?.length) {
       const { mkdirSync, writeFileSync } = await import("node:fs");
       const { join } = await import("node:path");
@@ -294,6 +336,7 @@ export async function startQQBot(
 
             // Auto-transcribe voice messages at framework level
             if (isVoice) {
+              hasVoice = true;
               try {
                 const { execSync } = await import("node:child_process");
                 const scriptPath = join(process.cwd(), "scripts", "transcribe.py").replace(/\\/g, "/");
@@ -409,8 +452,35 @@ export async function startQQBot(
       accumulatedText = stripFileMarkdown(accumulatedText).trim();
       if (!accumulatedText) accumulatedText = "(empty response)";
 
-      for (const chunk of splitMessage(accumulatedText, 2000)) {
-        await sendReply(chatKey, chunk);
+      // Voice reply: TTS → base64 upload → send as audio
+      if (hasVoice) {
+        try {
+          const { textToSpeech } = await import("./tts.js");
+          const oggPath = await textToSpeech(accumulatedText);
+          if (oggPath) {
+            const { readFileSync } = await import("node:fs");
+            const fileData = readFileSync(oggPath).toString("base64");
+            const tracker = replyTrackers.get(chatKey);
+            const msgId = tracker && tracker.expiry > Date.now() ? tracker.msgId : undefined;
+            const msgSeq = tracker ? ++tracker.seq : undefined;
+            const { file_info } = await api.uploadFileBase64(chatKey, fileData, 3);
+            await api.sendMediaMessage(chatKey, file_info, msgId, msgSeq);
+          } else {
+            // TTS failed (text too long, etc.) — fallback to text
+            for (const chunk of splitMessage(accumulatedText, 2000)) {
+              await sendReply(chatKey, chunk);
+            }
+          }
+        } catch (err) {
+          console.error("[qqbot] Voice reply failed, falling back to text:", err);
+          for (const chunk of splitMessage(accumulatedText, 2000)) {
+            await sendReply(chatKey, chunk);
+          }
+        }
+      } else {
+        for (const chunk of splitMessage(accumulatedText, 2000)) {
+          await sendReply(chatKey, chunk);
+        }
       }
 
       broadcastSessionActivity(sid, "qqbot");

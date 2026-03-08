@@ -12,9 +12,14 @@ The extension is pre-installed. Just execute the commands below. If a command fa
 shell: node skills/browser/scripts/browser.mjs batch '<JSON array>'
 ```
 
-Each step: `{"action": "open|click|type|scroll|screenshot|get_content|wait_for|sleep|close", "args": {...}}`
+Each step: `{"action": "open|click|type|scroll|screenshot|get_content|wait_for|sleep|close|save_login", "args": {...}}`
 
 In batch mode, **click/type auto-wait** for the selector to appear (up to 5s), so you don't need explicit wait_for before them.
+
+For **scheduled/automated tasks**, add `"auto_close": true` to the batch args to automatically close the tab when done:
+```
+shell: node skills/browser/scripts/browser.mjs batch '<JSON array>' --auto-close
+```
 
 ### Example: Post on X/Twitter
 ```

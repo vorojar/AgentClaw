@@ -652,7 +652,7 @@ async function cmdWaitFor({ selector, timeout }) {
   return { found: selector };
 }
 
-async function cmdBatch({ steps }) {
+async function cmdBatch({ steps, auto_close }) {
   if (!Array.isArray(steps) || steps.length === 0)
     throw new Error("steps must be a non-empty array");
   const results = [];
@@ -676,6 +676,15 @@ async function cmdBatch({ steps }) {
         error: err.message,
       });
       break;
+    }
+  }
+  // Auto-close tab after batch completes (useful for scheduled tasks)
+  if (auto_close) {
+    try {
+      await cmdClose();
+      results.push({ step: "auto_close", action: "close", ok: true });
+    } catch {
+      // tab may already be closed
     }
   }
   return { results };

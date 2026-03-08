@@ -86,7 +86,8 @@ async function main() {
       if (!json) { console.error('Error: JSON array of steps required'); process.exit(1); }
       let steps;
       try { steps = JSON.parse(json); } catch { console.error('Error: invalid JSON'); process.exit(1); }
-      const result = await exec('batch', { steps });
+      const autoClose = rest.includes('--auto-close');
+      const result = await exec('batch', { steps, auto_close: autoClose });
       for (const r of result.results) {
         const tag = r.ok ? 'OK' : 'FAIL';
         let detail = '';

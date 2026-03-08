@@ -134,6 +134,26 @@ async function main() {
       console.log('Extension reloading...');
       break;
     }
+    case 'save_login': {
+      const name = rest[0];
+      if (!name) { console.error('Error: name required (e.g. save_login xiaohongshu)'); process.exit(1); }
+      const result = await exec('save_login', { name });
+      console.log(`Login state saved: ${result.saved}\nDomain: ${result.domain}\nCookies: ${result.cookieCount}`);
+      break;
+    }
+    case 'list_logins': {
+      const headers = { 'Content-Type': 'application/json' };
+      if (API_KEY) headers['Authorization'] = `Bearer ${API_KEY}`;
+      const res = await fetch(`${BASE_URL}/api/browser/states`, { headers });
+      const states = await res.json();
+      if (states.length === 0) {
+        console.log('No saved login states.\nUse: save_login <name> (on a logged-in page) to save.');
+      } else {
+        console.log(`Saved login states (${states.length}):`);
+        for (const s of states) console.log(`  - ${s}`);
+      }
+      break;
+    }
     case 'search': {
       const query = rest.join(' ');
       if (!query) { console.error('Error: search query required'); process.exit(1); }
@@ -143,7 +163,7 @@ async function main() {
       break;
     }
     default:
-      console.error(`Unknown action: ${action}. Use: open, search, screenshot, click, type, scroll, get_content, close`);
+      console.error(`Unknown action: ${action}. Use: open, search, screenshot, click, type, scroll, get_content, save_login, list_logins, close`);
       process.exit(1);
   }
 }

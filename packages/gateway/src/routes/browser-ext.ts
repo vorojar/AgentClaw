@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { mkdirSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
+
+const STATES_DIR = join(process.cwd(), "data", "browser-states").replace(
+  /\\/g,
+  "/",
+);
 
 let extensionSocket: WebSocket | null = null;
 
@@ -119,6 +126,47 @@ export function registerBrowserExtension(app: FastifyInstance): void {
     // If reply was already sent by catch block
     if (reply.sent) return;
 
+    // save_login: persist storageState to file
+    if (
+      body.action === "save_login" &&
+      result &&
+      typeof result === "object" &&
+      "storageState" in (result as Record<string, unknown>)
+    ) {
+      const r = result as {
+        name: string;
+        domain: string;
+        storageState: unknown;
+        cookieCount: number;
+      };
+      mkdirSync(STATES_DIR, { recursive: true });
+      const filePath = join(STATES_DIR, `${r.name}.json`).replace(/\\/g, "/");
+      writeFileSync(filePath, JSON.stringify(r.storageState, null, 2));
+      return reply.send({
+        result: {
+          saved: filePath,
+          name: r.name,
+          domain: r.domain,
+          cookieCount: r.cookieCount,
+        },
+      });
+    }
+
     return reply.send({ result });
+  });
+
+  // -----------------------------------------------------------------------
+  // List saved browser states
+  // -----------------------------------------------------------------------
+  app.get("/api/browser/states", async (_request, reply) => {
+    try {
+      if (!existsSync(STATES_DIR)) return reply.send([]);
+      const files = readdirSync(STATES_DIR)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => f.replace(/\.json$/, ""));
+      return reply.send(files);
+    } catch {
+      return reply.send([]);
+    }
   });
 }

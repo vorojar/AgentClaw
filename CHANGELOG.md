@@ -3,7 +3,7 @@
 ## [1.2.0] - 2026-03-08
 
 ### 新增
-- **浏览器登录态持久化**（tools/browser-cdp）：新增 `save_state`/`load_state`/`list_states` 三个 action，基于 Playwright storageState 保存和恢复网站登录态（cookies + localStorage），存储在 `data/browser-states/`，支持无人值守自动化场景
+- **浏览器登录态持久化**：Chrome 扩展新增 `save_login` action（`chrome.cookies` + `localStorage` 导出）→ gateway 自动保存为 Playwright storageState 格式 → `browser_cdp` 工具 `load_state` 加载。完整链路：主浏览器登录 → 保存 → Playwright 无人值守复用登录态
 - **TaskManager 任务管理引擎**（core/task-manager）：完整的任务生命周期管理 — 自然语言捕获（LLM 解析）→ 分诊（agent/human）→ 队列调度 → 自动执行 → 决策请求 → 每日简报，60s 扫描器自动处理 queued 任务
 - **Automations API**（gateway/routes/tasks）：新增 `/api/tasks/scheduled` GET/POST/DELETE 路由，对接 TaskScheduler 实现定时任务的增删查
 - **Tasks 页面重构**（web/TasksPage）：5 个标签页（Today/All Tasks/Calendar/Decisions/Automations）、Task Runner Stats 卡片、QuickAdd 快速添加、Decision Queue 决策队列、Calendar 视图

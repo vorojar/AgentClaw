@@ -56,6 +56,7 @@ For very long pages, scroll multiple times with sleep between each scroll to tri
 | wait_for | `{"selector": "...", "timeout": 5000}` | Wait for element to appear |
 | sleep | `{"ms": 1000}` | Wait fixed time |
 | close | (none) | Close current tab |
+| save_login | `{"name": "xiaohongshu"}` | Save cookies + localStorage for Playwright reuse |
 
 ### Accessibility Snapshot (get_content)
 
@@ -80,6 +81,24 @@ Some result text here
 ```
 
 Workflow: `get_content` → read snapshot → `click`/`type` with ref IDs (e.g. `e3`). CSS selectors still work for all actions.
+
+## Save & restore login state
+
+Save the current page's login session (cookies + localStorage) so it can be reused later by Playwright for unattended automation.
+
+### Save login (on a page where you're already logged in)
+```
+{"command": "node skills/browser/scripts/browser.mjs save_login xiaohongshu", "timeout": 10000}
+```
+This exports cookies + localStorage from the active tab and saves to `data/browser-states/xiaohongshu.json` in Playwright storageState format.
+
+### List saved logins
+```
+{"command": "node skills/browser/scripts/browser.mjs list_logins", "timeout": 5000}
+```
+
+### Use saved login with browser_cdp tool
+After saving, the `browser_cdp` tool can load the state via `load_state` action to launch a Playwright browser with the saved login session — no manual login needed.
 
 ## Single commands (for debugging or one-off actions)
 

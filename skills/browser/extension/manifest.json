@@ -3,7 +3,14 @@
   "name": "AgentClaw Browser Bridge",
   "version": "1.0",
   "description": "Bridge between AgentClaw and your browser",
-  "permissions": ["activeTab", "tabs", "scripting", "alarms", "storage"],
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "alarms",
+    "storage",
+    "cookies"
+  ],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

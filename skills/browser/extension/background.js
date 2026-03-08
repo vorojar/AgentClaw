@@ -152,6 +152,8 @@ async function handleCommand(action, args) {
       return { slept: args.ms || 1000 };
     case "batch":
       return await cmdBatch(args);
+    case "save_login":
+      return await cmdSaveLogin(args);
     case "reload":
       // Delay reload so the WS response can be sent first
       setTimeout(() => chrome.runtime.reload(), 200);
@@ -550,6 +552,64 @@ async function cmdClose() {
   const tab = await getActiveTab();
   await chrome.tabs.remove(tab.id);
   return { closed: true };
+}
+
+/**
+ * Export login state (cookies + localStorage) for the current tab's domain.
+ * Returns Playwright-compatible storageState format.
+ */
+async function cmdSaveLogin({ name }) {
+  if (!name) throw new Error("name required (e.g. 'xiaohongshu')");
+  const tab = await getActiveTab();
+  const url = new URL(tab.url);
+  const domain = url.hostname;
+
+  // 1. Get all cookies for this domain (including subdomains)
+  const baseDomain = domain.split(".").slice(-2).join(".");
+  const cookies = await chrome.cookies.getAll({ domain: baseDomain });
+
+  // Convert to Playwright storageState cookie format
+  const pwCookies = cookies.map((c) => ({
+    name: c.name,
+    value: c.value,
+    domain: c.domain,
+    path: c.path,
+    expires: c.expirationDate || -1,
+    httpOnly: c.httpOnly,
+    secure: c.secure,
+    sameSite: c.sameSite === "unspecified" ? "None" : c.sameSite,
+  }));
+
+  // 2. Get localStorage from the page
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const items = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        items[key] = localStorage.getItem(key);
+      }
+      return { origin: location.origin, items };
+    },
+  });
+
+  const ls = results[0]?.result || { origin: url.origin, items: {} };
+
+  // 3. Build Playwright storageState format
+  const storageState = {
+    cookies: pwCookies,
+    origins: [
+      {
+        origin: ls.origin,
+        localStorage: Object.entries(ls.items).map(([name, value]) => ({
+          name,
+          value,
+        })),
+      },
+    ],
+  };
+
+  return { name, domain, storageState, cookieCount: pwCookies.length };
 }
 
 // ---------------------------------------------------------------------------

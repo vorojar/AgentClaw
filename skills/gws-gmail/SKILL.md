@@ -37,10 +37,18 @@ Formats: `full` (headers + body), `metadata` (headers only), `minimal` (IDs only
 
 ## Send email
 
-Build a base64url-encoded RFC 2822 message and use `users.messages.send`:
+Build a base64url-encoded RFC 2822 message and use `users.messages.send`.
 
+**IMPORTANT**: If the Subject contains non-ASCII characters (Chinese, Japanese, etc.), you MUST encode it using RFC 2047 MIME encoded-word syntax: `=?UTF-8?B?<base64>?=`. Use `echo -n 'subject text' | base64 -w 0` to get the base64, then wrap it as `=?UTF-8?B?...?=`. ASCII-only subjects can be used as-is.
+
+Example (ASCII subject):
 ```json
 {"command": "echo -e 'From: me\\nTo: alice@example.com\\nSubject: Hello\\nContent-Type: text/plain; charset=utf-8\\n\\nHello Alice!' | base64 -w 0 | tr '+/' '-_' | tr -d '=' | xargs -I {} gws gmail users messages send --params '{\"userId\":\"me\"}' --json '{\"raw\":\"{}\"}'", "timeout": 30000}
+```
+
+Example (non-ASCII subject):
+```json
+{"command": "SUBJ=$(echo -n '报告标题' | base64 -w 0) && echo -e \"From: me\\nTo: alice@example.com\\nSubject: =?UTF-8?B?${SUBJ}?=\\nContent-Type: text/plain; charset=utf-8\\n\\nHello!\" | base64 -w 0 | tr '+/' '-_' | tr -d '=' | xargs -I {} gws gmail users messages send --params '{\"userId\":\"me\"}' --json '{\"raw\":\"{}\"}'", "timeout": 30000}
 ```
 
 ## List labels

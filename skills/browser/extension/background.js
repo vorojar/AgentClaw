@@ -577,7 +577,13 @@ async function cmdSaveLogin({ name }) {
     expires: c.expirationDate || -1,
     httpOnly: c.httpOnly,
     secure: c.secure,
-    sameSite: c.sameSite === "unspecified" ? "None" : c.sameSite,
+    sameSite:
+      {
+        unspecified: "None",
+        no_restriction: "None",
+        lax: "Lax",
+        strict: "Strict",
+      }[c.sameSite] || "None",
   }));
 
   // 2. Get localStorage from the page

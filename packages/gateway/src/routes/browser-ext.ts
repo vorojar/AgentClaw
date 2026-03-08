@@ -141,7 +141,22 @@ export function registerBrowserExtension(app: FastifyInstance): void {
       };
       mkdirSync(STATES_DIR, { recursive: true });
       const filePath = join(STATES_DIR, `${r.name}.json`).replace(/\\/g, "/");
-      writeFileSync(filePath, JSON.stringify(r.storageState, null, 2));
+      // Normalize sameSite values for Playwright compatibility
+      const SAME_SITE_MAP: Record<string, string> = {
+        unspecified: "None",
+        no_restriction: "None",
+        lax: "Lax",
+        strict: "Strict",
+      };
+      const state = r.storageState as {
+        cookies: Array<{ sameSite?: string }>;
+        origins: unknown[];
+      };
+      for (const cookie of state.cookies) {
+        cookie.sameSite =
+          SAME_SITE_MAP[cookie.sameSite ?? ""] ?? cookie.sameSite ?? "None";
+      }
+      writeFileSync(filePath, JSON.stringify(state, null, 2));
       return reply.send({
         result: {
           saved: filePath,

@@ -754,9 +754,17 @@ export function ChatPage() {
   const pendingSendRef = useRef<string | null>(null);
   const pendingSkillRef = useRef<string | null>(null);
 
-  /* ── Voice input (Web Speech API) ─── */
+  /* ── Voice input (Web Speech API + MediaRecorder fallback) ─── */
   const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasSpeechRecognition = !!(
+    window.SpeechRecognition || window.webkitSpeechRecognition
+  );
   const skipHistoryRef = useRef(false);
   const stoppedRef = useRef(false);
   const sendTimestampRef = useRef(0);
@@ -1214,53 +1222,6 @@ export function ChatPage() {
     }
   }, []);
 
-  /* Voice input toggle */
-  const toggleVoice = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-      setIsListening(false);
-      return;
-    }
-
-    const rec = new SR();
-    rec.lang = navigator.language;
-    rec.interimResults = true;
-    rec.continuous = true;
-
-    const base = inputValueRef.current;
-
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      let finals = "";
-      let interim = "";
-      for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          finals += e.results[i][0].transcript;
-        } else {
-          interim += e.results[i][0].transcript;
-        }
-      }
-      setInputValue((base ? base + " " : "") + finals + interim);
-    };
-
-    rec.onend = () => {
-      recognitionRef.current = null;
-      setIsListening(false);
-    };
-
-    rec.onerror = () => {
-      recognitionRef.current = null;
-      setIsListening(false);
-    };
-
-    recognitionRef.current = rec;
-    setIsListening(true);
-    rec.start();
-  }, []);
-
   /* Send */
   const handleSend = useCallback(async () => {
     const text = inputValue.trim();
@@ -1419,6 +1380,135 @@ export function ChatPage() {
     setPendingFiles((prev) => [...prev, ...newFiles]);
   }, []);
 
+  /* Voice input toggle — SpeechRecognition (desktop) or MediaRecorder fallback (mobile) */
+  const stopRecording = useCallback(() => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      mediaRecorderRef.current.stop();
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "";
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined,
+      );
+      mediaChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) mediaChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        const blob = new Blob(mediaChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+        if (blob.size > 0) {
+          const ext = (recorder.mimeType || "").includes("mp4")
+            ? "m4a"
+            : "webm";
+          const file = new File([blob], `voice-${Date.now()}.${ext}`, {
+            type: blob.type,
+          });
+          handleFiles([file]);
+        }
+        setIsRecording(false);
+        setRecordingTime(0);
+      };
+
+      recorder.onerror = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setIsRecording(false);
+        setRecordingTime(0);
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((t) => t + 1);
+      }, 1000);
+    } catch {
+      console.error("Microphone access denied");
+    }
+  }, [handleFiles]);
+
+  const toggleVoice = useCallback(() => {
+    if (!hasSpeechRecognition) {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+      return;
+    }
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+      setIsListening(false);
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = navigator.language;
+    rec.interimResults = true;
+    rec.continuous = true;
+
+    const base = inputValueRef.current;
+
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      let finals = "";
+      let interim = "";
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finals += e.results[i][0].transcript;
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      setInputValue((base ? base + " " : "") + finals + interim);
+    };
+
+    rec.onend = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+
+    rec.onerror = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+
+    recognitionRef.current = rec;
+    setIsListening(true);
+    rec.start();
+  }, [hasSpeechRecognition, isRecording, stopRecording, startRecording]);
+
   const removePendingFile = useCallback((index: number) => {
     setPendingFiles((prev) => {
       const removed = prev[index];
@@ -1431,6 +1521,25 @@ export function ChatPage() {
     typeof matchMedia !== "undefined" &&
       matchMedia("(pointer: coarse)").matches,
   );
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imageFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        handleFiles(imageFiles);
+      }
+    },
+    [handleFiles],
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       // Mobile: Enter = newline (send via button). Desktop: Enter = send.
@@ -1517,6 +1626,7 @@ export function ChatPage() {
   function getInputPlaceholder(): string {
     if (pendingPrompt) return pendingPrompt;
     if (isListening) return "Listening...";
+    if (isRecording) return "Recording...";
     if (isSending) return "Waiting for response...";
     return "Reply to AgentClaw...";
   }
@@ -1687,6 +1797,7 @@ export function ChatPage() {
                   value={inputValue}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   placeholder="Ask AgentClaw..."
                   disabled={isSending}
                   rows={2}
@@ -1745,17 +1856,24 @@ export function ChatPage() {
                     )}
                   </div>
                   <div className="chat-input-actions-right">
-                    {(window.SpeechRecognition ||
-                      window.webkitSpeechRecognition) && (
-                      <button
-                        className={`btn-voice${isListening ? " listening" : ""}`}
-                        onClick={toggleVoice}
-                        disabled={isSending}
-                        title={isListening ? "Stop voice input" : "Voice input"}
-                      >
-                        <IconMic size={18} />
-                      </button>
+                    {isRecording && (
+                      <span className="recording-time">
+                        {Math.floor(recordingTime / 60)}:
+                        {String(recordingTime % 60).padStart(2, "0")}
+                      </span>
                     )}
+                    <button
+                      className={`btn-voice${isListening || isRecording ? " listening" : ""}`}
+                      onClick={toggleVoice}
+                      disabled={isSending}
+                      title={
+                        isListening || isRecording
+                          ? "Stop voice input"
+                          : "Voice input"
+                      }
+                    >
+                      <IconMic size={18} />
+                    </button>
                     <button
                       className="btn-send"
                       onClick={handleSend}
@@ -2039,17 +2157,24 @@ export function ChatPage() {
                   )}
                 </div>
                 <div className="chat-input-actions-right">
-                  {(window.SpeechRecognition ||
-                    window.webkitSpeechRecognition) && (
-                    <button
-                      className={`btn-voice${isListening ? " listening" : ""}`}
-                      onClick={toggleVoice}
-                      disabled={isSending}
-                      title={isListening ? "Stop voice input" : "Voice input"}
-                    >
-                      <IconMic size={18} />
-                    </button>
+                  {isRecording && (
+                    <span className="recording-time">
+                      {Math.floor(recordingTime / 60)}:
+                      {String(recordingTime % 60).padStart(2, "0")}
+                    </span>
                   )}
+                  <button
+                    className={`btn-voice${isListening || isRecording ? " listening" : ""}`}
+                    onClick={toggleVoice}
+                    disabled={isSending}
+                    title={
+                      isListening || isRecording
+                        ? "Stop voice input"
+                        : "Voice input"
+                    }
+                  >
+                    <IconMic size={18} />
+                  </button>
                   {isSending && !pendingPrompt ? (
                     <button
                       className="btn-stop"

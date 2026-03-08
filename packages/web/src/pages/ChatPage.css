@@ -942,6 +942,13 @@
   }
 }
 
+.recording-time {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--error);
+  animation: pulse-mic 1.2s ease-in-out infinite;
+}
+
 /* ── Connection Status ────────────────────────────── */
 
 .connection-banner {

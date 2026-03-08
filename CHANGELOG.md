@@ -18,6 +18,8 @@
 - **Tasks 页面重构**（web/TasksPage）：5 个标签页（Today/All Tasks/Calendar/Decisions/Automations）、Task Runner Stats 卡片、QuickAdd 快速添加、Decision Queue 决策队列、Calendar 视图
 
 ### 改进
+- **输入框图片粘贴**（web/ChatPage）：textarea 支持 Ctrl+V 粘贴图片，自动提取剪贴板中的图片文件加入待上传列表，复用已有的文件上传流程
+- **语音输入 MediaRecorder fallback**（web/ChatPage）：不支持 Web Speech API 的浏览器（手机端）自动使用 MediaRecorder 录音，录完后作为音频附件发送；显示录音时长计时器，支持 webm/mp4 格式自适应
 - **SQLite 任务表迁移**（memory/database）：自动检测旧 CHECK 约束并重建，新增 `executor`/`deadline`/`parent_id` 索引和 `metadata` 列
 - **任务状态扩展**（memory/store）：新增 `triaged`/`blocked` 状态统计，priority 排序支持 `urgent`/`normal`
 - **每日简报定时推送**（gateway/index）：Cron job 每天定时广播任务简报（默认 09:00），有待处理任务才发送，发送时间可在 Tasks 页面配置

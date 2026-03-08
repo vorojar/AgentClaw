@@ -8,18 +8,29 @@ The extension is pre-installed. Just execute the commands below. If a command fa
 
 ## Batch mode (preferred — all steps in one call, much faster)
 
+**IMPORTANT: Always use `--file` mode to avoid shell quoting issues.**
+
+Step 1 — Write steps to a JSON file using `file_write`:
+```json
+[
+  {"action": "open", "args": {"url": "https://x.com/compose/post"}},
+  {"action": "type", "args": {"selector": "[data-testid=tweetTextarea_0]", "text": "Hello!"}},
+  {"action": "click", "args": {"selector": "[data-testid=tweetButton]"}},
+  {"action": "sleep", "args": {"ms": 2000}},
+  {"action": "screenshot"}
+]
 ```
-shell: node skills/browser/scripts/browser.mjs batch '<JSON array>'
+
+Step 2 — Execute:
+```
+shell: node skills/browser/scripts/browser.mjs batch --file steps.json --auto-close
 ```
 
 Each step: `{"action": "open|click|type|scroll|screenshot|get_content|wait_for|sleep|close|save_login", "args": {...}}`
 
 In batch mode, **click/type auto-wait** for the selector to appear (up to 5s), so you don't need explicit wait_for before them.
 
-For **scheduled/automated tasks**, add `"auto_close": true` to the batch args to automatically close the tab when done:
-```
-shell: node skills/browser/scripts/browser.mjs batch '<JSON array>' --auto-close
-```
+`--auto-close`: automatically close the tab when batch completes (recommended for scheduled tasks).
 
 ### Example: Post on X/Twitter
 ```

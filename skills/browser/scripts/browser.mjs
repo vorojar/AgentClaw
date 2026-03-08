@@ -82,11 +82,20 @@ async function main() {
       break;
     }
     case 'batch': {
-      const json = rest[0];
-      if (!json) { console.error('Error: JSON array of steps required'); process.exit(1); }
+      const fileIdx = rest.indexOf('--file');
+      const autoClose = rest.includes('--auto-close');
+      let json;
+      if (fileIdx !== -1 && rest[fileIdx + 1]) {
+        // Read JSON from file (avoids shell quoting issues)
+        const { readFileSync } = await import('node:fs');
+        const { resolve: pathResolve } = await import('node:path');
+        json = readFileSync(pathResolve(rest[fileIdx + 1]), 'utf8');
+      } else {
+        json = rest[0];
+      }
+      if (!json) { console.error('Error: JSON array required. Use: batch \'[...]\' or batch --file steps.json'); process.exit(1); }
       let steps;
       try { steps = JSON.parse(json); } catch { console.error('Error: invalid JSON'); process.exit(1); }
-      const autoClose = rest.includes('--auto-close');
       const result = await exec('batch', { steps, auto_close: autoClose });
       for (const r of result.results) {
         const tag = r.ok ? 'OK' : 'FAIL';

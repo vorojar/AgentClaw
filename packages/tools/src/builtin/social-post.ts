@@ -1,6 +1,40 @@
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 /**
+ * Download an image URL and return base64 + mimeType.
+ * Note: webp is normalized to image/png since some platforms (e.g. 即刻) don't accept webp via paste.
+ * The actual pixel data stays the same — we just label it as png so the File object gets a .png extension.
+ */
+async function downloadImageAsBase64(url: string): Promise<{ base64: string; mimeType: string }> {
+  let buf: Buffer;
+  let mimeType: string;
+
+  if (url.startsWith("/") || url.startsWith("data/") || /^[A-Z]:/i.test(url)) {
+    // Local file
+    const { readFileSync } = await import("node:fs");
+    const { extname } = await import("node:path");
+    const ext = extname(url).toLowerCase().replace(".", "");
+    const mimeMap: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
+    buf = readFileSync(url);
+    mimeType = mimeMap[ext] || "image/png";
+  } else {
+    // Remote URL
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to download image: HTTP ${res.status}`);
+    buf = Buffer.from(await res.arrayBuffer());
+    const ct = res.headers.get("content-type") || "image/png";
+    mimeType = ct.split(";")[0].trim();
+  }
+
+  // Normalize webp → png (many platforms reject webp via clipboard paste)
+  if (mimeType === "image/webp") {
+    mimeType = "image/png";
+  }
+
+  return { base64: buf.toString("base64"), mimeType };
+}
+
+/**
  * Platform configurations: URL, selectors, char limits.
  * All browser automation is handled internally — LLM just calls post(platform, text).
  */
@@ -30,16 +64,21 @@ const PLATFORMS: Record<string, PlatformConfig> = {
   },
   xiaohongshu: {
     name: "小红书",
-    postUrl: "https://www.xiaohongshu.com/publish/publish?source=web",
+    postUrl: "https://creator.xiaohongshu.com/publish/publish?source=web&from=tab_switch",
     textSelector: "div.ql-editor[contenteditable=true]",
     submitSelector: "button.publishBtn, button[class*=publish]",
     loadWait: 3000,
     submitWait: 3000,
     preSteps: [
-      // 小红书发布页需要先点击"发布笔记"区域
+      // 创作者平台默认在视频tab，需要先切到图文tab
       {
         action: "click",
-        args: { selector: "div.ql-editor[contenteditable=true]" },
+        args: { selector: "text=上传图文" },
+      },
+      // 等待图文上传区域加载
+      {
+        action: "sleep",
+        args: { ms: 1000 },
       },
     ],
   },
@@ -87,7 +126,7 @@ export const socialPostTool: Tool = {
   name: "social_post",
   category: "builtin",
   description:
-    "Post text to social media (X/Twitter, 小红书, 即刻). " +
+    "Post text (with optional images) to social media (X/Twitter, 小红书, 即刻). " +
     "One call = done. Handles browser automation internally.",
   parameters: {
     type: "object",
@@ -101,6 +140,11 @@ export const socialPostTool: Tool = {
         type: "string",
         description: "Text content to post",
       },
+      images: {
+        type: "array",
+        description: "Image URLs or local file paths to attach (max 4)",
+        items: { type: "string" },
+      },
     },
     required: ["platform", "text"],
   },
@@ -111,6 +155,7 @@ export const socialPostTool: Tool = {
   ): Promise<ToolResult> {
     const platformKey = input.platform as string;
     const text = input.text as string;
+    const imageUrls = (input.images as string[] | undefined) || [];
 
     const config = PLATFORMS[platformKey];
     if (!config) {
@@ -132,6 +177,19 @@ export const socialPostTool: Tool = {
       };
     }
 
+    // Download images upfront (before building steps)
+    const imageData: Array<{ base64: string; mimeType: string }> = [];
+    for (const imgUrl of imageUrls.slice(0, 4)) {
+      try {
+        imageData.push(await downloadImageAsBase64(imgUrl));
+      } catch (err) {
+        return {
+          content: `Failed to download image ${imgUrl}: ${err instanceof Error ? err.message : String(err)}`,
+          isError: true,
+        };
+      }
+    }
+
     // Build batch steps
     const steps: Array<{ action: string; args?: Record<string, unknown> }> = [];
 
@@ -151,18 +209,25 @@ export const socialPostTool: Tool = {
     // 4. Type text
     steps.push({ action: "type", args: { selector: config.textSelector, text } });
 
-    // 5. Click submit
+    // 5. Paste images (if any) — after text, before submit
+    for (const img of imageData) {
+      steps.push({ action: "paste_image", args: { base64: img.base64, mimeType: img.mimeType } });
+      // Wait for image upload/processing
+      steps.push({ action: "sleep", args: { ms: 2000 } });
+    }
+
+    // 6. Click submit
     steps.push({
       action: "click",
       args: { selector: config.submitSelector, timeout: 10000 },
     });
 
-    // 6. Wait for submission
+    // 7. Wait for submission
     if (config.submitWait) {
       steps.push({ action: "sleep", args: { ms: config.submitWait } });
     }
 
-    // 7. Screenshot for confirmation
+    // 8. Screenshot for confirmation
     steps.push({ action: "screenshot" });
 
     try {

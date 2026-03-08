@@ -152,6 +152,8 @@ async function handleCommand(action, args) {
       return { slept: args.ms || 1000 };
     case "batch":
       return await cmdBatch(args);
+    case "paste_image":
+      return await cmdPasteImage(args);
     case "save_login":
       return await cmdSaveLogin(args);
     case "reload":
@@ -215,9 +217,43 @@ async function cmdScreenshot() {
 
 async function cmdClick({ selector }) {
   if (!selector) throw new Error("Selector required");
-  const resolved = resolveSelector(selector);
   const tab = await getActiveTab();
 
+  // Support "text=xxx" selector — find element by exact visible text
+  const textMatch = /^text=(.+)$/.exec(selector);
+  if (textMatch) {
+    const targetText = textMatch[1];
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: (txt) => {
+        const walker = document.createTreeWalker(
+          document.body,
+          NodeFilter.SHOW_ELEMENT,
+        );
+        let node;
+        while ((node = walker.nextNode())) {
+          if (node.children.length === 0 && node.textContent.trim() === txt) {
+            node.click();
+            return true;
+          }
+        }
+        // Fallback: partial match on innerText
+        const all = document.querySelectorAll("*");
+        for (const el of all) {
+          if (el.innerText?.trim() === txt && el.offsetParent !== null) {
+            el.click();
+            return true;
+          }
+        }
+        throw new Error(`No element with text: ${txt}`);
+      },
+      args: [targetText],
+    });
+    if (results[0]?.error) throw new Error(results[0].error.message);
+    return { clicked: selector };
+  }
+
+  const resolved = resolveSelector(selector);
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: (sel) => {
@@ -552,6 +588,83 @@ async function cmdClose() {
   const tab = await getActiveTab();
   await chrome.tabs.remove(tab.id);
   return { closed: true };
+}
+
+/**
+ * Paste image into the active element via ClipboardEvent.
+ * Works with contentEditable editors (X, 小红书, 即刻, etc.)
+ */
+async function cmdPasteImage({ base64, mimeType }) {
+  if (!base64) throw new Error("base64 image data required");
+  const mime = mimeType || "image/png";
+  const tab = await getActiveTab();
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: (b64, mime) => {
+      // Convert base64 to Blob
+      const byteChars = atob(b64);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteArray[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteArray], { type: mime });
+      const file = new File([blob], `image.${mime.split("/")[1] || "png"}`, {
+        type: mime,
+      });
+
+      // Create DataTransfer with the file
+      const dt = new DataTransfer();
+      dt.items.add(file);
+
+      // Find the focused/active editable element
+      let target = document.activeElement;
+      if (!target || target === document.body) {
+        // Try common editor selectors
+        target =
+          document.querySelector("[contenteditable=true]") ||
+          document.querySelector("[data-testid=tweetTextarea_0]") ||
+          document.querySelector("textarea") ||
+          document.body;
+      }
+
+      // Dispatch paste event
+      const pasteEvent = new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dt,
+      });
+      const pasteHandled = !target.dispatchEvent(pasteEvent); // returns false if preventDefault() was called
+
+      if (!pasteHandled) {
+        // Try drop event as fallback
+        const dropEvent = new DragEvent("drop", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: dt,
+        });
+        const dropHandled = !target.dispatchEvent(dropEvent);
+
+        // Last resort: try setting input[type=file].files
+        if (!dropHandled) {
+          const fileInput = document.querySelector('input[type="file"]');
+          if (fileInput) {
+            const dt2 = new DataTransfer();
+            dt2.items.add(file);
+            fileInput.files = dt2.files;
+            fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+            return { pasted: true, method: "file_input" };
+          }
+        }
+      }
+
+      return { pasted: true, method: pasteHandled ? "paste" : "drop" };
+    },
+    args: [base64, mime],
+  });
+
+  if (results[0]?.error) throw new Error(results[0].error.message);
+  return results[0]?.result || { pasted: true };
 }
 
 /**

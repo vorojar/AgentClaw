@@ -417,6 +417,10 @@ export async function bootstrap(): Promise<AppContext> {
   );
 
   // Orchestrator
+  const maxIterations = process.env.MAX_ITERATIONS
+    ? parseInt(process.env.MAX_ITERATIONS, 10)
+    : undefined;
+
   const orchestrator = new SimpleOrchestrator({
     provider,
     visionProvider,
@@ -428,6 +432,7 @@ export async function bootstrap(): Promise<AppContext> {
     skillRegistry,
     tmpDir: tempDir,
     agents,
+    ...(maxIterations ? { agentConfig: { maxIterations } } : {}),
   });
 
   const config: AppRuntimeConfig = {

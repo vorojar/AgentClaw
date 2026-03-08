@@ -2099,6 +2099,7 @@ export function ChatPage() {
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder={getInputPlaceholder()}
                 disabled={isSending && !pendingPrompt}
                 rows={2}

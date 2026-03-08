@@ -12,7 +12,12 @@ if ($conn) {
     $procId = $conn.OwningProcess | Select-Object -First 1
     Write-Host "[1/3] Stopping process $procId on port $Port..." -ForegroundColor Yellow
     Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 3
+    # 轮询等待端口释放（最多 10 秒）
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Milliseconds 500
+        $still = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+        if (-not $still) { break }
+    }
 } else {
     Write-Host "[1/3] No process on port $Port, skipping." -ForegroundColor Gray
 }
@@ -32,11 +37,14 @@ if (-not $NoBuild) {
 # 3. 后台启动 gateway
 Write-Host "[3/3] Starting gateway..." -ForegroundColor Green
 Start-Process -FilePath "node" -ArgumentList "packages/gateway/dist/index.js" -WindowStyle Hidden
-Start-Sleep -Seconds 2
 
-$check = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-if ($check) {
-    Write-Host "Gateway running on port $Port (PID: $($check.OwningProcess | Select-Object -First 1))" -ForegroundColor Green
-} else {
-    Write-Host "Gateway failed to start!" -ForegroundColor Red
+# 轮询等待启动（最多 10 秒）
+for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Milliseconds 500
+    $check = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if ($check) {
+        Write-Host "Gateway running on port $Port (PID: $($check.OwningProcess | Select-Object -First 1))" -ForegroundColor Green
+        exit 0
+    }
 }
+Write-Host "Gateway failed to start!" -ForegroundColor Red

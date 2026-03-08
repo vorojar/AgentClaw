@@ -18,6 +18,7 @@ import { getWsClients } from "./ws.js";
 import { ChannelManager } from "./channel-manager.js";
 import { runGws } from "./gws.js";
 import { collectResponse, errorMessage } from "./utils.js";
+import { TaskManager } from "@agentclaw/core";
 
 export { bootstrap } from "./bootstrap.js";
 export type { AppContext, AppRuntimeConfig } from "./bootstrap.js";
@@ -135,84 +136,16 @@ async function main(): Promise<void> {
     }
   });
 
-  // Task Runner: 扫描 Google Tasks，LLM 判断可执行性，自动执行
-  let taskRunnerBusy = false;
-  // 缓存已判断过的任务 ID → true=可执行 / false=跳过
-  const taskDecisions = new Map<string, boolean>();
-  const taskRunner = setInterval(async () => {
-    // 防止 taskDecisions 无限增长，超过 1000 条时清空
-    if (taskDecisions.size > 1000) taskDecisions.clear();
-    if (taskRunnerBusy) return;
-    taskRunnerBusy = true;
-    try {
-      const res = await runGws([
-        "tasks", "tasks", "list",
-        "--params", JSON.stringify({ tasklist: "@default", showCompleted: false, maxResults: 20 }),
-      ]);
-      if (!res.ok) {
-        console.error("[task-runner] Google Tasks 获取失败:", res.error);
-        return;
-      }
-      const data = res.data as { items?: { id: string; title: string; notes?: string; status: string }[] };
-      const tasks = (data?.items || []).filter((t) => t.status === "needsAction");
-
-      for (const task of tasks) {
-        // 跳过已判断为不可执行的任务
-        if (taskDecisions.get(task.id) === false) continue;
-
-        // 首次遇到的任务：让 LLM 判断是否可执行
-        if (!taskDecisions.has(task.id)) {
-          console.log(`[task-runner] 判断任务可执行性: ${task.title}`);
-          try {
-            const judgePrompt = `你是一个任务执行判断器。判断以下任务是否是你（AI助手）可以通过工具（搜索、发邮件、写文件、调API等）自动执行的。
-如果可以执行，回复"YES"。如果是需要人类亲自做的事（买东西、出门、运动等），回复"NO"。只回复YES或NO。
-
-任务标题: ${task.title}${task.notes ? `\n任务备注: ${task.notes}` : ""}`;
-            const answer = await collectResponse(ctx.orchestrator, judgePrompt);
-            const canExecute = answer.trim().toUpperCase().startsWith("YES");
-            taskDecisions.set(task.id, canExecute);
-            if (!canExecute) {
-              console.log(`[task-runner] 跳过人类任务: ${task.title}`);
-              continue;
-            }
-          } catch (err) {
-            console.error(`[task-runner] 判断失败: ${task.title}`, err);
-            continue;
-          }
-        }
-
-        // 执行任务
-        console.log(`[task-runner] 执行任务: ${task.title}`);
-        try {
-          const prompt = task.notes
-            ? `${task.title}\n\n${task.notes}`
-            : task.title;
-          const result = await collectResponse(ctx.orchestrator, prompt);
-
-          // 完成后标记 Google Tasks 为 completed
-          await runGws([
-            "tasks", "tasks", "patch",
-            "--params", JSON.stringify({ tasklist: "@default", task: task.id }),
-            "--json", JSON.stringify({ status: "completed" }),
-          ]);
-          taskDecisions.delete(task.id);
-
-          const summary = result.trim().slice(0, 200) || "已完成";
-          await broadcastAll(`✅ 任务「${task.title}」已完成：${summary}`);
-          console.log(`[task-runner] ✅ 完成: ${task.title}`);
-        } catch (err) {
-          Sentry.captureException(err);
-          const msg = errorMessage(err);
-          console.error(`[task-runner] ❌ 失败: ${task.title}`, msg);
-          await broadcastAll(`❌ 任务「${task.title}」执行失败：${msg}`);
-        }
-      }
-    } catch (err) {
-      console.error("[task-runner] 扫描失败:", err);
-    } finally {
-      taskRunnerBusy = false;
-    }
-  }, 60_000); // 每 60 秒扫描一次
+  // TaskManager: 捕获、分诊、执行、决策的统一任务管理
+  const taskManager = new TaskManager(
+    ctx.memoryStore,
+    ctx.orchestrator,
+    broadcastAll,
+    { scanIntervalMs: 60_000, maxConcurrent: 1 },
+  );
+  // 挂载到 ctx 供 API 路由使用
+  (ctx as unknown as Record<string, unknown>).taskManager = taskManager;
+  taskManager.startScanner();
 
   // 优雅关停
   const shutdown = async (signal: string) => {
@@ -227,7 +160,7 @@ async function main(): Promise<void> {
 
     heartbeat.stop();
     healthJob.stop();
-    clearInterval(taskRunner);
+    taskManager.stopScanner();
     channelManager.stopAll();
     ctx.scheduler.stopAll();
 

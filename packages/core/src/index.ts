@@ -8,3 +8,5 @@ export { SkillRegistryImpl, parseSkillFile } from "./skills/index.js";
 export { MemoryExtractor } from "./memory-extractor.js";
 export { ToolHookManager } from "./tool-hooks.js";
 export { SimpleSubAgentManager } from "./subagent-manager.js";
+export { TaskManager } from "./task-manager.js";
+export type { TaskManagerConfig } from "./task-manager.js";

@@ -1,5 +1,17 @@
 # 更新日志
 
+## [1.2.0] - 2026-03-08
+
+### 新增
+- **TaskManager 任务管理引擎**（core/task-manager）：完整的任务生命周期管理 — 自然语言捕获（LLM 解析）→ 分诊（agent/human）→ 队列调度 → 自动执行 → 决策请求 → 每日简报，60s 扫描器自动处理 queued 任务
+- **Automations API**（gateway/routes/tasks）：新增 `/api/tasks/scheduled` GET/POST/DELETE 路由，对接 TaskScheduler 实现定时任务的增删查
+- **Tasks 页面重构**（web/TasksPage）：5 个标签页（Today/All Tasks/Calendar/Decisions/Automations）、Task Runner Stats 卡片、QuickAdd 快速添加、Decision Queue 决策队列、Calendar 视图
+
+### 改进
+- **SQLite 任务表迁移**（memory/database）：自动检测旧 CHECK 约束并重建，新增 `executor`/`deadline`/`parent_id` 索引和 `metadata` 列
+- **任务状态扩展**（memory/store）：新增 `triaged`/`blocked` 状态统计，priority 排序支持 `urgent`/`normal`
+- **Tasks 页面样式优化**（web/TasksPage.css）：Tab 选中改用 box-shadow 避免浏览器默认 focus 圆角、Task Runner Stats 独立分区（顶部分割线 + 间距）、移除 QuickAdd 多余 border-top
+
 ## [1.1.0] - 2026-03-08
 
 ### 新增

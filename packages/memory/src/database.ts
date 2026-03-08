@@ -77,8 +77,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'done')),
-  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+  status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('inbox', 'todo', 'in_progress', 'triaged', 'queued', 'running', 'done', 'failed', 'blocked', 'waiting_decision')),
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('urgent', 'high', 'normal', 'medium', 'low')),
   due_date TEXT,
   assignee TEXT NOT NULL DEFAULT 'human',
   created_by TEXT NOT NULL DEFAULT 'human',
@@ -90,6 +90,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_tasks_executor ON tasks(executor);
+CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON tasks(deadline);
+CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);
 
 -- Sub-agent execution records (real-time + historical)
 CREATE TABLE IF NOT EXISTS subagents (
@@ -154,6 +157,26 @@ export function initDatabase(dbPath: string): Database.Database {
   addColumnIfMissing(db, "turns", "tool_call_count", "INTEGER");
   addColumnIfMissing(db, "sessions", "title", "TEXT");
 
+  // Migration: rebuild tasks table to update CHECK constraint for new statuses
+  rebuildTasksTableIfNeeded(db);
+
+  // Task Manager v2 migrations: extend tasks table for execution engine
+  addColumnIfMissing(db, "tasks", "executor", "TEXT DEFAULT 'human'");
+  addColumnIfMissing(db, "tasks", "source", "TEXT DEFAULT 'web'");
+  addColumnIfMissing(db, "tasks", "source_msg_id", "TEXT");
+  addColumnIfMissing(db, "tasks", "scheduled_at", "TEXT");
+  addColumnIfMissing(db, "tasks", "deadline", "TEXT");
+  addColumnIfMissing(db, "tasks", "recurrence", "TEXT");
+  addColumnIfMissing(db, "tasks", "parent_id", "TEXT");
+  addColumnIfMissing(db, "tasks", "result", "TEXT");
+  addColumnIfMissing(db, "tasks", "decision_context", "TEXT");
+  addColumnIfMissing(db, "tasks", "decision_options", "TEXT");
+  addColumnIfMissing(db, "tasks", "decision_result", "TEXT");
+  addColumnIfMissing(db, "tasks", "trace_ids", "TEXT DEFAULT '[]'");
+  addColumnIfMissing(db, "tasks", "progress", "INTEGER DEFAULT 0");
+  addColumnIfMissing(db, "tasks", "completed_at", "TEXT");
+  addColumnIfMissing(db, "tasks", "metadata", "TEXT");
+
   // Migration: populate FTS5 index from existing memories (one-time sync)
   const ftsCount = countRows(db, "memories_fts");
   const memCount = countRows(db, "memories");
@@ -164,6 +187,46 @@ export function initDatabase(dbPath: string): Database.Database {
   }
 
   return db;
+}
+
+/**
+ * Rebuild tasks table if CHECK constraint is outdated.
+ * SQLite does not support ALTER CHECK, so we recreate the table.
+ * The rebuilt table drops CHECK constraints entirely to avoid future migration pain.
+ */
+function rebuildTasksTableIfNeeded(db: Database.Database): void {
+  // Probe with 'triaged' status — if CHECK rejects it, we need to rebuild
+  try {
+    db.exec(
+      "INSERT INTO tasks (id, title, status) VALUES ('__check_probe__', '__probe__', 'triaged')",
+    );
+    // If it succeeded, constraint already allows new statuses — remove probe row
+    db.exec("DELETE FROM tasks WHERE id = '__check_probe__'");
+  } catch {
+    // CHECK constraint failed → need to rebuild without CHECK constraints
+    db.exec(`
+      CREATE TABLE tasks_new (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'todo',
+        priority TEXT NOT NULL DEFAULT 'normal',
+        due_date TEXT,
+        assignee TEXT NOT NULL DEFAULT 'human',
+        created_by TEXT NOT NULL DEFAULT 'human',
+        session_id TEXT,
+        trace_id TEXT,
+        tags TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO tasks_new SELECT id, title, description, status, priority, due_date, assignee, created_by, session_id, trace_id, tags, created_at, updated_at FROM tasks;
+      DROP TABLE tasks;
+      ALTER TABLE tasks_new RENAME TO tasks;
+      CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+      CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
+    `);
+  }
 }
 
 /** Count rows in a table */

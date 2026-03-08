@@ -79,7 +79,7 @@ export async function createServer(
   registerConfigRoutes(app, ctx);
   registerTokenLogRoutes(app, ctx);
   registerTraceRoutes(app, ctx);
-  registerTaskRoutes(app, scheduler);
+  registerTaskRoutes(app, ctx, scheduler);
   registerTodoRoutes(app, ctx);
   registerCalendarRoutes(app, ctx, scheduler);
   registerGoogleTasksRoutes(app);

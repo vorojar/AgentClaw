@@ -366,21 +366,26 @@ export interface ScheduledTaskInfo {
   nextRunAt?: string;
 }
 
-export function listScheduledTasks(): Promise<ScheduledTaskInfo[]> {
-  return request("/tasks");
+export async function listScheduledTasks(): Promise<ScheduledTaskInfo[]> {
+  try {
+    const res = await request<unknown>("/tasks/scheduled");
+    return Array.isArray(res) ? res : [];
+  } catch {
+    return [];
+  }
 }
 
 export function createScheduledTask(
   task: Omit<ScheduledTaskInfo, "id" | "lastRunAt" | "nextRunAt">,
 ): Promise<ScheduledTaskInfo> {
-  return request("/tasks", {
+  return request("/tasks/scheduled", {
     method: "POST",
     body: JSON.stringify(task),
   });
 }
 
 export function deleteScheduledTask(id: string): Promise<void> {
-  return request(`/tasks/${id}`, { method: "DELETE" });
+  return request(`/tasks/scheduled/${id}`, { method: "DELETE" });
 }
 
 // ── Todos (Task Management) ──────────────────────────
@@ -728,4 +733,142 @@ export function connectWebSocket(
       }
     },
   };
+}
+
+// ── Task Manager v2 ─────────────────────────────────
+
+export interface TaskItem {
+  id: string;
+  title: string;
+  description: string;
+  status: string; // todo | queued | running | done | failed | waiting_decision
+  priority: string; // high | medium | low
+  dueDate: string | null;
+  assignee: string;
+  createdBy: string;
+  executor: string;
+  source: string;
+  deadline: string | null;
+  result: string | null;
+  decisionContext: string | null;
+  decisionOptions: string[] | null;
+  decisionResult: string | null;
+  progress: number;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskStats {
+  inbox: number;
+  queued: number;
+  running: number;
+  waiting_decision: number;
+  done_today: number;
+  total_pending: number;
+  triaged: number;
+  blocked: number;
+}
+
+export interface TaskListResponse {
+  items: TaskItem[];
+  total: number;
+  stats: TaskStats;
+}
+
+export async function listManagedTasks(params?: {
+  status?: string;
+  executor?: string;
+  priority?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<TaskListResponse> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.executor) qs.set("executor", params.executor);
+  if (params?.priority) qs.set("priority", params.priority);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.offset) qs.set("offset", String(params.offset));
+  const q = qs.toString();
+  return request<TaskListResponse>(`/tasks${q ? `?${q}` : ""}`);
+}
+
+export async function getTaskStats(): Promise<TaskStats> {
+  // Note: this may shadow the existing getTaskRunnerStats - use different name
+  return request<TaskStats>("/tasks/stats");
+}
+
+export async function getTaskBrief(): Promise<{
+  brief: string | null;
+  stats?: TaskStats;
+}> {
+  return request<{ brief: string | null; stats?: TaskStats }>("/tasks/brief");
+}
+
+export async function getTaskDetail(id: string): Promise<TaskItem> {
+  return request<TaskItem>(`/tasks/${id}`);
+}
+
+export async function createManagedTask(data: {
+  text?: string;
+  task?: {
+    title: string;
+    description?: string;
+    priority?: string;
+    deadline?: string;
+    executor?: string;
+    dueDate?: string;
+  };
+}): Promise<TaskItem> {
+  return request<TaskItem>("/tasks", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateManagedTask(
+  id: string,
+  updates: Partial<
+    Pick<
+      TaskItem,
+      | "title"
+      | "description"
+      | "status"
+      | "priority"
+      | "dueDate"
+      | "executor"
+      | "deadline"
+      | "progress"
+    >
+  >,
+): Promise<TaskItem> {
+  return request<TaskItem>(`/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteManagedTask(id: string): Promise<void> {
+  return request<void>(`/tasks/${id}`, { method: "DELETE" });
+}
+
+export async function executeTask(
+  id: string,
+): Promise<{ result: unknown; task: TaskItem | null }> {
+  return request<{ result: unknown; task: TaskItem | null }>(
+    `/tasks/${id}/execute`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export async function submitDecision(
+  id: string,
+  decision: string,
+): Promise<{ task: TaskItem | null }> {
+  return request<{ task: TaskItem | null }>(`/tasks/${id}/decide`, {
+    method: "POST",
+    body: JSON.stringify({ decision }),
+  });
 }

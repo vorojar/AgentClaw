@@ -679,25 +679,31 @@ export class SQLiteMemoryStore implements MemoryStore {
     sessionId?: string;
     traceId?: string;
     tags?: string[];
+    executor?: string;
+    source?: string;
+    metadata?: Record<string, unknown>;
   }): void {
     const now = new Date().toISOString();
     this.db
       .prepare(
-        `INSERT INTO tasks (id, title, description, status, priority, due_date, assignee, created_by, session_id, trace_id, tags, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (id, title, description, status, priority, due_date, assignee, created_by, session_id, trace_id, tags, executor, source, metadata, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         task.id,
         task.title,
         task.description ?? "",
         task.status ?? "todo",
-        task.priority ?? "medium",
+        task.priority ?? "normal",
         task.dueDate ?? null,
         task.assignee ?? "human",
         task.createdBy ?? "human",
         task.sessionId ?? null,
         task.traceId ?? null,
         JSON.stringify(task.tags ?? []),
+        task.executor ?? "human",
+        task.source ?? "web",
+        task.metadata ? JSON.stringify(task.metadata) : null,
         now,
         now,
       );
@@ -715,6 +721,20 @@ export class SQLiteMemoryStore implements MemoryStore {
       tags?: string[];
       sessionId?: string;
       traceId?: string;
+      executor?: string;
+      source?: string;
+      scheduledAt?: string | null;
+      deadline?: string | null;
+      recurrence?: string | null;
+      parentId?: string | null;
+      result?: string | null;
+      decisionContext?: string | null;
+      decisionOptions?: string[] | null;
+      decisionResult?: string | null;
+      traceIds?: string[];
+      progress?: number;
+      completedAt?: string | null;
+      metadata?: Record<string, unknown> | null;
     },
   ): boolean {
     const { sets, params } = buildSetClause(updates, {
@@ -727,6 +747,21 @@ export class SQLiteMemoryStore implements MemoryStore {
       tags: (v) => JSON.stringify(v),
       sessionId: "session_id",
       traceId: "trace_id",
+      executor: "executor",
+      source: "source",
+      scheduledAt: "scheduled_at",
+      deadline: "deadline",
+      recurrence: "recurrence",
+      parentId: "parent_id",
+      result: "result",
+      decisionContext: "decision_context",
+      decisionOptions: (v) =>
+        v ? (typeof v === "string" ? v : JSON.stringify(v)) : null,
+      decisionResult: "decision_result",
+      traceIds: (v) => JSON.stringify(v),
+      progress: "progress",
+      completedAt: "completed_at",
+      metadata: (v) => (v ? JSON.stringify(v) : null),
     });
 
     if (sets.length === 0) return false;
@@ -740,13 +775,62 @@ export class SQLiteMemoryStore implements MemoryStore {
     return result.changes > 0;
   }
 
+  getTask(id: string): TaskRow | null {
+    return (
+      (this.db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as
+        | TaskRow
+        | undefined) ?? null
+    );
+  }
+
   deleteTask(id: string): boolean {
     const result = this.db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
     return result.changes > 0;
   }
 
+  getTaskStats(): {
+    inbox: number;
+    triaged: number;
+    queued: number;
+    running: number;
+    blocked: number;
+    waiting_decision: number;
+    done_today: number;
+    total_pending: number;
+  } {
+    const counts = this.db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'inbox' THEN 1 ELSE 0 END) AS inbox,
+           SUM(CASE WHEN status = 'triaged' THEN 1 ELSE 0 END) AS triaged,
+           SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued,
+           SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS running,
+           SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
+           SUM(CASE WHEN status = 'waiting_decision' THEN 1 ELSE 0 END) AS waiting_decision,
+           SUM(CASE WHEN status = 'done' AND completed_at >= date('now') THEN 1 ELSE 0 END) AS done_today,
+           SUM(CASE WHEN status NOT IN ('done', 'failed') THEN 1 ELSE 0 END) AS total_pending
+         FROM tasks`,
+      )
+      .get() as Record<string, number>;
+    return {
+      inbox: counts.inbox ?? 0,
+      triaged: counts.triaged ?? 0,
+      queued: counts.queued ?? 0,
+      running: counts.running ?? 0,
+      blocked: counts.blocked ?? 0,
+      waiting_decision: counts.waiting_decision ?? 0,
+      done_today: counts.done_today ?? 0,
+      total_pending: counts.total_pending ?? 0,
+    };
+  }
+
   listTasks(
-    filters?: { status?: string; priority?: string; assignee?: string },
+    filters?: {
+      status?: string;
+      priority?: string;
+      assignee?: string;
+      executor?: string;
+    },
     limit = 100,
     offset = 0,
   ): { items: TaskRow[]; total: number } {
@@ -754,6 +838,7 @@ export class SQLiteMemoryStore implements MemoryStore {
       status: filters?.status,
       priority: filters?.priority,
       assignee: filters?.assignee,
+      executor: filters?.executor,
     });
 
     const { total } = this.db
@@ -763,7 +848,7 @@ export class SQLiteMemoryStore implements MemoryStore {
     const rows = this.db
       .prepare(
         `SELECT * FROM tasks ${where} ORDER BY
-           CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END,
+           CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 END,
            updated_at DESC
          LIMIT ? OFFSET ?`,
       )
@@ -1270,6 +1355,22 @@ export interface TaskRow {
   tags: string;
   created_at: string;
   updated_at: string;
+  // Task Manager v2 fields
+  executor: string;
+  source: string;
+  source_msg_id: string | null;
+  scheduled_at: string | null;
+  deadline: string | null;
+  recurrence: string | null;
+  parent_id: string | null;
+  result: string | null;
+  decision_context: string | null;
+  decision_options: string | null;
+  decision_result: string | null;
+  trace_ids: string;
+  progress: number;
+  completed_at: string | null;
+  metadata: string | null;
 }
 
 export interface SubAgentRow {

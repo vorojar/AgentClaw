@@ -150,11 +150,6 @@ export class SimpleAgentLoop implements AgentLoop {
       createdAt: new Date(),
     };
 
-    // 优先用 gateway 传入的原始文本（parseUserContent 转换前的），否则用当前 input
-    const userContentForStorage =
-      context?.originalUserText ??
-      (typeof input === "string" ? input : JSON.stringify(input));
-
     // Per-trace temp directory: data/tmp/{traceId}/
     const traceTmpDir = join(process.cwd(), "data", "tmp", trace.id).replace(
       /\\/g,
@@ -166,8 +161,9 @@ export class SimpleAgentLoop implements AgentLoop {
     if (context) context.workDir = traceTmpDir;
 
     // ── Collect all user files into per-trace dir ──
-    // 1. Images: save base64 to per-trace dir
+    // 1. Images: save base64 to per-trace dir, record path for DB storage
     const savedImagePaths: string[] = [];
+    const imagePathMap = new Map<ImageContent, string>(); // block → saved file path
     // 2. Attachments (video, docs, etc.): copy from data/tmp/ root to per-trace dir
     const relocatedFiles = new Map<string, string>(); // original path → per-trace path
 
@@ -182,6 +178,7 @@ export class SimpleAgentLoop implements AgentLoop {
           try {
             writeFileSync(filePath, Buffer.from(img.data, "base64"));
             savedImagePaths.push(filePath);
+            imagePathMap.set(img, filePath);
           } catch {
             // save failed, keep original base64
           }
@@ -222,7 +219,27 @@ export class SimpleAgentLoop implements AgentLoop {
     ];
     const hintText = runtimeHints.join("\n");
 
-    // 存储原始用户消息（不含注入的提示），刷新后用户看到的是原始内容
+    // DB 存储：多模态输入存 ContentBlock[] JSON（image.data 替换为 file:// 路径，避免 DB 膨胀）
+    // turnToMessage 读取时从磁盘加载 base64 还原
+    let userContentForStorage: string;
+    if (typeof input === "string") {
+      userContentForStorage = context?.originalUserText ?? input;
+    } else {
+      // 替换 image block 的 base64 data 为 file:// 引用
+      const storable = input.map((block) => {
+        if (block.type === "image") {
+          const img = block as ImageContent;
+          const savedPath = imagePathMap.get(img);
+          if (savedPath) {
+            return { type: "image", mediaType: img.mediaType, filePath: savedPath, filename: img.filename };
+          }
+        }
+        return block;
+      });
+      userContentForStorage = JSON.stringify(storable);
+    }
+
+    // 存储用户消息到 DB
     const userTurn: ConversationTurn = {
       id: generateId(),
       conversationId: convId,

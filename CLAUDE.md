@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **改动前先 grep 现有模式** — 不要凭空写，找同类代码复制 pattern，保持一致性
 - **明显的修复直接改** — bug 修复、import 调整、类型修复不需要和用户确认，直接动手
 - **报错先看完整 stack trace 再动手** — 不要看到第一行就猜，看完再改，一次修对
-- **重启 gateway 标准流程** — `netstat -ano | findstr :3100` → `taskkill //pid <PID> //f` → `npm run build` → `npm run start`（后台运行）
+- **重启 gateway 标准流程** — `powershell.exe -File restart.ps1`（自动停旧进程 → 构建 → 启动）；跳过构建用 `powershell.exe -File restart.ps1 -NoBuild`
 
 ## 构建与运行
 

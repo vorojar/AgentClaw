@@ -1,3 +1,4 @@
+import { readFileSync, existsSync } from "node:fs";
 import type {
   ContextManager,
   Message,
@@ -387,16 +388,52 @@ export class SimpleContextManager implements ContextManager {
       try {
         const parsed = JSON.parse(turn.content);
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
+          // 还原 image block：filePath → 从磁盘加载 base64 data
           // 清理历史中的 /files/ URL，防止 LLM 拾取错误路径
-          const cleaned = (parsed as ContentBlock[]).map((block) =>
-            block.type === "text"
-              ? { ...block, text: this.cleanFileUrls(block.text) }
-              : block,
-          );
+          const cleaned = (
+            parsed as (
+              | ContentBlock
+              | {
+                  type: "image";
+                  filePath: string;
+                  mediaType?: string;
+                  filename?: string;
+                }
+            )[]
+          ).map((block) => {
+            if (block.type === "text") {
+              return { ...block, text: this.cleanFileUrls(block.text) };
+            }
+            if (
+              block.type === "image" &&
+              "filePath" in block &&
+              block.filePath
+            ) {
+              // 从磁盘加载 base64，还原为完整 image ContentBlock
+              try {
+                if (existsSync(block.filePath)) {
+                  const buf = readFileSync(block.filePath);
+                  return {
+                    type: "image" as const,
+                    data: buf.toString("base64"),
+                    mediaType: block.mediaType ?? "image/jpeg",
+                  };
+                }
+              } catch {
+                /* file not found, skip image */
+              }
+              // 文件不存在，跳过这个 image block
+              return {
+                type: "text" as const,
+                text: `[图片文件已过期: ${block.filename || block.filePath}]`,
+              };
+            }
+            return block;
+          });
           return {
             id: turn.id,
             role: turn.role,
-            content: cleaned,
+            content: cleaned as ContentBlock[],
             createdAt: turn.createdAt,
             model: turn.model,
           };

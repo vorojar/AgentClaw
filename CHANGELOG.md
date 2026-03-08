@@ -20,6 +20,7 @@
 ### 改进
 - **输入框图片粘贴**（web/ChatPage）：textarea 支持 Ctrl+V 粘贴图片，自动提取剪贴板中的图片文件加入待上传列表，复用已有的文件上传流程
 - **语音输入 MediaRecorder fallback**（web/ChatPage）：不支持 Web Speech API 的浏览器（手机端）自动使用 MediaRecorder 录音，录完后作为音频附件发送；显示录音时长计时器，支持 webm/mp4 格式自适应
+- **图片 vision 修复**（core/agent-loop + context-manager）：修复用户发送图片时 LLM 无法"看到"图片的 bug — 之前 DB 存储的是纯文本（丢弃 base64），导致 buildContext 重建消息时图片缺失，LLM 只能通过 OCR 工具间接识别。现在 DB 存储 ContentBlock[] JSON（image block 用 filePath 引用替代 base64，避免 DB 膨胀），turnToMessage 时从磁盘加载还原
 - **SQLite 任务表迁移**（memory/database）：自动检测旧 CHECK 约束并重建，新增 `executor`/`deadline`/`parent_id` 索引和 `metadata` 列
 - **任务状态扩展**（memory/store）：新增 `triaged`/`blocked` 状态统计，priority 排序支持 `urgent`/`normal`
 - **每日简报定时推送**（gateway/index）：Cron job 每天定时广播任务简报（默认 09:00），有待处理任务才发送，发送时间可在 Tasks 页面配置

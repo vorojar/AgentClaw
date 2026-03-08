@@ -9,10 +9,10 @@ $Port = 3100
 # 1. 查找并杀掉占用端口的进程
 $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
 if ($conn) {
-    $pid = $conn.OwningProcess | Select-Object -First 1
-    Write-Host "[1/3] Stopping process $pid on port $Port..." -ForegroundColor Yellow
-    Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 1
+    $procId = $conn.OwningProcess | Select-Object -First 1
+    Write-Host "[1/3] Stopping process $procId on port $Port..." -ForegroundColor Yellow
+    Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 3
 } else {
     Write-Host "[1/3] No process on port $Port, skipping." -ForegroundColor Gray
 }

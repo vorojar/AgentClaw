@@ -282,7 +282,17 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           },
           promptUser: (question: string) => {
             return new Promise<string>((resolve) => {
-              pendingPrompt = resolve;
+              const timer = setTimeout(
+                () => {
+                  pendingPrompt = null;
+                  resolve("[用户未在 5 分钟内回答]");
+                },
+                5 * 60 * 1000,
+              );
+              pendingPrompt = (answer: string) => {
+                clearTimeout(timer);
+                resolve(answer);
+              };
               safeSend(JSON.stringify({ type: "prompt", question }));
             });
           },
@@ -318,7 +328,9 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
 
         // 客户端断开后停止迭代 eventStream，避免资源浪费
         let aborted = false;
-        socket.once("close", () => { aborted = true; });
+        socket.once("close", () => {
+          aborted = true;
+        });
 
         for await (const event of eventStream) {
           if (aborted) break;

@@ -186,7 +186,17 @@ export async function startDingTalkBot(
           promptUser: async (question: string) => {
             await replyText(sessionWebhook, `? ${question}`);
             return new Promise<string>((resolve) => {
-              pendingPrompts.set(conversationId, resolve);
+              const timer = setTimeout(
+                () => {
+                  pendingPrompts.delete(conversationId);
+                  resolve("[用户未在 5 分钟内回答]");
+                },
+                5 * 60 * 1000,
+              );
+              pendingPrompts.set(conversationId, (answer: string) => {
+                clearTimeout(timer);
+                resolve(answer);
+              });
             });
           },
           notifyUser: async (message: string) => {

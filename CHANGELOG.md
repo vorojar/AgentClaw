@@ -1,5 +1,11 @@
 # 更新日志
 
+## [1.0.3] - 2026-03-08
+
+### 修复
+- **API 请求头覆盖**（web/client）：`renameSession()` 传入的 headers 会覆盖 `request()` 构建的 Authorization 头，改为仅由 `request()` 统一管理 headers
+- **promptUser 超时保护**（gateway/ws+dingtalk+feishu）：WebSocket、钉钉、飞书的 `promptUser` 添加 5 分钟超时，防止 Promise 永远挂起导致 agent loop 卡死
+
 ## [1.0.2] - 2026-03-08
 
 ### 修复

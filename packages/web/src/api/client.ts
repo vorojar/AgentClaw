@@ -36,9 +36,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (apiKey) {
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
+  const { headers: _dropHeaders, ...restOptions } = options ?? {};
   const res = await fetch(`${BASE}${path}`, {
+    ...restOptions,
     headers,
-    ...options,
   });
   if (res.status === 401) {
     clearStoredApiKey();

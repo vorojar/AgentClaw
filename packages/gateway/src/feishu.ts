@@ -165,7 +165,17 @@ export async function startFeishuBot(
         promptUser: async (question: string) => {
           await sendText(client, chat_id, `? ${question}`);
           return new Promise<string>((resolve) => {
-            pendingPrompts.set(chat_id, resolve);
+            const timer = setTimeout(
+              () => {
+                pendingPrompts.delete(chat_id);
+                resolve("[用户未在 5 分钟内回答]");
+              },
+              5 * 60 * 1000,
+            );
+            pendingPrompts.set(chat_id, (answer: string) => {
+              clearTimeout(timer);
+              resolve(answer);
+            });
           });
         },
         notifyUser: async (msg: string) => {

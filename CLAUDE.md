@@ -15,6 +15,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. **提交推送** — `git commit` + `git push`，同步更新 CHANGELOG.md
 5. **压缩不是借口** — 如果上下文被压缩，回来后先检查 `git status` 和 `git diff`，确认是否有未完成的步骤
 
+## 开发纪律
+
+- **改动前先 grep 现有模式** — 不要凭空写，找同类代码复制 pattern，保持一致性
+- **明显的修复直接改** — bug 修复、import 调整、类型修复不需要和用户确认，直接动手
+- **报错先看完整 stack trace 再动手** — 不要看到第一行就猜，看完再改，一次修对
+- **重启 gateway 标准流程** — `netstat -ano | findstr :3100` → `taskkill //pid <PID> //f` → `npm run build` → `npm run start`（后台运行）
+
 ## 构建与运行
 
 ```bash

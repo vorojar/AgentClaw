@@ -2,7 +2,7 @@
 
 > 你的 24/7 AI 指挥官——理解意图、规划任务、调度工具、记住一切的智能调度中心。
 
-AgentClaw 是一个指挥官级别的个人 AI 助理。它自己不写代码（调用编程技能），自己不搜索（调用搜索技能），但它理解你的意图、规划复杂任务、调度合适的工具和技能，并通过 Web UI / Telegram / WhatsApp 全天候待命。
+AgentClaw 是一个指挥官级别的个人 AI 助理。它自己不写代码（调用编程技能），自己不搜索（调用搜索技能），但它理解你的意图、规划复杂任务、调度合适的工具和技能，并通过 Web UI / Telegram / WhatsApp / 钉钉 / 飞书 / QQ 全天候待命。内置 TaskManager 任务管理引擎，自动捕获、分诊、执行任务，需要你决策时推送提醒，每日定时发送简报。
 
 ## 架构
 
@@ -17,7 +17,8 @@ AgentClaw（指挥官）
   ├── 条件工具 (send_file, schedule, remember, use_skill, sandbox, subagent, browser_cdp...)
   ├── 记忆 (对话历史 + 长期记忆 + 自动压缩)
   ├── 规划器 (任务分解 → 步骤依赖 → 执行监控)
-  ├── 技能 x19 (coding, research, browser, pdf, email, yt-dlp...)
+  ├── 任务管理 (捕获→分诊→执行→决策→每日简报)
+  ├── 技能 x16 (browser, gws-calendar/gmail/drive/sheets/tasks, pdf, docx, xlsx, pptx...)
   ├── 多 Agent (AgentClaw/Coder/Writer/Analyst/Researcher)
   ├── 子代理 (并行任务派发与汇总)
   ├── 工具钩子 (before/after 拦截 + allow/deny 策略)
@@ -29,7 +30,7 @@ AgentClaw（指挥官）
 - **语言**: TypeScript monorepo (pnpm + Turborepo)
 - **LLM**: Claude + OpenAI 兼容 (DeepSeek/Kimi/Qwen/Doubao) + Gemini
 - **存储**: SQLite (better-sqlite3)
-- **网关**: Fastify HTTP + WebSocket + Telegram Bot + WhatsApp Bot + 钉钉 + 飞书
+- **网关**: Fastify HTTP + WebSocket + Telegram Bot + WhatsApp Bot + 钉钉 + 飞书 + QQ Bot
 - **前端**: React 19 + Vite (Light/Dark 主题)
 - **调度**: Cron 定时任务 + 心跳检查
 - **构建**: tsup (ESM) + Turborepo
@@ -44,7 +45,7 @@ agentclaw/
 │   ├── tools/       — 工具注册表 + 分层内置工具 + MCP 客户端
 │   ├── memory/      — SQLite 持久化 (会话/消息/记忆/Traces/Token日志)
 │   ├── core/        — Agent Loop + Orchestrator + Planner + ContextManager + SkillRegistry
-│   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp/DingTalk/Feishu Bot + 定时调度
+│   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp/DingTalk/Feishu/QQ Bot + 定时调度 + TaskManager
 │   ├── cli/         — 终端交互式对话
 │   └── web/         — React 19 + Vite 前端
 ├── skills/          — 19 个技能定义 (SKILL.md)
@@ -104,6 +105,7 @@ npm run cli          # 终端交互模式
 - **Web UI** — 现代化聊天界面，Light/Dark 主题，文件上传/拖拽，视频/音频播放器嵌入，多模态图片理解
 - **Telegram Bot** — 支持文字/图片/文档/语音/视频消息
 - **WhatsApp Bot** — 自聊模式，QR 扫码认证
+- **QQ Bot** — QQ 开放平台官方 API v2，WebSocket 模式
 - **钉钉** — Stream 模式，无需公网 IP
 - **飞书** — WebSocket 模式，无需公网 IP
 - **REST API** — 会话、消息、Traces、Token 日志、配置、记忆
@@ -120,6 +122,15 @@ npm run cli          # 终端交互模式
 
 ### 子代理编排
 `subagent` 工具可派生独立子 agent 并行执行任务，拥有独立 agent-loop 和会话上下文。支持 spawn/result/kill/list 操作，`mode: "explore"` 只读模式仅加载搜索/阅读工具子集，适用于并行调研、独立计算等可隔离任务。
+
+### 任务管理（TaskManager）
+完整的任务生命周期管理引擎：
+- **捕获** — 自然语言创建任务，LLM 自动解析标题、优先级、执行者
+- **分诊** — 自动判断 agent/human 执行者，按优先级排队
+- **执行** — 队列调度，自动执行 agent 任务，记录 trace
+- **决策** — 需要用户拍板时推送决策卡片，heartbeat 定期提醒（不消耗 LLM token）
+- **每日简报** — 定时推送（默认 09:00，可在页面配置），汇总待办/进行中/等决策任务
+- **Web UI** — Today/All Tasks/Decisions/Automations 四个标签页
 
 ### 对话压缩
 超过 20 轮对话后自动调用 LLM 生成摘要，减少 token 消耗。
@@ -155,27 +166,24 @@ npm run cli          # 终端交互模式
 
 ## 技能系统
 
-LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在 Web UI 中启用/禁用单个技能，以及从 GitHub 或 zip 导入社区技能。19 个内置技能：
+LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在 Web UI 中启用/禁用单个技能，以及从 GitHub 或 zip 导入社区技能。16 个内置技能：
 
 | 技能 | 说明 |
 |------|------|
-| `browser` | 控制浏览器，打开网页、点击、截图 |
-| `coding` | 软件开发、代码审查、调试 |
-| `comfyui` | AI 图片生成（文生图、去背景、放大） |
+| `bilingual-subtitle` | 视频字幕提取、翻译、双语合并、烧录 |
+| `browser` | 浏览器自动化（点击、输入、截图），需登录态时使用 |
+| `comfyui` | AI 图片生成（文生图、去背景、放大），需本地 ComfyUI |
 | `create-skill` | 创建自定义技能 |
 | `docx` | 创建/编辑/分析 Word 文档 |
-| `google-calendar` | 管理 Google 日历 |
-| `google-tasks` | 管理 Google Tasks 待办 |
-| `http-request` | 发送 HTTP 请求、调用 API |
-| `imap-smtp-email` | 收发邮件、搜索邮件、附件 |
+| `gws-calendar` | Google 日历管理（通过 gws CLI） |
+| `gws-drive` | Google Drive 文件管理（通过 gws CLI） |
+| `gws-gmail` | Gmail 邮件管理（通过 gws CLI） |
+| `gws-sheets` | Google Sheets 读写（通过 gws CLI） |
+| `gws-tasks` | Google Tasks 待办管理（通过 gws CLI） |
 | `pdf` | PDF 提取文字/表格、合并拆分、创建 |
 | `pptx` | 创建/编辑 PowerPoint 演示文稿 |
-| `python-exec` | 执行 Python 代码、数据处理、图表 |
-| `research` | 网络调研、多源信息分析 |
-| `weather` | 查询天气预报 |
 | `web-fetch` | 抓取网页内容 |
-| `web-search` | 搜索互联网信息 |
-| `writing` | 写作、翻译、校对、总结 |
+| `web-search` | 搜索互联网信息（备用） |
 | `xlsx` | 创建/编辑/分析 Excel 表格 |
 | `yt-dlp` | 下载视频/音频 (YouTube/Bilibili/Twitter) |
 
@@ -217,12 +225,14 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 | `EMAIL_USER` / `EMAIL_PASSWORD` | 否 | 邮箱账号和应用专用密码 |
 | `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET` | 否 | 启用钉钉 Bot |
 | `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 否 | 启用飞书 Bot |
+| `QQ_BOT_APP_ID` / `QQ_BOT_APP_SECRET` | 否 | 启用 QQ Bot |
 
 ## Web UI
 
 现代化 Web 界面，支持 Light/Dark 主题切换：
 
 - **聊天** — WebSocket 流式输出、工具调用卡片、文件上传/拖拽、视频/音频播放器、多模态图片、消息重新生成、对话导出、Agent 选择
+- **任务** — Today/All Tasks/Decisions/Automations 四标签页，快速添加、决策卡片、每日简报时间配置、Task Runner 统计
 - **Agents** — 多 Agent 管理（创建/编辑/删除），5 个预设 Agent
 - **Traces** — LLM/工具执行时间线
 - **Token 日志** — 用量统计

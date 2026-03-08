@@ -251,6 +251,13 @@ export async function startQQBot(
     // Strip @bot mention from content
     let text = (msg.content || "").replace(/<@!\d+>/g, "").trim();
 
+    // Handle /new command — reset session
+    if (text === "/new" || text === "新会话") {
+      chatSessionMap.delete(chatKey);
+      await sendReply(chatKey, "✅ 已开始新会话。");
+      return;
+    }
+
     // Handle attachments (voice, image, video, file)
     if (msg.attachments?.length) {
       const { mkdirSync, writeFileSync } = await import("node:fs");

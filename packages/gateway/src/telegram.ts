@@ -356,7 +356,27 @@ export async function startTelegramBot(
     const filePath = join(uploadsDir, fileName);
     writeFileSync(filePath, buf);
 
-    const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
+    let text: string;
+
+    // Auto-transcribe voice/audio at framework level
+    if (isVoice) {
+      try {
+        const { execSync } = await import("node:child_process");
+        const scriptPath = join(process.cwd(), "scripts", "transcribe.py").replace(/\\/g, "/");
+        const result = execSync(`python "${scriptPath}" "${filePath.replace(/\\/g, "/")}"`, {
+          encoding: "utf-8",
+          timeout: 30000,
+        }).trim();
+        text = result
+          ? `[用户语音转文字: ${result}]${caption ? `\n用户附言: ${caption}` : ""}`
+          : `[用户发送了语音，转录为空]`;
+      } catch {
+        // Fallback: let LLM handle it
+        text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
+      }
+    } else {
+      text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
+    }
 
     await processAndReply({
       chatId,

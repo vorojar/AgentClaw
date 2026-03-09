@@ -37,6 +37,7 @@ import {
   IconX,
   IconArrowLeft,
   IconExternalLink,
+  IconDownload,
   IconMoreHorizontal,
   IconEdit,
   IconTrash,

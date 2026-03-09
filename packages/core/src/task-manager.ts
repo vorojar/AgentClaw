@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 
 // ─── Duck-typed 接口，避免直接依赖 @agentclaw/memory ───
 
@@ -193,11 +194,14 @@ export class TaskManager {
       // 将 sessionId 关联到任务
       this.store.updateTask(taskId, { sessionId: session.id });
 
+      const workDir = resolve(process.cwd(), "data", "tmp");
       const prompt = [
         "请执行以下任务，完成后给出简洁的结果总结。",
         "",
         `任务：${task.title}`,
         task.description ? `详情：${task.description}` : "",
+        "",
+        `[工作目录：${workDir}]`,
       ]
         .filter(Boolean)
         .join("\n");

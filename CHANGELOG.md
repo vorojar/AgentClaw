@@ -4,6 +4,8 @@
 
 ### 修复
 - **任务 QuickAdd 走 LLM 分流**：Web 前端 QuickAdd 改为发送 `{ text }` 格式，经 `captureTask()` LLM 分析自然语言，自动判断 executor 为 agent 或 human（之前所有 QuickAdd 任务都默认为 human）
+- **captureTask 返回值序列化**：POST /api/tasks 的自然语言创建路径返回值经 `serializeTask()` 转换，修复前端 NaN 时间和字段名不匹配问题
+- **任务执行注入工作目录**：`executeTask()` 的 prompt 中注入 `[工作目录：data/tmp]`，确保 LLM 生成的文件保存到正确位置（之前保存到用户主目录）
 
 ## [1.3.0] - 2026-03-09
 

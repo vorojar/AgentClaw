@@ -7,11 +7,29 @@ export const scheduleTool: Tool = {
   parameters: {
     type: "object",
     properties: {
-      action: { type: "string", enum: ["create", "list", "delete"] },
-      cron: { type: "string" },
-      message: { type: "string" },
-      name: { type: "string" },
-      task_id: { type: "string" },
+      action: {
+        type: "string",
+        enum: ["create", "list", "delete"],
+        description: "Operation: create, list, or delete.",
+      },
+      cron: {
+        type: "string",
+        description:
+          "Cron expression (5 fields: min hour day month weekday). E.g. '0 9 * * *' = daily 9am.",
+      },
+      message: {
+        type: "string",
+        description:
+          "The action/prompt to execute when triggered. Must be ONLY the task instruction — do NOT include schedule/time info (that belongs in cron).",
+      },
+      name: {
+        type: "string",
+        description: "Short display name for the task.",
+      },
+      task_id: {
+        type: "string",
+        description: "Task ID (for delete).",
+      },
     },
     required: ["action"],
   },

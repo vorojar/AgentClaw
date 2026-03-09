@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getProject,
+  updateProject,
   listSessions,
   closeSession,
   type ProjectInfo,
   type SessionInfo,
 } from "../api/client";
 import { useSession } from "../components/SessionContext";
-import { IconArrowLeft, IconTrash, IconChat } from "../components/Icons";
+import { IconTrash, IconChat, IconEdit } from "../components/Icons";
 import "./ProjectDetailPage.css";
 
 function timeAgo(iso: string): string {
@@ -31,7 +32,9 @@ function timeAgo(iso: string): string {
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setPendingProjectId } = useSession();
+  const { setPendingProjectId, updateProjectLocally } = useSession();
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
 
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -72,6 +75,18 @@ export function ProjectDetailPage() {
     }
   };
 
+  const handleRename = async () => {
+    if (!id || !renameValue.trim() || !project) return;
+    try {
+      const updated = await updateProject(id, { name: renameValue.trim() });
+      setProject(updated);
+      updateProjectLocally(updated);
+      setRenaming(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   if (loading) {
     return (
       <div className="project-detail">
@@ -86,12 +101,6 @@ export function ProjectDetailPage() {
         <div className="project-detail-error">
           {error || "Project not found"}
         </div>
-        <button
-          className="project-detail-back"
-          onClick={() => navigate("/projects")}
-        >
-          <IconArrowLeft size={16} /> All Projects
-        </button>
       </div>
     );
   }
@@ -105,24 +114,36 @@ export function ProjectDetailPage() {
         </div>
       )}
 
-      <button
-        className="project-detail-back"
-        onClick={() => navigate("/projects")}
-      >
-        <IconArrowLeft size={16} /> All Projects
-      </button>
-
       <div className="project-detail-header">
         <div className="project-detail-title-row">
-          <span
-            className="project-detail-dot"
-            style={{ background: project.color }}
-          />
-          <h1>{project.name}</h1>
+          {renaming ? (
+            <input
+              autoFocus
+              className="project-detail-rename-input"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRename();
+                if (e.key === "Escape") setRenaming(false);
+              }}
+              onBlur={handleRename}
+            />
+          ) : (
+            <>
+              <h1>{project.name}</h1>
+              <button
+                className="project-detail-rename-btn"
+                onClick={() => {
+                  setRenameValue(project.name);
+                  setRenaming(true);
+                }}
+                title="Rename"
+              >
+                <IconEdit size={14} />
+              </button>
+            </>
+          )}
         </div>
-        {project.description && (
-          <p className="project-detail-desc">{project.description}</p>
-        )}
       </div>
 
       <div className="project-detail-input" onClick={handleNewChat}>

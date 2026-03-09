@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionContext";
-import { type ProjectInfo, listProjects, updateSession } from "../api/client";
+import { updateSession } from "../api/client";
 import {
   IconChat,
   IconMemory,
@@ -59,22 +59,44 @@ export function Layout() {
     handleNewChat,
     handleDeleteSession,
     handleSelectSession,
+    projects,
+    handleCreateProject,
   } = useSession();
 
   const [searchVisible, setSearchVisible] = useState(false);
-  const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [creating, setCreating] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
     sessionId: string;
   } | null>(null);
 
-  useEffect(() => {
-    listProjects()
-      .then(setProjects)
-      .catch(() => {});
-  }, []);
+  const isMobile =
+    typeof matchMedia !== "undefined" &&
+    matchMedia("(max-width: 768px)").matches;
+
+  const closeSidebarOnMobile = () => {
+    if (isMobile) setSidebarOpen(false);
+  };
+
+  const handleCreateSubmit = async () => {
+    if (!newProjectName.trim() || creating) return;
+    setCreating(true);
+    try {
+      const p = await handleCreateProject(newProjectName);
+      setCreateModalOpen(false);
+      setNewProjectName("");
+      navigate(`/projects/${p.id}`);
+      closeSidebarOnMobile();
+    } catch {
+      /* ignore */
+    } finally {
+      setCreating(false);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -96,18 +118,8 @@ export function Layout() {
     "/skills",
     "/api",
   ];
-  const isProjects = location.pathname.startsWith("/projects");
   const isMoreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
   const [moreOpen, setMoreOpen] = useState(isMoreActive);
-
-  const isMobile =
-    typeof matchMedia !== "undefined" &&
-    matchMedia("(max-width: 768px)").matches;
-
-  /** Close sidebar on mobile after navigating */
-  const closeSidebarOnMobile = () => {
-    if (isMobile) setSidebarOpen(false);
-  };
 
   const isChat =
     location.pathname === "/" || location.pathname.startsWith("/chat");
@@ -203,7 +215,7 @@ export function Layout() {
             className="sidebar-projects-toggle"
             onClick={() => setProjectsOpen((v) => !v)}
           >
-            <span>项目</span>
+            <span>Projects</span>
             <span
               className={`sidebar-more-chevron${projectsOpen ? " expanded" : ""}`}
             >
@@ -215,12 +227,11 @@ export function Layout() {
               <a
                 className="sidebar-projects-new"
                 onClick={() => {
-                  navigate("/projects?new=1");
-                  closeSidebarOnMobile();
+                  setCreateModalOpen(true);
                 }}
               >
                 <IconEdit size={14} />
-                新项目
+                New Project
               </a>
               {projects.map((p) => (
                 <NavLink
@@ -424,7 +435,7 @@ export function Layout() {
               style={{ top: contextMenu.y, left: contextMenu.x }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="session-context-label">移至项目</div>
+              <div className="session-context-label">Move to Project</div>
               {projects.map((p) => (
                 <button
                   key={p.id}
@@ -452,8 +463,80 @@ export function Layout() {
                   setContextMenu(null);
                 }}
               >
-                无项目
+                No Project
               </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {createModalOpen &&
+        createPortal(
+          <div
+            className="project-modal-overlay"
+            onClick={() => {
+              setCreateModalOpen(false);
+              setNewProjectName("");
+            }}
+          >
+            <div className="project-modal" onClick={(e) => e.stopPropagation()}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <h2>New Project</h2>
+                <button
+                  className="btn-icon"
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    setNewProjectName("");
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <IconX size={18} />
+                </button>
+              </div>
+              <div className="project-modal-field">
+                <label>Name</label>
+                <input
+                  autoFocus
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="e.g. Write Articles"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleCreateSubmit();
+                    }
+                  }}
+                />
+              </div>
+              <div className="project-modal-buttons">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    setNewProjectName("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={creating || !newProjectName.trim()}
+                  onClick={handleCreateSubmit}
+                >
+                  {creating ? "Creating..." : "Create"}
+                </button>
+              </div>
             </div>
           </div>,
           document.body,

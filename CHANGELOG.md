@@ -20,6 +20,13 @@
   - `web/api/client.ts`：`SessionInfo` 新增 `preview?: string | null`
   - `web/ProjectDetailPage.css`：移除 `max-width: 800px` 限制，改为全宽 `padding: 24px 32px`
   - `web/Layout.tsx`：侧边栏项目区优化 — 移除 Projects 导航链接，改用折叠式项目列表 + 「新项目」按钮
+- **项目管理简化重构** — 删除 ProjectsPage 列表页，侧边栏成为唯一入口
+  - 删除 `web/ProjectsPage.tsx` 和 `/projects` 路由，保留 `/projects/:id` 详情页
+  - `web/SessionContext.tsx`：项目状态提升为共享 context（`projects`, `refreshProjects`, `handleCreateProject`, `updateProjectLocally`），解决编辑后侧边栏不同步问题
+  - `web/Layout.tsx`：「New Project」直接弹出极简创建弹窗（仅 Name 字段），无需跳转页面
+  - `web/ProjectDetailPage.tsx`：标题区域支持 inline rename（hover 显示编辑按钮），改名后侧边栏实时同步
+  - 弹窗去掉 Description / Color / Instructions 字段，只保留 Name
+  - 侧边栏文案统一为英文（Projects / New Project / Move to Project / No Project）
 
 ## [1.2.0] - 2026-03-08
 

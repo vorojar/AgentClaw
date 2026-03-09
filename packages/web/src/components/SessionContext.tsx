@@ -9,9 +9,12 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   type SessionInfo,
+  type ProjectInfo,
   listSessions,
   createSession,
   closeSession,
+  listProjects,
+  createProject,
 } from "../api/client";
 
 const isMobile = () =>
@@ -35,6 +38,13 @@ interface SessionContextValue {
   ensureSession: () => Promise<string>;
   /** Called by ChatPage when session title updates from WS */
   refreshSessions: () => Promise<void>;
+  /** Shared project list */
+  projects: ProjectInfo[];
+  refreshProjects: () => Promise<void>;
+  /** Create project with just a name, returns the new project */
+  handleCreateProject: (name: string) => Promise<ProjectInfo>;
+  /** Update project in local state (after external edit) */
+  updateProjectLocally: (updated: ProjectInfo) => void;
 }
 
 const SessionContext = createContext<SessionContextValue>(null!);
@@ -64,8 +74,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingAgentId, setPendingAgentId] = useState("default");
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectInfo[]>([]);
 
-  /* Load sessions on mount */
+  /* Load sessions & projects on mount */
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -78,6 +89,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     }
     init();
+    listProjects()
+      .then(setProjects)
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -153,6 +167,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* ignore */
     }
+  }, []);
+
+  const refreshProjects = useCallback(async () => {
+    try {
+      const list = await listProjects();
+      setProjects(list);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleCreateProject = useCallback(async (name: string) => {
+    const created = await createProject({ name: name.trim() });
+    setProjects((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const updateProjectLocally = useCallback((updated: ProjectInfo) => {
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   }, []);
 
   // ── Mobile: browser-back closes sidebar ──
@@ -414,6 +447,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         handleSelectSession,
         ensureSession,
         refreshSessions,
+        projects,
+        refreshProjects,
+        handleCreateProject,
+        updateProjectLocally,
       }}
     >
       {children}

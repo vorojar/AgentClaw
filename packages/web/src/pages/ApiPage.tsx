@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import "./ApiPage.css";
 
@@ -129,6 +130,7 @@ const METHOD_COLORS: Record<string, string> = {
 function TryPanel({ endpoint }: { endpoint: Endpoint }) {
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   if (endpoint.method !== "GET") return null;
 
@@ -159,7 +161,7 @@ function TryPanel({ endpoint }: { endpoint: Endpoint }) {
         onClick={tryIt}
         disabled={loading}
       >
-        {loading ? "..." : "Try"}
+        {loading ? "..." : t("common.try")}
       </button>
       {result !== null && (
         <pre className="api-try-result">
@@ -172,9 +174,10 @@ function TryPanel({ endpoint }: { endpoint: Endpoint }) {
 }
 
 export function ApiPage() {
+  const { t } = useTranslation();
   return (
     <>
-      <PageHeader>API Reference</PageHeader>
+      <PageHeader>{t("api.title")}</PageHeader>
       <div className="page-body">
         <div className="api-groups">
           {API_GROUPS.map((group) => (

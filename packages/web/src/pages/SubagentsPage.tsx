@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import { listSubAgents, type SubAgentInfo } from "../api/client";
 import { formatDateTime, formatDuration, formatNumber } from "../utils/format";
@@ -8,43 +9,52 @@ const PAGE_SIZE = 20;
 
 type StatusFilter = "" | "running" | "completed" | "failed" | "killed";
 
-const STATUS_CHIPS: { label: string; value: StatusFilter }[] = [
-  { label: "All", value: "" },
-  { label: "Running", value: "running" },
-  { label: "Completed", value: "completed" },
-  { label: "Failed", value: "failed" },
-  { label: "Killed", value: "killed" },
-];
-
-function formatAgentDuration(createdAt: string, completedAt?: string): string {
-  if (!completedAt) return "running...";
+function formatAgentDuration(
+  createdAt: string,
+  completedAt: string | undefined,
+  t: (key: string) => string,
+): string {
+  if (!completedAt) return t("time.running");
   const ms = new Date(completedAt).getTime() - new Date(createdAt).getTime();
   return formatDuration(ms);
 }
 
 function StatusIcon({ status }: { status: SubAgentInfo["status"] }) {
+  const { t } = useTranslation();
   switch (status) {
     case "running":
       return (
-        <span className="sa-status-icon sa-status-running" title="Running">
+        <span
+          className="sa-status-icon sa-status-running"
+          title={t("subagents.running")}
+        >
           &#9696;
         </span>
       );
     case "completed":
       return (
-        <span className="sa-status-icon sa-status-completed" title="Completed">
+        <span
+          className="sa-status-icon sa-status-completed"
+          title={t("subagents.completed")}
+        >
           &#10004;
         </span>
       );
     case "failed":
       return (
-        <span className="sa-status-icon sa-status-failed" title="Failed">
+        <span
+          className="sa-status-icon sa-status-failed"
+          title={t("subagents.failed")}
+        >
           &#10008;
         </span>
       );
     case "killed":
       return (
-        <span className="sa-status-icon sa-status-killed" title="Killed">
+        <span
+          className="sa-status-icon sa-status-killed"
+          title={t("subagents.killed")}
+        >
           &mdash;
         </span>
       );
@@ -53,6 +63,7 @@ function StatusIcon({ status }: { status: SubAgentInfo["status"] }) {
 
 function SubagentCard({ agent }: { agent: SubAgentInfo }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div
@@ -71,10 +82,12 @@ function SubagentCard({ agent }: { agent: SubAgentInfo }) {
             &darr;
           </span>
           <span className="sa-iterations">
-            {agent.iterations} iter{agent.iterations !== 1 ? "s" : ""}
+            {agent.iterations !== 1
+              ? t("subagents.iters", { count: agent.iterations })
+              : t("subagents.iter", { count: agent.iterations })}
           </span>
           <span className="sa-duration">
-            {formatAgentDuration(agent.createdAt, agent.completedAt)}
+            {formatAgentDuration(agent.createdAt, agent.completedAt, t)}
           </span>
           <span className="sa-time">{formatDateTime(agent.createdAt)}</span>
         </div>
@@ -84,14 +97,16 @@ function SubagentCard({ agent }: { agent: SubAgentInfo }) {
         <div className="sa-card-body">
           {agent.result && (
             <div className="sa-section">
-              <div className="sa-section-label">Result</div>
+              <div className="sa-section-label">{t("subagents.result")}</div>
               <pre className="sa-section-pre">{agent.result}</pre>
             </div>
           )}
 
           {agent.error && (
             <div className="sa-section">
-              <div className="sa-section-label">Error</div>
+              <div className="sa-section-label">
+                {t("subagents.errorLabel")}
+              </div>
               <pre className="sa-section-pre sa-section-error">
                 {agent.error}
               </pre>
@@ -100,7 +115,7 @@ function SubagentCard({ agent }: { agent: SubAgentInfo }) {
 
           {agent.toolsUsed.length > 0 && (
             <div className="sa-section">
-              <div className="sa-section-label">Tools Used</div>
+              <div className="sa-section-label">{t("subagents.toolsUsed")}</div>
               <div className="sa-tools">
                 {agent.toolsUsed.map((tool) => (
                   <span key={tool} className="sa-tool-chip">
@@ -117,12 +132,21 @@ function SubagentCard({ agent }: { agent: SubAgentInfo }) {
 }
 
 export function SubagentsPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<SubAgentInfo[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const statusChips = [
+    { label: t("subagents.all"), value: "" as StatusFilter },
+    { label: t("subagents.running"), value: "running" as StatusFilter },
+    { label: t("subagents.completed"), value: "completed" as StatusFilter },
+    { label: t("subagents.failed"), value: "failed" as StatusFilter },
+    { label: t("subagents.killed"), value: "killed" as StatusFilter },
+  ];
 
   const fetchPage = useCallback(async (p: number, status: StatusFilter) => {
     try {
@@ -155,12 +179,12 @@ export function SubagentsPage() {
 
   return (
     <>
-      <PageHeader>Subagents</PageHeader>
+      <PageHeader>{t("subagents.title")}</PageHeader>
       <div className="page-body">
         {error && <div className="sa-error">{error}</div>}
 
         <div className="sa-filters">
-          {STATUS_CHIPS.map((chip) => (
+          {statusChips.map((chip) => (
             <button
               key={chip.value}
               className={`sa-chip ${statusFilter === chip.value ? "sa-chip-active" : ""}`}
@@ -173,7 +197,9 @@ export function SubagentsPage() {
 
         <div className="sa-toolbar">
           <span className="sa-total">
-            {formatNumber(total)} subagent{total !== 1 ? "s" : ""}
+            {total !== 1
+              ? t("subagents.subagentsCount", { count: formatNumber(total) })
+              : t("subagents.subagentCount", { count: formatNumber(total) })}
           </span>
           <div className="sa-pager">
             <button
@@ -181,7 +207,7 @@ export function SubagentsPage() {
               disabled={page === 0}
               onClick={() => setPage((p) => p - 1)}
             >
-              Prev
+              {t("common.prev")}
             </button>
             <span className="sa-page-info">
               {page + 1} / {totalPages}
@@ -191,15 +217,15 @@ export function SubagentsPage() {
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next
+              {t("common.next")}
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="sa-loading">Loading...</div>
+          <div className="sa-loading">{t("common.loading")}</div>
         ) : items.length === 0 ? (
-          <div className="sa-empty">No subagents yet</div>
+          <div className="sa-empty">{t("subagents.noSubagents")}</div>
         ) : (
           <div className="sa-list">
             {items.map((agent) => (

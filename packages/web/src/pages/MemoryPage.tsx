@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import { searchMemories, deleteMemory, type MemoryInfo } from "../api/client";
 import { formatDateTime } from "../utils/format";
@@ -29,6 +30,7 @@ function renderImportance(importance: number): string {
 }
 
 export function MemoryPage() {
+  const { t } = useTranslation();
   const [memories, setMemories] = useState<MemoryInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,10 +42,10 @@ export function MemoryPage() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchMemories = useCallback(async (q: string, t: string) => {
+  const fetchMemories = useCallback(async (q: string, tp: string) => {
     try {
       setLoading(true);
-      const typeParam = t === "all" ? undefined : t;
+      const typeParam = tp === "all" ? undefined : tp;
       const data = await searchMemories(q || undefined, typeParam, 100);
       setMemories(data);
       setError(null);
@@ -106,14 +108,14 @@ export function MemoryPage() {
 
   return (
     <>
-      <PageHeader>Memory</PageHeader>
+      <PageHeader>{t("memory.title")}</PageHeader>
       <div className="page-body">
         <div className="memory-toolbar">
           <div className="memory-search-row">
             <input
               type="text"
               className="memory-search-input"
-              placeholder="Search memories..."
+              placeholder={t("memory.searchPlaceholder")}
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
             />
@@ -122,29 +124,31 @@ export function MemoryPage() {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
             >
-              {MEMORY_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t === "all" ? "All Types" : t}
+              {MEMORY_TYPES.map((tp) => (
+                <option key={tp} value={tp}>
+                  {tp === "all" ? t("memory.allTypes") : tp}
                 </option>
               ))}
             </select>
           </div>
           <div className="memory-sort-row">
-            <span className="memory-sort-label">Sort by:</span>
+            <span className="memory-sort-label">{t("memory.sortBy")}</span>
             <button
               className={`btn-secondary memory-sort-btn ${sortMode === "importance" ? "active" : ""}`}
               onClick={() => setSortMode("importance")}
             >
-              Importance
+              {t("memory.importance")}
             </button>
             <button
               className={`btn-secondary memory-sort-btn ${sortMode === "time" ? "active" : ""}`}
               onClick={() => setSortMode("time")}
             >
-              Time
+              {t("memory.time")}
             </button>
             <span className="memory-count">
-              {memories.length} {memories.length === 1 ? "memory" : "memories"}
+              {memories.length === 1
+                ? t("memory.memoryCount", { count: memories.length })
+                : t("memory.memoriesCount", { count: memories.length })}
             </span>
           </div>
         </div>
@@ -152,11 +156,11 @@ export function MemoryPage() {
         {error && <div className="memory-error">{error}</div>}
 
         {loading && memories.length === 0 && (
-          <div className="memory-loading">Loading memories...</div>
+          <div className="memory-loading">{t("memory.loadingMemories")}</div>
         )}
 
         {!loading && !error && memories.length === 0 && (
-          <div className="memory-empty">No memories found</div>
+          <div className="memory-empty">{t("memory.noMemories")}</div>
         )}
 
         <div className="memory-list">
@@ -175,19 +179,21 @@ export function MemoryPage() {
                 <div className="memory-card-actions">
                   {confirmDeleteId === mem.id ? (
                     <span className="memory-confirm-delete">
-                      <span className="memory-confirm-text">Delete?</span>
+                      <span className="memory-confirm-text">
+                        {t("memory.deleteConfirm")}
+                      </span>
                       <button
                         className="btn-danger memory-delete-btn"
                         onClick={() => handleDelete(mem.id)}
                         disabled={deletingId === mem.id}
                       >
-                        {deletingId === mem.id ? "..." : "Yes"}
+                        {deletingId === mem.id ? "..." : t("common.yes")}
                       </button>
                       <button
                         className="btn-secondary memory-cancel-btn"
                         onClick={cancelDelete}
                       >
-                        No
+                        {t("common.no")}
                       </button>
                     </span>
                   ) : (
@@ -195,16 +201,22 @@ export function MemoryPage() {
                       className="btn-secondary memory-delete-btn"
                       onClick={() => handleDelete(mem.id)}
                     >
-                      Delete
+                      {t("common.delete")}
                     </button>
                   )}
                 </div>
               </div>
               <div className="memory-content">{mem.content}</div>
               <div className="memory-card-meta">
-                <span>Created: {formatDateTime(mem.createdAt)}</span>
-                <span>Accessed: {formatDateTime(mem.accessedAt)}</span>
-                <span>Views: {mem.accessCount}</span>
+                <span>
+                  {t("memory.created")} {formatDateTime(mem.createdAt)}
+                </span>
+                <span>
+                  {t("memory.accessed")} {formatDateTime(mem.accessedAt)}
+                </span>
+                <span>
+                  {t("memory.views")} {mem.accessCount}
+                </span>
               </div>
             </div>
           ))}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import { getTokenLogs, type TokenLogEntry } from "../api/client";
 import { formatDateTime, formatNumber } from "../utils/format";
@@ -7,6 +8,7 @@ import "./TokenLogsPage.css";
 const PAGE_SIZE = 50;
 
 export function TokenLogsPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<TokenLogEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -37,14 +39,14 @@ export function TokenLogsPage() {
 
   return (
     <>
-      <PageHeader>Token Logs</PageHeader>
+      <PageHeader>{t('tokenLogs.title')}</PageHeader>
       <div className="page-body">
         {error && <div className="token-logs-error">{error}</div>}
 
         <section className="card token-logs-section">
           <div className="token-logs-header">
             <span className="token-logs-total">
-              {formatNumber(total)} records
+              {t('tokenLogs.records', { count: formatNumber(total) })}
             </span>
             <div className="token-logs-pager">
               <button
@@ -52,7 +54,7 @@ export function TokenLogsPage() {
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
-                Prev
+                {t('common.prev')}
               </button>
               <span className="token-logs-page-info">
                 {page + 1} / {totalPages}
@@ -62,26 +64,26 @@ export function TokenLogsPage() {
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Next
+                {t('common.next')}
               </button>
             </div>
           </div>
 
           {loading ? (
-            <div className="token-logs-loading">Loading...</div>
+            <div className="token-logs-loading">{t('common.loading')}</div>
           ) : items.length === 0 ? (
-            <div className="token-logs-empty">No token usage records yet</div>
+            <div className="token-logs-empty">{t('tokenLogs.noRecords')}</div>
           ) : (
             <div className="stats-table-wrapper">
               <table className="stats-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
-                    <th>Trace</th>
-                    <th>Model</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Total</th>
+                    <th>{t('tokenLogs.timeCol')}</th>
+                    <th>{t('tokenLogs.traceCol')}</th>
+                    <th>{t('tokenLogs.modelCol')}</th>
+                    <th>{t('tokenLogs.inputCol')}</th>
+                    <th>{t('tokenLogs.outputCol')}</th>
+                    <th>{t('tokenLogs.totalCol')}</th>
                   </tr>
                 </thead>
                 <tbody>

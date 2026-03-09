@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism";
 import {
   oneDark,
@@ -54,6 +55,7 @@ const REACT_CDN = "https://cdn.jsdelivr.net/npm";
 function ReactPreview({ code }: { code: string }) {
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +118,10 @@ else{document.getElementById("root").innerHTML='<div id="__err">No component fou
   }, [code]);
 
   if (error) return <pre className="code-preview-error">{error}</pre>;
-  if (!html) return <div className="code-preview-loading">Compiling…</div>;
+  if (!html)
+    return (
+      <div className="code-preview-loading">{t("codeBlock.compiling")}</div>
+    );
   return (
     <iframe
       srcDoc={html}
@@ -155,6 +160,7 @@ export function CodeBlock({
 }: CodeBlockProps) {
   const [preview, setPreview] = useState(false);
   const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const match = /language-(\w+)/.exec(className || "");
   const language = match ? match[1] : "";
@@ -188,7 +194,7 @@ export function CodeBlock({
             onClick={() => setPreview(!preview)}
             type="button"
           >
-            {preview ? "Code" : "Preview"}
+            {preview ? t("codeBlock.code") : t("codeBlock.preview")}
           </button>
         </div>
       )}

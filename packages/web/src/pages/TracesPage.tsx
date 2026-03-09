@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import { getTraces, type TraceInfo, type TraceStep } from "../api/client";
 import { getStoredApiKey } from "../auth";
@@ -97,6 +98,7 @@ function LLMStep({ node }: { node: LLMNode }) {
 
 function ToolStep({ node }: { node: ToolNode }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
   const inputStr = node.input ? JSON.stringify(node.input) : "";
   const hasContent = !!(inputStr || node.content);
   const statusIcon =
@@ -134,7 +136,7 @@ function ToolStep({ node }: { node: ToolNode }) {
           <div className="tl-detail">
             {inputStr && (
               <div className="tl-detail-section">
-                <div className="tl-detail-label">Input</div>
+                <div className="tl-detail-label">{t("traces.input")}</div>
                 <pre className="tl-detail-pre">
                   {JSON.stringify(node.input, null, 2)}
                 </pre>
@@ -143,7 +145,9 @@ function ToolStep({ node }: { node: ToolNode }) {
             {node.content && (
               <div className="tl-detail-section">
                 <div className="tl-detail-label">
-                  {node.isError ? "Error" : "Output"}
+                  {node.isError
+                    ? t("traces.errorLabel")
+                    : t("traces.outputLabel")}
                 </div>
                 <pre
                   className={`tl-detail-pre ${node.isError ? "tl-detail-error" : ""}`}
@@ -162,6 +166,7 @@ function ToolStep({ node }: { node: ToolNode }) {
 /** 复制 Trace API URL 到剪贴板 */
 function CopyTraceButton({ traceId }: { traceId: string }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
 
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
@@ -184,7 +189,7 @@ function CopyTraceButton({ traceId }: { traceId: string }) {
     <button
       className="trace-copy-btn"
       onClick={handleCopy}
-      title={copied ? "已复制" : "复制 Trace URL"}
+      title={copied ? t("traces.urlCopied") : t("traces.copyTraceUrl")}
     >
       {copied ? (
         // 已复制：对勾图标
@@ -222,6 +227,7 @@ function CopyTraceButton({ traceId }: { traceId: string }) {
 
 function TraceCard({ trace }: { trace: TraceInfo }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
   const steps = parseSteps(trace.steps);
   const timeline = buildTimeline(steps);
 
@@ -237,7 +243,8 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
             <span className="badge badge-error">{trace.error}</span>
           )}
           <span className="trace-tokens">
-            {formatNumber(trace.tokensIn)}&uarr; {formatNumber(trace.tokensOut)}&darr;
+            {formatNumber(trace.tokensIn)}&uarr; {formatNumber(trace.tokensOut)}
+            &darr;
           </span>
           <span className="trace-duration">
             {formatDuration(trace.durationMs)}
@@ -264,7 +271,7 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
           {/* Response */}
           {trace.response && (
             <div className="trace-response">
-              <div className="trace-section-label">Response</div>
+              <div className="trace-section-label">{t("traces.response")}</div>
               <pre className="trace-response-text">{trace.response}</pre>
             </div>
           )}
@@ -275,6 +282,7 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
 }
 
 export function TracesPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<TraceInfo[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -303,19 +311,21 @@ export function TracesPage() {
 
   return (
     <>
-      <PageHeader>Traces</PageHeader>
+      <PageHeader>{t("traces.title")}</PageHeader>
       <div className="page-body">
         {error && <div className="traces-error">{error}</div>}
 
         <div className="traces-toolbar">
-          <span className="traces-total">{formatNumber(total)} traces</span>
+          <span className="traces-total">
+            {t("traces.tracesCount", { count: formatNumber(total) })}
+          </span>
           <div className="traces-pager">
             <button
               className="btn-secondary"
               disabled={page === 0}
               onClick={() => setPage((p) => p - 1)}
             >
-              Prev
+              {t("common.prev")}
             </button>
             <span className="traces-page-info">
               {page + 1} / {totalPages}
@@ -325,19 +335,19 @@ export function TracesPage() {
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next
+              {t("common.next")}
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="traces-loading">Loading...</div>
+          <div className="traces-loading">{t("common.loading")}</div>
         ) : items.length === 0 ? (
-          <div className="traces-empty">No traces yet</div>
+          <div className="traces-empty">{t("traces.noTraces")}</div>
         ) : (
           <div className="traces-list">
-            {items.map((t) => (
-              <TraceCard key={t.id} trace={t} />
+            {items.map((tr) => (
+              <TraceCard key={tr.id} trace={tr} />
             ))}
           </div>
         )}

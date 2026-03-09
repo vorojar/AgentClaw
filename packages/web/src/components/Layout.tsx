@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionContext";
 import { updateSession, renameSession } from "../api/client";
@@ -48,6 +49,7 @@ function formatSessionLabel(s: {
 }
 
 export function Layout() {
+  const { t } = useTranslation();
   const { theme, toggle } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -156,7 +158,7 @@ export function Layout() {
           <button
             className="sidebar-collapse-btn"
             onClick={() => setSidebarOpen(false)}
-            title="Collapse sidebar"
+            title={t("sidebar.collapse")}
           >
             <IconPanelLeft size={16} />
           </button>
@@ -172,7 +174,7 @@ export function Layout() {
             }}
           >
             <IconEdit size={16} />
-            <span>New Chat</span>
+            <span>{t("sidebar.newChat")}</span>
           </button>
           <button
             className="sidebar-search-btn"
@@ -180,7 +182,7 @@ export function Layout() {
               setSearchVisible((v) => !v);
               if (searchVisible) setSearchQuery("");
             }}
-            title="Search sessions"
+            title={t("sidebar.searchTitle")}
           >
             <IconSearch size={16} />
           </button>
@@ -192,7 +194,7 @@ export function Layout() {
             <input
               autoFocus
               type="text"
-              placeholder="Search sessions..."
+              placeholder={t("sidebar.searchSessions")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -220,14 +222,14 @@ export function Layout() {
             className={() => (isChat ? "active" : "")}
             onClick={closeSidebarOnMobile}
           >
-            <IconChat size={16} /> Chat
+            <IconChat size={16} /> {t("nav.chat")}
           </NavLink>
           <NavLink
             to="/tasks"
             className={({ isActive }) => (isActive ? "active" : "")}
             onClick={closeSidebarOnMobile}
           >
-            <IconTasks size={16} /> Tasks
+            <IconTasks size={16} /> {t("nav.tasks")}
           </NavLink>
         </nav>
 
@@ -237,7 +239,7 @@ export function Layout() {
             className="sidebar-projects-toggle"
             onClick={() => setProjectsOpen((v) => !v)}
           >
-            <span>Projects</span>
+            <span>{t("nav.projects")}</span>
             <span
               className={`sidebar-more-chevron${projectsOpen ? " expanded" : ""}`}
             >
@@ -253,7 +255,7 @@ export function Layout() {
                 }}
               >
                 <IconEdit size={14} />
-                New Project
+                {t("nav.newProject")}
               </a>
               {projects.map((p) => (
                 <NavLink
@@ -276,7 +278,7 @@ export function Layout() {
             className={`sidebar-more-toggle${isMoreActive ? " active" : ""}`}
             onClick={() => setMoreOpen((v) => !v)}
           >
-            <span>More</span>
+            <span>{t("nav.more")}</span>
             <span
               className={`sidebar-more-chevron${moreOpen ? " expanded" : ""}`}
             >
@@ -290,56 +292,56 @@ export function Layout() {
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconChannels size={16} /> Channels
+                <IconChannels size={16} /> {t("nav.channels")}
               </NavLink>
               <NavLink
                 to="/subagents"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconSubAgents size={16} /> Subagents
+                <IconSubAgents size={16} /> {t("nav.subagents")}
               </NavLink>
               <NavLink
                 to="/agents"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconAgents size={16} /> Agents
+                <IconAgents size={16} /> {t("nav.agents")}
               </NavLink>
               <NavLink
                 to="/memory"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconMemory size={16} /> Memory
+                <IconMemory size={16} /> {t("nav.memory")}
               </NavLink>
               <NavLink
                 to="/traces"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconTraces size={16} /> Traces
+                <IconTraces size={16} /> {t("nav.traces")}
               </NavLink>
               <NavLink
                 to="/token-logs"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconTokens size={16} /> Token Logs
+                <IconTokens size={16} /> {t("nav.tokenLogs")}
               </NavLink>
               <NavLink
                 to="/skills"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconSkills size={16} /> Skills
+                <IconSkills size={16} /> {t("nav.skills")}
               </NavLink>
               <NavLink
                 to="/api"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={closeSidebarOnMobile}
               >
-                <IconApi size={16} /> API
+                <IconApi size={16} /> {t("nav.api")}
               </NavLink>
             </nav>
           )}
@@ -357,7 +359,11 @@ export function Layout() {
             return (
               <>
                 <div className="sidebar-divider">
-                  <span>{q ? `Results (${filtered.length})` : "Recent"}</span>
+                  <span>
+                    {q
+                      ? t("sidebar.results", { count: filtered.length })
+                      : t("sidebar.recent")}
+                  </span>
                 </div>
                 <div className="sidebar-sessions">
                   {filtered.map((s) => (
@@ -421,12 +427,16 @@ export function Layout() {
               }
               onClick={closeSidebarOnMobile}
             >
-              <IconSettings size={16} /> Settings
+              <IconSettings size={16} /> {t("nav.settings")}
             </NavLink>
             <button
               className="sidebar-theme-btn"
               onClick={toggle}
-              title={theme === "dark" ? "Light mode" : "Dark mode"}
+              title={
+                theme === "dark"
+                  ? t("sidebar.lightMode")
+                  : t("sidebar.darkMode")
+              }
             >
               {theme === "dark" ? (
                 <IconSun size={14} />
@@ -452,7 +462,7 @@ export function Layout() {
           <button
             className="mobile-menu-btn"
             onClick={() => setSidebarOpen(true)}
-            title="Open sidebar"
+            title={t("sidebar.show")}
           >
             <IconMenu size={18} />
           </button>
@@ -482,7 +492,7 @@ export function Layout() {
                   setSessionMenu(null);
                 }}
               >
-                <IconEdit size={14} /> Rename
+                <IconEdit size={14} /> {t("common.rename")}
               </button>
               {projects.length > 0 && (
                 <div
@@ -498,7 +508,7 @@ export function Layout() {
                   }
                 >
                   <span className="session-context-item">
-                    <IconProjects size={14} /> Move to Project
+                    <IconProjects size={14} /> {t("sidebar.moveToProject")}
                     <span className="session-context-arrow">›</span>
                   </span>
                   {sessionMenu.subMenu && (
@@ -531,7 +541,7 @@ export function Layout() {
                   setSessionMenu(null);
                 }}
               >
-                <IconTrash size={14} /> Delete
+                <IconTrash size={14} /> {t("common.delete")}
               </button>
             </div>
           </div>,
@@ -555,7 +565,7 @@ export function Layout() {
                   alignItems: "center",
                 }}
               >
-                <h2>New Project</h2>
+                <h2>{t("projectModal.title")}</h2>
                 <button
                   className="btn-icon"
                   onClick={() => {
@@ -573,12 +583,12 @@ export function Layout() {
                 </button>
               </div>
               <div className="project-modal-field">
-                <label>Name</label>
+                <label>{t("projectModal.nameLabel")}</label>
                 <input
                   autoFocus
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder="e.g. Write Articles"
+                  placeholder={t("projectModal.namePlaceholder")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -595,14 +605,14 @@ export function Layout() {
                     setNewProjectName("");
                   }}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   className="btn btn-primary"
                   disabled={creating || !newProjectName.trim()}
                   onClick={handleCreateSubmit}
                 >
-                  {creating ? "Creating..." : "Create"}
+                  {creating ? t("common.creating") : t("common.create")}
                 </button>
               </div>
             </div>

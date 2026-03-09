@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import "./FileDropZone.css";
 
 interface FileDropZoneProps {
@@ -14,6 +15,7 @@ export function FileDropZone({
 }: FileDropZoneProps) {
   const [dragging, setDragging] = useState(false);
   const dragCounter = useRef(0);
+  const { t } = useTranslation();
 
   const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
@@ -70,7 +72,7 @@ export function FileDropZone({
         <div className="file-drop-overlay">
           <div className="file-drop-prompt">
             <div className="file-drop-icon">+</div>
-            <div className="file-drop-text">Drop files here</div>
+            <div className="file-drop-text">{t("fileDrop.dropHere")}</div>
           </div>
         </div>
       )}

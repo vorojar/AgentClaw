@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import {
   listChannels,
@@ -87,17 +88,20 @@ function getChannelIcon(id: string) {
 }
 
 /** Relative time display, e.g. "2h ago" */
-function relativeTime(iso: string): string {
+function relativeTime(
+  iso: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   const now = Date.now();
   const then = new Date(iso).getTime();
   const diffSec = Math.floor((now - then) / 1000);
-  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffSec < 60) return t("time.secsAgo", { count: diffSec });
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return t("time.minsAgo", { count: diffMin });
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffHr < 24) return t("time.hoursAgo", { count: diffHr });
   const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay}d ago`;
+  return t("time.daysAgo", { count: diffDay });
 }
 
 const STATUS_COLORS: Record<ChannelInfo["status"], string> = {
@@ -108,6 +112,7 @@ const STATUS_COLORS: Record<ChannelInfo["status"], string> = {
 };
 
 export function ChannelsPage() {
+  const { t } = useTranslation();
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,9 +174,11 @@ export function ChannelsPage() {
   if (loading) {
     return (
       <>
-        <PageHeader>Channels</PageHeader>
+        <PageHeader>{t("channels.title")}</PageHeader>
         <div className="page-body">
-          <div className="channels-loading">Loading channels...</div>
+          <div className="channels-loading">
+            {t("channels.loadingChannels")}
+          </div>
         </div>
       </>
     );
@@ -179,17 +186,19 @@ export function ChannelsPage() {
 
   return (
     <>
-      <PageHeader>Channels</PageHeader>
+      <PageHeader>{t("channels.title")}</PageHeader>
       <div className="page-body">
         {error && (
           <div className="channels-error">
             {error}
-            <button onClick={() => setError(null)}>dismiss</button>
+            <button onClick={() => setError(null)}>
+              {t("common.dismiss")}
+            </button>
           </div>
         )}
 
         {channels.length === 0 ? (
-          <div className="channels-empty">No channels available</div>
+          <div className="channels-empty">{t("channels.noChannels")}</div>
         ) : (
           <div className="channels-grid">
             {channels.map((ch) => (
@@ -214,13 +223,13 @@ export function ChannelsPage() {
                       className={`channels-status-text${ch.status === "not_configured" ? " channels-status-notconfigured" : ""}`}
                     >
                       {ch.status === "not_configured"
-                        ? "Not configured"
+                        ? t("channels.notConfigured")
                         : ch.status}
                     </span>
                   </div>
                   {ch.status === "connected" && ch.connectedAt && (
                     <span className="channels-connected-time">
-                      {relativeTime(ch.connectedAt)}
+                      {relativeTime(ch.connectedAt, t)}
                     </span>
                   )}
                   {ch.status === "error" && ch.statusMessage && (

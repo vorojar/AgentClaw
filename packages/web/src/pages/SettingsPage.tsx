@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import {
   getConfig,
@@ -10,14 +11,17 @@ import {
 } from "../api/client";
 import { IconChevronDown } from "../components/Icons";
 import { formatNumber } from "../utils/format";
+import { setLanguage, getLanguage } from "../i18n";
 import "./SettingsPage.css";
 
 export function SettingsPage() {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<AppConfigInfo | null>(null);
   const [stats, setStats] = useState<UsageStatsInfo | null>(null);
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState(getLanguage());
 
   // Tools collapse
   const [toolsExpanded, setToolsExpanded] = useState(false);
@@ -48,9 +52,11 @@ export function SettingsPage() {
   if (loading) {
     return (
       <>
-        <PageHeader>Settings</PageHeader>
+        <PageHeader>{t("settings.title")}</PageHeader>
         <div className="page-body">
-          <div className="settings-loading">Loading settings...</div>
+          <div className="settings-loading">
+            {t("settings.loadingSettings")}
+          </div>
         </div>
       </>
     );
@@ -58,32 +64,34 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader>Settings</PageHeader>
+      <PageHeader>{t("settings.title")}</PageHeader>
       <div className="page-body">
         {error && <div className="settings-error">{error}</div>}
 
         {/* Usage Statistics + System Info */}
         {stats && (
           <section className="card settings-section">
-            <h2 className="settings-section-title">Usage Statistics</h2>
+            <h2 className="settings-section-title">
+              {t("settings.usageStats")}
+            </h2>
             <div className="stats-overview">
               <div className="stat-item">
                 <span className="stat-value">
                   {formatNumber(stats.totalCalls)}
                 </span>
-                <span className="stat-label">Total Calls</span>
+                <span className="stat-label">{t("settings.totalCalls")}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">
                   {formatNumber(stats.totalInputTokens)}
                 </span>
-                <span className="stat-label">Input Tokens</span>
+                <span className="stat-label">{t("settings.inputTokens")}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-value">
                   {formatNumber(stats.totalOutputTokens)}
                 </span>
-                <span className="stat-label">Output Tokens</span>
+                <span className="stat-label">{t("settings.outputTokens")}</span>
               </div>
             </div>
 
@@ -92,10 +100,10 @@ export function SettingsPage() {
                 <table className="stats-table">
                   <thead>
                     <tr>
-                      <th>Model</th>
-                      <th>Calls</th>
-                      <th>Input Tokens</th>
-                      <th>Output Tokens</th>
+                      <th>{t("settings.modelCol")}</th>
+                      <th>{t("settings.callsCol")}</th>
+                      <th>{t("settings.inputTokens")}</th>
+                      <th>{t("settings.outputTokens")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -118,21 +126,27 @@ export function SettingsPage() {
             {config && (
               <div className="stats-system-info">
                 <span className="stats-sys-item">
-                  <span className="stats-sys-label">Provider</span>
+                  <span className="stats-sys-label">
+                    {t("settings.provider")}
+                  </span>
                   <code>{config.provider}</code>
                 </span>
                 {config.model && (
                   <span className="stats-sys-item">
-                    <span className="stats-sys-label">Model</span>
+                    <span className="stats-sys-label">
+                      {t("settings.model")}
+                    </span>
                     <code className="model-name">{config.model}</code>
                   </span>
                 )}
                 <span className="stats-sys-item">
-                  <span className="stats-sys-label">DB</span>
+                  <span className="stats-sys-label">{t("settings.db")}</span>
                   <code>{config.databasePath}</code>
                 </span>
                 <span className="stats-sys-item">
-                  <span className="stats-sys-label">Skills</span>
+                  <span className="stats-sys-label">
+                    {t("settings.skillsLabel")}
+                  </span>
                   <code>{config.skillsDir}</code>
                 </span>
               </div>
@@ -140,13 +154,34 @@ export function SettingsPage() {
           </section>
         )}
 
+        {/* Language */}
+        <section className="card settings-section">
+          <h2 className="settings-section-title">{t("settings.language")}</h2>
+          <div className="stats-system-info">
+            <select
+              className="memory-type-select"
+              value={lang}
+              onChange={(e) => {
+                setLang(e.target.value);
+                setLanguage(e.target.value);
+              }}
+            >
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+            <span className="stats-sys-label" style={{ marginLeft: 8 }}>
+              {t("settings.languageHint")}
+            </span>
+          </div>
+        </section>
+
         {/* Tools (collapsible) */}
         <section className="card settings-section">
           <h2
             className="settings-section-title settings-section-clickable"
             onClick={() => setToolsExpanded((v) => !v)}
           >
-            Tools
+            {t("settings.tools")}
             <span className="settings-count">{tools.length}</span>
             <span
               className={`settings-chevron${toolsExpanded ? " expanded" : ""}`}

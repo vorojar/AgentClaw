@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Layout } from "./components/Layout";
 import { ChatPage } from "./pages/ChatPage";
 import { MemoryPage } from "./pages/MemoryPage";
@@ -19,6 +20,7 @@ import { SessionProvider } from "./components/SessionContext";
 
 function AppRoutes() {
   const { authRequired, apiKey, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
@@ -31,7 +33,7 @@ function AppRoutes() {
           color: "var(--text-secondary)",
         }}
       >
-        Loading...
+        {t("common.loading")}
       </div>
     );
   }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import {
   listSkills,
@@ -11,6 +12,7 @@ import {
 import "./SkillsPage.css";
 
 export function SkillsPage() {
+  const { t } = useTranslation();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,9 +115,9 @@ export function SkillsPage() {
   if (loading) {
     return (
       <>
-        <PageHeader>Skills</PageHeader>
+        <PageHeader>{t("skills.title")}</PageHeader>
         <div className="page-body">
-          <div className="skills-page-loading">Loading skills...</div>
+          <div className="skills-page-loading">{t("skills.loadingSkills")}</div>
         </div>
       </>
     );
@@ -123,12 +125,14 @@ export function SkillsPage() {
 
   return (
     <>
-      <PageHeader>Skills</PageHeader>
+      <PageHeader>{t("skills.title")}</PageHeader>
       <div className="page-body">
         {error && (
           <div className="skills-page-error">
             {error}
-            <button onClick={() => setError(null)}>dismiss</button>
+            <button onClick={() => setError(null)}>
+              {t("common.dismiss")}
+            </button>
           </div>
         )}
 
@@ -138,19 +142,22 @@ export function SkillsPage() {
             <input
               type="text"
               className="skills-search"
-              placeholder="Search skills..."
+              placeholder={t("skills.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <span className="skills-summary">
-              {enabledCount}/{skills.length} enabled
+              {t("skills.enabledCount", {
+                enabled: enabledCount,
+                total: skills.length,
+              })}
             </span>
           </div>
           <button
             className="btn-primary skills-import-btn"
             onClick={() => setImportOpen((v) => !v)}
           >
-            {importOpen ? "Cancel" : "+ Import"}
+            {importOpen ? t("common.cancel") : t("skills.import")}
           </button>
         </div>
 
@@ -160,7 +167,7 @@ export function SkillsPage() {
             <div className="skills-import-row">
               <input
                 type="text"
-                placeholder="GitHub URL (https://github.com/user/skill-name)"
+                placeholder={t("skills.githubPlaceholder")}
                 value={importUrl}
                 onChange={(e) => setImportUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleImportGithub()}
@@ -169,12 +176,12 @@ export function SkillsPage() {
                 onClick={handleImportGithub}
                 disabled={importing || !importUrl.trim()}
               >
-                {importing ? "Importing..." : "Clone"}
+                {importing ? t("skills.importing") : t("skills.clone")}
               </button>
             </div>
             <div className="skills-import-row">
               <label className="skills-upload-btn">
-                Upload .zip
+                {t("skills.uploadZip")}
                 <input
                   type="file"
                   accept=".zip"
@@ -189,7 +196,7 @@ export function SkillsPage() {
         {/* Card grid */}
         {filtered.length === 0 ? (
           <div className="skills-page-empty">
-            {search ? "No matching skills" : "No skills available"}
+            {search ? t("skills.noMatching") : t("skills.noSkills")}
           </div>
         ) : (
           <div className="skills-grid">
@@ -210,7 +217,7 @@ export function SkillsPage() {
                     <button
                       className="skill-card-delete"
                       onClick={() => handleDelete(skill)}
-                      title="Delete skill"
+                      title={t("skills.deleteSkill")}
                     >
                       &times;
                     </button>

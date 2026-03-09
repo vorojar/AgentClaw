@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
@@ -257,13 +258,14 @@ function HtmlPreviewCard({
   filename: string;
   downloadHref?: string;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
     <>
       <div className="html-preview-card" onClick={() => setOpen(true)}>
         <span className="html-preview-icon">&#9654;</span>
         <span className="html-preview-name">{filename}</span>
-        <span className="html-preview-badge">Preview</span>
+        <span className="html-preview-badge">{t("chat.preview")}</span>
       </div>
       {open &&
         createPortal(
@@ -290,6 +292,7 @@ function HtmlPreviewOverlay({
   downloadHref?: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [needsDevServer, setNeedsDevServer] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
 
@@ -332,7 +335,11 @@ function HtmlPreviewOverlay({
   return (
     <div className="html-overlay">
       <div className="html-overlay-toolbar">
-        <button className="html-overlay-btn" onClick={onClose} title="Close">
+        <button
+          className="html-overlay-btn"
+          onClick={onClose}
+          title={t("common.close")}
+        >
           <IconArrowLeft size={20} />
         </button>
         <span className="html-overlay-title">{filename}</span>
@@ -341,7 +348,7 @@ function HtmlPreviewOverlay({
             href={downloadHref}
             download
             className="html-overlay-btn"
-            title="Download"
+            title={t("chat.download")}
           >
             <IconDownload size={18} />
           </a>
@@ -351,7 +358,7 @@ function HtmlPreviewOverlay({
           target="_blank"
           rel="noopener noreferrer"
           className="html-overlay-btn"
-          title="Open in new tab"
+          title={t("chat.openNewTab")}
         >
           <IconExternalLink size={18} />
         </a>
@@ -359,7 +366,7 @@ function HtmlPreviewOverlay({
       {iframeLoading && (
         <div className="html-overlay-loading">
           <span className="html-overlay-spinner" />
-          <span>Loading preview...</span>
+          <span>{t("chat.loadingPreview")}</span>
         </div>
       )}
       {(() => {
@@ -502,6 +509,7 @@ const toolMdComponents = {
 };
 
 function SectionLabel({ label, text }: { label: string; text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <div className="tool-call-section-label">
@@ -515,7 +523,7 @@ function SectionLabel({ label, text }: { label: string; text: string }) {
           });
         }}
       >
-        {copied ? "Copied" : "Copy"}
+        {copied ? t("common.copied") : t("common.copy")}
       </button>
     </div>
   );
@@ -588,6 +596,7 @@ function ToolResultContent({
 }
 
 function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const rotationRef = useRef(0);
   const { theme } = useTheme();
@@ -641,7 +650,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
         <div className="tool-call-body">
           {entry.toolInput && (
             <div className="tool-call-input">
-              <SectionLabel label="INPUT" text={entry.toolInput} />
+              <SectionLabel label={t("chat.input")} text={entry.toolInput} />
               {(() => {
                 const json = tryParseJson(entry.toolInput);
                 return json ? (
@@ -657,7 +666,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
           {entry.toolResult !== undefined && (
             <div className="tool-call-result">
               <SectionLabel
-                label={entry.isError ? "ERROR" : "OUTPUT"}
+                label={entry.isError ? t("chat.error") : t("chat.output")}
                 text={entry.toolResult}
               />
               <ToolResultContent
@@ -678,6 +687,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
 const TOOL_COLLAPSE_THRESHOLD = 3;
 
 function ToolCallGroup({ entries }: { entries: ToolCallEntry[] }) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
 
   // Split: completed (have result) vs in-progress (no result yet)
@@ -694,7 +704,9 @@ function ToolCallGroup({ entries }: { entries: ToolCallEntry[] }) {
             className="tool-group-summary"
             onClick={() => setCollapsed(true)}
           >
-            <span className="tool-group-collapse-hint">▼ Collapse</span>
+            <span className="tool-group-collapse-hint">
+              ▼ {t("chat.collapse")}
+            </span>
           </div>
         )}
         {entries.map((tc) => (
@@ -721,7 +733,7 @@ function ToolCallGroup({ entries }: { entries: ToolCallEntry[] }) {
         {errors > 0 ? <IconWarning size={14} /> : <IconCheck size={14} />}
       </span>
       <span className="tool-group-text">
-        {completed.length} tool calls ({toolSummary})
+        {t("chat.toolCalls", { count: completed.length, summary: toolSummary })}
       </span>
       {totalMs > 0 && (
         <span className="tool-group-duration">{formatDuration(totalMs)}</span>
@@ -783,6 +795,7 @@ export function ChatPage() {
     setPendingAgentId,
     projects,
   } = useSession();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -1714,10 +1727,10 @@ export function ChatPage() {
   /* Render */
   function getInputPlaceholder(): string {
     if (pendingPrompt) return pendingPrompt;
-    if (isListening) return "Listening...";
-    if (isRecording) return "Recording...";
-    if (isSending) return "Waiting for response...";
-    return "Reply to AgentClaw...";
+    if (isListening) return t("chat.listeningPlaceholder");
+    if (isRecording) return t("chat.recordingPlaceholder");
+    if (isSending) return t("chat.waitingPlaceholder");
+    return t("chat.replyPlaceholder");
   }
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
@@ -1743,7 +1756,7 @@ export function ChatPage() {
             <button
               className="btn-icon"
               onClick={() => setSidebarOpen(true)}
-              title="Show sidebar"
+              title={t("sidebar.show")}
             >
               <IconMenu size={18} />
             </button>
@@ -1780,7 +1793,7 @@ export function ChatPage() {
                 setEditingTitle(true);
                 setTimeout(() => titleInputRef.current?.select(), 0);
               }}
-              title="Double-click to rename"
+              title={t("chat.doubleClickRename")}
             >
               {activeProject && (
                 <span
@@ -1802,7 +1815,7 @@ export function ChatPage() {
               <button
                 className="btn-icon"
                 onClick={() => setHeaderMenuOpen((v) => !v)}
-                title="More"
+                title={t("common.more")}
               >
                 <IconMoreHorizontal size={18} />
               </button>
@@ -1810,7 +1823,7 @@ export function ChatPage() {
             {headerMenuOpen && (
               <div className="header-dropdown">
                 <button onClick={handleHeaderRename}>
-                  <IconEdit size={14} /> Rename
+                  <IconEdit size={14} /> {t("common.rename")}
                 </button>
                 {projects.length > 0 && (
                   <div
@@ -1820,7 +1833,7 @@ export function ChatPage() {
                     onClick={() => setHeaderSubMenu((v) => !v)}
                   >
                     <span className="header-dropdown-item">
-                      <IconProjects size={14} /> Move to Project
+                      <IconProjects size={14} /> {t("sidebar.moveToProject")}
                       <span className="header-dropdown-arrow">›</span>
                     </span>
                     {headerSubMenu && (
@@ -1845,7 +1858,7 @@ export function ChatPage() {
                   onClick={handleHeaderDelete}
                   disabled={!activeSessionId}
                 >
-                  <IconTrash size={14} /> Delete
+                  <IconTrash size={14} /> {t("common.delete")}
                 </button>
               </div>
             )}
@@ -1855,8 +1868,8 @@ export function ChatPage() {
         {/* Disconnected banner */}
         {wsDisconnected && (
           <div className="connection-banner">
-            <span>Connection lost.</span>
-            <button onClick={handleReconnect}>Reconnect</button>
+            <span>{t("chat.connectionLost")}</span>
+            <button onClick={handleReconnect}>{t("chat.reconnect")}</button>
           </div>
         )}
 
@@ -1864,7 +1877,7 @@ export function ChatPage() {
         {activeToolName && (
           <div className="tool-status-bar">
             <span className="tool-status-spinner" />
-            <span>Running {activeToolName}...</span>
+            <span>{t("chat.runningTool", { tool: activeToolName })}</span>
           </div>
         )}
 
@@ -1872,7 +1885,7 @@ export function ChatPage() {
         {todoItems.length > 0 && (
           <div className="todo-progress-card">
             <div className="todo-progress-header">
-              <span className="todo-progress-label">Progress</span>
+              <span className="todo-progress-label">{t("chat.progress")}</span>
               <span className="todo-progress-count">
                 {todoItems.filter((i) => i.done).length}/{todoItems.length}
               </span>
@@ -1918,7 +1931,7 @@ export function ChatPage() {
                 ))}
               </div>
             )}
-            <h2 className="chat-welcome-title">What can I do for you?</h2>
+            <h2 className="chat-welcome-title">{t("chat.welcomeTitle")}</h2>
             <div className="chat-welcome-input">
               <div className="chat-input-box">
                 <textarea
@@ -1927,7 +1940,7 @@ export function ChatPage() {
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
-                  placeholder="Ask AgentClaw..."
+                  placeholder={t("chat.askPlaceholder")}
                   disabled={isSending}
                   rows={2}
                 />
@@ -1937,7 +1950,7 @@ export function ChatPage() {
                       className="btn-attach"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSending}
-                      title="Attach file"
+                      title={t("chat.attachFile")}
                     >
                       <IconPaperclip size={18} />
                     </button>
@@ -1947,7 +1960,7 @@ export function ChatPage() {
                           className={`btn-skill${selectedSkill ? " active" : ""}`}
                           onClick={() => setSkillMenuOpen((v) => !v)}
                           disabled={isSending}
-                          title="Select skill"
+                          title={t("chat.selectSkill")}
                         >
                           <IconSkills size={18} />
                         </button>
@@ -1997,8 +2010,8 @@ export function ChatPage() {
                       disabled={isSending}
                       title={
                         isListening || isRecording
-                          ? "Stop voice input"
-                          : "Voice input"
+                          ? t("chat.stopVoice")
+                          : t("chat.voiceInput")
                       }
                     >
                       <IconMic size={18} />
@@ -2007,7 +2020,7 @@ export function ChatPage() {
                       className="btn-send"
                       onClick={handleSend}
                       disabled={!canSend}
-                      title="Send message"
+                      title={t("chat.sendMessage")}
                     >
                       <IconArrowUp size={18} />
                     </button>
@@ -2022,11 +2035,11 @@ export function ChatPage() {
             </div>
             <div className="chat-welcome-skills">
               {[
-                { label: "Image Gen", skill: "comfyui" },
-                { label: "Code", skill: "coding" },
-                { label: "Excel", skill: "xlsx" },
+                { label: t("chat.imageGen"), skill: "comfyui" },
+                { label: t("chat.code"), skill: "coding" },
+                { label: t("chat.excel"), skill: "xlsx" },
                 { label: "PDF", skill: "pdf" },
-                { label: "Web Search", skill: "web-search" },
+                { label: t("chat.webSearch"), skill: "web-search" },
               ].map((item) => (
                 <button
                   key={item.skill}
@@ -2044,7 +2057,7 @@ export function ChatPage() {
                 className="welcome-skill-chip"
                 onClick={() => navigate("/skills")}
               >
-                More
+                {t("common.more")}
               </button>
             </div>
           </div>
@@ -2106,14 +2119,14 @@ export function ChatPage() {
                                       className="btn-edit-cancel"
                                       onClick={() => setEditingMsgKey(null)}
                                     >
-                                      Cancel
+                                      {t("common.cancel")}
                                     </button>
                                     <button
                                       className="btn-edit-submit"
                                       onClick={() => handleEditSubmit(m.key)}
                                       disabled={!editMsgValue.trim()}
                                     >
-                                      Send
+                                      {t("common.send")}
                                     </button>
                                   </div>
                                 </div>
@@ -2171,7 +2184,7 @@ export function ChatPage() {
                                       setEditingMsgKey(m.key);
                                       setEditMsgValue(parsed.text);
                                     }}
-                                    title="Edit & resend"
+                                    title={t("chat.editResend")}
                                   >
                                     <IconEdit size={14} />
                                   </button>
@@ -2188,7 +2201,7 @@ export function ChatPage() {
                               className="btn-regenerate"
                               onClick={handleRegenerate}
                             >
-                              <IconRefresh size={14} /> Regenerate
+                              <IconRefresh size={14} /> {t("chat.regenerate")}
                             </button>
                           </div>
                         )}
@@ -2240,7 +2253,7 @@ export function ChatPage() {
                     className="btn-attach"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSending}
-                    title="Attach file"
+                    title={t("chat.attachFile")}
                   >
                     <IconPaperclip size={18} />
                   </button>
@@ -2250,7 +2263,7 @@ export function ChatPage() {
                         className={`btn-skill${selectedSkill ? " active" : ""}`}
                         onClick={() => setSkillMenuOpen((v) => !v)}
                         disabled={isSending}
-                        title="Select skill"
+                        title={t("chat.selectSkill")}
                       >
                         <IconSkills size={18} />
                       </button>
@@ -2300,8 +2313,8 @@ export function ChatPage() {
                     disabled={isSending}
                     title={
                       isListening || isRecording
-                        ? "Stop voice input"
-                        : "Voice input"
+                        ? t("chat.stopVoice")
+                        : t("chat.voiceInput")
                     }
                   >
                     <IconMic size={18} />
@@ -2310,7 +2323,7 @@ export function ChatPage() {
                     <button
                       className="btn-stop"
                       onClick={handleStop}
-                      title="Stop generation"
+                      title={t("chat.stopGeneration")}
                     >
                       <IconSquare size={14} />
                     </button>
@@ -2319,7 +2332,7 @@ export function ChatPage() {
                       className="btn-send"
                       onClick={handleSend}
                       disabled={!pendingPrompt && !canSend}
-                      title="Send message"
+                      title={t("chat.sendMessage")}
                     >
                       <IconArrowUp size={18} />
                     </button>

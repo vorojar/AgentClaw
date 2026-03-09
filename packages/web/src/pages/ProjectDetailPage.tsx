@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getProject,
@@ -13,17 +14,20 @@ import { useSession } from "../components/SessionContext";
 import { IconTrash, IconChat, IconEdit } from "../components/Icons";
 import "./ProjectDetailPage.css";
 
-function timeAgo(iso: string): string {
+function timeAgo(
+  iso: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   try {
     const d = new Date(iso);
     const diff = Date.now() - d.getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "\u521a\u521a";
-    if (mins < 60) return `${mins}\u5206\u949f\u524d`;
+    if (mins < 1) return t("time.justNow");
+    if (mins < 60) return t("time.minsAgo", { count: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}\u5c0f\u65f6\u524d`;
+    if (hours < 24) return t("time.hoursAgo", { count: hours });
     const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}\u5929\u524d`;
+    if (days < 30) return t("time.daysAgo", { count: days });
     return new Date(iso).toLocaleDateString();
   } catch {
     return "";
@@ -31,6 +35,7 @@ function timeAgo(iso: string): string {
 }
 
 export function ProjectDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { updateProjectLocally, refreshSessions } = useSession();
@@ -97,7 +102,7 @@ export function ProjectDetailPage() {
   if (loading) {
     return (
       <div className="project-detail">
-        <div className="project-detail-loading">Loading...</div>
+        <div className="project-detail-loading">{t("common.loading")}</div>
       </div>
     );
   }
@@ -106,7 +111,7 @@ export function ProjectDetailPage() {
     return (
       <div className="project-detail">
         <div className="project-detail-error">
-          {error || "Project not found"}
+          {error || t("project.notFound")}
         </div>
       </div>
     );
@@ -144,7 +149,7 @@ export function ProjectDetailPage() {
                   setRenameValue(project.name);
                   setRenaming(true);
                 }}
-                title="Rename"
+                title={t("common.rename")}
               >
                 <IconEdit size={14} />
               </button>
@@ -156,24 +161,16 @@ export function ProjectDetailPage() {
       <div className="project-detail-input" onClick={handleNewChat}>
         <IconChat size={16} />
         <span className="project-detail-input-placeholder">
-          {"\u5728\u300c"}
-          {project.name}
-          {"\u300d\u4e2d\u65b0\u5efa\u804a\u5929"}
+          {t("project.newChatIn", { name: project.name })}
         </span>
       </div>
 
       <div className="project-detail-sessions">
         <div className="project-detail-sessions-header">
-          <span>
-            {sessions.length} {"\u4e2a\u4f1a\u8bdd"}
-          </span>
+          <span>{t("project.sessionsCount", { count: sessions.length })}</span>
         </div>
         {sessions.length === 0 ? (
-          <div className="project-detail-empty">
-            {
-              "\u8fd8\u6ca1\u6709\u4f1a\u8bdd\uff0c\u70b9\u51fb\u4e0a\u65b9\u5f00\u59cb\u804a\u5929"
-            }
-          </div>
+          <div className="project-detail-empty">{t("project.noSessions")}</div>
         ) : (
           <div className="project-detail-list">
             {sessions.map((s) => (
@@ -184,7 +181,7 @@ export function ProjectDetailPage() {
               >
                 <div className="project-session-content">
                   <span className="project-session-title">
-                    {s.title || "\u65b0\u4f1a\u8bdd"}
+                    {s.title || t("project.newSession")}
                   </span>
                   {s.preview && (
                     <span className="project-session-preview">{s.preview}</span>
@@ -192,7 +189,7 @@ export function ProjectDetailPage() {
                 </div>
                 <div className="project-session-meta">
                   <span className="project-session-time">
-                    {timeAgo(s.lastActiveAt)}
+                    {timeAgo(s.lastActiveAt, t)}
                   </span>
                   <button
                     className="project-session-delete"
@@ -200,7 +197,7 @@ export function ProjectDetailPage() {
                       e.stopPropagation();
                       handleDeleteSession(s.id);
                     }}
-                    title={"\u5220\u9664"}
+                    title={t("common.delete")}
                   >
                     <IconTrash size={14} />
                   </button>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import {
   listAgents,
@@ -61,6 +62,7 @@ function agentToForm(a: AgentInfo): AgentFormData {
 }
 
 export function AgentsPage() {
+  const { t } = useTranslation();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export function AgentsPage() {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      setError("Name is required");
+      setError(t('agents.nameRequired'));
       return;
     }
     setSaving(true);
@@ -169,9 +171,9 @@ export function AgentsPage() {
   if (loading) {
     return (
       <>
-        <PageHeader>Agents</PageHeader>
+        <PageHeader>{t('agents.title')}</PageHeader>
         <div className="page-body">
-          <div className="agents-loading">Loading agents...</div>
+          <div className="agents-loading">{t('agents.loadingAgents')}</div>
         </div>
       </>
     );
@@ -179,26 +181,26 @@ export function AgentsPage() {
 
   return (
     <>
-      <PageHeader>Agents</PageHeader>
+      <PageHeader>{t('agents.title')}</PageHeader>
       <div className="page-body">
         {error && (
           <div className="agents-error">
             {error}
-            <button onClick={() => setError(null)}>dismiss</button>
+            <button onClick={() => setError(null)}>{t('common.dismiss')}</button>
           </div>
         )}
 
         {/* Toolbar */}
         <div className="agents-toolbar">
-          <span className="agents-count">{agents.length} agents</span>
+          <span className="agents-count">{t('agents.agentsCount', { count: agents.length })}</span>
           <button className="btn-primary agents-add-btn" onClick={openCreate}>
-            + New Agent
+            {t('agents.newAgent')}
           </button>
         </div>
 
         {/* Agent cards */}
         {agents.length === 0 ? (
-          <div className="agents-empty">No agents configured</div>
+          <div className="agents-empty">{t('agents.noAgents')}</div>
         ) : (
           <div className="agents-grid">
             {agents.map((agent) => (
@@ -218,7 +220,7 @@ export function AgentsPage() {
                         e.stopPropagation();
                         handleDelete(agent);
                       }}
-                      title="Delete"
+                      title={t('common.delete')}
                     >
                       &times;
                     </button>
@@ -226,7 +228,7 @@ export function AgentsPage() {
                 </div>
                 <div className="agent-card-name">{agent.name}</div>
                 <div className="agent-card-desc">
-                  {agent.description || "No description"}
+                  {agent.description || t('agents.noDescription')}
                 </div>
                 {agent.model && (
                   <code className="agent-card-model">{agent.model}</code>
@@ -244,7 +246,7 @@ export function AgentsPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="agents-modal-header">
-                <h3>{editingId ? "Edit Agent" : "New Agent"}</h3>
+                <h3>{editingId ? t('agents.editAgent') : t('agents.createAgent')}</h3>
                 <button className="agents-modal-close" onClick={closeModal}>
                   &times;
                 </button>
@@ -257,7 +259,7 @@ export function AgentsPage() {
                     <button
                       className="agents-avatar-btn"
                       onClick={() => setEmojiPickerOpen((v) => !v)}
-                      title="Pick avatar"
+                      title={t('agents.pickAvatar')}
                     >
                       {form.avatar || "🤖"}
                     </button>
@@ -281,7 +283,7 @@ export function AgentsPage() {
                   <div className="agents-form-name-group">
                     <input
                       type="text"
-                      placeholder="Agent Name"
+                      placeholder={t('agents.agentName')}
                       value={form.name}
                       onChange={(e) => updateField("name", e.target.value)}
                       className="agents-input agents-input-name"
@@ -292,10 +294,10 @@ export function AgentsPage() {
 
                 {/* Description */}
                 <div className="agents-form-row">
-                  <label className="agents-label">Description</label>
+                  <label className="agents-label">{t('agents.description')}</label>
                   <input
                     type="text"
-                    placeholder="Brief description of this agent's role"
+                    placeholder={t('agents.descPlaceholder')}
                     value={form.description}
                     onChange={(e) =>
                       updateField("description", e.target.value)
@@ -307,13 +309,13 @@ export function AgentsPage() {
                 {/* Soul */}
                 <div className="agents-form-row">
                   <label className="agents-label">
-                    Soul
+                    {t('agents.soul')}
                     <span className="agents-label-hint">
-                      Personality & behavior instructions
+                      {t('agents.soulHint')}
                     </span>
                   </label>
                   <textarea
-                    placeholder="You are a helpful coding assistant who excels at..."
+                    placeholder={t('agents.soulPlaceholder')}
                     value={form.soul}
                     onChange={(e) => updateField("soul", e.target.value)}
                     className="agents-textarea"
@@ -323,10 +325,10 @@ export function AgentsPage() {
 
                 {/* Model */}
                 <div className="agents-form-row">
-                  <label className="agents-label">Model</label>
+                  <label className="agents-label">{t('agents.model')}</label>
                   <input
                     type="text"
-                    placeholder={defaultModel ? `Default: ${defaultModel}` : "Use system default"}
+                    placeholder={defaultModel ? `Default: ${defaultModel}` : t('agents.useSystemDefault')}
                     value={form.model}
                     onChange={(e) => updateField("model", e.target.value)}
                     className="agents-input"
@@ -339,15 +341,15 @@ export function AgentsPage() {
                   className="agents-advanced-toggle"
                   onClick={() => setShowAdvanced((v) => !v)}
                 >
-                  {showAdvanced ? "▾" : "▸"} Advanced
+                  {showAdvanced ? "▾" : "▸"} {t('agents.advanced')}
                 </button>
 
                 {showAdvanced && (
                   <div className="agents-form-row agents-form-inline">
                     <div className="agents-form-field">
                       <label className="agents-label">
-                        Temperature
-                        <span className="agents-label-hint">0 = deterministic, 2 = creative</span>
+                        {t('agents.temperature')}
+                        <span className="agents-label-hint">{t('agents.temperatureHint')}</span>
                       </label>
                       <input
                         type="number"
@@ -364,8 +366,8 @@ export function AgentsPage() {
                     </div>
                     <div className="agents-form-field">
                       <label className="agents-label">
-                        Max Iterations
-                        <span className="agents-label-hint">Tool-use loops per turn</span>
+                        {t('agents.maxIterations')}
+                        <span className="agents-label-hint">{t('agents.maxIterationsHint')}</span>
                       </label>
                       <input
                         type="number"
@@ -385,14 +387,14 @@ export function AgentsPage() {
 
               <div className="agents-modal-footer">
                 <button className="agents-btn-cancel" onClick={closeModal}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   className="btn-primary agents-btn-save"
                   onClick={handleSave}
                   disabled={saving || !form.name.trim()}
                 >
-                  {saving ? "Saving..." : editingId ? "Save Changes" : "Create Agent"}
+                  {saving ? t('common.saving') : editingId ? t('agents.saveChanges') : t('agents.createAgentBtn')}
                 </button>
               </div>
             </div>

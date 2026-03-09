@@ -1,5 +1,14 @@
 # 更新日志
 
+## [1.3.0] - 2026-03-09
+
+### 新增
+- **多语言支持（i18n）**：Web 前端完整国际化，支持英文/中文切换
+  - 集成 `i18next` + `react-i18next`，语言检测优先级：localStorage → navigator.language → en
+  - 翻译覆盖全部 13 个页面 + 7 个组件，约 200 个翻译键
+  - Settings 页面新增语言切换器（下拉选择 English/中文）
+  - 翻译文件：`packages/web/src/i18n/locales/en.json` / `zh.json`
+
 ## [1.2.1] - 2026-03-09
 
 ### 改进

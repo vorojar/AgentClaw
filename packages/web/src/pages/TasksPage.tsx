@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import {
   listManagedTasks,
@@ -31,36 +32,16 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('time.justNow');
+  if (mins < 60) return t('time.minsAgo', { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t('time.hoursAgo', { count: hrs });
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return t('time.daysAgo', { count: days });
 }
-
-const PRIORITY_LABELS: Record<string, string> = {
-  urgent: "Urgent",
-  high: "High",
-  normal: "Normal",
-  medium: "Normal", // backwards compat
-  low: "Low",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  todo: "To Do",
-  queued: "Queued",
-  running: "Running",
-  done: "Done",
-  failed: "Failed",
-  waiting_decision: "Needs Decision",
-  inbox: "Inbox",
-  triaged: "Triaged",
-  blocked: "Blocked",
-};
 
 const EXECUTOR_ICON: Record<string, string> = {
   agent: "\u{1F916}",
@@ -70,27 +51,28 @@ const EXECUTOR_ICON: Record<string, string> = {
 // ── Stats Bar ────────────────────────────────────────
 
 function StatsBar({ stats }: { stats: TaskStats }) {
+  const { t } = useTranslation();
   return (
     <div className="tm-stats-bar">
       <div className="tm-stat">
         <span className="tm-stat-value">{stats.total_pending}</span>
-        <span className="tm-stat-label">Pending</span>
+        <span className="tm-stat-label">{t('tasks.pending')}</span>
       </div>
       <div className="tm-stat">
         <span className="tm-stat-value">{stats.running}</span>
-        <span className="tm-stat-label">Running</span>
+        <span className="tm-stat-label">{t('tasks.running')}</span>
       </div>
       <div className="tm-stat">
         <span className="tm-stat-value">{stats.queued}</span>
-        <span className="tm-stat-label">Queued</span>
+        <span className="tm-stat-label">{t('tasks.queued')}</span>
       </div>
       <div className="tm-stat">
         <span className="tm-stat-value">{stats.waiting_decision}</span>
-        <span className="tm-stat-label">Decisions</span>
+        <span className="tm-stat-label">{t('tasks.decisions')}</span>
       </div>
       <div className="tm-stat">
         <span className="tm-stat-value">{stats.done_today}</span>
-        <span className="tm-stat-label">Done Today</span>
+        <span className="tm-stat-label">{t('tasks.doneLabel')}</span>
       </div>
     </div>
   );
@@ -99,6 +81,7 @@ function StatsBar({ stats }: { stats: TaskStats }) {
 // ── Quick Add ────────────────────────────────────────
 
 function QuickAdd({ onAdd }: { onAdd: (text: string) => Promise<void> }) {
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -118,7 +101,7 @@ function QuickAdd({ onAdd }: { onAdd: (text: string) => Promise<void> }) {
       <input
         type="text"
         className="tm-quick-input"
-        placeholder="Add a task... (natural language or just a title)"
+        placeholder={t('tasks.addPlaceholder')}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -129,7 +112,7 @@ function QuickAdd({ onAdd }: { onAdd: (text: string) => Promise<void> }) {
         onClick={handleSubmit}
         disabled={saving || !text.trim()}
       >
-        {saving ? "..." : "Add"}
+        {saving ? "..." : t('common.add')}
       </button>
     </div>
   );
@@ -150,6 +133,7 @@ function ManagedTaskCard({
   onDecide?: (id: string, decision: string) => Promise<void>;
   compact?: boolean;
 }) {
+  const { t } = useTranslation();
   const [confirmDel, setConfirmDel] = useState(false);
   const [busy, setBusy] = useState(false);
   const isDone = task.status === "done";
@@ -240,11 +224,11 @@ function ManagedTaskCard({
       <div className="tasks-card-footer">
         <span
           className={`tm-priority-dot tm-priority-${task.priority}`}
-          title={PRIORITY_LABELS[task.priority] || task.priority}
+          title={t(`priority.${task.priority === 'medium' ? 'normal' : task.priority}`)}
         />
         {task.status !== "done" && task.status !== "failed" && (
           <span className="tm-status-badge">
-            {STATUS_LABELS[task.status] || task.status}
+            {t(`status.${task.status}`, task.status)}
           </span>
         )}
         {(task.deadline || task.dueDate) && (
@@ -252,7 +236,7 @@ function ManagedTaskCard({
             {formatDate(task.deadline || task.dueDate)}
           </span>
         )}
-        <span className="tm-time-ago">{relativeTime(task.createdAt)}</span>
+        <span className="tm-time-ago">{relativeTime(task.createdAt, t)}</span>
         <div className="tasks-card-spacer" />
         {confirmDel ? (
           <span className="tasks-card-delete-confirm">
@@ -261,13 +245,13 @@ function ManagedTaskCard({
               onClick={handleDelete}
               disabled={busy}
             >
-              {busy ? "..." : "Yes"}
+              {busy ? "..." : t('common.yes')}
             </button>
             <button
               className="btn-secondary tasks-card-btn"
               onClick={() => setConfirmDel(false)}
             >
-              No
+              {t('common.no')}
             </button>
           </span>
         ) : (
@@ -277,7 +261,7 @@ function ManagedTaskCard({
               e.stopPropagation();
               handleDelete();
             }}
-            title="Delete"
+            title={t('common.delete')}
           >
             &times;
           </button>
@@ -296,6 +280,7 @@ function DecisionCard({
   task: TaskItem;
   onDecide: (id: string, decision: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -345,7 +330,7 @@ function DecisionCard({
         <input
           type="text"
           className="tm-decision-input"
-          placeholder="Or type your decision..."
+          placeholder={t('tasks.orTypeDecision')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) =>
@@ -358,7 +343,7 @@ function DecisionCard({
           onClick={() => input.trim() && handleDecide(input.trim())}
           disabled={busy || !input.trim()}
         >
-          Submit
+          {t('common.submit')}
         </button>
       </div>
     </div>
@@ -382,6 +367,7 @@ function TodayView({
   onDecide: (id: string, decision: string) => Promise<void>;
   onAdd: (text: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const decisions = tasks.filter((t) => t.status === "waiting_decision");
   const running = tasks.filter((t) => t.status === "running");
   const queued = tasks.filter((t) => t.status === "queued");
@@ -402,7 +388,7 @@ function TodayView({
       {decisions.length > 0 && (
         <div className="tasks-section">
           <h3 className="tasks-section-title">
-            Needs Your Decision
+            {t('tasks.needsDecision')}
             <span className="tasks-column-count">{decisions.length}</span>
           </h3>
           <div className="tm-decision-list">
@@ -416,7 +402,7 @@ function TodayView({
       {running.length > 0 && (
         <div className="tasks-section">
           <h3 className="tasks-section-title">
-            Agent Working
+            {t('tasks.agentWorking')}
             <span className="tasks-column-count">{running.length}</span>
           </h3>
           {running.map((t) => (
@@ -433,7 +419,7 @@ function TodayView({
       {queued.length > 0 && (
         <div className="tasks-section">
           <h3 className="tasks-section-title">
-            Queued
+            {t('tasks.queued')}
             <span className="tasks-column-count">{queued.length}</span>
           </h3>
           {queued.map((t) => (
@@ -451,7 +437,7 @@ function TodayView({
       {todos.length > 0 && (
         <div className="tasks-section">
           <h3 className="tasks-section-title">
-            To Do
+            {t('tasks.toDo')}
             <span className="tasks-column-count">{todos.length}</span>
           </h3>
           {todos.map((t) => (
@@ -468,7 +454,7 @@ function TodayView({
       {doneToday.length > 0 && (
         <details className="tm-done-details">
           <summary className="tasks-section-title">
-            Done Today
+            {t('tasks.doneToday')}
             <span className="tasks-column-count">{doneToday.length}</span>
           </summary>
           <div className="tm-done-list">
@@ -495,6 +481,7 @@ function TodayView({
 // ── Task Runner Stats ────────────────────────────────
 
 function TaskRunnerStatsCard() {
+  const { t } = useTranslation();
   const [runnerStats, setRunnerStats] = useState<TaskRunnerStats | null>(null);
 
   useEffect(() => {
@@ -511,17 +498,17 @@ function TaskRunnerStatsCard() {
 
   return (
     <div className="tm-runner-section">
-      <h3 className="tasks-section-title">Task Runner (Today)</h3>
+      <h3 className="tasks-section-title">{t('tasks.taskRunner')}</h3>
       <div className="tm-runner-stats">
         <div className="tm-runner-stat">
           <div className="tm-runner-stat-value">{runnerStats.traces || 0}</div>
-          <div className="tm-runner-stat-label">Runs</div>
+          <div className="tm-runner-stat-label">{t('tasks.runs')}</div>
         </div>
         <div className="tm-runner-stat">
           <div className="tm-runner-stat-value">
             {runnerStats.sessions || 0}
           </div>
-          <div className="tm-runner-stat-label">LLM Calls</div>
+          <div className="tm-runner-stat-label">{t('tasks.llmCalls')}</div>
         </div>
         <div className="tm-runner-stat">
           <div className="tm-runner-stat-value">
@@ -529,11 +516,11 @@ function TaskRunnerStatsCard() {
               ? `${(totalTokens / 1000).toFixed(1)}k`
               : totalTokens.toLocaleString()}
           </div>
-          <div className="tm-runner-stat-label">Tokens</div>
+          <div className="tm-runner-stat-label">{t('tasks.tokens')}</div>
         </div>
         <div className="tm-runner-stat">
           <div className="tm-runner-stat-value">{durationSec}s</div>
-          <div className="tm-runner-stat-label">Duration</div>
+          <div className="tm-runner-stat-label">{t('tasks.duration')}</div>
         </div>
       </div>
     </div>
@@ -543,6 +530,7 @@ function TaskRunnerStatsCard() {
 // ── Daily Brief Settings ─────────────────────────────
 
 function DailyBriefSettings() {
+  const { t } = useTranslation();
   const [time, setTime] = useState("09:00");
   const [originalTime, setOriginalTime] = useState("09:00");
   const [saved, setSaved] = useState(false);
@@ -577,10 +565,10 @@ function DailyBriefSettings() {
 
   return (
     <div className="tm-runner-section">
-      <h3 className="tasks-section-title">Daily Brief</h3>
+      <h3 className="tasks-section-title">{t('tasks.dailyBrief')}</h3>
       <div className="tm-brief-settings">
         <label className="tm-brief-label">
-          Send time
+          {t('tasks.sendTime')}
           <input
             type="time"
             value={time}
@@ -593,11 +581,11 @@ function DailyBriefSettings() {
         </label>
         {(dirty || saved) && (
           <button className="tm-brief-save" onClick={handleSave} disabled={saved}>
-            {saved ? "Saved ✓" : "Save"}
+            {saved ? t('tasks.saved') : t('common.save')}
           </button>
         )}
         <span className="tm-brief-hint">
-          Daily brief is sent only when there are pending tasks.
+          {t('tasks.dailyBriefHint')}
         </span>
       </div>
     </div>
@@ -617,6 +605,7 @@ function AllTasksView({
   onDelete: (id: string) => Promise<void>;
   onAdd: (text: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
 
@@ -634,34 +623,34 @@ function AllTasksView({
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
-          <option value="">All Status</option>
-          <option value="inbox">Inbox</option>
-          <option value="todo">To Do</option>
-          <option value="triaged">Triaged</option>
-          <option value="queued">Queued</option>
-          <option value="running">Running</option>
-          <option value="waiting_decision">Needs Decision</option>
-          <option value="blocked">Blocked</option>
-          <option value="done">Done</option>
-          <option value="failed">Failed</option>
+          <option value="">{t('tasks.allStatus')}</option>
+          <option value="inbox">{t('status.inbox')}</option>
+          <option value="todo">{t('status.todo')}</option>
+          <option value="triaged">{t('status.triaged')}</option>
+          <option value="queued">{t('status.queued')}</option>
+          <option value="running">{t('status.running')}</option>
+          <option value="waiting_decision">{t('status.waiting_decision')}</option>
+          <option value="blocked">{t('status.blocked')}</option>
+          <option value="done">{t('status.done')}</option>
+          <option value="failed">{t('status.failed')}</option>
         </select>
         <select
           className="tasks-form-select"
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
         >
-          <option value="">All Priority</option>
-          <option value="urgent">Urgent</option>
-          <option value="high">High</option>
-          <option value="normal">Normal</option>
-          <option value="low">Low</option>
+          <option value="">{t('tasks.allPriority')}</option>
+          <option value="urgent">{t('priority.urgent')}</option>
+          <option value="high">{t('priority.high')}</option>
+          <option value="normal">{t('priority.normal')}</option>
+          <option value="low">{t('priority.low')}</option>
         </select>
-        <span className="tm-filter-count">{filtered.length} tasks</span>
+        <span className="tm-filter-count">{t('tasks.tasksCount', { count: filtered.length })}</span>
       </div>
 
       <div className="tm-task-list">
         {filtered.length === 0 ? (
-          <div className="tasks-empty">No tasks match filters.</div>
+          <div className="tasks-empty">{t('tasks.noTasksMatch')}</div>
         ) : (
           filtered.map((t) => (
             <ManagedTaskCard
@@ -682,6 +671,7 @@ function AllTasksView({
 // ── Automations View ────────────────────────────────
 
 function AutomationsView() {
+  const { t } = useTranslation();
   const [automations, setAutomations] = useState<ScheduledTaskInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -744,20 +734,20 @@ function AutomationsView() {
     }
   };
 
-  if (loading) return <div className="tasks-loading">Loading...</div>;
+  if (loading) return <div className="tasks-loading">{t('common.loading')}</div>;
 
   return (
     <div className="tm-automations">
       {error && (
         <div className="tasks-error">
           {error}
-          <button onClick={() => setError(null)}>dismiss</button>
+          <button onClick={() => setError(null)}>{t('common.dismiss')}</button>
         </div>
       )}
 
       <div className="tasks-section-header">
         <h3 className="tasks-section-title">
-          Automations
+          {t('tasks.automations')}
           <span className="tasks-column-count">{automations.length}</span>
         </h3>
         {!showForm && (
@@ -766,7 +756,7 @@ function AutomationsView() {
             onClick={() => setShowForm(true)}
             style={{ marginLeft: "auto", padding: "4px 12px", fontSize: 13 }}
           >
-            + Add
+            {t('tasks.addAutomation')}
           </button>
         )}
       </div>
@@ -776,7 +766,7 @@ function AutomationsView() {
           <input
             type="text"
             className="tasks-form-input"
-            placeholder="Name (e.g. Daily weather report)"
+            placeholder={t('tasks.namePlaceholder')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -784,14 +774,14 @@ function AutomationsView() {
           <input
             type="text"
             className="tasks-form-input"
-            placeholder="Cron (e.g. 0 9 * * *)"
+            placeholder={t('tasks.cronPlaceholder')}
             value={cron}
             onChange={(e) => setCron(e.target.value)}
           />
           <input
             type="text"
             className="tasks-form-input"
-            placeholder="Action \u2014 what should the bot do?"
+            placeholder={t('tasks.actionPlaceholder')}
             value={action}
             onChange={(e) => setAction(e.target.value)}
           />
@@ -803,14 +793,14 @@ function AutomationsView() {
                 saving || !name.trim() || !cron.trim() || !action.trim()
               }
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? t('common.saving') : t('common.save')}
             </button>
             <button
               className="btn-secondary"
               onClick={() => setShowForm(false)}
               disabled={saving}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -818,7 +808,7 @@ function AutomationsView() {
 
       {automations.length === 0 && !showForm ? (
         <div className="tasks-empty">
-          No automations yet. Add a cron-based recurring task.
+          {t('tasks.noAutomations')}
         </div>
       ) : (
         <div className="auto-list">
@@ -828,7 +818,7 @@ function AutomationsView() {
                 <div className="auto-item-left">
                   <div
                     className={`auto-toggle ${auto.enabled ? "enabled" : ""}`}
-                    title={auto.enabled ? "Enabled" : "Disabled"}
+                    title={auto.enabled ? t('tasks.enabled') : t('tasks.disabled')}
                   >
                     <div className="auto-toggle-knob" />
                   </div>
@@ -837,18 +827,18 @@ function AutomationsView() {
                 <div className="auto-item-actions">
                   {confirmDelId === auto.id ? (
                     <span className="auto-confirm-delete">
-                      <span className="auto-confirm-text">Delete?</span>
+                      <span className="auto-confirm-text">{t('tasks.deleteConfirm')}</span>
                       <button
                         className="btn-danger tasks-card-btn"
                         onClick={() => handleDelete(auto.id)}
                       >
-                        Yes
+                        {t('common.yes')}
                       </button>
                       <button
                         className="btn-secondary tasks-card-btn"
                         onClick={() => setConfirmDelId(null)}
                       >
-                        No
+                        {t('common.no')}
                       </button>
                     </span>
                   ) : (
@@ -856,18 +846,18 @@ function AutomationsView() {
                       className="btn-secondary tasks-card-btn"
                       onClick={() => handleDelete(auto.id)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   )}
                 </div>
               </div>
               <div className="auto-item-details">
                 <span>
-                  <span className="auto-detail-label">Cron</span>{" "}
+                  <span className="auto-detail-label">{t('tasks.cron')}</span>{" "}
                   <code>{auto.cron}</code>
                 </span>
                 <span>
-                  <span className="auto-detail-label">Action</span>{" "}
+                  <span className="auto-detail-label">{t('tasks.action')}</span>{" "}
                   {auto.action}
                 </span>
               </div>
@@ -882,6 +872,7 @@ function AutomationsView() {
 // ── Calendar View ──────────────────────────────────
 
 function CalendarView({ tasks }: { tasks: TaskItem[] }) {
+  const { t } = useTranslation();
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
@@ -919,7 +910,7 @@ function CalendarView({ tasks }: { tasks: TaskItem[] }) {
   };
 
   const monthName = currentDate.toLocaleString("default", { month: "long" });
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayNames = [t('dayNames.sun'), t('dayNames.mon'), t('dayNames.tue'), t('dayNames.wed'), t('dayNames.thu'), t('dayNames.fri'), t('dayNames.sat')];
 
   const selectedTasks = selectedDay ? tasksByDay.get(selectedDay) || [] : [];
 
@@ -988,17 +979,17 @@ function CalendarView({ tasks }: { tasks: TaskItem[] }) {
             <span className="tasks-column-count">{selectedTasks.length}</span>
           </h4>
           {selectedTasks.length === 0 ? (
-            <div className="tasks-empty">No tasks on this day.</div>
+            <div className="tasks-empty">{t('tasks.noTasksOnDay')}</div>
           ) : (
-            selectedTasks.map((t) => (
-              <div key={t.id} className="tm-cal-task-item">
+            selectedTasks.map((task) => (
+              <div key={task.id} className="tm-cal-task-item">
                 <span
-                  className={`tm-cal-dot ${getDotClass(t.status)}`}
+                  className={`tm-cal-dot ${getDotClass(task.status)}`}
                   style={{ flexShrink: 0 }}
                 />
-                <span className="tm-cal-task-title">{t.title}</span>
+                <span className="tm-cal-task-title">{task.title}</span>
                 <span className="tm-status-badge">
-                  {STATUS_LABELS[t.status] || t.status}
+                  {t(`status.${task.status}`, task.status)}
                 </span>
               </div>
             ))
@@ -1018,6 +1009,7 @@ function DecisionQueueView({
   tasks: TaskItem[];
   onDecide: (id: string, decision: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const decisions = tasks.filter((t) => t.status === "waiting_decision");
 
   if (decisions.length === 0) {
@@ -1025,10 +1017,9 @@ function DecisionQueueView({
       <div className="tm-decisions">
         <div className="tm-decisions-empty">
           <div className="tm-decisions-empty-icon">&#10003;</div>
-          <h3>No pending decisions</h3>
+          <h3>{t('tasks.noPendingDecisions')}</h3>
           <p>
-            All caught up! Decisions will appear here when tasks need your
-            input.
+            {t('tasks.allCaughtUp')}
           </p>
         </div>
       </div>
@@ -1039,7 +1030,7 @@ function DecisionQueueView({
     <div className="tm-decisions">
       <div className="tm-decisions-header">
         <h3 className="tasks-section-title">
-          Decision Queue
+          {t('tasks.decisionQueue')}
           <span className="tasks-column-count">{decisions.length}</span>
         </h3>
       </div>
@@ -1057,6 +1048,7 @@ function DecisionQueueView({
 type TabId = "today" | "all" | "calendar" | "decisions" | "automations";
 
 export function TasksPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<TabId>("today");
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [stats, setStats] = useState<TaskStats | null>(null);
@@ -1132,9 +1124,9 @@ export function TasksPage() {
   if (loading && tasks.length === 0) {
     return (
       <>
-        <PageHeader>Tasks</PageHeader>
+        <PageHeader>{t('tasks.title')}</PageHeader>
         <div className="page-body">
-          <div className="tasks-loading">Loading tasks...</div>
+          <div className="tasks-loading">{t('tasks.loadingTasks')}</div>
         </div>
       </>
     );
@@ -1146,12 +1138,12 @@ export function TasksPage() {
 
   return (
     <>
-      <PageHeader>Tasks</PageHeader>
+      <PageHeader>{t('tasks.title')}</PageHeader>
       <div className="page-body">
         {error && (
           <div className="tasks-error">
             {error}
-            <button onClick={() => setError(null)}>dismiss</button>
+            <button onClick={() => setError(null)}>{t('common.dismiss')}</button>
           </div>
         )}
 
@@ -1160,25 +1152,25 @@ export function TasksPage() {
             className={`tm-tab ${tab === "today" ? "active" : ""}`}
             onClick={() => setTab("today")}
           >
-            Today
+            {t('tasks.today')}
           </button>
           <button
             className={`tm-tab ${tab === "all" ? "active" : ""}`}
             onClick={() => setTab("all")}
           >
-            All Tasks
+            {t('tasks.allTasks')}
           </button>
           <button
             className={`tm-tab ${tab === "calendar" ? "active" : ""}`}
             onClick={() => setTab("calendar")}
           >
-            Calendar
+            {t('tasks.calendar')}
           </button>
           <button
             className={`tm-tab ${tab === "decisions" ? "active" : ""}`}
             onClick={() => setTab("decisions")}
           >
-            Decisions
+            {t('tasks.decisions')}
             {decisionCount > 0 && (
               <span className="tm-tab-badge">{decisionCount}</span>
             )}
@@ -1187,14 +1179,14 @@ export function TasksPage() {
             className={`tm-tab ${tab === "automations" ? "active" : ""}`}
             onClick={() => setTab("automations")}
           >
-            Automations
+            {t('tasks.automations')}
           </button>
           <button
             className="btn-secondary tm-refresh-btn"
             onClick={fetchTasks}
             disabled={loading}
           >
-            {loading ? "..." : "Refresh"}
+            {loading ? "..." : t('common.refresh')}
           </button>
         </div>
 

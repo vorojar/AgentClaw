@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth";
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -15,7 +17,7 @@ export function LoginPage() {
     const ok = await login(key.trim());
     setLoading(false);
     if (!ok) {
-      setError("API Key 无效，请重试");
+      setError(t('login.invalidKey'));
     }
   }
 
@@ -55,7 +57,7 @@ export function LoginPage() {
             marginBottom: 24,
           }}
         >
-          请输入 API Key 以继续
+          {t('login.prompt')}
         </p>
         <form onSubmit={handleSubmit}>
           <input
@@ -94,7 +96,7 @@ export function LoginPage() {
               opacity: loading || !key.trim() ? 0.6 : 1,
             }}
           >
-            {loading ? "验证中..." : "登录"}
+            {loading ? t('login.verifying') : t('login.login')}
           </button>
         </form>
       </div>

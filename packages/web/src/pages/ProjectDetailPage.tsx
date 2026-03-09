@@ -32,7 +32,8 @@ function timeAgo(iso: string): string {
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setPendingProjectId, updateProjectLocally } = useSession();
+  const { setPendingProjectId, updateProjectLocally, refreshSessions } =
+    useSession();
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
@@ -70,6 +71,7 @@ export function ProjectDetailPage() {
     try {
       await closeSession(sessionId);
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      refreshSessions();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

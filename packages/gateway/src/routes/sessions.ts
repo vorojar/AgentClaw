@@ -12,6 +12,7 @@ function serializeSession(session: {
   lastActiveAt: Date;
   title?: string;
   projectId?: string;
+  preview?: string;
   metadata?: Record<string, unknown>;
 }) {
   return {
@@ -21,6 +22,7 @@ function serializeSession(session: {
     lastActiveAt: session.lastActiveAt.toISOString(),
     title: session.title,
     projectId: session.projectId ?? null,
+    preview: session.preview ?? null,
     agentId: (session.metadata?.agentId as string) || "default",
   };
 }

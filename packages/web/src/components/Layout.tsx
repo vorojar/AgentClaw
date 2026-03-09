@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionContext";
+import { type ProjectInfo, listProjects, updateSession } from "../api/client";
 import {
   IconChat,
   IconMemory,
@@ -59,6 +61,29 @@ export function Layout() {
   } = useSession();
 
   const [searchVisible, setSearchVisible] = useState(false);
+  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [projectsOpen, setProjectsOpen] = useState(true);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    sessionId: string;
+  } | null>(null);
+
+  useEffect(() => {
+    listProjects()
+      .then(setProjects)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setContextMenu(null);
+    };
+    if (contextMenu) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [contextMenu]);
 
   const MORE_PATHS = [
     "/channels",
@@ -178,6 +203,41 @@ export function Layout() {
           </NavLink>
         </nav>
 
+        {/* Projects section */}
+        {projects.length > 0 && (
+          <div className="sidebar-projects">
+            <button
+              className="sidebar-projects-toggle"
+              onClick={() => setProjectsOpen((v) => !v)}
+            >
+              <span>Projects</span>
+              <span
+                className={`sidebar-more-chevron${projectsOpen ? " expanded" : ""}`}
+              >
+                <IconChevronDown size={14} />
+              </span>
+            </button>
+            {projectsOpen && (
+              <nav className="sidebar-projects-list">
+                {projects.map((p) => (
+                  <NavLink
+                    key={p.id}
+                    to={`/projects/${p.id}`}
+                    className={({ isActive }) => (isActive ? "active" : "")}
+                    onClick={closeSidebarOnMobile}
+                  >
+                    <span
+                      className="sidebar-project-dot"
+                      style={{ background: p.color }}
+                    />
+                    {p.name}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
+          </div>
+        )}
+
         {/* More group (collapsible) */}
         <div className="sidebar-more">
           <button
@@ -276,6 +336,14 @@ export function Layout() {
                         handleSelectSession(s.id);
                         closeSidebarOnMobile();
                       }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setContextMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          sessionId: s.id,
+                        });
+                      }}
                     >
                       <span className="sidebar-session-label">
                         {formatSessionLabel(s)}
@@ -345,6 +413,52 @@ export function Layout() {
         )}
         <Outlet />
       </main>
+
+      {contextMenu &&
+        createPortal(
+          <div
+            className="session-context-overlay"
+            onClick={() => setContextMenu(null)}
+          >
+            <div
+              className="session-context-menu"
+              style={{ top: contextMenu.y, left: contextMenu.x }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="session-context-label">移至项目</div>
+              {projects.map((p) => (
+                <button
+                  key={p.id}
+                  className="session-context-item"
+                  onClick={async () => {
+                    await updateSession(contextMenu.sessionId, {
+                      projectId: p.id,
+                    });
+                    setContextMenu(null);
+                  }}
+                >
+                  <span
+                    className="sidebar-project-dot"
+                    style={{ background: p.color }}
+                  />
+                  {p.name}
+                </button>
+              ))}
+              <button
+                className="session-context-item"
+                onClick={async () => {
+                  await updateSession(contextMenu.sessionId, {
+                    projectId: null,
+                  });
+                  setContextMenu(null);
+                }}
+              >
+                无项目
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

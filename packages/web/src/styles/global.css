@@ -370,6 +370,68 @@ textarea:focus {
   padding-top: 0;
 }
 
+/* Projects section */
+.sidebar-projects {
+  padding: 0 8px;
+}
+
+.sidebar-projects-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.sidebar-projects-toggle:hover {
+  color: var(--text-secondary);
+}
+
+.sidebar-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-projects-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: 6px;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.sidebar-projects-list a:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sidebar-projects-list a.active {
+  background: var(--accent-subtle-bg);
+  color: var(--accent);
+}
+
+.sidebar-project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* Divider */
 .sidebar-divider {
   padding: 10px 14px 4px;
@@ -442,6 +504,52 @@ textarea:focus {
 }
 .sidebar-session-delete:hover {
   color: var(--error);
+}
+
+/* Session context menu */
+.session-context-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.session-context-menu {
+  position: fixed;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 10000;
+}
+
+.session-context-label {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.session-context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.session-context-item:hover {
+  background: var(--bg-tertiary);
 }
 
 /* Footer */

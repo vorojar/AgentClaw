@@ -632,13 +632,24 @@ export class SQLiteMemoryStore implements MemoryStore {
     return rowToSession(row);
   }
 
-  async listSessions(): Promise<Array<Omit<SessionData, "metadata">>> {
+  async listSessions(): Promise<
+    Array<Omit<SessionData, "metadata"> & { preview?: string }>
+  > {
     const rows = this.db
       .prepare(
-        "SELECT * FROM sessions WHERE metadata IS NULL OR json_extract(metadata, '$.hidden') IS NOT 1 ORDER BY last_active_at DESC",
+        `SELECT s.*,
+          (SELECT SUBSTR(t.content, 1, 100) FROM turns t
+           WHERE t.conversation_id = s.conversation_id AND t.role = 'user'
+           ORDER BY t.created_at ASC LIMIT 1) as preview
+         FROM sessions s
+         WHERE s.metadata IS NULL OR json_extract(s.metadata, '$.hidden') IS NOT 1
+         ORDER BY s.last_active_at DESC`,
       )
-      .all() as SessionRow[];
-    return rows.map(rowToSession);
+      .all() as (SessionRow & { preview?: string })[];
+    return rows.map((r) => ({
+      ...rowToSession(r),
+      preview: r.preview ?? undefined,
+    }));
   }
 
   async deleteSession(id: string): Promise<void> {

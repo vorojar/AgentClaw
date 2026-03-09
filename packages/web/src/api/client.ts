@@ -63,6 +63,7 @@ export interface SessionInfo {
   title?: string;
   agentId?: string;
   projectId?: string | null;
+  preview?: string | null;
   createdAt: string;
   lastActiveAt: string;
 }

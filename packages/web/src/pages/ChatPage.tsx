@@ -701,6 +701,7 @@ export function ChatPage() {
     ensureSession,
     pendingAgentId,
     setPendingAgentId,
+    projects,
   } = useSession();
   const navigate = useNavigate();
 
@@ -1632,6 +1633,9 @@ export function ChatPage() {
   }
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const activeProject = activeSession?.projectId
+    ? projects.find((p) => p.id === activeSession.projectId)
+    : null;
   const isNewChat = messages.length === 0 && !loadingHistory;
   const canSend =
     (inputValue.trim().length > 0 || pendingFiles.length > 0) && !isSending;
@@ -1690,6 +1694,18 @@ export function ChatPage() {
               }}
               title="Double-click to rename"
             >
+              {activeProject && (
+                <span
+                  className="chat-header-project"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/projects/${activeProject.id}`);
+                  }}
+                >
+                  {activeProject.name}
+                  <span className="chat-header-sep">/</span>
+                </span>
+              )}
               {activeSession?.title || "AgentClaw"}
             </span>
           )}

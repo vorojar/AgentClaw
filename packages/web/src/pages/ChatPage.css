@@ -29,6 +29,22 @@
   cursor: default;
 }
 
+.chat-header-project {
+  color: var(--text-muted);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.chat-header-project:hover {
+  color: var(--accent);
+}
+
+.chat-header-sep {
+  margin: 0 6px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 .chat-header-title-input {
   font-size: 15px;
   font-weight: 600;

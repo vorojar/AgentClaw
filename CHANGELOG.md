@@ -27,6 +27,7 @@
   - `web/ProjectDetailPage.tsx`：标题区域支持 inline rename（hover 显示编辑按钮），改名后侧边栏实时同步
   - 弹窗去掉 Description / Color / Instructions 字段，只保留 Name
   - 侧边栏文案统一为英文（Projects / New Project / Move to Project / No Project）
+  - `web/ChatPage.tsx`：聊天页顶部标题显示「项目名 / 会话名」面包屑（项目名可点击跳转详情页）
 
 ## [1.2.0] - 2026-03-08
 

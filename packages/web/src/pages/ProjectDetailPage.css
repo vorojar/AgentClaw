@@ -1,9 +1,7 @@
 /* ProjectDetailPage — single-column ChatGPT-style layout */
 
 .project-detail {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 24px;
+  padding: 24px 32px;
 }
 
 .project-detail-loading {

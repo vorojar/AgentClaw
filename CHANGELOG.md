@@ -18,6 +18,8 @@
   - `memory/store.ts`：`listSessions()` 新增 `preview` 字段 — 子查询 turns 表获取首条用户消息（截取 100 字符）
   - `gateway/routes/sessions.ts`：`serializeSession` 返回 `preview` 字段
   - `web/api/client.ts`：`SessionInfo` 新增 `preview?: string | null`
+  - `web/ProjectDetailPage.css`：移除 `max-width: 800px` 限制，改为全宽 `padding: 24px 32px`
+  - `web/Layout.tsx`：侧边栏项目区优化 — 移除 Projects 导航链接，改用折叠式项目列表 + 「新项目」按钮
 
 ## [1.2.0] - 2026-03-08
 

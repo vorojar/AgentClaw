@@ -1753,7 +1753,7 @@ export function ChatPage() {
                               handleMoveToProject(p.id);
                             }}
                           >
-                            {p.name}
+                            <IconProjects size={14} /> {p.name}
                           </button>
                         ))}
                       </div>

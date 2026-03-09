@@ -516,10 +516,7 @@ export function Layout() {
                             setSessionMenu(null);
                           }}
                         >
-                          <span
-                            className="sidebar-project-dot"
-                            style={{ background: p.color }}
-                          />
+                          <IconProjects size={14} />
                           {p.name}
                         </button>
                       ))}

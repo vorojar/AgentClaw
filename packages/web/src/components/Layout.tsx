@@ -454,17 +454,6 @@ export function Layout() {
                   {p.name}
                 </button>
               ))}
-              <button
-                className="session-context-item"
-                onClick={async () => {
-                  await updateSession(contextMenu.sessionId, {
-                    projectId: null,
-                  });
-                  setContextMenu(null);
-                }}
-              >
-                No Project
-              </button>
             </div>
           </div>,
           document.body,

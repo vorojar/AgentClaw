@@ -2,25 +2,26 @@ import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 
 export const scheduleTool: Tool = {
   name: "schedule",
-  description: "Create, list, or delete recurring scheduled tasks.",
+  description:
+    "The ONLY way to create recurring/scheduled tasks. Uses built-in cron scheduler. Do NOT use shell/bash/OS-level scheduling (crontab, Windows Task Scheduler, etc.).",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
-      action: {
+      op: {
         type: "string",
         enum: ["create", "list", "delete"],
-        description: "Operation: create, list, or delete.",
+        description: "Operation type.",
       },
       cron: {
         type: "string",
         description:
           "Cron expression (5 fields: min hour day month weekday). E.g. '0 9 * * *' = daily 9am.",
       },
-      message: {
+      prompt: {
         type: "string",
         description:
-          "The action/prompt to execute when triggered. Must be ONLY the task instruction — do NOT include schedule/time info (that belongs in cron).",
+          "The task instruction to execute when triggered. ONLY the action itself — no time/schedule words (those belong in cron). Example: '让Claude code执行/ai-daily-post' NOT '每天早上8点让Claude code执行/ai-daily-post'.",
       },
       name: {
         type: "string",
@@ -31,14 +32,14 @@ export const scheduleTool: Tool = {
         description: "Task ID (for delete).",
       },
     },
-    required: ["action"],
+    required: ["op"],
   },
 
   async execute(
     input: Record<string, unknown>,
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
-    const action = input.action as string;
+    const op = (input.op ?? input.action) as string;
 
     // We need access to the scheduler - pass it through context
     if (!context?.scheduler) {
@@ -50,10 +51,10 @@ export const scheduleTool: Tool = {
 
     const scheduler = context.scheduler;
 
-    switch (action) {
+    switch (op) {
       case "create": {
         const cron = input.cron as string;
-        const rawMessage = input.message as string;
+        const rawMessage = (input.prompt ?? input.message) as string;
         const name = input.name as string | undefined;
 
         if (!cron || !rawMessage) {
@@ -119,7 +120,7 @@ export const scheduleTool: Tool = {
       }
 
       default:
-        return { content: `Unknown action: ${action}`, isError: true };
+        return { content: `Unknown op: ${op}`, isError: true };
     }
   },
 };

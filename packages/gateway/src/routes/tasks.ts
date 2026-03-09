@@ -198,7 +198,7 @@ export function registerTaskRoutes(
           });
         }
         const created = await tm.captureTask(text, "web");
-        return reply.status(201).send(created);
+        return reply.status(201).send(serializeTask(created as Record<string, unknown>));
       }
 
       // 结构化创建

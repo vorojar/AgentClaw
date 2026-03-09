@@ -399,7 +399,7 @@ export async function bootstrap(): Promise<AppContext> {
   }
 
   // Scheduler
-  const scheduler = new TaskScheduler();
+  const scheduler = new TaskScheduler(memoryStore);
 
   // Skill registry
   const skillsDir = process.env.SKILLS_DIR || "./skills/";

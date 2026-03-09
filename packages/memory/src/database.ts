@@ -147,6 +147,18 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Scheduled tasks (cron automations, persisted across restarts)
+CREATE TABLE IF NOT EXISTS scheduled_tasks (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  cron TEXT NOT NULL,
+  action TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  one_shot INTEGER NOT NULL DEFAULT 0,
+  last_run_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- FTS5 full-text search index for hybrid memory retrieval (BM25 + vector)
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
   id UNINDEXED,

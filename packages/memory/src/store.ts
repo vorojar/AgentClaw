@@ -1194,6 +1194,77 @@ export class SQLiteMemoryStore implements MemoryStore {
       .run(key, value);
   }
 
+  // ─── Scheduled Tasks (cron automations) ────────────────────────
+
+  listScheduledTasks(): Array<{
+    id: string;
+    name: string;
+    cron: string;
+    action: string;
+    enabled: boolean;
+    oneShot?: boolean;
+    lastRunAt?: Date;
+  }> {
+    const rows = this.db
+      .prepare("SELECT * FROM scheduled_tasks")
+      .all() as Array<{
+      id: string;
+      name: string;
+      cron: string;
+      action: string;
+      enabled: number;
+      one_shot: number;
+      last_run_at: string | null;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      cron: r.cron,
+      action: r.action,
+      enabled: r.enabled === 1,
+      oneShot: r.one_shot === 1 ? true : undefined,
+      lastRunAt: r.last_run_at ? new Date(r.last_run_at) : undefined,
+    }));
+  }
+
+  saveScheduledTask(task: {
+    id: string;
+    name: string;
+    cron: string;
+    action: string;
+    enabled: boolean;
+    oneShot?: boolean;
+    lastRunAt?: Date;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO scheduled_tasks (id, name, cron, action, enabled, one_shot, last_run_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name, cron = excluded.cron, action = excluded.action,
+           enabled = excluded.enabled, one_shot = excluded.one_shot, last_run_at = excluded.last_run_at`,
+      )
+      .run(
+        task.id,
+        task.name,
+        task.cron,
+        task.action,
+        task.enabled ? 1 : 0,
+        task.oneShot ? 1 : 0,
+        task.lastRunAt?.toISOString() ?? null,
+      );
+  }
+
+  deleteScheduledTask(id: string): void {
+    this.db.prepare("DELETE FROM scheduled_tasks WHERE id = ?").run(id);
+  }
+
+  updateScheduledTaskLastRun(id: string, lastRunAt: Date): void {
+    this.db
+      .prepare("UPDATE scheduled_tasks SET last_run_at = ? WHERE id = ?")
+      .run(lastRunAt.toISOString(), id);
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────
 
   private ensureConversation(conversationId: string): void {

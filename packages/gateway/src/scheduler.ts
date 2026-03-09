@@ -12,13 +12,29 @@ export interface ScheduledTask {
   nextRunAt?: Date;
 }
 
+/** Minimal persistence interface — implemented by SQLiteMemoryStore */
+export interface ScheduledTaskStore {
+  listScheduledTasks(): ScheduledTask[];
+  saveScheduledTask(task: Omit<ScheduledTask, "nextRunAt">): void;
+  deleteScheduledTask(id: string): void;
+  updateScheduledTaskLastRun(id: string, lastRunAt: Date): void;
+}
+
 interface InternalTask extends ScheduledTask {
   job?: Cron;
 }
 
 export class TaskScheduler {
   private tasks = new Map<string, InternalTask>();
+  private store?: ScheduledTaskStore;
   private onTaskFire?: (task: ScheduledTask) => void | Promise<void>;
+
+  constructor(store?: ScheduledTaskStore) {
+    this.store = store;
+    if (store) {
+      this.loadFromStore(store);
+    }
+  }
 
   setOnTaskFire(callback: (task: ScheduledTask) => void | Promise<void>): void {
     this.onTaskFire = callback;
@@ -46,6 +62,18 @@ export class TaskScheduler {
     }
 
     this.tasks.set(id, task);
+
+    // Persist
+    this.store?.saveScheduledTask({
+      id: task.id,
+      name: task.name,
+      cron: task.cron,
+      action: task.action,
+      enabled: task.enabled,
+      oneShot: task.oneShot,
+      lastRunAt: task.lastRunAt,
+    });
+
     return this.toPublic(task);
   }
 
@@ -63,6 +91,7 @@ export class TaskScheduler {
     if (!task) return false;
     task.job?.stop();
     this.tasks.delete(id);
+    this.store?.deleteScheduledTask(id);
     return true;
   }
 
@@ -72,12 +101,30 @@ export class TaskScheduler {
     }
   }
 
+  private loadFromStore(store: ScheduledTaskStore): void {
+    const saved = store.listScheduledTasks();
+    for (const t of saved) {
+      const task: InternalTask = { ...t };
+      if (task.enabled && !task.oneShot) {
+        this.startJob(task);
+      }
+      this.tasks.set(task.id, task);
+    }
+    if (saved.length > 0) {
+      console.log(`[scheduler] Restored ${saved.length} tasks from database`);
+    }
+  }
+
   private startJob(task: InternalTask): void {
     task.job = new Cron(task.cron, () => {
       task.lastRunAt = new Date();
       console.log(
         `[scheduler] Task "${task.name}" (${task.id}) executed at ${task.lastRunAt.toISOString()}`,
       );
+
+      // Persist last run time
+      this.store?.updateScheduledTaskLastRun(task.id, task.lastRunAt);
+
       // Notify via callback if registered
       if (this.onTaskFire) {
         this.onTaskFire(this.toPublic(task));
@@ -86,6 +133,7 @@ export class TaskScheduler {
       if (task.oneShot) {
         task.job?.stop();
         this.tasks.delete(task.id);
+        this.store?.deleteScheduledTask(task.id);
         console.log(
           `[scheduler] One-shot task "${task.name}" (${task.id}) auto-removed`,
         );

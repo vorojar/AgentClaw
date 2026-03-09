@@ -4,6 +4,7 @@
 
 ### 改进
 - **schedule 工具参数描述完善**：message 字段明确标注"仅填写任务指令，不含时间信息"，防止 LLM 将调度时间混入 action
+- **Scheduled Tasks 持久化**（`scheduler.ts` + `store.ts` + `database.ts`）：定时任务存入 SQLite `scheduled_tasks` 表，gateway 重启后自动恢复所有 enabled 任务的 cron 调度
 
 ### 新增
 - **Projects 项目管理系统**（全栈）：类似 Claude.ai Projects，支持将会话按项目分组管理 — 完整 CRUD（创建/查看/编辑/删除）、自定义名称/描述/颜色/指令、会话关联（session.projectId）、删除项目时自动解绑会话（ON DELETE SET NULL）

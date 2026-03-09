@@ -1,5 +1,10 @@
 # 更新日志
 
+## [1.3.1] - 2026-03-10
+
+### 修复
+- **任务 QuickAdd 走 LLM 分流**：Web 前端 QuickAdd 改为发送 `{ text }` 格式，经 `captureTask()` LLM 分析自然语言，自动判断 executor 为 agent 或 human（之前所有 QuickAdd 任务都默认为 human）
+
 ## [1.3.0] - 2026-03-09
 
 ### 新增

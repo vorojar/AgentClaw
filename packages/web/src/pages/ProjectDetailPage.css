@@ -1,0 +1,339 @@
+/* ProjectDetailPage styles */
+
+.project-detail {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.project-detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.project-detail-error {
+  text-align: center;
+  color: var(--error);
+  padding: 48px 0 16px;
+  font-size: 16px;
+}
+
+.project-detail-toast {
+  padding: 10px 16px;
+  background: var(--error-subtle-bg);
+  border: 1px solid var(--error-subtle-border);
+  border-radius: var(--radius);
+  color: var(--error);
+  margin-bottom: 16px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-detail-toast button {
+  background: none;
+  border: none;
+  color: var(--error);
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* Layout: two columns */
+.project-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .project-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left column */
+.project-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.project-detail-back:hover {
+  color: var(--accent);
+}
+
+.project-detail-header {
+  margin-bottom: 20px;
+}
+
+.project-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.project-detail-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.project-detail-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.project-detail-desc {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+/* New chat button */
+.project-detail-new-chat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 15px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+  margin-bottom: 24px;
+}
+
+.project-detail-new-chat:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Sessions list */
+.project-detail-sessions h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-detail-sessions-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+.project-detail-sessions-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 16px 0;
+}
+
+.project-detail-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.project-session-item:hover {
+  background: var(--bg-secondary);
+}
+
+.project-session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.project-session-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-session-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.project-session-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition:
+    opacity 0.12s,
+    color 0.12s;
+}
+
+.project-session-item:hover .project-session-delete {
+  opacity: 1;
+}
+
+.project-session-delete:hover {
+  color: var(--error);
+  background: var(--error-subtle-bg);
+}
+
+/* Right column cards */
+.project-detail-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.project-detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.project-detail-card-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.project-detail-card-action {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.project-detail-card-action:hover {
+  color: var(--accent);
+  background: var(--accent-subtle-bg);
+}
+
+.project-detail-card-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Instructions */
+.project-detail-instructions-text {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+.project-detail-instructions-edit textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 10px 12px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  resize: vertical;
+  box-shadow: 0 0 0 2px var(--accent-subtle-bg);
+}
+
+.project-detail-instructions-edit textarea:focus {
+  outline: none;
+}
+
+.project-detail-instructions-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-sm {
+  padding: 5px 14px !important;
+  font-size: 13px !important;
+}
+
+/* Info grid */
+.project-detail-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.project-detail-info-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.project-detail-info-label {
+  color: var(--text-muted);
+}
+
+.project-detail-info-item > span:last-child {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.project-detail-info-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+}

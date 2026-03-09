@@ -63,22 +63,33 @@ export function registerSessionRoutes(
     },
   );
 
-  // GET /api/sessions - List sessions
-  app.get("/api/sessions", async (_req, reply) => {
-    try {
-      const sessions = await ctx.orchestrator.listSessions();
-      return reply.send(
-        sessions.map((s) =>
-          serializeSession(
-            s as typeof s & { metadata?: Record<string, unknown> },
+  // GET /api/sessions - List sessions (optional ?projectId=xxx filter)
+  app.get<{ Querystring: { projectId?: string } }>(
+    "/api/sessions",
+    async (req, reply) => {
+      try {
+        const sessions = await ctx.orchestrator.listSessions();
+        const { projectId } = req.query;
+        const filtered = projectId
+          ? sessions.filter(
+              (s) =>
+                (s as typeof s & { projectId?: string }).projectId ===
+                projectId,
+            )
+          : sessions;
+        return reply.send(
+          filtered.map((s) =>
+            serializeSession(
+              s as typeof s & { metadata?: Record<string, unknown> },
+            ),
           ),
-        ),
-      );
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
-  });
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
 
   // DELETE /api/sessions/:id - Close session
   app.delete<{ Params: { id: string } }>(
@@ -105,7 +116,10 @@ export function registerSessionRoutes(
   );
 
   // PATCH /api/sessions/:id - Update session (title, projectId)
-  app.patch<{ Params: { id: string }; Body: { title?: string; projectId?: string | null } }>(
+  app.patch<{
+    Params: { id: string };
+    Body: { title?: string; projectId?: string | null };
+  }>(
     "/api/sessions/:id",
     {
       schema: {
@@ -125,7 +139,8 @@ export function registerSessionRoutes(
         const updated = { ...session };
         if (req.body.title !== undefined) updated.title = req.body.title;
         if (req.body.projectId !== undefined) {
-          (updated as { projectId?: string }).projectId = req.body.projectId ?? undefined;
+          (updated as { projectId?: string }).projectId =
+            req.body.projectId ?? undefined;
         }
         await ctx.memoryStore.saveSession(updated);
         return reply.send(serializeSession(updated));

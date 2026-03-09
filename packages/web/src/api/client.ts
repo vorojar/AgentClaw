@@ -179,8 +179,9 @@ export function deleteAgent(id: string): Promise<void> {
   return request(`/agents/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-export function listSessions(): Promise<SessionInfo[]> {
-  return request("/sessions");
+export function listSessions(projectId?: string): Promise<SessionInfo[]> {
+  const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return request(`/sessions${qs}`);
 }
 
 export function closeSession(id: string): Promise<void> {

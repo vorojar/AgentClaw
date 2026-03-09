@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { IconEdit, IconTrash, IconX } from "../components/Icons";
 import {
@@ -62,6 +63,8 @@ function formatDate(iso: string): string {
 }
 
 export function ProjectsPage() {
+  const navigate = useNavigate();
+  const { id: editIdFromRoute } = useParams<{ id?: string }>();
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +91,16 @@ export function ProjectsPage() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Open edit modal when navigated to /projects/:id/edit
+  useEffect(() => {
+    if (editIdFromRoute && projects.length > 0) {
+      const target = projects.find((p) => p.id === editIdFromRoute);
+      if (target) {
+        openEdit(target);
+      }
+    }
+  }, [editIdFromRoute, projects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCreate = () => {
     setEditingId(null);
@@ -125,6 +138,7 @@ export function ProjectsPage() {
         setProjects((prev) => [created, ...prev]);
       }
       setModalOpen(false);
+      if (editIdFromRoute) navigate("/projects", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -178,7 +192,7 @@ export function ProjectsPage() {
               <div
                 key={p.id}
                 className="project-card"
-                onClick={() => openEdit(p)}
+                onClick={() => navigate(`/projects/${p.id}`)}
               >
                 <div className="project-card-top">
                   <div

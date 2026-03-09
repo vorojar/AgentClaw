@@ -11,6 +11,9 @@
   - `web/ProjectsPage.tsx`：卡片网格布局 + 创建/编辑弹窗（12 色选择器 + 指令编辑器）
   - `web/SessionContext.tsx`：`pendingProjectId` 状态，创建会话时关联项目
   - `web/Layout.tsx`：侧边栏新增 Projects 导航链接
+- **项目详情页**（`/projects/:id`）：点击项目卡片进入详情页（类似 Claude.ai），左侧显示项目标题/描述 + "New conversation" 按钮 + 会话列表，右侧显示可编辑的 Instructions 卡片和 Project Info 卡片
+  - `web/ProjectDetailPage.tsx`：双栏布局详情页，支持内联编辑指令、创建项目内会话、删除会话
+  - `gateway/routes/sessions.ts`：`GET /api/sessions` 支持 `?projectId=xxx` 过滤
 
 ## [1.2.0] - 2026-03-08
 

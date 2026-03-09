@@ -53,16 +53,30 @@ export const scheduleTool: Tool = {
     switch (action) {
       case "create": {
         const cron = input.cron as string;
-        const message = input.message as string;
+        const rawMessage = input.message as string;
         const name = input.name as string | undefined;
 
-        if (!cron || !message) {
+        if (!cron || !rawMessage) {
           return {
             content:
               "Both 'cron' and 'message' are required for creating a task.",
             isError: true,
           };
         }
+
+        // Strip time/schedule info that LLM often copies from user message
+        const message = rawMessage
+          .replace(
+            /^(每天|每周[一二三四五六日]?|每月|每小时|每隔?\d+[分小时天周月])\s*/g,
+            "",
+          )
+          .replace(
+            /(早上|上午|中午|下午|晚上|凌晨)?\d{1,2}[点时:：]\d{0,2}分?\s*/g,
+            "",
+          )
+          .replace(/^(at\s+)?\d{1,2}:\d{2}\s*(am|pm)?\s*/i, "")
+          .replace(/^(daily|weekly|monthly|hourly|every\s+\w+)\s*/i, "")
+          .trim();
 
         const task = scheduler.create({
           name: name ?? message.slice(0, 30),

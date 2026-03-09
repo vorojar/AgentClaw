@@ -1,5 +1,17 @@
 # 更新日志
 
+## [1.2.1] - 2026-03-09
+
+### 新增
+- **Projects 项目管理系统**（全栈）：类似 Claude.ai Projects，支持将会话按项目分组管理 — 完整 CRUD（创建/查看/编辑/删除）、自定义名称/描述/颜色/指令、会话关联（session.projectId）、删除项目时自动解绑会话（ON DELETE SET NULL）
+  - `types/memory.ts`：新增 `Project` 接口和 `MemoryStore` 的 5 个 Project CRUD 方法
+  - `memory/database.ts`：新增 `projects` 表 + `sessions.project_id` 迁移 + 索引
+  - `memory/store.ts`：SQLiteMemoryStore 实现完整 Project CRUD
+  - `gateway/routes/projects.ts`：REST API（POST/GET/PUT/DELETE /api/projects）
+  - `web/ProjectsPage.tsx`：卡片网格布局 + 创建/编辑弹窗（12 色选择器 + 指令编辑器）
+  - `web/SessionContext.tsx`：`pendingProjectId` 状态，创建会话时关联项目
+  - `web/Layout.tsx`：侧边栏新增 Projects 导航链接
+
 ## [1.2.0] - 2026-03-08
 
 ### 新增

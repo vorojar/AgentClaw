@@ -11,6 +11,7 @@ function serializeSession(session: {
   createdAt: Date;
   lastActiveAt: Date;
   title?: string;
+  projectId?: string;
   metadata?: Record<string, unknown>;
 }) {
   return {
@@ -19,6 +20,7 @@ function serializeSession(session: {
     createdAt: session.createdAt.toISOString(),
     lastActiveAt: session.lastActiveAt.toISOString(),
     title: session.title,
+    projectId: session.projectId ?? null,
     agentId: (session.metadata?.agentId as string) || "default",
   };
 }
@@ -40,13 +42,19 @@ export function registerSessionRoutes(
   app: FastifyInstance,
   ctx: AppContext,
 ): void {
-  // POST /api/sessions - Create session (optional agentId in body)
-  app.post<{ Body: { agentId?: string } }>(
+  // POST /api/sessions - Create session (optional agentId, projectId in body)
+  app.post<{ Body: { agentId?: string; projectId?: string } }>(
     "/api/sessions",
     async (req, reply) => {
       try {
         const agentId = req.body?.agentId || "default";
+        const projectId = req.body?.projectId;
         const session = await ctx.orchestrator.createSession({ agentId });
+        // Attach project if specified
+        if (projectId) {
+          (session as { projectId?: string }).projectId = projectId;
+          await ctx.memoryStore.saveSession(session);
+        }
         return reply.send(serializeSession(session));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -96,24 +104,15 @@ export function registerSessionRoutes(
     },
   );
 
-  // PATCH /api/sessions/:id - Rename session
-  app.patch<{ Params: { id: string }; Body: { title: string } }>(
+  // PATCH /api/sessions/:id - Update session (title, projectId)
+  app.patch<{ Params: { id: string }; Body: { title?: string; projectId?: string | null } }>(
     "/api/sessions/:id",
     {
       schema: {
-        // 校验路径参数：id 不能为空
         params: {
           type: "object",
           required: ["id"],
           properties: { id: { type: "string", minLength: 1 } },
-        },
-        // 校验请求体：title 必填，至少 1 个字符
-        body: {
-          type: "object",
-          required: ["title"],
-          properties: {
-            title: { type: "string", minLength: 1 },
-          },
         },
       },
     },
@@ -123,9 +122,13 @@ export function registerSessionRoutes(
         if (!session) {
           return reply.status(404).send({ error: "Session not found" });
         }
-        const { title } = req.body;
-        await ctx.memoryStore.saveSession({ ...session, title });
-        return reply.send(serializeSession({ ...session, title }));
+        const updated = { ...session };
+        if (req.body.title !== undefined) updated.title = req.body.title;
+        if (req.body.projectId !== undefined) {
+          (updated as { projectId?: string }).projectId = req.body.projectId ?? undefined;
+        }
+        await ctx.memoryStore.saveSession(updated);
+        return reply.send(serializeSession(updated));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         return reply.status(500).send({ error: message });

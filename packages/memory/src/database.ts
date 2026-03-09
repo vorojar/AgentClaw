@@ -39,9 +39,20 @@ CREATE TABLE IF NOT EXISTS memories (
   metadata TEXT
 );
 
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  instructions TEXT DEFAULT '',
+  color TEXT DEFAULT '#6B7F5E',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   conversation_id TEXT NOT NULL,
+  project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_active_at TEXT NOT NULL DEFAULT (datetime('now')),
   metadata TEXT
@@ -163,6 +174,21 @@ export function initDatabase(dbPath: string): Database.Database {
   addColumnIfMissing(db, "turns", "duration_ms", "INTEGER");
   addColumnIfMissing(db, "turns", "tool_call_count", "INTEGER");
   addColumnIfMissing(db, "sessions", "title", "TEXT");
+  addColumnIfMissing(
+    db,
+    "sessions",
+    "project_id",
+    "TEXT REFERENCES projects(id) ON DELETE SET NULL",
+  );
+
+  // Create index after migration ensures column exists
+  try {
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id, last_active_at DESC)",
+    );
+  } catch {
+    // Index may already exist
+  }
 
   // Migration: rebuild tasks table to update CHECK constraint for new statuses
   rebuildTasksTableIfNeeded(db);

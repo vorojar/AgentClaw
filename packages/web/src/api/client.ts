@@ -62,15 +62,81 @@ export interface SessionInfo {
   conversationId: string;
   title?: string;
   agentId?: string;
+  projectId?: string | null;
   createdAt: string;
   lastActiveAt: string;
 }
 
-export function createSession(agentId?: string): Promise<SessionInfo> {
+export function createSession(
+  agentId?: string,
+  projectId?: string,
+): Promise<SessionInfo> {
+  const body: Record<string, string> = {};
+  if (agentId) body.agentId = agentId;
+  if (projectId) body.projectId = projectId;
   return request("/sessions", {
     method: "POST",
-    body: JSON.stringify(agentId ? { agentId } : {}),
+    body: JSON.stringify(body),
   });
+}
+
+export function updateSession(
+  id: string,
+  updates: { title?: string; projectId?: string | null },
+): Promise<SessionInfo> {
+  return request(`/sessions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+// ── Projects ──────────────────────────────────────
+
+export interface ProjectInfo {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+  sessionCount: number;
+}
+
+export function listProjects(): Promise<ProjectInfo[]> {
+  return request("/projects");
+}
+
+export function getProject(id: string): Promise<ProjectInfo> {
+  return request(`/projects/${encodeURIComponent(id)}`);
+}
+
+export function createProject(data: {
+  name: string;
+  description?: string;
+  instructions?: string;
+  color?: string;
+}): Promise<ProjectInfo> {
+  return request("/projects", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateProject(
+  id: string,
+  updates: Partial<
+    Pick<ProjectInfo, "name" | "description" | "instructions" | "color">
+  >,
+): Promise<ProjectInfo> {
+  return request(`/projects/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
+export function deleteProject(id: string): Promise<void> {
+  return request(`/projects/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ── Agents ─────────────────────────────────────────

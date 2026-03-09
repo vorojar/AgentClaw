@@ -69,6 +69,18 @@ export interface Trace {
   createdAt: Date;
 }
 
+/** A project groups related sessions, memory, and instructions */
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  instructions?: string;
+  color?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  sessionCount?: number;
+}
+
 /** Session data shared between MemoryStore and Orchestrator */
 export interface SessionData {
   id: string;
@@ -76,6 +88,7 @@ export interface SessionData {
   createdAt: Date;
   lastActiveAt: Date;
   title?: string;
+  projectId?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -137,6 +150,26 @@ export interface MemoryStore {
     limit?: number,
     offset?: number,
   ): Promise<{ items: Trace[]; total: number }>;
+
+  /** Create a project */
+  createProject(
+    project: Omit<Project, "id" | "createdAt" | "updatedAt">,
+  ): Promise<Project>;
+
+  /** Get a project by ID */
+  getProject(id: string): Promise<Project | undefined>;
+
+  /** List all projects */
+  listProjects(): Promise<Project[]>;
+
+  /** Update a project */
+  updateProject(
+    id: string,
+    updates: Partial<Omit<Project, "id" | "createdAt" | "updatedAt">>,
+  ): Promise<Project>;
+
+  /** Delete a project and unlink its sessions */
+  deleteProject(id: string): Promise<void>;
 
   /** Aggregate stats for background (hidden) sessions */
   getBackgroundStats(since: string): Promise<{

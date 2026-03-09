@@ -23,9 +23,11 @@ interface SessionContextValue {
   sidebarOpen: boolean;
   searchQuery: string;
   pendingAgentId: string;
+  pendingProjectId: string | null;
   setSidebarOpen: (v: boolean) => void;
   setSearchQuery: (v: string) => void;
   setPendingAgentId: (v: string) => void;
+  setPendingProjectId: (v: string | null) => void;
   handleNewChat: () => void;
   handleDeleteSession: (id: string) => Promise<void>;
   handleSelectSession: (id: string) => void;
@@ -61,6 +63,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingAgentId, setPendingAgentId] = useState("default");
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
 
   /* Load sessions on mount */
   useEffect(() => {
@@ -91,6 +94,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const handleNewChat = useCallback(() => {
     setActiveSessionId(null);
     setPendingAgentId("default");
+    setPendingProjectId(null);
     navigate("/chat");
   }, [navigate]);
 
@@ -129,6 +133,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const agentId = pendingAgentId || "default";
         const ns = await createSession(
           agentId !== "default" ? agentId : undefined,
+          pendingProjectId ?? undefined,
         );
         setSessions((prev) => [ns, ...prev]);
         setActiveSessionId(ns.id);
@@ -139,7 +144,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     })();
     return ensurePromiseRef.current;
-  }, [activeSessionId, pendingAgentId, navigate]);
+  }, [activeSessionId, pendingAgentId, pendingProjectId, navigate]);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -399,9 +404,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         sidebarOpen,
         searchQuery,
         pendingAgentId,
+        pendingProjectId,
         setSidebarOpen: setSidebarOpenWithHistory,
         setSearchQuery,
         setPendingAgentId,
+        setPendingProjectId,
         handleNewChat,
         handleDeleteSession,
         handleSelectSession,

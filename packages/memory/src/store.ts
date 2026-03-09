@@ -5,6 +5,7 @@ import type {
   MemoryEntry,
   MemoryQuery,
   MemorySearchResult,
+  Project,
   SessionData,
   ConversationTurn,
   Trace,
@@ -609,12 +610,13 @@ export class SQLiteMemoryStore implements MemoryStore {
   async saveSession(session: SessionData): Promise<void> {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO sessions (id, conversation_id, created_at, last_active_at, title, metadata)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO sessions (id, conversation_id, project_id, created_at, last_active_at, title, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         session.id,
         session.conversationId,
+        session.projectId ?? null,
         session.createdAt.toISOString(),
         session.lastActiveAt.toISOString(),
         session.title ?? null,
@@ -663,6 +665,102 @@ export class SQLiteMemoryStore implements MemoryStore {
       this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
     });
     deleteInTransaction(id);
+  }
+
+  // ─── Projects ───────────────────────────────────────────
+
+  async createProject(
+    project: Omit<Project, "id" | "createdAt" | "updatedAt">,
+  ): Promise<Project> {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO projects (id, name, description, instructions, color, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        project.name,
+        project.description ?? "",
+        project.instructions ?? "",
+        project.color ?? "#6B7F5E",
+        now,
+        now,
+      );
+    return {
+      id,
+      name: project.name,
+      description: project.description,
+      instructions: project.instructions,
+      color: project.color ?? "#6B7F5E",
+      createdAt: new Date(now),
+      updatedAt: new Date(now),
+      sessionCount: 0,
+    };
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const row = this.db
+      .prepare(
+        `SELECT p.*, (SELECT COUNT(*) FROM sessions WHERE project_id = p.id) AS session_count
+         FROM projects p WHERE p.id = ?`,
+      )
+      .get(id) as ProjectRow | undefined;
+    if (!row) return undefined;
+    return rowToProject(row);
+  }
+
+  async listProjects(): Promise<Project[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT p.*, (SELECT COUNT(*) FROM sessions WHERE project_id = p.id) AS session_count
+         FROM projects p ORDER BY p.updated_at DESC`,
+      )
+      .all() as ProjectRow[];
+    return rows.map(rowToProject);
+  }
+
+  async updateProject(
+    id: string,
+    updates: Partial<Omit<Project, "id" | "createdAt" | "updatedAt">>,
+  ): Promise<Project> {
+    const sets: string[] = ["updated_at = datetime('now')"];
+    const params: unknown[] = [];
+    if (updates.name !== undefined) {
+      sets.push("name = ?");
+      params.push(updates.name);
+    }
+    if (updates.description !== undefined) {
+      sets.push("description = ?");
+      params.push(updates.description);
+    }
+    if (updates.instructions !== undefined) {
+      sets.push("instructions = ?");
+      params.push(updates.instructions);
+    }
+    if (updates.color !== undefined) {
+      sets.push("color = ?");
+      params.push(updates.color);
+    }
+    params.push(id);
+    this.db
+      .prepare(`UPDATE projects SET ${sets.join(", ")} WHERE id = ?`)
+      .run(...params);
+    const project = await this.getProject(id);
+    if (!project) throw new Error(`Project not found: ${id}`);
+    return project;
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    const deleteFn = this.db.transaction(() => {
+      // Unlink sessions (don't delete them)
+      this.db
+        .prepare("UPDATE sessions SET project_id = NULL WHERE project_id = ?")
+        .run(id);
+      this.db.prepare("DELETE FROM projects WHERE id = ?").run(id);
+    });
+    deleteFn();
   }
 
   // ─── Tasks (human & bot shared) ──────────────────────
@@ -1337,9 +1435,34 @@ function camelToSnake(str: string): string {
 
 // ─── Row types & mapping ──────────────────────────────────────────
 
+interface ProjectRow {
+  id: string;
+  name: string;
+  description: string | null;
+  instructions: string | null;
+  color: string | null;
+  created_at: string;
+  updated_at: string;
+  session_count: number;
+}
+
+function rowToProject(row: ProjectRow): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    instructions: row.instructions ?? undefined,
+    color: row.color ?? "#6B7F5E",
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+    sessionCount: row.session_count,
+  };
+}
+
 interface SessionRow {
   id: string;
   conversation_id: string;
+  project_id: string | null;
   created_at: string;
   last_active_at: string;
   title: string | null;
@@ -1350,6 +1473,7 @@ function rowToSession(row: SessionRow): SessionData {
   return {
     id: row.id,
     conversationId: row.conversation_id,
+    projectId: row.project_id ?? undefined,
     createdAt: new Date(row.created_at),
     lastActiveAt: new Date(row.last_active_at),
     title: row.title ?? undefined,

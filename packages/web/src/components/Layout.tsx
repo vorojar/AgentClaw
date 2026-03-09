@@ -21,6 +21,7 @@ import {
   IconChannels,
   IconSubAgents,
   IconAgents,
+  IconProjects,
   IconChevronDown,
 } from "./Icons";
 
@@ -69,6 +70,7 @@ export function Layout() {
     "/skills",
     "/api",
   ];
+  const isProjects = location.pathname.startsWith("/projects");
   const isMoreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
   const [moreOpen, setMoreOpen] = useState(isMoreActive);
 
@@ -159,6 +161,13 @@ export function Layout() {
             onClick={closeSidebarOnMobile}
           >
             <IconChat size={16} /> Chat
+          </NavLink>
+          <NavLink
+            to="/projects"
+            className={() => (isProjects ? "active" : "")}
+            onClick={closeSidebarOnMobile}
+          >
+            <IconProjects size={16} /> Projects
           </NavLink>
           <NavLink
             to="/tasks"

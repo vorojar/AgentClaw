@@ -40,6 +40,7 @@ export type {
   MemoryEntry,
   MemoryQuery,
   MemorySearchResult,
+  Project,
   SessionData,
   MemoryStore,
   ConversationTurn,

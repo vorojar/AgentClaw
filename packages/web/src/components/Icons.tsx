@@ -346,6 +346,15 @@ export function IconChannels({ size }: { size?: number }) {
   );
 }
 
+/** Projects icon (folder) */
+export function IconProjects({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+    </I>
+  );
+}
+
 /** SubAgents icon (users / team) */
 export function IconSubAgents({ size }: { size?: number }) {
   return (

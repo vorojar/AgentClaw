@@ -14,6 +14,7 @@ import {
   uploadFile,
   renameSession,
   closeSession,
+  updateSession,
   listSkills,
   listAgents,
 } from "../api/client";
@@ -23,7 +24,6 @@ import { useSession } from "../components/SessionContext";
 import { useTheme } from "../components/ThemeProvider";
 import {
   IconMenu,
-  IconDownload,
   IconPaperclip,
   IconArrowUp,
   IconSquare,
@@ -41,8 +41,8 @@ import {
   IconTrash,
   IconMic,
   IconSkills,
+  IconProjects,
 } from "../components/Icons";
-import { exportAsMarkdown } from "../utils/export";
 import { formatDuration, formatTimeOnly } from "../utils/format";
 import {
   notifyIfHidden,
@@ -719,6 +719,7 @@ export function ChatPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [headerSubMenu, setHeaderSubMenu] = useState(false);
   const [editingMsgKey, setEditingMsgKey] = useState<string | null>(null);
   const [editMsgValue, setEditMsgValue] = useState("");
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
@@ -1578,6 +1579,7 @@ export function ChatPage() {
         !headerMenuRef.current.contains(target)
       ) {
         setHeaderMenuOpen(false);
+        setHeaderSubMenu(false);
       }
       if (
         skillMenuOpen &&
@@ -1591,14 +1593,20 @@ export function ChatPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [headerMenuOpen, skillMenuOpen]);
 
-  const handleExport = useCallback(() => {
-    const activeSession = sessions.find((s) => s.id === activeSessionId);
-    exportAsMarkdown(
-      messages.filter((m) => m.role !== "system"),
-      activeSession?.title,
-    );
-    setHeaderMenuOpen(false);
-  }, [messages, sessions, activeSessionId]);
+  const handleMoveToProject = useCallback(
+    async (projectId: string) => {
+      if (!activeSessionId) return;
+      try {
+        await updateSession(activeSessionId, { projectId });
+        refreshSessions();
+      } catch (err) {
+        console.error("Failed to move session:", err);
+      }
+      setHeaderMenuOpen(false);
+      setHeaderSubMenu(false);
+    },
+    [activeSessionId, refreshSessions],
+  );
 
   const handleHeaderRename = useCallback(() => {
     setHeaderMenuOpen(false);
@@ -1724,9 +1732,34 @@ export function ChatPage() {
                 <button onClick={handleHeaderRename}>
                   <IconEdit size={14} /> Rename
                 </button>
-                <button onClick={handleExport} disabled={messages.length === 0}>
-                  <IconDownload size={14} /> Export
-                </button>
+                {projects.length > 0 && (
+                  <div
+                    className="header-dropdown-sub"
+                    onMouseEnter={() => setHeaderSubMenu(true)}
+                    onMouseLeave={() => setHeaderSubMenu(false)}
+                    onClick={() => setHeaderSubMenu((v) => !v)}
+                  >
+                    <span className="header-dropdown-item">
+                      <IconProjects size={14} /> Move to Project
+                      <span className="header-dropdown-arrow">›</span>
+                    </span>
+                    {headerSubMenu && (
+                      <div className="header-dropdown-submenu">
+                        {projects.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveToProject(p.id);
+                            }}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <button
                   className="header-dropdown-danger"
                   onClick={handleHeaderDelete}

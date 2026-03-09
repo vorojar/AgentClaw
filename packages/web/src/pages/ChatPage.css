@@ -125,6 +125,44 @@
   background: var(--error-subtle-bg) !important;
 }
 
+.header-dropdown-sub {
+  position: relative;
+  cursor: pointer;
+}
+
+.header-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.header-dropdown-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.header-dropdown-arrow {
+  margin-left: auto;
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.header-dropdown-submenu {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 140px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px var(--shadow);
+  padding: 4px 0;
+  z-index: 101;
+}
+
 /* ── Messages ─────────────────────────────────────── */
 
 .messages-container {

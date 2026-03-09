@@ -33,6 +33,7 @@
   - 菜单项：**Rename**（内联重命名）、**Move to Project**（二级子菜单，hover/click 展开）、**Delete**（红色危险样式）
   - 桌面端：鼠标 hover 会话时才显示 "..."；移动端：仅当前激活会话显示 "..."
   - 移除右键菜单中的 "No Project" 选项
+  - `web/ChatPage.tsx`：聊天详情页右上角 "..." 菜单同步统一 — 移除 Export，改为 Rename / Move to Project（二级子菜单）/ Delete
 
 ## [1.2.0] - 2026-03-08
 

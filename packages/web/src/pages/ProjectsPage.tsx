@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { IconEdit, IconTrash, IconX } from "../components/Icons";
 import {
@@ -65,6 +65,7 @@ function formatDate(iso: string): string {
 export function ProjectsPage() {
   const navigate = useNavigate();
   const { id: editIdFromRoute } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +102,14 @@ export function ProjectsPage() {
       }
     }
   }, [editIdFromRoute, projects]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-open create modal when ?new=1
+  useEffect(() => {
+    if (searchParams.get("new") === "1" && !loading) {
+      openCreate();
+      navigate("/projects", { replace: true });
+    }
+  }, [searchParams, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCreate = () => {
     setEditingId(null);

@@ -410,6 +410,7 @@ textarea:focus {
   color: var(--text-secondary);
   text-decoration: none;
   border-radius: 6px;
+  cursor: pointer;
   transition:
     background 0.12s,
     color 0.12s;
@@ -422,6 +423,14 @@ textarea:focus {
 
 .sidebar-projects-list a.active {
   background: var(--accent-subtle-bg);
+  color: var(--accent);
+}
+
+.sidebar-projects-new {
+  color: var(--text-muted);
+}
+
+.sidebar-projects-new:hover {
   color: var(--accent);
 }
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionContext";
 import { type ProjectInfo, listProjects, updateSession } from "../api/client";
@@ -48,6 +48,7 @@ function formatSessionLabel(s: {
 export function Layout() {
   const { theme, toggle } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     sessions,
     activeSessionId,
@@ -188,13 +189,6 @@ export function Layout() {
             <IconChat size={16} /> Chat
           </NavLink>
           <NavLink
-            to="/projects"
-            className={() => (isProjects ? "active" : "")}
-            onClick={closeSidebarOnMobile}
-          >
-            <IconProjects size={16} /> Projects
-          </NavLink>
-          <NavLink
             to="/tasks"
             className={({ isActive }) => (isActive ? "active" : "")}
             onClick={closeSidebarOnMobile}
@@ -204,39 +198,44 @@ export function Layout() {
         </nav>
 
         {/* Projects section */}
-        {projects.length > 0 && (
-          <div className="sidebar-projects">
-            <button
-              className="sidebar-projects-toggle"
-              onClick={() => setProjectsOpen((v) => !v)}
+        <div className="sidebar-projects">
+          <button
+            className="sidebar-projects-toggle"
+            onClick={() => setProjectsOpen((v) => !v)}
+          >
+            <span>项目</span>
+            <span
+              className={`sidebar-more-chevron${projectsOpen ? " expanded" : ""}`}
             >
-              <span>Projects</span>
-              <span
-                className={`sidebar-more-chevron${projectsOpen ? " expanded" : ""}`}
+              <IconChevronDown size={14} />
+            </span>
+          </button>
+          {projectsOpen && (
+            <nav className="sidebar-projects-list">
+              <a
+                className="sidebar-projects-new"
+                onClick={() => {
+                  navigate("/projects?new=1");
+                  closeSidebarOnMobile();
+                }}
               >
-                <IconChevronDown size={14} />
-              </span>
-            </button>
-            {projectsOpen && (
-              <nav className="sidebar-projects-list">
-                {projects.map((p) => (
-                  <NavLink
-                    key={p.id}
-                    to={`/projects/${p.id}`}
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    onClick={closeSidebarOnMobile}
-                  >
-                    <span
-                      className="sidebar-project-dot"
-                      style={{ background: p.color }}
-                    />
-                    {p.name}
-                  </NavLink>
-                ))}
-              </nav>
-            )}
-          </div>
-        )}
+                <IconEdit size={14} />
+                新项目
+              </a>
+              {projects.map((p) => (
+                <NavLink
+                  key={p.id}
+                  to={`/projects/${p.id}`}
+                  className={({ isActive }) => (isActive ? "active" : "")}
+                  onClick={closeSidebarOnMobile}
+                >
+                  <IconProjects size={14} />
+                  {p.name}
+                </NavLink>
+              ))}
+            </nav>
+          )}
+        </div>
 
         {/* More group (collapsible) */}
         <div className="sidebar-more">

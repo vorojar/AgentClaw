@@ -34,6 +34,11 @@
   - 桌面端：鼠标 hover 会话时才显示 "..."；移动端：仅当前激活会话显示 "..."
   - 移除右键菜单中的 "No Project" 选项
   - `web/ChatPage.tsx`：聊天详情页右上角 "..." 菜单同步统一 — 移除 Export，改为 Rename / Move to Project（二级子菜单）/ Delete
+- **工具调用折叠组**（`web/ChatPage.tsx` + `ChatPage.css`）
+  - 当一条消息中已完成的工具调用 ≥3 个时，自动折叠为一行摘要：`✓ 7 tool calls (web-search, bash ×4, web-fetch, claude_code) ▶`
+  - 点击展开查看所有工具调用详情，展开后顶部显示 "▼ Collapse" 可重新折叠
+  - 合并连续的无文本 assistant+tool turn 为单个 DisplayMessage（`historyToDisplayMessages` 逻辑），解决数据库逐条存储导致每个 DisplayMessage 只有 1 个 tool call 无法触发折叠的问题
+  - 无耗时数据时隐藏 duration 显示（旧数据兼容）
 
 ## [1.2.0] - 2026-03-08
 

@@ -155,6 +155,28 @@ function historyToDisplayMessages(history: ChatMessage[]): DisplayMessage[] {
       }
       continue;
     }
+
+    // Merge consecutive tool-only assistant turns into one DisplayMessage
+    // so that ToolCallGroup can collapse them together.
+    const lastMsg = result[result.length - 1];
+    if (
+      m.role === "assistant" &&
+      m.toolCalls &&
+      !m.content?.trim() &&
+      lastMsg &&
+      lastMsg.role === "assistant" &&
+      lastMsg.toolCalls.length > 0 &&
+      !lastMsg.content?.trim()
+    ) {
+      const dm = chatMessageToDisplay(m);
+      lastMsg.toolCalls.push(...dm.toolCalls);
+      // Accumulate tokens
+      if (dm.tokensIn) lastMsg.tokensIn = (lastMsg.tokensIn || 0) + dm.tokensIn;
+      if (dm.tokensOut)
+        lastMsg.tokensOut = (lastMsg.tokensOut || 0) + dm.tokensOut;
+      continue;
+    }
+
     result.push(chatMessageToDisplay(m));
   }
   return result;
@@ -647,6 +669,64 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── ToolCallGroup (collapsible) ──────────────────── */
+
+const TOOL_COLLAPSE_THRESHOLD = 3;
+
+function ToolCallGroup({ entries }: { entries: ToolCallEntry[] }) {
+  const [collapsed, setCollapsed] = useState(true);
+
+  // Split: completed (have result) vs in-progress (no result yet)
+  const completed = entries.filter((e) => e.toolResult !== undefined);
+  const inProgress = entries.filter((e) => e.toolResult === undefined);
+  const allDone = inProgress.length === 0;
+  const shouldCollapse = allDone && completed.length >= TOOL_COLLAPSE_THRESHOLD;
+
+  if (!shouldCollapse || !collapsed) {
+    return (
+      <>
+        {shouldCollapse && (
+          <div
+            className="tool-group-summary"
+            onClick={() => setCollapsed(true)}
+          >
+            <span className="tool-group-collapse-hint">▼ Collapse</span>
+          </div>
+        )}
+        {entries.map((tc) => (
+          <ToolCallCard key={tc.id} entry={tc} />
+        ))}
+      </>
+    );
+  }
+
+  // Collapsed summary
+  const totalMs = completed.reduce((sum, e) => sum + (e.durationMs || 0), 0);
+  const errors = completed.filter((e) => e.isError).length;
+  const uniqueTools = [...new Set(completed.map((e) => e.toolName))];
+  const toolSummary = uniqueTools
+    .map((name) => {
+      const count = completed.filter((e) => e.toolName === name).length;
+      return count > 1 ? `${name} ×${count}` : name;
+    })
+    .join(", ");
+
+  return (
+    <div className="tool-group-summary" onClick={() => setCollapsed(false)}>
+      <span className="tool-group-icon">
+        {errors > 0 ? <IconWarning size={14} /> : <IconCheck size={14} />}
+      </span>
+      <span className="tool-group-text">
+        {completed.length} tool calls ({toolSummary})
+      </span>
+      {totalMs > 0 && (
+        <span className="tool-group-duration">{formatDuration(totalMs)}</span>
+      )}
+      <span className="tool-group-expand">▶</span>
     </div>
   );
 }
@@ -1982,15 +2062,16 @@ export function ChatPage() {
                     </div>
                   ) : (
                     <>
-                      {m.toolCalls
-                        .filter(
+                      {(() => {
+                        const visible = m.toolCalls.filter(
                           (tc) =>
                             tc.toolName !== "send_file" &&
                             tc.toolName !== "update_todo",
-                        )
-                        .map((tc) => (
-                          <ToolCallCard key={tc.id} entry={tc} />
-                        ))}
+                        );
+                        return visible.length > 0 ? (
+                          <ToolCallGroup entries={visible} />
+                        ) : null;
+                      })()}
                       {m.content &&
                         (() => {
                           const parsed = parseMessageContent(m.content);

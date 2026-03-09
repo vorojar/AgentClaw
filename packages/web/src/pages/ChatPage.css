@@ -458,6 +458,61 @@
 
 /* ── Tool Call Card ────────────────────────────────── */
 
+.tool-group-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+
+.tool-group-summary:hover {
+  background: var(--bg-secondary);
+}
+
+.tool-group-icon {
+  display: flex;
+  color: var(--success, var(--accent));
+}
+
+.tool-group-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-group-duration {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tool-group-expand {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.tool-group-collapse-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  margin: 0 0 4px;
+}
+
+.tool-group-collapse-hint:hover {
+  color: var(--text-secondary);
+}
+
 .tool-call-card {
   margin: 8px 0;
   border: 1px solid var(--border);

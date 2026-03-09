@@ -495,7 +495,7 @@ textarea:focus {
   flex: 1;
 }
 
-.sidebar-session-delete {
+.sidebar-session-more {
   opacity: 0;
   display: flex;
   align-items: center;
@@ -508,11 +508,23 @@ textarea:focus {
     opacity 0.15s,
     color 0.15s;
 }
-.sidebar-session-item:hover .sidebar-session-delete {
+.sidebar-session-item:hover .sidebar-session-more {
   opacity: 1;
 }
-.sidebar-session-delete:hover {
-  color: var(--error);
+.sidebar-session-more:hover {
+  color: var(--text-primary);
+}
+
+.sidebar-session-rename {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  outline: none;
 }
 
 /* Session context menu */
@@ -533,15 +545,6 @@ textarea:focus {
   z-index: 10000;
 }
 
-.session-context-label {
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .session-context-item {
   display: flex;
   align-items: center;
@@ -559,6 +562,36 @@ textarea:focus {
 
 .session-context-item:hover {
   background: var(--bg-tertiary);
+}
+
+.session-context-danger {
+  color: var(--error);
+}
+.session-context-danger:hover {
+  background: var(--error-subtle-bg);
+}
+
+.session-context-arrow {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.session-context-sub {
+  position: relative;
+}
+
+.session-context-submenu {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 10001;
 }
 
 /* Footer */
@@ -871,9 +904,14 @@ textarea:focus {
     background: transparent;
     color: var(--text-secondary);
   }
-  /* Hide delete button on touch devices — use header menu instead */
-  .sidebar-session-delete {
-    display: none;
+  /* Mobile: only show ... on active session */
+  .sidebar-session-more {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sidebar-session-item.active .sidebar-session-more {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 

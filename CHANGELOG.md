@@ -26,8 +26,13 @@
   - `web/Layout.tsx`：「New Project」直接弹出极简创建弹窗（仅 Name 字段），无需跳转页面
   - `web/ProjectDetailPage.tsx`：标题区域支持 inline rename（hover 显示编辑按钮），改名后侧边栏实时同步
   - 弹窗去掉 Description / Color / Instructions 字段，只保留 Name
-  - 侧边栏文案统一为英文（Projects / New Project / Move to Project / No Project）
+  - 侧边栏文案统一为英文（Projects / New Project / Move to Project）
   - `web/ChatPage.tsx`：聊天页顶部标题显示「项目名 / 会话名」面包屑（项目名可点击跳转详情页）
+- **会话统一操作菜单**（`web/Layout.tsx` + `global.css`）
+  - 合并原右键菜单和 X 删除按钮为统一的 "..." 菜单（`IconMoreHorizontal`）
+  - 菜单项：**Rename**（内联重命名）、**Move to Project**（二级子菜单，hover/click 展开）、**Delete**（红色危险样式）
+  - 桌面端：鼠标 hover 会话时才显示 "..."；移动端：仅当前激活会话显示 "..."
+  - 移除右键菜单中的 "No Project" 选项
 
 ## [1.2.0] - 2026-03-08
 

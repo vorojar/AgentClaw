@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionContext";
-import { updateSession } from "../api/client";
+import { updateSession, renameSession } from "../api/client";
 import {
   IconChat,
   IconMemory,
@@ -25,6 +25,8 @@ import {
   IconAgents,
   IconProjects,
   IconChevronDown,
+  IconMoreHorizontal,
+  IconTrash,
 } from "./Icons";
 
 function formatSessionLabel(s: {
@@ -61,6 +63,7 @@ export function Layout() {
     handleSelectSession,
     projects,
     handleCreateProject,
+    refreshSessions,
   } = useSession();
 
   const [searchVisible, setSearchVisible] = useState(false);
@@ -68,11 +71,16 @@ export function Layout() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [creating, setCreating] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{
+  const [sessionMenu, setSessionMenu] = useState<{
     x: number;
     y: number;
     sessionId: string;
+    subMenu?: boolean;
   } | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
+    null,
+  );
+  const [renameValue, setRenameValue] = useState("");
 
   const isMobile =
     typeof matchMedia !== "undefined" &&
@@ -100,13 +108,27 @@ export function Layout() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setContextMenu(null);
+      if (e.key === "Escape") setSessionMenu(null);
     };
-    if (contextMenu) {
+    if (sessionMenu) {
       document.addEventListener("keydown", handleKeyDown);
       return () => document.removeEventListener("keydown", handleKeyDown);
     }
-  }, [contextMenu]);
+  }, [sessionMenu]);
+
+  const handleSessionRename = async () => {
+    if (!renamingSessionId || !renameValue.trim()) {
+      setRenamingSessionId(null);
+      return;
+    }
+    try {
+      await renameSession(renamingSessionId, renameValue.trim());
+      refreshSessions();
+    } catch {
+      /* ignore */
+    }
+    setRenamingSessionId(null);
+  };
 
   const MORE_PATHS = [
     "/channels",
@@ -343,30 +365,44 @@ export function Layout() {
                       key={s.id}
                       className={`sidebar-session-item${s.id === activeSessionId ? " active" : ""}`}
                       onClick={() => {
+                        if (renamingSessionId === s.id) return;
                         handleSelectSession(s.id);
                         closeSidebarOnMobile();
                       }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenu({
-                          x: e.clientX,
-                          y: e.clientY,
-                          sessionId: s.id,
-                        });
-                      }}
                     >
-                      <span className="sidebar-session-label">
-                        {formatSessionLabel(s)}
-                      </span>
+                      {renamingSessionId === s.id ? (
+                        <input
+                          autoFocus
+                          className="sidebar-session-rename"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSessionRename();
+                            if (e.key === "Escape") setRenamingSessionId(null);
+                          }}
+                          onBlur={handleSessionRename}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="sidebar-session-label">
+                          {formatSessionLabel(s)}
+                        </span>
+                      )}
                       <span
-                        className="sidebar-session-delete"
+                        className="sidebar-session-more"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteSession(s.id);
+                          const rect = (
+                            e.currentTarget as HTMLElement
+                          ).getBoundingClientRect();
+                          setSessionMenu({
+                            x: rect.right,
+                            y: rect.top,
+                            sessionId: s.id,
+                          });
                         }}
-                        title="Delete"
                       >
-                        <IconX size={14} />
+                        <IconMoreHorizontal size={14} />
                       </span>
                     </button>
                   ))}
@@ -424,36 +460,82 @@ export function Layout() {
         <Outlet />
       </main>
 
-      {contextMenu &&
+      {sessionMenu &&
         createPortal(
           <div
             className="session-context-overlay"
-            onClick={() => setContextMenu(null)}
+            onClick={() => setSessionMenu(null)}
           >
             <div
               className="session-context-menu"
-              style={{ top: contextMenu.y, left: contextMenu.x }}
+              style={{ top: sessionMenu.y, left: sessionMenu.x }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="session-context-label">Move to Project</div>
-              {projects.map((p) => (
-                <button
-                  key={p.id}
-                  className="session-context-item"
-                  onClick={async () => {
-                    await updateSession(contextMenu.sessionId, {
-                      projectId: p.id,
-                    });
-                    setContextMenu(null);
-                  }}
+              <button
+                className="session-context-item"
+                onClick={() => {
+                  const s = sessions.find(
+                    (s) => s.id === sessionMenu.sessionId,
+                  );
+                  setRenameValue(s?.title || "");
+                  setRenamingSessionId(sessionMenu.sessionId);
+                  setSessionMenu(null);
+                }}
+              >
+                <IconEdit size={14} /> Rename
+              </button>
+              {projects.length > 0 && (
+                <div
+                  className="session-context-sub"
+                  onMouseEnter={() =>
+                    setSessionMenu((m) => m && { ...m, subMenu: true })
+                  }
+                  onMouseLeave={() =>
+                    setSessionMenu((m) => m && { ...m, subMenu: false })
+                  }
+                  onClick={() =>
+                    setSessionMenu((m) => m && { ...m, subMenu: !m.subMenu })
+                  }
                 >
-                  <span
-                    className="sidebar-project-dot"
-                    style={{ background: p.color }}
-                  />
-                  {p.name}
-                </button>
-              ))}
+                  <span className="session-context-item">
+                    <IconProjects size={14} /> Move to Project
+                    <span className="session-context-arrow">›</span>
+                  </span>
+                  {sessionMenu.subMenu && (
+                    <div className="session-context-submenu">
+                      {projects.map((p) => (
+                        <button
+                          key={p.id}
+                          className="session-context-item"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await updateSession(sessionMenu.sessionId, {
+                              projectId: p.id,
+                            });
+                            refreshSessions();
+                            setSessionMenu(null);
+                          }}
+                        >
+                          <span
+                            className="sidebar-project-dot"
+                            style={{ background: p.color }}
+                          />
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                className="session-context-item session-context-danger"
+                onClick={() => {
+                  handleDeleteSession(sessionMenu.sessionId);
+                  setSessionMenu(null);
+                }}
+              >
+                <IconTrash size={14} /> Delete
+              </button>
             </div>
           </div>,
           document.body,

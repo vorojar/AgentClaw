@@ -5,6 +5,7 @@ import {
   updateProject,
   listSessions,
   closeSession,
+  createSession,
   type ProjectInfo,
   type SessionInfo,
 } from "../api/client";
@@ -32,8 +33,7 @@ function timeAgo(iso: string): string {
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { setPendingProjectId, updateProjectLocally, refreshSessions } =
-    useSession();
+  const { updateProjectLocally, refreshSessions } = useSession();
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
@@ -61,10 +61,15 @@ export function ProjectDetailPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     if (!id) return;
-    setPendingProjectId(id);
-    navigate("/chat");
+    try {
+      const session = await createSession(undefined, id);
+      refreshSessions();
+      navigate(`/chat/${session.id}`);
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleDeleteSession = async (sessionId: string) => {

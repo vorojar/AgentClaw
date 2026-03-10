@@ -1216,12 +1216,30 @@
 .preview-panel {
   display: flex;
   flex-direction: column;
-  width: 45%;
-  min-width: 320px;
-  max-width: 700px;
+  position: relative;
+  min-width: 300px;
   border-left: 1px solid var(--border);
   background: var(--bg-primary);
   animation: panelSlideIn 0.2s ease;
+  /* width is set via inline style (default 50%) */
+}
+
+/* ── Resize Handle ── */
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background: var(--accent);
+  opacity: 0.3;
 }
 
 @keyframes panelSlideIn {
@@ -1336,17 +1354,19 @@
   user-select: all;
 }
 
-/* Mobile: preview panel goes full-screen overlay */
+/* Mobile: preview panel goes full-screen */
 @media (max-width: 768px) {
   .chat-page.has-preview .chat-main {
     display: none;
   }
   .preview-panel {
-    width: 100%;
-    max-width: none;
+    width: 100% !important;
     min-width: 0;
     border-left: none;
     animation: none;
+  }
+  .resize-handle {
+    display: none;
   }
 }
 

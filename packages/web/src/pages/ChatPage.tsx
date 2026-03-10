@@ -302,6 +302,8 @@ function PreviewPanel({
   const { href, filename, downloadHref } = file;
   const [needsDevServer, setNeedsDevServer] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
+  const [panelWidth, setPanelWidth] = useState(50); // percentage
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -329,13 +331,52 @@ function PreviewPanel({
       .catch(() => {});
   }, [href]);
 
+  // Drag-to-resize handler
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const container = panelRef.current?.parentElement;
+    if (!container) return;
+
+    const onMove = (ev: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const pct = ((rect.right - ev.clientX) / rect.width) * 100;
+      // clamp: min 20%, max 70%
+      setPanelWidth(Math.min(70, Math.max(20, pct)));
+    };
+
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      // Re-enable iframe pointer events
+      panelRef.current
+        ?.querySelector("iframe")
+        ?.style.removeProperty("pointer-events");
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    // Disable iframe pointer events during drag to prevent stealing mouse
+    panelRef.current
+      ?.querySelector("iframe")
+      ?.style.setProperty("pointer-events", "none");
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, []);
+
   const iframeProp = {
     className: "preview-panel-iframe",
     onLoad: () => setIframeLoading(false),
   };
 
   return (
-    <div className="preview-panel">
+    <div
+      className="preview-panel"
+      ref={panelRef}
+      style={{ width: `${panelWidth}%` }}
+    >
+      <div className="resize-handle" onMouseDown={onResizeStart} />
       <div className="preview-panel-toolbar">
         <span className="preview-panel-title" title={filename}>
           {filename}

@@ -4,6 +4,7 @@
 
 ### 改进
 - **HTML 预览从全屏 overlay 改为侧边 panel**：点击预览卡片在右侧打开 panel 而非全屏遮罩，通过 PreviewContext 传递状态，支持切换不同预览文件
+- **预览面板支持拖拽调整宽度**：左边缘可拖拽调整宽度（20%-70%），默认 50%，移动端仍全屏显示
 
 ### 修复
 - **Lone surrogate 导致 Claude API 400 错误（彻底修复）**：之前只在 agent-loop 和 context-manager 清理不够彻底，surrogates 仍可能从 DB 历史、系统提示词等路径泄漏。现在在 Claude provider 的 `convertContent` 层做最后防线，所有发送给 API 的文本（text/tool_result/system prompt）统一清理

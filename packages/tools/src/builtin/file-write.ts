@@ -21,7 +21,9 @@ export const fileWriteTool: Tool = {
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
     const filePath = resolveFilePath(input.path as string, context?.workDir);
-    const content = input.content as string;
+    const raw = input.content;
+    const content =
+      typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
 
     try {
       // Ensure parent directory exists

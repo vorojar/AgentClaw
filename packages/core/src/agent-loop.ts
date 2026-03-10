@@ -163,22 +163,23 @@ export class SimpleAgentLoop implements AgentLoop {
       createdAt: new Date(),
     };
 
-    // Per-trace temp directory: data/tmp/{traceId}/
-    const traceTmpDir = join(process.cwd(), "data", "tmp", trace.id).replace(
+    // Per-session temp directory: data/tmp/{conversationId}/
+    // Reused across turns so tools can access files from previous interactions
+    const sessionTmpDir = join(process.cwd(), "data", "tmp", convId).replace(
       /\\/g,
       "/",
     );
-    mkdirSync(traceTmpDir, { recursive: true });
+    mkdirSync(sessionTmpDir, { recursive: true });
 
     // Expose working directory to tools (use_skill replaces {WORKDIR})
-    if (context) context.workDir = traceTmpDir;
+    if (context) context.workDir = sessionTmpDir;
 
-    // ── Collect all user files into per-trace dir ──
-    // 1. Images: save base64 to per-trace dir, record path for DB storage
+    // ── Collect all user files into session dir ──
+    // 1. Images: save base64 to session dir, record path for DB storage
     const savedImagePaths: string[] = [];
     const imagePathMap = new Map<ImageContent, string>(); // block → saved file path
-    // 2. Attachments (video, docs, etc.): copy from data/tmp/ root to per-trace dir
-    const relocatedFiles = new Map<string, string>(); // original path → per-trace path
+    // 2. Attachments (video, docs, etc.): copy from data/tmp/ root to session dir
+    const relocatedFiles = new Map<string, string>(); // original path → per-session path
 
     if (Array.isArray(input)) {
       for (const block of input) {
@@ -186,8 +187,17 @@ export class SimpleAgentLoop implements AgentLoop {
           const img = block as ImageContent;
           // 优先使用上传时的原始文件名，fallback 到通用名
           const ext = img.mediaType?.includes("png") ? "png" : "jpg";
-          const filename = img.filename || `user_image_${Date.now()}.${ext}`;
-          const filePath = join(traceTmpDir, filename).replace(/\\/g, "/");
+          let filename = img.filename || `user_image_${Date.now()}.${ext}`;
+          let filePath = join(sessionTmpDir, filename).replace(/\\/g, "/");
+          // Deduplicate: if file already exists from a previous turn, add timestamp suffix
+          if (existsSync(filePath)) {
+            const dotIdx = filename.lastIndexOf(".");
+            filename =
+              dotIdx > 0
+                ? `${filename.slice(0, dotIdx)}_${Date.now()}${filename.slice(dotIdx)}`
+                : `${filename}_${Date.now()}`;
+            filePath = join(sessionTmpDir, filename).replace(/\\/g, "/");
+          }
           try {
             writeFileSync(filePath, Buffer.from(img.data, "base64"));
             savedImagePaths.push(filePath);
@@ -204,7 +214,7 @@ export class SimpleAgentLoop implements AgentLoop {
           while ((m = re.exec(block.text)) !== null) {
             const origPath = m[1].trim();
             if (existsSync(origPath)) {
-              const newPath = join(traceTmpDir, basename(origPath)).replace(
+              const newPath = join(sessionTmpDir, basename(origPath)).replace(
                 /\\/g,
                 "/",
               );
@@ -226,9 +236,9 @@ export class SimpleAgentLoop implements AgentLoop {
     }
 
     // Build runtime hints — injected into messages after buildContext
-    // 图片路径已在 ws.ts 的 fileHints 中（格式同附件），relocate 逻辑会自动重写到 trace 目录
+    // 图片路径已在 ws.ts 的 fileHints 中（格式同附件），relocate 逻辑会自动重写到 session 目录
     const runtimeHints: string[] = [
-      `[工作目录：${traceTmpDir}]（所有文件都在此目录下，输出也保存到这里）`,
+      `[工作目录：${sessionTmpDir}]（所有文件都在此目录下，输出也保存到这里）`,
     ];
     const hintText = runtimeHints.join("\n");
 
@@ -293,11 +303,11 @@ export class SimpleAgentLoop implements AgentLoop {
         });
 
       // Inject runtime hints + rewrite relocated file paths in the last user message.
-      // DB stores original paths (UI stays clean), LLM sees per-trace paths every iteration.
+      // DB stores original paths (UI stays clean), LLM sees per-session paths every iteration.
       if (messages.length > 0) {
         const lastMsg = messages[messages.length - 1];
         if (lastMsg.role === "user") {
-          // Rewrite attachment paths from data/tmp/ root → per-trace dir
+          // Rewrite attachment paths from data/tmp/ root → per-session dir
           const rewrite = (text: string): string => {
             let result = text;
             for (const [orig, relocated] of relocatedFiles) {

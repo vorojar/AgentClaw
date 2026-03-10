@@ -88,7 +88,7 @@ export interface ToolExecutionContext {
   preSelectedSkillName?: string;
   /** Original user message text before parseUserContent transformation (for DB storage) */
   originalUserText?: string;
-  /** Per-trace working directory (absolute path, forward slashes) */
+  /** Per-session working directory (absolute path, forward slashes) */
   workDir?: string;
   /** Tool execution hooks (before/after) */
   toolHooks?: ToolHooks;

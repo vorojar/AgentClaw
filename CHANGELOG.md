@@ -2,6 +2,9 @@
 
 ## [1.3.8] - 2026-03-10
 
+### 改进
+- **会话级工作目录**：同一会话复用 `data/tmp/{conversationId}/` 目录，后续消息可直接修改前几轮生成的文件，无需从零重建
+
 ### 修复
 - **sidebar spinner 切换会话闪烁**：解耦 streamingSessionId 和 isSending，spinner 只在收到 done 时清除，不再因切换会话而消失
 - **切换会话时工具调用串台**：切换会话时重置 resumingRef，防止 loadHistory 的 resuming 分支把旧会话的 streaming 消息合并到新会话

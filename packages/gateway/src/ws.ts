@@ -366,7 +366,9 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
             });
           },
           notifyUser: async (message: string) => {
-            streamSend(JSON.stringify({ type: "tool_progress", text: message }));
+            streamSend(
+              JSON.stringify({ type: "tool_progress", text: message }),
+            );
           },
         };
 
@@ -456,6 +458,24 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
                   JSON.stringify({
                     type: "error",
                     error: data.message || data.error || "Unknown error",
+                  }),
+                );
+                break;
+              }
+              case "handoff": {
+                const hData = event.data as {
+                  fromAgent: string;
+                  toAgent: string;
+                  toAgentName: string;
+                  reason: string;
+                };
+                streamSend(
+                  JSON.stringify({
+                    type: "handoff",
+                    fromAgent: hData.fromAgent,
+                    toAgent: hData.toAgent,
+                    toAgentName: hData.toAgentName,
+                    reason: hData.reason,
                   }),
                 );
                 break;

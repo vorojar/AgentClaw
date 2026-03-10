@@ -199,15 +199,110 @@ export class SimpleOrchestrator implements Orchestrator {
       effectiveProvider = this.provider;
     }
 
-    const agent = this.getSessionAgent(session);
-    const loop = this.createAgentLoop(effectiveProvider, agent);
-    this.activeLoops.set(sessionId, loop);
-    try {
-      yield* loop.runStream(input, session.conversationId, mergedContext);
-    } finally {
-      this.activeLoops.delete(sessionId);
-      // Clean up temp Python scripts after agent loop completes
-      this.cleanupTmpScripts();
+    let currentAgent = this.getSessionAgent(session);
+    let handoffCount = 0;
+    const MAX_HANDOFFS = 3;
+
+    // Pass available agents to tools (for handoff validation)
+    const agentRoster = Array.from(this.agents.values())
+      .filter((a) => a.id !== "default")
+      .map((a) => ({ id: a.id, name: a.name, description: a.description }));
+    mergedContext.agents = agentRoster;
+
+    let currentInput: string | ContentBlock[] = input;
+    let isHandoffContinuation = false;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const loop = this.createAgentLoop(effectiveProvider, currentAgent);
+      this.activeLoops.set(sessionId, loop);
+
+      let handoffEvent: AgentEvent | null = null;
+      try {
+        for await (const event of loop.runStream(
+          currentInput,
+          session.conversationId,
+          mergedContext,
+        )) {
+          if (event.type === "handoff") {
+            handoffEvent = event;
+            // Don't yield handoff to WS — we handle it internally and emit a notification
+          } else {
+            yield event;
+          }
+        }
+      } finally {
+        this.activeLoops.delete(sessionId);
+      }
+
+      // No handoff — normal completion
+      if (!handoffEvent) {
+        if (!isHandoffContinuation) {
+          this.cleanupTmpScripts();
+        }
+        break;
+      }
+
+      // Handoff detected — switch agent and re-run
+      handoffCount++;
+      if (handoffCount > MAX_HANDOFFS) {
+        yield {
+          type: "error" as const,
+          data: { message: "Too many handoffs (max 3). Stopping." },
+          timestamp: new Date(),
+        };
+        break;
+      }
+
+      const handoffData = handoffEvent.data as {
+        targetAgentId: string;
+        reason: string;
+        tokensIn?: number;
+        tokensOut?: number;
+        toolCallCount?: number;
+        durationMs?: number;
+        model?: string;
+      };
+      const targetAgentId = handoffData.targetAgentId;
+      const targetAgent = this.agents.get(targetAgentId);
+
+      if (!targetAgent) {
+        yield {
+          type: "error" as const,
+          data: { message: `Handoff target "${targetAgentId}" not found` },
+          timestamp: new Date(),
+        };
+        break;
+      }
+
+      // Update session metadata
+      if (!session.metadata) session.metadata = {};
+      const previousAgentId = (session.metadata.agentId as string) || "default";
+      session.metadata.agentId = targetAgentId;
+      await this.memoryStore.saveSession(session);
+
+      // Notify frontend about the handoff
+      yield {
+        type: "handoff" as const,
+        data: {
+          fromAgent: previousAgentId,
+          toAgent: targetAgentId,
+          toAgentName: targetAgent.name,
+          reason: handoffData.reason,
+        },
+        timestamp: new Date(),
+      };
+
+      console.log(
+        `[orchestrator] Handoff: ${previousAgentId} → ${targetAgentId} (${handoffData.reason})`,
+      );
+
+      // Prepare for new agent loop
+      currentAgent = targetAgent;
+      isHandoffContinuation = true;
+      const prevName =
+        this.agents.get(previousAgentId)?.name ?? previousAgentId;
+      currentInput = `[Handoff from ${prevName}: ${handoffData.reason}]\nReview the conversation history and continue. Respond directly to the user's request.`;
     }
 
     // Background memory extraction: on the 1st turn and every N turns after
@@ -373,6 +468,16 @@ export class SimpleOrchestrator implements Orchestrator {
     } else if (soul && systemPrompt) {
       // No {{soul}} placeholder — prepend soul to system prompt
       systemPrompt = soul + "\n\n" + systemPrompt;
+    }
+
+    // Inject agent roster for handoff awareness (skip current agent)
+    const currentId = agent?.id || "default";
+    const roster = Array.from(this.agents.values())
+      .filter((a) => a.id !== currentId && a.id !== "default")
+      .map((a) => `- ${a.id}: ${a.name} — ${a.description}`)
+      .join("\n");
+    if (roster && systemPrompt) {
+      systemPrompt += `\n\n## Handoff\nWhen the user's request is better suited for a specialist, use the \`handoff\` tool.\nAvailable agents:\n${roster}`;
     }
 
     const contextManager = new SimpleContextManager({

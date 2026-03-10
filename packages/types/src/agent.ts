@@ -18,6 +18,7 @@ export type AgentEventType =
   | "tool_result"
   | "response_chunk"
   | "response_complete"
+  | "handoff"
   | "error";
 
 /** Agent event */

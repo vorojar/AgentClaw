@@ -28,6 +28,8 @@ export interface ToolResult {
   metadata?: Record<string, unknown>;
   /** Signal agent-loop to skip next LLM call and auto-complete the response */
   autoComplete?: boolean;
+  /** Signal agent-loop to hand off conversation to another agent */
+  handoffTo?: string;
 }
 
 /** Tool categories */
@@ -96,6 +98,8 @@ export interface ToolExecutionContext {
   abortSignal?: AbortSignal;
   /** Sub-agent manager for spawning/managing sub-agents */
   subAgentManager?: import("./subagent.js").SubAgentManager;
+  /** Available agents for handoff tool */
+  agents?: Array<{ id: string; name: string; description: string }>;
 }
 
 /** A tool that can be executed */

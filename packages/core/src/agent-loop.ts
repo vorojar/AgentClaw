@@ -664,6 +664,62 @@ export class SimpleAgentLoop implements AgentLoop {
 
         if (result.autoComplete) hasAutoComplete = true;
 
+        // Handoff: signal orchestrator to switch agent
+        if (result.handoffTo) {
+          yield this.createEvent("tool_result", {
+            name: toolCall.name,
+            result,
+            durationMs: toolDurationMs,
+          });
+          // Record in trace
+          trace.steps.push({
+            type: "tool_result",
+            name: toolCall.name,
+            content: result.content,
+            durationMs: toolDurationMs,
+          } as TraceStep);
+          // Store tool result turn
+          const handoffToolResult: ToolResultContent = {
+            type: "tool_result",
+            toolUseId: toolCall.id,
+            content: result.content,
+            isError: false,
+          };
+          await this.memoryStore.addTurn(convId, {
+            id: generateId(),
+            conversationId: convId,
+            role: "tool",
+            content: JSON.stringify([handoffToolResult]),
+            toolResults: JSON.stringify([
+              { toolUseId: toolCall.id, ...result, durationMs: toolDurationMs },
+            ]),
+            createdAt: new Date(),
+          });
+          // Persist trace before handing off
+          const hDuration = Date.now() - startTime;
+          trace.model = usedModel;
+          trace.tokensIn = totalTokensIn;
+          trace.tokensOut = totalTokensOut;
+          trace.durationMs = hDuration;
+          try {
+            await this.memoryStore.addTrace(trace);
+          } catch (e) {
+            console.error("[agent-loop] Failed to persist trace:", e);
+          }
+          // Yield handoff event for orchestrator to handle
+          yield this.createEvent("handoff", {
+            targetAgentId: result.handoffTo,
+            reason: result.content,
+            tokensIn: totalTokensIn,
+            tokensOut: totalTokensOut,
+            toolCallCount: totalToolCalls,
+            durationMs: hDuration,
+            model: usedModel,
+          });
+          this.setState("idle");
+          return; // Exit agent-loop — orchestrator will continue with new agent
+        }
+
         yield this.createEvent("tool_result", {
           name: toolCall.name,
           result,

@@ -1108,6 +1108,26 @@
   margin-top: 1px;
 }
 
+.message-handoff {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  margin: 12px auto;
+  max-width: 360px;
+  background: var(--accent-subtle-bg);
+  border: 1px solid var(--accent-subtle-border);
+  border-radius: 20px;
+  color: var(--accent);
+  font-size: 13px;
+  animation: messageIn 0.25s ease;
+}
+
+.message-handoff p {
+  margin: 0;
+}
+
 /* ── Markdown content ─────────────────────────────── */
 
 .message-content-md a {

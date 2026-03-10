@@ -1175,6 +1175,25 @@ export function ChatPage() {
         });
         break;
       }
+      case "handoff": {
+        // Agent handoff notification
+        const handoffNotice = `\u{1F504} **Handoff** \u2192 **${msg.toAgentName || msg.toAgent}**`;
+        setMessages((prev) => {
+          const cleaned = prev.map((m) =>
+            m.streaming ? { ...m, streaming: false } : m,
+          );
+          return [
+            ...cleaned,
+            {
+              key: nextKey(),
+              role: "system" as const,
+              content: handoffNotice,
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        });
+        break;
+      }
       case "text": {
         setActiveToolName(null);
         setMessages((prev) => {
@@ -2241,12 +2260,18 @@ export function ChatPage() {
                     {messages.map((m, idx) => (
                       <div key={m.key} data-msg-key={m.key}>
                         {m.role === "system" && m.content ? (
-                          <div className="message-error">
-                            <span className="message-error-icon">
-                              <IconWarning size={16} />
-                            </span>
-                            <span>{m.content}</span>
-                          </div>
+                          m.content.startsWith("\u{1F504}") ? (
+                            <div className="message-handoff">
+                              <ReactMarkdown>{m.content}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className="message-error">
+                              <span className="message-error-icon">
+                                <IconWarning size={16} />
+                              </span>
+                              <span>{m.content}</span>
+                            </div>
+                          )
                         ) : (
                           <>
                             {(() => {

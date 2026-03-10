@@ -751,8 +751,13 @@ export interface WSMessage {
     | "prompt"
     | "todo_update"
     | "session_activity"
-    | "resuming";
+    | "resuming"
+    | "handoff";
   text?: string;
+  fromAgent?: string;
+  toAgent?: string;
+  toAgentName?: string;
+  reason?: string;
   toolName?: string;
   toolInput?: string;
   toolResult?: string;

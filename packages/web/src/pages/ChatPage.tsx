@@ -303,6 +303,11 @@ function PreviewPanel({
 }) {
   const { t } = useTranslation();
   const { href, filename, downloadHref } = file;
+  // Binary files: no source view or copy
+  const isBinary =
+    /\.(pptx?|xlsx?|xls|pdf|docx?|zip|rar|7z|tar|gz|bz2|exe|dll|so|dylib|png|jpe?g|gif|bmp|webp|ico|svg|mp[34]|wav|ogg|flac|m4a|avi|mov|mkv|webm)$/i.test(
+      filename,
+    );
   const [needsDevServer, setNeedsDevServer] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [panelWidth, setPanelWidth] = useState(50); // percentage
@@ -330,8 +335,10 @@ function PreviewPanel({
   // Fetch source content (for source view and copy)
   // For files with a separate downloadHref (e.g. md rendered via /preview/),
   // fetch the original file so "View Source" and "Copy" show raw content.
+  // Skip for binary files (pptx, xlsx, pdf, etc.) — source is meaningless.
   const sourceHref = downloadHref || href;
   useEffect(() => {
+    if (isBinary) return;
     fetch(sourceHref)
       .then((r) => r.text())
       .then((text) => {
@@ -341,7 +348,7 @@ function PreviewPanel({
         }
       })
       .catch(() => {});
-  }, [sourceHref]);
+  }, [sourceHref, isBinary]);
 
   const handleCopy = useCallback(() => {
     if (!sourceContent) return;
@@ -398,32 +405,38 @@ function PreviewPanel({
     >
       <div className="resize-handle" onMouseDown={onResizeStart} />
       <div className="preview-panel-toolbar">
-        <button
-          className={`preview-panel-btn ${viewMode === "preview" ? "active" : ""}`}
-          onClick={() => setViewMode("preview")}
-          title={t("chat.preview", "Preview")}
-        >
-          <IconEye size={16} />
-        </button>
-        <button
-          className={`preview-panel-btn ${viewMode === "source" ? "active" : ""}`}
-          onClick={() => setViewMode("source")}
-          title={t("chat.source", "Source")}
-        >
-          <IconCode size={16} />
-        </button>
+        {!isBinary && (
+          <>
+            <button
+              className={`preview-panel-btn ${viewMode === "preview" ? "active" : ""}`}
+              onClick={() => setViewMode("preview")}
+              title={t("chat.preview", "Preview")}
+            >
+              <IconEye size={16} />
+            </button>
+            <button
+              className={`preview-panel-btn ${viewMode === "source" ? "active" : ""}`}
+              onClick={() => setViewMode("source")}
+              title={t("chat.source", "Source")}
+            >
+              <IconCode size={16} />
+            </button>
+          </>
+        )}
         <span className="preview-panel-title" title={filename}>
           {filename}
         </span>
-        <button
-          className="preview-panel-btn"
-          onClick={handleCopy}
-          title={
-            copied ? t("common.copied", "Copied!") : t("common.copy", "Copy")
-          }
-        >
-          {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-        </button>
+        {!isBinary && (
+          <button
+            className="preview-panel-btn"
+            onClick={handleCopy}
+            title={
+              copied ? t("common.copied", "Copied!") : t("common.copy", "Copy")
+            }
+          >
+            {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+          </button>
+        )}
         {downloadHref && (
           <a
             href={downloadHref}

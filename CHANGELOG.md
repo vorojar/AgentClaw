@@ -8,6 +8,7 @@
 
 ### 修复
 - **Markdown 预览面板"查看源码"和"复制"显示渲染后 HTML 而非原始 markdown**：当有 downloadHref（指向原始文件）时，用它获取源码内容，确保查看源码和复制操作返回原始 markdown 文本
+- **二进制文件（pptx/xlsx/pdf 等）预览面板隐藏"查看源码"和"复制"按钮**：这些文件的源码是二进制乱码，显示无意义，同时跳过源码内容的 fetch
 - **Lone surrogate 导致 Claude API 400 错误（彻底修复）**：之前只在 agent-loop 和 context-manager 清理不够彻底，surrogates 仍可能从 DB 历史、系统提示词等路径泄漏。现在在 Claude provider 的 `convertContent` 层做最后防线，所有发送给 API 的文本（text/tool_result/system prompt）统一清理
 
 ## [1.3.3] - 2026-03-10

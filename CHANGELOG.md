@@ -4,7 +4,6 @@
 
 ### 修复
 - **file_write 工具容错非 string content**：弱模型（如 doubao）调用 `file_write` 时可能传 Object/Array 而非 String，现在自动 `JSON.stringify` 而不是报错，避免无意义的重试失败
-- **系统提示词限制 claude_code 使用场景**：明确 `claude_code` 仅用于需要读写代码库的复杂编程任务，信息获取/文件处理等日常操作禁止委派给 claude_code，避免双层 Agent 串联导致 10x+ 耗时
 
 ## [1.3.1] - 2026-03-10
 

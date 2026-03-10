@@ -10,6 +10,15 @@ import type {
 } from "@agentclaw/types";
 import { BaseLLMProvider, generateId } from "./base.js";
 
+/** Remove lone surrogates that break Claude API JSON parsing */
+function sanitize(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
+    "\uFFFD",
+  );
+}
+
 /**
  * Claude (Anthropic) LLM Provider.
  */
@@ -161,7 +170,7 @@ export class ClaudeProvider extends BaseLLMProvider {
             system: [
               {
                 type: "text" as const,
-                text: request.systemPrompt,
+                text: sanitize(request.systemPrompt),
                 cache_control: { type: "ephemeral" as const },
               },
             ],
@@ -206,7 +215,7 @@ export class ClaudeProvider extends BaseLLMProvider {
     content: string | ContentBlock[],
   ): string | Anthropic.ContentBlockParam[] {
     if (typeof content === "string") {
-      return content;
+      return sanitize(content);
     }
 
     const blocks: Anthropic.ContentBlockParam[] = [];
@@ -214,7 +223,7 @@ export class ClaudeProvider extends BaseLLMProvider {
     for (const block of content) {
       switch (block.type) {
         case "text":
-          blocks.push({ type: "text", text: block.text });
+          blocks.push({ type: "text", text: sanitize(block.text) });
           break;
         case "tool_use":
           blocks.push({
@@ -242,7 +251,7 @@ export class ClaudeProvider extends BaseLLMProvider {
           blocks.push({
             type: "tool_result",
             tool_use_id: block.toolUseId,
-            content: block.content,
+            content: sanitize(block.content),
             ...(block.isError ? { is_error: true } : {}),
           });
           break;

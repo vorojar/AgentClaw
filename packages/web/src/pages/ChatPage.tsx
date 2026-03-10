@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -81,6 +88,16 @@ interface DisplayMessage {
   durationMs?: number;
   toolCallCount?: number;
 }
+
+/* ── Preview Context (allows static mdComponents to open side panel) ── */
+
+interface PreviewFile {
+  href: string;
+  filename: string;
+  downloadHref?: string;
+}
+
+const PreviewContext = createContext<(file: PreviewFile) => void>(() => {});
 
 /* ── Helpers ──────────────────────────────────────── */
 
@@ -249,7 +266,7 @@ function formatUsageStats(msg: DisplayMessage): string | null {
   return parts.length > 0 ? parts.join(" \u00B7 ") : null;
 }
 
-/* ── HTML Preview Card + Overlay ── */
+/* ── HTML Preview Card (opens side panel via context) ── */
 
 function HtmlPreviewCard({
   href,
@@ -261,40 +278,28 @@ function HtmlPreviewCard({
   downloadHref?: string;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const openPreview = useContext(PreviewContext);
   return (
-    <>
-      <div className="html-preview-card" onClick={() => setOpen(true)}>
-        <span className="html-preview-icon">&#9654;</span>
-        <span className="html-preview-name">{filename}</span>
-        <span className="html-preview-badge">{t("chat.preview")}</span>
-      </div>
-      {open &&
-        createPortal(
-          <HtmlPreviewOverlay
-            href={href}
-            filename={filename}
-            downloadHref={downloadHref}
-            onClose={() => setOpen(false)}
-          />,
-          document.body,
-        )}
-    </>
+    <div
+      className="html-preview-card"
+      onClick={() => openPreview({ href, filename, downloadHref })}
+    >
+      <span className="html-preview-icon">&#9654;</span>
+      <span className="html-preview-name">{filename}</span>
+      <span className="html-preview-badge">{t("chat.preview")}</span>
+    </div>
   );
 }
 
-function HtmlPreviewOverlay({
-  href,
-  filename,
-  downloadHref,
+function PreviewPanel({
+  file,
   onClose,
 }: {
-  href: string;
-  filename: string;
-  downloadHref?: string;
+  file: PreviewFile;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const { href, filename, downloadHref } = file;
   const [needsDevServer, setNeedsDevServer] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
 
@@ -303,19 +308,14 @@ function HtmlPreviewOverlay({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKey);
-
-    // Push history entry so browser back closes the overlay
-    history.pushState({ _htmlPreview: true }, "");
-    const onPop = () => onClose();
-    window.addEventListener("popstate", onPop);
-
-    return () => {
-      window.removeEventListener("keydown", handleKey);
-      window.removeEventListener("popstate", onPop);
-      // Clean up dummy history entry if closed by button/Escape (not back)
-      if (history.state?._htmlPreview) history.back();
-    };
+    return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
+
+  // Reset loading state when file changes
+  useEffect(() => {
+    setIframeLoading(true);
+    setNeedsDevServer(false);
+  }, [href]);
 
   // Detect non-self-contained HTML (Vite/webpack projects with module script refs)
   useEffect(() => {
@@ -330,81 +330,84 @@ function HtmlPreviewOverlay({
   }, [href]);
 
   const iframeProp = {
-    className: "html-overlay-iframe",
+    className: "preview-panel-iframe",
     onLoad: () => setIframeLoading(false),
   };
 
   return (
-    <div className="html-overlay">
-      <div className="html-overlay-toolbar">
-        <button
-          className="html-overlay-btn"
-          onClick={onClose}
-          title={t("common.close")}
-        >
-          <IconArrowLeft size={20} />
-        </button>
-        <span className="html-overlay-title">{filename}</span>
+    <div className="preview-panel">
+      <div className="preview-panel-toolbar">
+        <span className="preview-panel-title" title={filename}>
+          {filename}
+        </span>
         {downloadHref && (
           <a
             href={downloadHref}
             download
-            className="html-overlay-btn"
+            className="preview-panel-btn"
             title={t("chat.download")}
           >
-            <IconDownload size={18} />
+            <IconDownload size={16} />
           </a>
         )}
         <a
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="html-overlay-btn"
+          className="preview-panel-btn"
           title={t("chat.openNewTab")}
         >
-          <IconExternalLink size={18} />
+          <IconExternalLink size={16} />
         </a>
+        <button
+          className="preview-panel-btn"
+          onClick={onClose}
+          title={t("common.close")}
+        >
+          <IconX size={16} />
+        </button>
       </div>
-      {iframeLoading && (
-        <div className="html-overlay-loading">
-          <span className="html-overlay-spinner" />
-          <span>{t("chat.loadingPreview")}</span>
-        </div>
-      )}
-      {(() => {
-        if (needsDevServer) {
+      <div className="preview-panel-body">
+        {iframeLoading && (
+          <div className="preview-panel-loading">
+            <span className="preview-panel-spinner" />
+          </div>
+        )}
+        {(() => {
+          if (needsDevServer) {
+            return (
+              <>
+                <iframe
+                  src="http://localhost:5173"
+                  {...iframeProp}
+                  title="Vite dev server preview"
+                />
+                <div className="preview-panel-hint">
+                  If blank, run:{" "}
+                  <code>
+                    cd{" "}
+                    {href
+                      .replace(/^\/files\//, "data/tmp/")
+                      .replace(/\/[^/]+$/, "")}{" "}
+                    && npm run dev
+                  </code>
+                </div>
+              </>
+            );
+          }
+          const isOfficeDoc = /\.(pptx|docx)$/i.test(filename);
           return (
-            <>
-              <iframe
-                src="http://localhost:5173"
-                {...iframeProp}
-                title="Vite dev server preview"
-              />
-              <div className="html-overlay-hint">
-                If blank, run:{" "}
-                <code>
-                  cd{" "}
-                  {href
-                    .replace(/^\/files\//, "data/tmp/")
-                    .replace(/\/[^/]+$/, "")}{" "}
-                  && npm run dev
-                </code>
-              </div>
-            </>
+            <iframe
+              src={href}
+              sandbox={
+                isOfficeDoc ? undefined : "allow-scripts allow-same-origin"
+              }
+              {...iframeProp}
+              title={isOfficeDoc ? "Document preview" : "HTML preview"}
+            />
           );
-        }
-        const isOfficeDoc = /\.(pptx|docx)$/i.test(filename);
-        return (
-          <iframe
-            src={href}
-            sandbox={
-              isOfficeDoc ? undefined : "allow-scripts allow-same-origin"
-            }
-            {...iframeProp}
-            title={isOfficeDoc ? "Document preview" : "HTML preview"}
-          />
-        );
-      })()}
+        })()}
+      </div>
     </div>
   );
 }
@@ -822,6 +825,7 @@ export function ChatPage() {
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [skillMenuOpen, setSkillMenuOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
   >([]);
@@ -1777,601 +1781,641 @@ export function ChatPage() {
     !messages[messages.length - 1].streaming;
 
   return (
-    <FileDropZone onFiles={handleFiles} disabled={isSending}>
-      <div className="chat-page">
-        {/* Header */}
-        <div className="chat-header">
-          {!sidebarOpen && (
-            <button
-              className="btn-icon"
-              onClick={() => setSidebarOpen(true)}
-              title={t("sidebar.show")}
-            >
-              <IconMenu size={18} />
-            </button>
-          )}
-          {editingTitle ? (
-            <input
-              ref={titleInputRef}
-              className="chat-header-title-input"
-              value={editTitleValue}
-              onChange={(e) => setEditTitleValue(e.target.value)}
-              onBlur={() => {
-                const trimmed = editTitleValue.trim();
-                setEditingTitle(false);
-                if (
-                  trimmed &&
-                  activeSessionId &&
-                  trimmed !== activeSession?.title
-                ) {
-                  renameSession(activeSessionId, trimmed)
-                    .then(() => refreshSessions())
-                    .catch((err) => console.error("Failed to rename:", err));
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") setEditingTitle(false);
-              }}
-            />
-          ) : (
-            <span
-              className="chat-header-title"
-              onDoubleClick={() => {
-                setEditTitleValue(activeSession?.title || "");
-                setEditingTitle(true);
-                setTimeout(() => titleInputRef.current?.select(), 0);
-              }}
-              title={t("chat.doubleClickRename")}
-            >
-              {activeProject && (
-                <span
-                  className="chat-header-project"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/projects/${activeProject.id}`);
-                  }}
-                >
-                  {activeProject.name}
-                  <span className="chat-header-sep">/</span>
-                </span>
-              )}
-              {activeSession?.title || "AgentClaw"}
-            </span>
-          )}
-          <div className="chat-header-actions" ref={headerMenuRef}>
-            {!isNewChat && (
+    <PreviewContext.Provider value={setPreviewFile}>
+      <FileDropZone onFiles={handleFiles} disabled={isSending}>
+        <div className={`chat-page${previewFile ? " has-preview" : ""}`}>
+          {/* Header */}
+          <div className="chat-header">
+            {!sidebarOpen && (
               <button
                 className="btn-icon"
-                onClick={() => setHeaderMenuOpen((v) => !v)}
-                title={t("common.more")}
+                onClick={() => setSidebarOpen(true)}
+                title={t("sidebar.show")}
               >
-                <IconMoreHorizontal size={18} />
+                <IconMenu size={18} />
               </button>
             )}
-            {headerMenuOpen && (
-              <div className="header-dropdown">
-                <button onClick={handleHeaderRename}>
-                  <IconEdit size={14} /> {t("common.rename")}
-                </button>
-                {projects.length > 0 && (
-                  <div
-                    className="header-dropdown-sub"
-                    onMouseEnter={() => setHeaderSubMenu(true)}
-                    onMouseLeave={() => setHeaderSubMenu(false)}
-                    onClick={() => setHeaderSubMenu((v) => !v)}
-                  >
-                    <span className="header-dropdown-item">
-                      <IconProjects size={14} /> {t("sidebar.moveToProject")}
-                      <span className="header-dropdown-arrow">›</span>
-                    </span>
-                    {headerSubMenu && (
-                      <div className="header-dropdown-submenu">
-                        {projects.map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveToProject(p.id);
-                            }}
-                          >
-                            <IconProjects size={14} /> {p.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <button
-                  className="header-dropdown-danger"
-                  onClick={handleHeaderDelete}
-                  disabled={!activeSessionId}
-                >
-                  <IconTrash size={14} /> {t("common.delete")}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Disconnected banner */}
-        {wsDisconnected && (
-          <div className="connection-banner">
-            <span>{t("chat.connectionLost")}</span>
-            <button onClick={handleReconnect}>{t("chat.reconnect")}</button>
-          </div>
-        )}
-
-        {/* Tool execution status */}
-        {activeToolName && (
-          <div className="tool-status-bar">
-            <span className="tool-status-spinner" />
-            <span>{t("chat.runningTool", { tool: activeToolName })}</span>
-          </div>
-        )}
-
-        {/* Todo progress card */}
-        {todoItems.length > 0 && (
-          <div className="todo-progress-card">
-            <div className="todo-progress-header">
-              <span className="todo-progress-label">{t("chat.progress")}</span>
-              <span className="todo-progress-count">
-                {todoItems.filter((i) => i.done).length}/{todoItems.length}
-              </span>
-            </div>
-            <div className="todo-progress-bar">
-              <div
-                className="todo-progress-fill"
-                style={{
-                  width: `${(todoItems.filter((i) => i.done).length / todoItems.length) * 100}%`,
+            {editingTitle ? (
+              <input
+                ref={titleInputRef}
+                className="chat-header-title-input"
+                value={editTitleValue}
+                onChange={(e) => setEditTitleValue(e.target.value)}
+                onBlur={() => {
+                  const trimmed = editTitleValue.trim();
+                  setEditingTitle(false);
+                  if (
+                    trimmed &&
+                    activeSessionId &&
+                    trimmed !== activeSession?.title
+                  ) {
+                    renameSession(activeSessionId, trimmed)
+                      .then(() => refreshSessions())
+                      .catch((err) => console.error("Failed to rename:", err));
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  if (e.key === "Escape") setEditingTitle(false);
                 }}
               />
-            </div>
-            <ul className="todo-progress-list">
-              {todoItems.map((item, i) => (
-                <li key={i} className={item.done ? "done" : ""}>
-                  <span className="todo-check">
-                    {item.done ? "\u2713" : "\u25CB"}
-                  </span>
-                  <span>{item.text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Messages */}
-        {messages.length === 0 && !loadingHistory ? (
-          <div className="chat-welcome">
-            {agents.length > 1 && (
-              <div className="agent-selector">
-                {agents.map((a) => (
-                  <button
-                    key={a.id}
-                    className={`agent-chip${pendingAgentId === a.id ? " active" : ""}`}
-                    onClick={() => setPendingAgentId(a.id)}
-                    title={a.description || a.name}
-                  >
-                    {a.avatar && (
-                      <span className="agent-avatar">{a.avatar}</span>
-                    )}
-                    <span>{a.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <h2 className="chat-welcome-title">{t("chat.welcomeTitle")}</h2>
-            <div className="chat-welcome-input">
-              <div className="chat-input-box">
-                <textarea
-                  ref={textareaRef}
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  onPaste={handlePaste}
-                  placeholder={t("chat.askPlaceholder")}
-                  disabled={isSending}
-                  rows={2}
-                />
-                <div className="chat-input-actions">
-                  <div className="chat-input-actions-left">
-                    <button
-                      className="btn-attach"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isSending}
-                      title={t("chat.attachFile")}
-                    >
-                      <IconPaperclip size={18} />
-                    </button>
-                    {skills.length > 0 && (
-                      <div className="skill-menu-anchor" ref={skillMenuRef}>
-                        <button
-                          className={`btn-skill${selectedSkill ? " active" : ""}`}
-                          onClick={() => setSkillMenuOpen((v) => !v)}
-                          disabled={isSending}
-                          title={t("chat.selectSkill")}
-                        >
-                          <IconSkills size={18} />
-                        </button>
-                        {skillMenuOpen && (
-                          <div className="skill-popup">
-                            {skills.slice(0, 5).map((s) => (
-                              <button
-                                key={s.id}
-                                className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
-                                onClick={() => {
-                                  setSelectedSkill((prev) =>
-                                    prev === s.name ? null : s.name,
-                                  );
-                                  setSkillMenuOpen(false);
-                                }}
-                                title={s.description}
-                              >
-                                {s.name}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {selectedSkill && (
-                      <span className="skill-selected-inline">
-                        {selectedSkill}
-                        <button
-                          className="skill-selected-clear"
-                          onClick={() => setSelectedSkill(null)}
-                        >
-                          <IconX size={12} />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                  <div className="chat-input-actions-right">
-                    {isRecording && (
-                      <span className="recording-time">
-                        {Math.floor(recordingTime / 60)}:
-                        {String(recordingTime % 60).padStart(2, "0")}
-                      </span>
-                    )}
-                    <button
-                      className={`btn-voice${isListening || isRecording ? " listening" : ""}`}
-                      onClick={toggleVoice}
-                      disabled={isSending}
-                      title={
-                        isListening || isRecording
-                          ? t("chat.stopVoice")
-                          : t("chat.voiceInput")
-                      }
-                    >
-                      <IconMic size={18} />
-                    </button>
-                    <button
-                      className="btn-send"
-                      onClick={handleSend}
-                      disabled={!canSend}
-                      title={t("chat.sendMessage")}
-                    >
-                      <IconArrowUp size={18} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <PendingFilesList
-                files={pendingFiles}
-                onRemove={removePendingFile}
-                style={{ marginTop: 8, padding: 0 }}
-              />
-            </div>
-            <div className="chat-welcome-skills">
-              {[
-                { label: t("chat.imageGen"), skill: "comfyui" },
-                { label: t("chat.code"), skill: "coding" },
-                { label: t("chat.excel"), skill: "xlsx" },
-                { label: "PDF", skill: "pdf" },
-                { label: t("chat.webSearch"), skill: "web-search" },
-              ].map((item) => (
-                <button
-                  key={item.skill}
-                  className={`welcome-skill-chip${selectedSkill === item.skill ? " active" : ""}`}
-                  onClick={() =>
-                    setSelectedSkill((prev) =>
-                      prev === item.skill ? null : item.skill,
-                    )
-                  }
-                >
-                  {item.label}
-                </button>
-              ))}
-              <button
-                className="welcome-skill-chip"
-                onClick={() => navigate("/skills")}
+            ) : (
+              <span
+                className="chat-header-title"
+                onDoubleClick={() => {
+                  setEditTitleValue(activeSession?.title || "");
+                  setEditingTitle(true);
+                  setTimeout(() => titleInputRef.current?.select(), 0);
+                }}
+                title={t("chat.doubleClickRename")}
               >
-                {t("common.more")}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="messages-container">
-            <div className="messages-list">
-              {messages.map((m, idx) => (
-                <div key={m.key} data-msg-key={m.key}>
-                  {m.role === "system" && m.content ? (
-                    <div className="message-error">
-                      <span className="message-error-icon">
-                        <IconWarning size={16} />
-                      </span>
-                      <span>{m.content}</span>
-                    </div>
-                  ) : (
-                    <>
-                      {(() => {
-                        const visible = m.toolCalls.filter(
-                          (tc) =>
-                            tc.toolName !== "send_file" &&
-                            tc.toolName !== "update_todo",
-                        );
-                        return visible.length > 0 ? (
-                          <ToolCallGroup entries={visible} />
-                        ) : null;
-                      })()}
-                      {m.content &&
-                        (() => {
-                          const parsed = parseMessageContent(m.content);
-
-                          /* Inline editing mode for user messages */
-                          if (m.role === "user" && editingMsgKey === m.key) {
-                            return (
-                              <div className="message-row user">
-                                <div className="message-bubble editing">
-                                  <textarea
-                                    className="edit-msg-textarea"
-                                    value={editMsgValue}
-                                    onChange={(e) =>
-                                      setEditMsgValue(e.target.value)
-                                    }
-                                    autoFocus
-                                    rows={3}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Escape") {
-                                        setEditingMsgKey(null);
-                                      } else if (
-                                        e.key === "Enter" &&
-                                        !e.shiftKey
-                                      ) {
-                                        e.preventDefault();
-                                        handleEditSubmit(m.key);
-                                      }
-                                    }}
-                                  />
-                                  <div className="edit-msg-actions">
-                                    <button
-                                      className="btn-edit-cancel"
-                                      onClick={() => setEditingMsgKey(null)}
-                                    >
-                                      {t("common.cancel")}
-                                    </button>
-                                    <button
-                                      className="btn-edit-submit"
-                                      onClick={() => handleEditSubmit(m.key)}
-                                      disabled={!editMsgValue.trim()}
-                                    >
-                                      {t("common.send")}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div className={`message-row ${m.role}`}>
-                              <div className="message-bubble">
-                                {parsed.images.map((img, i) => (
-                                  <img
-                                    key={i}
-                                    src={`data:${img.mediaType};base64,${img.data}`}
-                                    alt="user image"
-                                    style={{
-                                      maxWidth: "100%",
-                                      maxHeight: "300px",
-                                      borderRadius: "8px",
-                                      marginBottom: parsed.text ? "8px" : 0,
-                                      display: "block",
-                                    }}
-                                  />
-                                ))}
-                                <div className="message-content-md">
-                                  <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                    components={mdComponents}
-                                  >
-                                    {parsed.text}
-                                  </ReactMarkdown>
-                                  {m.streaming && m.toolCalls.length === 0 && (
-                                    <span className="streaming-cursor" />
-                                  )}
-                                </div>
-                                {(m.createdAt ||
-                                  (m.role === "assistant" && !m.streaming)) && (
-                                  <div className="message-meta">
-                                    {formatTimeOnly(m.createdAt)}
-                                    {(() => {
-                                      const usage =
-                                        m.role === "assistant"
-                                          ? formatUsageStats(m)
-                                          : null;
-                                      if (usage) return ` \u00b7 ${usage}`;
-                                      if (m.model) return ` \u00b7 ${m.model}`;
-                                      return "";
-                                    })()}
-                                  </div>
-                                )}
-                                {m.role === "user" && !isSending && (
-                                  <button
-                                    className="btn-edit-msg"
-                                    onClick={() => {
-                                      setEditingMsgKey(m.key);
-                                      setEditMsgValue(parsed.text);
-                                    }}
-                                    title={t("chat.editResend")}
-                                  >
-                                    <IconEdit size={14} />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      {showRegenerate &&
-                        idx === messages.length - 1 &&
-                        m.role === "assistant" && (
-                          <div className="regenerate-row">
-                            <button
-                              className="btn-regenerate"
-                              onClick={handleRegenerate}
-                            >
-                              <IconRefresh size={14} /> {t("chat.regenerate")}
-                            </button>
-                          </div>
-                        )}
-                    </>
-                  )}
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
-        )}
-
-        {/* Hidden file input (always rendered so ref works in both layouts) */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => {
-            if (e.target.files) {
-              handleFiles(Array.from(e.target.files));
-              e.target.value = "";
-            }
-          }}
-        />
-
-        {/* Pending file previews (only in chat mode, welcome has its own) */}
-        {!isNewChat && (
-          <PendingFilesList files={pendingFiles} onRemove={removePendingFile} />
-        )}
-
-        {/* Input Area — hidden on welcome screen */}
-        {!isNewChat && (
-          <div className="chat-input-area">
-            <div className="chat-input-box">
-              <textarea
-                ref={textareaRef}
-                value={inputValue}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                placeholder={getInputPlaceholder()}
-                disabled={isSending && !pendingPrompt}
-                rows={2}
-              />
-              <div className="chat-input-actions">
-                <div className="chat-input-actions-left">
-                  <button
-                    className="btn-attach"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending}
-                    title={t("chat.attachFile")}
+                {activeProject && (
+                  <span
+                    className="chat-header-project"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/projects/${activeProject.id}`);
+                    }}
                   >
-                    <IconPaperclip size={18} />
+                    {activeProject.name}
+                    <span className="chat-header-sep">/</span>
+                  </span>
+                )}
+                {activeSession?.title || "AgentClaw"}
+              </span>
+            )}
+            <div className="chat-header-actions" ref={headerMenuRef}>
+              {!isNewChat && (
+                <button
+                  className="btn-icon"
+                  onClick={() => setHeaderMenuOpen((v) => !v)}
+                  title={t("common.more")}
+                >
+                  <IconMoreHorizontal size={18} />
+                </button>
+              )}
+              {headerMenuOpen && (
+                <div className="header-dropdown">
+                  <button onClick={handleHeaderRename}>
+                    <IconEdit size={14} /> {t("common.rename")}
                   </button>
-                  {skills.length > 0 && (
-                    <div className="skill-menu-anchor" ref={skillMenuRef}>
-                      <button
-                        className={`btn-skill${selectedSkill ? " active" : ""}`}
-                        onClick={() => setSkillMenuOpen((v) => !v)}
-                        disabled={isSending}
-                        title={t("chat.selectSkill")}
-                      >
-                        <IconSkills size={18} />
-                      </button>
-                      {skillMenuOpen && (
-                        <div className="skill-popup">
-                          {skills.slice(0, 5).map((s) => (
+                  {projects.length > 0 && (
+                    <div
+                      className="header-dropdown-sub"
+                      onMouseEnter={() => setHeaderSubMenu(true)}
+                      onMouseLeave={() => setHeaderSubMenu(false)}
+                      onClick={() => setHeaderSubMenu((v) => !v)}
+                    >
+                      <span className="header-dropdown-item">
+                        <IconProjects size={14} /> {t("sidebar.moveToProject")}
+                        <span className="header-dropdown-arrow">›</span>
+                      </span>
+                      {headerSubMenu && (
+                        <div className="header-dropdown-submenu">
+                          {projects.map((p) => (
                             <button
-                              key={s.id}
-                              className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
-                              onClick={() => {
-                                setSelectedSkill((prev) =>
-                                  prev === s.name ? null : s.name,
-                                );
-                                setSkillMenuOpen(false);
+                              key={p.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveToProject(p.id);
                               }}
-                              title={s.description}
                             >
-                              {s.name}
+                              <IconProjects size={14} /> {p.name}
                             </button>
                           ))}
                         </div>
                       )}
                     </div>
                   )}
-                  {selectedSkill && (
-                    <span className="skill-selected-inline">
-                      {selectedSkill}
-                      <button
-                        className="skill-selected-clear"
-                        onClick={() => setSelectedSkill(null)}
-                      >
-                        <IconX size={12} />
-                      </button>
-                    </span>
-                  )}
-                </div>
-                <div className="chat-input-actions-right">
-                  {isRecording && (
-                    <span className="recording-time">
-                      {Math.floor(recordingTime / 60)}:
-                      {String(recordingTime % 60).padStart(2, "0")}
-                    </span>
-                  )}
                   <button
-                    className={`btn-voice${isListening || isRecording ? " listening" : ""}`}
-                    onClick={toggleVoice}
-                    disabled={isSending}
-                    title={
-                      isListening || isRecording
-                        ? t("chat.stopVoice")
-                        : t("chat.voiceInput")
-                    }
+                    className="header-dropdown-danger"
+                    onClick={handleHeaderDelete}
+                    disabled={!activeSessionId}
                   >
-                    <IconMic size={18} />
+                    <IconTrash size={14} /> {t("common.delete")}
                   </button>
-                  {isSending && !pendingPrompt ? (
-                    <button
-                      className="btn-stop"
-                      onClick={handleStop}
-                      title={t("chat.stopGeneration")}
-                    >
-                      <IconSquare size={14} />
-                    </button>
-                  ) : (
-                    <button
-                      className="btn-send"
-                      onClick={handleSend}
-                      disabled={!pendingPrompt && !canSend}
-                      title={t("chat.sendMessage")}
-                    >
-                      <IconArrowUp size={18} />
-                    </button>
-                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
-    </FileDropZone>
+
+          {/* Disconnected banner */}
+          {wsDisconnected && (
+            <div className="connection-banner">
+              <span>{t("chat.connectionLost")}</span>
+              <button onClick={handleReconnect}>{t("chat.reconnect")}</button>
+            </div>
+          )}
+
+          {/* Tool execution status */}
+          {activeToolName && (
+            <div className="tool-status-bar">
+              <span className="tool-status-spinner" />
+              <span>{t("chat.runningTool", { tool: activeToolName })}</span>
+            </div>
+          )}
+
+          {/* Todo progress card */}
+          {todoItems.length > 0 && (
+            <div className="todo-progress-card">
+              <div className="todo-progress-header">
+                <span className="todo-progress-label">
+                  {t("chat.progress")}
+                </span>
+                <span className="todo-progress-count">
+                  {todoItems.filter((i) => i.done).length}/{todoItems.length}
+                </span>
+              </div>
+              <div className="todo-progress-bar">
+                <div
+                  className="todo-progress-fill"
+                  style={{
+                    width: `${(todoItems.filter((i) => i.done).length / todoItems.length) * 100}%`,
+                  }}
+                />
+              </div>
+              <ul className="todo-progress-list">
+                {todoItems.map((item, i) => (
+                  <li key={i} className={item.done ? "done" : ""}>
+                    <span className="todo-check">
+                      {item.done ? "\u2713" : "\u25CB"}
+                    </span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Body: chat main + optional preview panel */}
+          <div className="chat-body">
+            <div className="chat-main">
+              {/* Messages */}
+              {messages.length === 0 && !loadingHistory ? (
+                <div className="chat-welcome">
+                  {agents.length > 1 && (
+                    <div className="agent-selector">
+                      {agents.map((a) => (
+                        <button
+                          key={a.id}
+                          className={`agent-chip${pendingAgentId === a.id ? " active" : ""}`}
+                          onClick={() => setPendingAgentId(a.id)}
+                          title={a.description || a.name}
+                        >
+                          {a.avatar && (
+                            <span className="agent-avatar">{a.avatar}</span>
+                          )}
+                          <span>{a.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <h2 className="chat-welcome-title">
+                    {t("chat.welcomeTitle")}
+                  </h2>
+                  <div className="chat-welcome-input">
+                    <div className="chat-input-box">
+                      <textarea
+                        ref={textareaRef}
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        placeholder={t("chat.askPlaceholder")}
+                        disabled={isSending}
+                        rows={2}
+                      />
+                      <div className="chat-input-actions">
+                        <div className="chat-input-actions-left">
+                          <button
+                            className="btn-attach"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isSending}
+                            title={t("chat.attachFile")}
+                          >
+                            <IconPaperclip size={18} />
+                          </button>
+                          {skills.length > 0 && (
+                            <div
+                              className="skill-menu-anchor"
+                              ref={skillMenuRef}
+                            >
+                              <button
+                                className={`btn-skill${selectedSkill ? " active" : ""}`}
+                                onClick={() => setSkillMenuOpen((v) => !v)}
+                                disabled={isSending}
+                                title={t("chat.selectSkill")}
+                              >
+                                <IconSkills size={18} />
+                              </button>
+                              {skillMenuOpen && (
+                                <div className="skill-popup">
+                                  {skills.slice(0, 5).map((s) => (
+                                    <button
+                                      key={s.id}
+                                      className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
+                                      onClick={() => {
+                                        setSelectedSkill((prev) =>
+                                          prev === s.name ? null : s.name,
+                                        );
+                                        setSkillMenuOpen(false);
+                                      }}
+                                      title={s.description}
+                                    >
+                                      {s.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {selectedSkill && (
+                            <span className="skill-selected-inline">
+                              {selectedSkill}
+                              <button
+                                className="skill-selected-clear"
+                                onClick={() => setSelectedSkill(null)}
+                              >
+                                <IconX size={12} />
+                              </button>
+                            </span>
+                          )}
+                        </div>
+                        <div className="chat-input-actions-right">
+                          {isRecording && (
+                            <span className="recording-time">
+                              {Math.floor(recordingTime / 60)}:
+                              {String(recordingTime % 60).padStart(2, "0")}
+                            </span>
+                          )}
+                          <button
+                            className={`btn-voice${isListening || isRecording ? " listening" : ""}`}
+                            onClick={toggleVoice}
+                            disabled={isSending}
+                            title={
+                              isListening || isRecording
+                                ? t("chat.stopVoice")
+                                : t("chat.voiceInput")
+                            }
+                          >
+                            <IconMic size={18} />
+                          </button>
+                          <button
+                            className="btn-send"
+                            onClick={handleSend}
+                            disabled={!canSend}
+                            title={t("chat.sendMessage")}
+                          >
+                            <IconArrowUp size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <PendingFilesList
+                      files={pendingFiles}
+                      onRemove={removePendingFile}
+                      style={{ marginTop: 8, padding: 0 }}
+                    />
+                  </div>
+                  <div className="chat-welcome-skills">
+                    {[
+                      { label: t("chat.imageGen"), skill: "comfyui" },
+                      { label: t("chat.code"), skill: "coding" },
+                      { label: t("chat.excel"), skill: "xlsx" },
+                      { label: "PDF", skill: "pdf" },
+                      { label: t("chat.webSearch"), skill: "web-search" },
+                    ].map((item) => (
+                      <button
+                        key={item.skill}
+                        className={`welcome-skill-chip${selectedSkill === item.skill ? " active" : ""}`}
+                        onClick={() =>
+                          setSelectedSkill((prev) =>
+                            prev === item.skill ? null : item.skill,
+                          )
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    <button
+                      className="welcome-skill-chip"
+                      onClick={() => navigate("/skills")}
+                    >
+                      {t("common.more")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="messages-container">
+                  <div className="messages-list">
+                    {messages.map((m, idx) => (
+                      <div key={m.key} data-msg-key={m.key}>
+                        {m.role === "system" && m.content ? (
+                          <div className="message-error">
+                            <span className="message-error-icon">
+                              <IconWarning size={16} />
+                            </span>
+                            <span>{m.content}</span>
+                          </div>
+                        ) : (
+                          <>
+                            {(() => {
+                              const visible = m.toolCalls.filter(
+                                (tc) =>
+                                  tc.toolName !== "send_file" &&
+                                  tc.toolName !== "update_todo",
+                              );
+                              return visible.length > 0 ? (
+                                <ToolCallGroup entries={visible} />
+                              ) : null;
+                            })()}
+                            {m.content &&
+                              (() => {
+                                const parsed = parseMessageContent(m.content);
+
+                                /* Inline editing mode for user messages */
+                                if (
+                                  m.role === "user" &&
+                                  editingMsgKey === m.key
+                                ) {
+                                  return (
+                                    <div className="message-row user">
+                                      <div className="message-bubble editing">
+                                        <textarea
+                                          className="edit-msg-textarea"
+                                          value={editMsgValue}
+                                          onChange={(e) =>
+                                            setEditMsgValue(e.target.value)
+                                          }
+                                          autoFocus
+                                          rows={3}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Escape") {
+                                              setEditingMsgKey(null);
+                                            } else if (
+                                              e.key === "Enter" &&
+                                              !e.shiftKey
+                                            ) {
+                                              e.preventDefault();
+                                              handleEditSubmit(m.key);
+                                            }
+                                          }}
+                                        />
+                                        <div className="edit-msg-actions">
+                                          <button
+                                            className="btn-edit-cancel"
+                                            onClick={() =>
+                                              setEditingMsgKey(null)
+                                            }
+                                          >
+                                            {t("common.cancel")}
+                                          </button>
+                                          <button
+                                            className="btn-edit-submit"
+                                            onClick={() =>
+                                              handleEditSubmit(m.key)
+                                            }
+                                            disabled={!editMsgValue.trim()}
+                                          >
+                                            {t("common.send")}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div className={`message-row ${m.role}`}>
+                                    <div className="message-bubble">
+                                      {parsed.images.map((img, i) => (
+                                        <img
+                                          key={i}
+                                          src={`data:${img.mediaType};base64,${img.data}`}
+                                          alt="user image"
+                                          style={{
+                                            maxWidth: "100%",
+                                            maxHeight: "300px",
+                                            borderRadius: "8px",
+                                            marginBottom: parsed.text
+                                              ? "8px"
+                                              : 0,
+                                            display: "block",
+                                          }}
+                                        />
+                                      ))}
+                                      <div className="message-content-md">
+                                        <ReactMarkdown
+                                          remarkPlugins={[remarkGfm]}
+                                          components={mdComponents}
+                                        >
+                                          {parsed.text}
+                                        </ReactMarkdown>
+                                        {m.streaming &&
+                                          m.toolCalls.length === 0 && (
+                                            <span className="streaming-cursor" />
+                                          )}
+                                      </div>
+                                      {(m.createdAt ||
+                                        (m.role === "assistant" &&
+                                          !m.streaming)) && (
+                                        <div className="message-meta">
+                                          {formatTimeOnly(m.createdAt)}
+                                          {(() => {
+                                            const usage =
+                                              m.role === "assistant"
+                                                ? formatUsageStats(m)
+                                                : null;
+                                            if (usage)
+                                              return ` \u00b7 ${usage}`;
+                                            if (m.model)
+                                              return ` \u00b7 ${m.model}`;
+                                            return "";
+                                          })()}
+                                        </div>
+                                      )}
+                                      {m.role === "user" && !isSending && (
+                                        <button
+                                          className="btn-edit-msg"
+                                          onClick={() => {
+                                            setEditingMsgKey(m.key);
+                                            setEditMsgValue(parsed.text);
+                                          }}
+                                          title={t("chat.editResend")}
+                                        >
+                                          <IconEdit size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            {showRegenerate &&
+                              idx === messages.length - 1 &&
+                              m.role === "assistant" && (
+                                <div className="regenerate-row">
+                                  <button
+                                    className="btn-regenerate"
+                                    onClick={handleRegenerate}
+                                  >
+                                    <IconRefresh size={14} />{" "}
+                                    {t("chat.regenerate")}
+                                  </button>
+                                </div>
+                              )}
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </div>
+              )}
+
+              {/* Hidden file input (always rendered so ref works in both layouts) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  if (e.target.files) {
+                    handleFiles(Array.from(e.target.files));
+                    e.target.value = "";
+                  }
+                }}
+              />
+
+              {/* Pending file previews (only in chat mode, welcome has its own) */}
+              {!isNewChat && (
+                <PendingFilesList
+                  files={pendingFiles}
+                  onRemove={removePendingFile}
+                />
+              )}
+
+              {/* Input Area — hidden on welcome screen */}
+              {!isNewChat && (
+                <div className="chat-input-area">
+                  <div className="chat-input-box">
+                    <textarea
+                      ref={textareaRef}
+                      value={inputValue}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      placeholder={getInputPlaceholder()}
+                      disabled={isSending && !pendingPrompt}
+                      rows={2}
+                    />
+                    <div className="chat-input-actions">
+                      <div className="chat-input-actions-left">
+                        <button
+                          className="btn-attach"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isSending}
+                          title={t("chat.attachFile")}
+                        >
+                          <IconPaperclip size={18} />
+                        </button>
+                        {skills.length > 0 && (
+                          <div className="skill-menu-anchor" ref={skillMenuRef}>
+                            <button
+                              className={`btn-skill${selectedSkill ? " active" : ""}`}
+                              onClick={() => setSkillMenuOpen((v) => !v)}
+                              disabled={isSending}
+                              title={t("chat.selectSkill")}
+                            >
+                              <IconSkills size={18} />
+                            </button>
+                            {skillMenuOpen && (
+                              <div className="skill-popup">
+                                {skills.slice(0, 5).map((s) => (
+                                  <button
+                                    key={s.id}
+                                    className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
+                                    onClick={() => {
+                                      setSelectedSkill((prev) =>
+                                        prev === s.name ? null : s.name,
+                                      );
+                                      setSkillMenuOpen(false);
+                                    }}
+                                    title={s.description}
+                                  >
+                                    {s.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {selectedSkill && (
+                          <span className="skill-selected-inline">
+                            {selectedSkill}
+                            <button
+                              className="skill-selected-clear"
+                              onClick={() => setSelectedSkill(null)}
+                            >
+                              <IconX size={12} />
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                      <div className="chat-input-actions-right">
+                        {isRecording && (
+                          <span className="recording-time">
+                            {Math.floor(recordingTime / 60)}:
+                            {String(recordingTime % 60).padStart(2, "0")}
+                          </span>
+                        )}
+                        <button
+                          className={`btn-voice${isListening || isRecording ? " listening" : ""}`}
+                          onClick={toggleVoice}
+                          disabled={isSending}
+                          title={
+                            isListening || isRecording
+                              ? t("chat.stopVoice")
+                              : t("chat.voiceInput")
+                          }
+                        >
+                          <IconMic size={18} />
+                        </button>
+                        {isSending && !pendingPrompt ? (
+                          <button
+                            className="btn-stop"
+                            onClick={handleStop}
+                            title={t("chat.stopGeneration")}
+                          >
+                            <IconSquare size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            className="btn-send"
+                            onClick={handleSend}
+                            disabled={!pendingPrompt && !canSend}
+                            title={t("chat.sendMessage")}
+                          >
+                            <IconArrowUp size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* end chat-main */}
+
+            {previewFile && (
+              <PreviewPanel
+                file={previewFile}
+                onClose={() => setPreviewFile(null)}
+              />
+            )}
+          </div>
+          {/* end chat-body */}
+        </div>
+      </FileDropZone>
+    </PreviewContext.Provider>
   );
 }

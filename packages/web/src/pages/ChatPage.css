@@ -1193,39 +1193,80 @@
   font-weight: 600;
 }
 
-/* ── HTML Preview Overlay (fullscreen) ── */
+/* ── Chat Body (horizontal flex: main + preview panel) ── */
 
-.html-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
+.chat-body {
   display: flex;
-  flex-direction: column;
-  background: var(--bg-primary);
-  animation: fadeIn 0.15s ease;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.html-overlay-toolbar {
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Preview Side Panel ── */
+
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  width: 45%;
+  min-width: 320px;
+  max-width: 700px;
+  border-left: 1px solid var(--border);
+  background: var(--bg-primary);
+  animation: panelSlideIn 0.2s ease;
+}
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.preview-panel-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 4px;
+  padding: 6px 8px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.html-overlay-btn {
+.preview-panel-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 4px;
+}
+
+.preview-panel-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   background: none;
   border: none;
   color: var(--text-secondary);
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition:
     background 0.15s,
@@ -1233,58 +1274,37 @@
   text-decoration: none;
 }
 
-.html-overlay-btn:hover {
+.preview-panel-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
-.html-overlay-title {
+.preview-panel-body {
   flex: 1;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
+  position: relative;
+  min-height: 0;
 }
 
-.html-overlay-hint {
-  padding: 6px 16px;
-  font-size: 12px;
-  color: var(--text-muted);
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
-  text-align: center;
+.preview-panel-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
 }
 
-.html-overlay-hint code {
-  background: var(--bg-tertiary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-primary);
-  user-select: all;
-}
-
-.html-overlay-loading {
+.preview-panel-loading {
   position: absolute;
-  inset: 48px 0 0 0;
+  inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
   background: var(--bg-primary);
-  color: var(--text-muted);
-  font-size: 14px;
   z-index: 1;
 }
 
-.html-overlay-spinner {
-  width: 28px;
-  height: 28px;
+.preview-panel-spinner {
+  width: 24px;
+  height: 24px;
   border: 3px solid var(--border-color);
   border-top-color: var(--accent);
   border-radius: 50%;
@@ -1297,11 +1317,37 @@
   }
 }
 
-.html-overlay-iframe {
-  flex: 1;
-  width: 100%;
-  border: none;
-  background: #fff;
+.preview-panel-hint {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.preview-panel-hint code {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  user-select: all;
+}
+
+/* Mobile: preview panel goes full-screen overlay */
+@media (max-width: 768px) {
+  .chat-page.has-preview .chat-main {
+    display: none;
+  }
+  .preview-panel {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    border-left: none;
+    animation: none;
+  }
 }
 
 .message-content-md pre {

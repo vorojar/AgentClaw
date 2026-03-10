@@ -2,6 +2,9 @@
 
 ## [1.3.4] - 2026-03-10
 
+### 改进
+- **HTML 预览从全屏 overlay 改为侧边 panel**：点击预览卡片在右侧打开 panel 而非全屏遮罩，通过 PreviewContext 传递状态，支持切换不同预览文件
+
 ### 修复
 - **Playwright MCP 无效 surrogate 字符导致 API 400 错误**：工具结果中包含 lone surrogate（如 Playwright 返回的页面内容），导致发给 Claude API 的 JSON 不合法。在 agent-loop 写入前和 context-manager 读取时两层清理，替换为 U+FFFD
 

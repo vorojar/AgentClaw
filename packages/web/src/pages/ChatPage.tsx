@@ -328,8 +328,11 @@ function PreviewPanel({
   }, [href]);
 
   // Fetch source content (for source view and copy)
+  // For files with a separate downloadHref (e.g. md rendered via /preview/),
+  // fetch the original file so "View Source" and "Copy" show raw content.
+  const sourceHref = downloadHref || href;
   useEffect(() => {
-    fetch(href)
+    fetch(sourceHref)
       .then((r) => r.text())
       .then((text) => {
         setSourceContent(text);
@@ -338,7 +341,7 @@ function PreviewPanel({
         }
       })
       .catch(() => {});
-  }, [href]);
+  }, [sourceHref]);
 
   const handleCopy = useCallback(() => {
     if (!sourceContent) return;

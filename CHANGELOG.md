@@ -5,6 +5,9 @@
 ### 修复
 - **file_write 工具容错非 string content**：弱模型（如 doubao）调用 `file_write` 时可能传 Object/Array 而非 String，现在自动 `JSON.stringify` 而不是报错，避免无意义的重试失败
 
+### 新增
+- **fetch-x 技能**：X/Twitter 帖子抓取最优策略（fxtwitter API → xcancel 镜像），避免 trial-and-error 浪费时间。同时添加 Claude Code 自定义命令 `/fetch-x`
+
 ## [1.3.1] - 2026-03-10
 
 ### 修复

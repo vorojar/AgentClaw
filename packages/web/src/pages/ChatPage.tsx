@@ -10,6 +10,7 @@ import {
   type SkillInfo,
   type AgentInfo,
   getHistory,
+  deleteTurnsFrom,
   createSession,
   connectWebSocket,
   uploadFile,
@@ -1437,17 +1438,44 @@ export function ChatPage() {
   }, [isSending, lastUserText]);
 
   const handleEditSubmit = useCallback(
-    (msgKey: string) => {
+    async (msgKey: string) => {
       const text = editMsgValue.trim();
-      if (!text || isSending || !wsRef.current) return;
-      // Truncate everything from this message onwards, then resend
+      if (!text || isSending || !wsRef.current || !activeSessionId) return;
+
+      // Find the message to edit — its createdAt marks the truncation point
+      const targetMsg = messages.find((m) => m.key === msgKey);
+      if (!targetMsg?.createdAt) return;
+
+      setEditingMsgKey(null);
+      setEditMsgValue("");
+
+      // Check if editing the first user message — need to update session title
+      const isFirstUserMsg =
+        messages.findIndex((m) => m.role === "user") ===
+        messages.findIndex((m) => m.key === msgKey);
+
+      // Truncate backend history from this message onwards
+      try {
+        await deleteTurnsFrom(activeSessionId, targetMsg.createdAt);
+      } catch (err) {
+        console.error("Failed to truncate history:", err);
+      }
+
+      // Update session title if editing the first user message
+      if (isFirstUserMsg) {
+        const newTitle = text.slice(0, 50).trim() || "New Chat";
+        updateSession(activeSessionId, { title: newTitle })
+          .then(() => refreshSessions())
+          .catch(() => {});
+      }
+
+      // Truncate frontend messages
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.key === msgKey);
         if (idx < 0) return prev;
         return prev.slice(0, idx);
       });
-      setEditingMsgKey(null);
-      setEditMsgValue("");
+
       // Add new user message and send
       const userMsg: DisplayMessage = {
         key: nextKey(),
@@ -1463,7 +1491,7 @@ export function ChatPage() {
       setIsSending(true);
       wsRef.current!.send(text);
     },
-    [editMsgValue, isSending],
+    [editMsgValue, isSending, activeSessionId, messages, refreshSessions],
   );
 
   const handleFiles = useCallback((files: File[]) => {

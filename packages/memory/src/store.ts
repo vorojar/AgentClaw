@@ -487,6 +487,29 @@ export class SQLiteMemoryStore implements MemoryStore {
     return rows.map(rowToConversationTurn);
   }
 
+  async deleteTurnsFrom(
+    conversationId: string,
+    fromCreatedAt: string,
+  ): Promise<number> {
+    // Clear memory references first
+    this.db
+      .prepare(
+        `UPDATE memories SET source_turn_id = NULL
+         WHERE source_turn_id IN (
+           SELECT id FROM turns WHERE conversation_id = ? AND created_at >= ?
+         )`,
+      )
+      .run(conversationId, fromCreatedAt);
+
+    const result = this.db
+      .prepare(
+        "DELETE FROM turns WHERE conversation_id = ? AND created_at >= ?",
+      )
+      .run(conversationId, fromCreatedAt);
+
+    return result.changes;
+  }
+
   // ─── Chat Targets (for broadcast persistence) ─────────────────
 
   saveChatTarget(platform: string, targetId: string, sessionId?: string): void {

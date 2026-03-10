@@ -222,6 +222,16 @@ export function getHistory(
   return request(`/sessions/${sessionId}/history${qs}`);
 }
 
+export function deleteTurnsFrom(
+  sessionId: string,
+  fromCreatedAt: string,
+): Promise<{ deleted: number }> {
+  return request(
+    `/sessions/${sessionId}/turns?from=${encodeURIComponent(fromCreatedAt)}`,
+    { method: "DELETE" },
+  );
+}
+
 // ── Memory ──────────────────────────────────────────
 
 export interface MemoryInfo {

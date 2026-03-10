@@ -276,4 +276,41 @@ export function registerSessionRoutes(
       }
     },
   );
+
+  // DELETE /api/sessions/:id/turns?from=<ISO timestamp>
+  // Truncate conversation history from a given timestamp (inclusive)
+  app.delete<{ Params: { id: string }; Querystring: { from: string } }>(
+    "/api/sessions/:id/turns",
+    async (req, reply) => {
+      try {
+        const { id } = req.params;
+        const from = req.query.from;
+        if (!from) {
+          return reply
+            .status(400)
+            .send({ error: 'Missing required query param "from"' });
+        }
+
+        const session = await ctx.orchestrator.getSession(id);
+        if (!session) {
+          return reply.status(404).send({ error: `Session not found: ${id}` });
+        }
+
+        if (!ctx.memoryStore.deleteTurnsFrom) {
+          return reply
+            .status(501)
+            .send({ error: "deleteTurnsFrom not supported" });
+        }
+
+        const deleted = await ctx.memoryStore.deleteTurnsFrom(
+          session.conversationId,
+          from,
+        );
+        return reply.send({ deleted });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
 }

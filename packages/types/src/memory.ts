@@ -127,6 +127,12 @@ export interface MemoryStore {
     limit?: number,
   ): Promise<ConversationTurn[]>;
 
+  /** Delete turns from a conversation starting at (inclusive) the given timestamp */
+  deleteTurnsFrom?(
+    conversationId: string,
+    fromCreatedAt: string,
+  ): Promise<number>;
+
   /** Save or update a session */
   saveSession(session: SessionData): Promise<void>;
 

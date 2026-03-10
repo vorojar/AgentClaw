@@ -7,7 +7,9 @@
 - **工具重试限制器误杀修复**：`buildFailKey` 从只用工具名改为包含参数签名，LLM 自我修正后的调用不再被"已失败 2 次"拦截
 
 ### 新增
-- **fetch-x 技能**：X/Twitter 帖子抓取最优策略（fxtwitter API → xcancel 镜像），避免 trial-and-error 浪费时间。同时添加 Claude Code 自定义命令 `/fetch-x`
+- **fetch-x 技能**：X/Twitter 帖子抓取最优策略，避免 trial-and-error 浪费时间。同时添加 Claude Code 自定义命令 `/fetch-x`
+  - fxtwitter API 获取主帖 → browser_cdp 打开 x.com 提取完整线程（含 IIFE evaluate 模板）
+  - 标注 xcancel.com 403、nitter 已关闭、evaluate 禁用顶层 return 等陷阱
 
 ## [1.3.1] - 2026-03-10
 

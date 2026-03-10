@@ -56,9 +56,13 @@ function buildFailKey(
   toolName: string,
   toolInput: Record<string, unknown>,
 ): string {
-  return toolName === "bash" && typeof toolInput?.command === "string"
-    ? `bash:${toolInput.command.slice(0, 80)}`
-    : toolName;
+  // Include distinguishing parameter so a corrected call isn't blocked
+  if (toolName === "bash" && typeof toolInput?.command === "string") {
+    return `bash:${toolInput.command.slice(0, 80)}`;
+  }
+  // For file tools, different paths or content types are different calls
+  const sig = toolInput ? JSON.stringify(toolInput).slice(0, 120) : "";
+  return `${toolName}:${sig}`;
 }
 
 export class SimpleAgentLoop implements AgentLoop {
@@ -231,7 +235,12 @@ export class SimpleAgentLoop implements AgentLoop {
           const img = block as ImageContent;
           const savedPath = imagePathMap.get(img);
           if (savedPath) {
-            return { type: "image", mediaType: img.mediaType, filePath: savedPath, filename: img.filename };
+            return {
+              type: "image",
+              mediaType: img.mediaType,
+              filePath: savedPath,
+              filename: img.filename,
+            };
           }
         }
         return block;

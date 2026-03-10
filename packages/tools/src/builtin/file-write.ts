@@ -22,6 +22,14 @@ export const fileWriteTool: Tool = {
   ): Promise<ToolResult> {
     const filePath = resolveFilePath(input.path as string, context?.workDir);
     const raw = input.content;
+    if (raw == null) {
+      return {
+        content:
+          'Missing required parameter "content". You must provide the file content as a string.',
+        isError: true,
+        metadata: { path: filePath },
+      };
+    }
     const content =
       typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
 

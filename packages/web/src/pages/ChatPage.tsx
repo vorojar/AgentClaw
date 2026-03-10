@@ -935,10 +935,21 @@ export function ChatPage() {
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
   >([]);
-  // Sync streaming state to sidebar
+  // Track which session is actually streaming (not affected by session switching)
+  const streamingSessionRef = useRef<string | null>(null);
   useEffect(() => {
-    setStreamingSessionId(isSending ? activeSessionId : null);
-  }, [isSending, activeSessionId, setStreamingSessionId]);
+    if (isSending) {
+      // Lock to current session when sending starts
+      if (!streamingSessionRef.current) {
+        streamingSessionRef.current = activeSessionId;
+        setStreamingSessionId(activeSessionId);
+      }
+    } else {
+      // Clear when done
+      streamingSessionRef.current = null;
+      setStreamingSessionId(null);
+    }
+  }, [isSending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sessionIdRef = useRef(activeSessionId);
   sessionIdRef.current = activeSessionId;
@@ -1079,6 +1090,8 @@ export function ChatPage() {
     wsRef.current = null;
     setWsConnected(false);
     setWsDisconnected(false);
+    setIsSending(false);
+    setActiveToolName(null);
     if (!activeSessionId) return;
     const conn = connectWebSocket(
       activeSessionId,

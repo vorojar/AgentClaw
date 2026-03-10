@@ -52,6 +52,9 @@ import {
   IconMic,
   IconSkills,
   IconProjects,
+  IconCode,
+  IconEye,
+  IconCopy,
 } from "../components/Icons";
 import { formatDuration, formatTimeOnly } from "../utils/format";
 import {
@@ -303,6 +306,9 @@ function PreviewPanel({
   const [needsDevServer, setNeedsDevServer] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [panelWidth, setPanelWidth] = useState(50); // percentage
+  const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
+  const [sourceContent, setSourceContent] = useState<string>("");
+  const [copied, setCopied] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -313,23 +319,34 @@ function PreviewPanel({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  // Reset loading state when file changes
+  // Reset state when file changes
   useEffect(() => {
     setIframeLoading(true);
     setNeedsDevServer(false);
+    setViewMode("preview");
+    setSourceContent("");
   }, [href]);
 
-  // Detect non-self-contained HTML (Vite/webpack projects with module script refs)
+  // Fetch source content (for source view and copy)
   useEffect(() => {
     fetch(href)
       .then((r) => r.text())
-      .then((html) => {
-        if (/<script\b[^>]*\bsrc=["'](?!https?:\/\/)/.test(html)) {
+      .then((text) => {
+        setSourceContent(text);
+        if (/<script\b[^>]*\bsrc=["'](?!https?:\/\/)/.test(text)) {
           setNeedsDevServer(true);
         }
       })
       .catch(() => {});
   }, [href]);
+
+  const handleCopy = useCallback(() => {
+    if (!sourceContent) return;
+    navigator.clipboard.writeText(sourceContent).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [sourceContent]);
 
   // Drag-to-resize handler
   const onResizeStart = useCallback((e: React.MouseEvent) => {
@@ -378,9 +395,32 @@ function PreviewPanel({
     >
       <div className="resize-handle" onMouseDown={onResizeStart} />
       <div className="preview-panel-toolbar">
+        <button
+          className={`preview-panel-btn ${viewMode === "preview" ? "active" : ""}`}
+          onClick={() => setViewMode("preview")}
+          title={t("chat.preview", "Preview")}
+        >
+          <IconEye size={16} />
+        </button>
+        <button
+          className={`preview-panel-btn ${viewMode === "source" ? "active" : ""}`}
+          onClick={() => setViewMode("source")}
+          title={t("chat.source", "Source")}
+        >
+          <IconCode size={16} />
+        </button>
         <span className="preview-panel-title" title={filename}>
           {filename}
         </span>
+        <button
+          className="preview-panel-btn"
+          onClick={handleCopy}
+          title={
+            copied ? t("common.copied", "Copied!") : t("common.copy", "Copy")
+          }
+        >
+          {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+        </button>
         {downloadHref && (
           <a
             href={downloadHref}
@@ -409,45 +449,53 @@ function PreviewPanel({
         </button>
       </div>
       <div className="preview-panel-body">
-        {iframeLoading && (
-          <div className="preview-panel-loading">
-            <span className="preview-panel-spinner" />
-          </div>
-        )}
-        {(() => {
-          if (needsDevServer) {
-            return (
-              <>
-                <iframe
-                  src="http://localhost:5173"
-                  {...iframeProp}
-                  title="Vite dev server preview"
-                />
-                <div className="preview-panel-hint">
-                  If blank, run:{" "}
-                  <code>
-                    cd{" "}
-                    {href
-                      .replace(/^\/files\//, "data/tmp/")
-                      .replace(/\/[^/]+$/, "")}{" "}
-                    && npm run dev
-                  </code>
-                </div>
-              </>
-            );
-          }
-          const isOfficeDoc = /\.(pptx|docx)$/i.test(filename);
-          return (
-            <iframe
-              src={href}
-              sandbox={
-                isOfficeDoc ? undefined : "allow-scripts allow-same-origin"
+        {viewMode === "source" ? (
+          <pre className="preview-panel-source">
+            <code>{sourceContent}</code>
+          </pre>
+        ) : (
+          <>
+            {iframeLoading && (
+              <div className="preview-panel-loading">
+                <span className="preview-panel-spinner" />
+              </div>
+            )}
+            {(() => {
+              if (needsDevServer) {
+                return (
+                  <>
+                    <iframe
+                      src="http://localhost:5173"
+                      {...iframeProp}
+                      title="Vite dev server preview"
+                    />
+                    <div className="preview-panel-hint">
+                      If blank, run:{" "}
+                      <code>
+                        cd{" "}
+                        {href
+                          .replace(/^\/files\//, "data/tmp/")
+                          .replace(/\/[^/]+$/, "")}{" "}
+                        && npm run dev
+                      </code>
+                    </div>
+                  </>
+                );
               }
-              {...iframeProp}
-              title={isOfficeDoc ? "Document preview" : "HTML preview"}
-            />
-          );
-        })()}
+              const isOfficeDoc = /\.(pptx|docx)$/i.test(filename);
+              return (
+                <iframe
+                  src={href}
+                  sandbox={
+                    isOfficeDoc ? undefined : "allow-scripts allow-same-origin"
+                  }
+                  {...iframeProp}
+                  title={isOfficeDoc ? "Document preview" : "HTML preview"}
+                />
+              );
+            })()}
+          </>
+        )}
       </div>
     </div>
   );

@@ -366,3 +366,30 @@ export function IconDownload({ size }: { size?: number }) {
     </I>
   );
 }
+
+export function IconCode({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </I>
+  );
+}
+
+export function IconEye({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </I>
+  );
+}
+
+export function IconCopy({ size }: { size?: number }) {
+  return (
+    <I size={size}>
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </I>
+  );
+}

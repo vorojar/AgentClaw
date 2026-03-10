@@ -399,8 +399,15 @@ export const browserCdpTool: Tool = {
             return { content: "Missing code parameter", isError: true };
           const page = await ensureBrowser();
           const result = await page.evaluate(code);
+          let text = JSON.stringify(result, null, 2) ?? "(undefined)";
+          const MAX_EVAL_LEN = 8000;
+          if (text.length > MAX_EVAL_LEN) {
+            text =
+              text.slice(0, MAX_EVAL_LEN) +
+              `\n\n... [truncated: ${text.length} chars total, showing first ${MAX_EVAL_LEN}]`;
+          }
           return {
-            content: JSON.stringify(result, null, 2) ?? "(undefined)",
+            content: text,
             isError: false,
           };
         }

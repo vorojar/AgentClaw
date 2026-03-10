@@ -1151,6 +1151,18 @@ export function ChatPage() {
       return;
     }
     switch (msg.type) {
+      case "resuming": {
+        // 服务端重连回放：清除当前 streaming 消息，后续回放事件会重建
+        setIsSending(true);
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === "assistant" && last.streaming) {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+        break;
+      }
       case "text": {
         setActiveToolName(null);
         setMessages((prev) => {

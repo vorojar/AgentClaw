@@ -750,7 +750,8 @@ export interface WSMessage {
     | "broadcast"
     | "prompt"
     | "todo_update"
-    | "session_activity";
+    | "session_activity"
+    | "resuming";
   text?: string;
   toolName?: string;
   toolInput?: string;

@@ -136,20 +136,26 @@ export function getWsClients(): Set<import("ws").WebSocket> {
 /** Ping interval (ms) — keeps Cloudflare Tunnel / reverse proxies alive */
 const WS_PING_INTERVAL = 30_000;
 
+// ── 活跃的 agent 流（session 级别，跨 socket 生存） ──────────────
+interface ActiveStream {
+  /** 所有已发送的 WS 事件（JSON 字符串），用于重连回放 */
+  buffer: string[];
+  /** 当前连接的 socket（断连时为 null，重连时更新） */
+  socketRef: { current: import("ws").WebSocket | null };
+  /** promptUser 回调引用（跨 socket 生存） */
+  pendingPromptRef: {
+    current: ((answer: string) => void) | null;
+    timer: ReturnType<typeof setTimeout> | null;
+  };
+  /** 用户主动停止（点 Stop 按钮） */
+  userAborted: boolean;
+}
+
+const activeStreams = new Map<string, ActiveStream>();
+
 export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
   app.get("/ws", { websocket: true }, (socket, req) => {
     wsClients.add(socket);
-
-    /** Safe send — silently drops if socket is not OPEN */
-    function safeSend(data: string): void {
-      if (socket.readyState === 1 /* OPEN */) {
-        try {
-          socket.send(data);
-        } catch {
-          /* socket closed between check and send — ignore */
-        }
-      }
-    }
 
     // ── Server-side ping to keep connection alive through proxies ──
     let alive = true;
@@ -157,7 +163,6 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
     const pingTimer = setInterval(() => {
       if (!alive) {
         missedPongs++;
-        // Tolerate 2 missed pongs (60s) before killing — long tasks may delay browser
         if (missedPongs >= 2) {
           socket.terminate();
           return;
@@ -172,12 +177,7 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
       alive = true;
       missedPongs = 0;
     });
-    // 处理 error 事件，防止 unhandled error 导致进程崩溃
     socket.on("error", () => {
-      wsClients.delete(socket);
-    });
-    socket.on("close", () => {
-      clearInterval(pingTimer);
       wsClients.delete(socket);
     });
 
@@ -194,8 +194,26 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
       return;
     }
 
-    // promptUser support: resolve pending prompt when user replies
-    let pendingPrompt: ((answer: string) => void) | null = null;
+    // ── 检查是否有正在运行的 agent 流（重连场景） ──
+    const existingStream = activeStreams.get(sessionId);
+    if (existingStream) {
+      // 重连：更新 socket 引用，回放缓冲事件
+      existingStream.socketRef.current = socket;
+      safeSendTo(socket, JSON.stringify({ type: "resuming" }));
+      for (const msg of existingStream.buffer) {
+        safeSendTo(socket, msg);
+      }
+    }
+
+    socket.on("close", () => {
+      clearInterval(pingTimer);
+      wsClients.delete(socket);
+      // 不中止 agent loop —— 仅将 socketRef 置空
+      const stream = activeStreams.get(sessionId);
+      if (stream && stream.socketRef.current === socket) {
+        stream.socketRef.current = null;
+      }
+    });
 
     socket.on("message", async (rawData: Buffer | string) => {
       let parsed: { type?: string; content?: string; skillName?: string };
@@ -204,29 +222,57 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           typeof rawData === "string" ? rawData : rawData.toString("utf-8");
         parsed = JSON.parse(str);
       } catch {
-        safeSend(JSON.stringify({ type: "error", error: "Invalid JSON" }));
+        safeSendTo(
+          socket,
+          JSON.stringify({ type: "error", error: "Invalid JSON" }),
+        );
         return;
       }
 
+      // ── stop：用户主动停止 ──
       if (parsed.type === "stop") {
+        const stream = activeStreams.get(sessionId);
+        if (stream) stream.userAborted = true;
         const stopped = ctx.orchestrator.stopSession(sessionId);
-        safeSend(JSON.stringify({ type: "stopped", success: stopped }));
+        safeSendTo(
+          socket,
+          JSON.stringify({ type: "stopped", success: stopped }),
+        );
         return;
       }
 
+      // ── prompt_reply：回复 ask_user ──
       if (parsed.type === "prompt_reply") {
-        if (pendingPrompt) {
-          pendingPrompt(parsed.content ?? "");
-          pendingPrompt = null;
+        const stream = activeStreams.get(sessionId);
+        if (stream?.pendingPromptRef.current) {
+          stream.pendingPromptRef.current(parsed.content ?? "");
+          stream.pendingPromptRef.current = null;
+          if (stream.pendingPromptRef.timer) {
+            clearTimeout(stream.pendingPromptRef.timer);
+            stream.pendingPromptRef.timer = null;
+          }
         }
         return;
       }
 
       if (parsed.type !== "message" || !parsed.content) {
-        safeSend(
+        safeSendTo(
+          socket,
           JSON.stringify({
             type: "error",
             error: "Expected { type: 'message', content: '...' }",
+          }),
+        );
+        return;
+      }
+
+      // ── 如果该 session 已有活跃流，拒绝新消息 ──
+      if (activeStreams.has(sessionId)) {
+        safeSendTo(
+          socket,
+          JSON.stringify({
+            type: "error",
+            error: "Agent is still processing. Please wait or stop first.",
           }),
         );
         return;
@@ -236,7 +282,8 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
         // Verify session exists
         const session = await ctx.orchestrator.getSession(sessionId);
         if (!session) {
-          safeSend(
+          safeSendTo(
+            socket,
             JSON.stringify({
               type: "error",
               error: `Session not found: ${sessionId}`,
@@ -245,7 +292,29 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           return;
         }
 
-        // Build tool execution context with sendFile support
+        // ── 创建 ActiveStream ──
+        const stream: ActiveStream = {
+          buffer: [],
+          socketRef: { current: socket },
+          pendingPromptRef: { current: null, timer: null },
+          userAborted: false,
+        };
+        activeStreams.set(sessionId, stream);
+
+        /** 发送事件到当前 socket + 缓冲（跨 socket 生存） */
+        function streamSend(data: string): void {
+          stream.buffer.push(data);
+          const s = stream.socketRef.current;
+          if (s && s.readyState === 1) {
+            try {
+              s.send(data);
+            } catch {
+              /* socket closed between check and send — ignore */
+            }
+          }
+        }
+
+        // Build tool execution context
         const sentFiles: Array<{ url: string; filename: string }> = [];
         const context: ToolExecutionContext = {
           sentFiles,
@@ -256,10 +325,8 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
             const abs = resolve(filePath);
             let relPath = filename;
             if (abs.startsWith(tmpDir)) {
-              // Preserve subdirectory path relative to data/tmp for correct static serving
               relPath = relative(tmpDir, abs).replace(/\\/g, "/");
             } else {
-              // File is outside served dir — copy into data/tmp/ so /files/ can serve it
               mkdirSync(tmpDir, { recursive: true });
               const dest = join(tmpDir, filename);
               try {
@@ -272,45 +339,43 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
             if (!sentFiles.some((f) => f.url === url)) {
               sentFiles.push({ url, filename });
             }
-            safeSend(JSON.stringify({ type: "file", url, filename }));
+            streamSend(JSON.stringify({ type: "file", url, filename }));
           },
           streamText: (text: string) => {
-            safeSend(JSON.stringify({ type: "text", text }));
+            streamSend(JSON.stringify({ type: "text", text }));
           },
           todoNotify: (items: Array<{ text: string; done: boolean }>) => {
-            safeSend(JSON.stringify({ type: "todo_update", items }));
+            streamSend(JSON.stringify({ type: "todo_update", items }));
           },
           promptUser: (question: string) => {
-            return new Promise<string>((resolve) => {
+            return new Promise<string>((resolvePrompt) => {
               const timer = setTimeout(
                 () => {
-                  pendingPrompt = null;
-                  resolve("[用户未在 5 分钟内回答]");
+                  stream.pendingPromptRef.current = null;
+                  stream.pendingPromptRef.timer = null;
+                  resolvePrompt("[用户未在 5 分钟内回答]");
                 },
                 5 * 60 * 1000,
               );
-              pendingPrompt = (answer: string) => {
+              stream.pendingPromptRef.current = (answer: string) => {
                 clearTimeout(timer);
-                resolve(answer);
+                resolvePrompt(answer);
               };
-              safeSend(JSON.stringify({ type: "prompt", question }));
+              stream.pendingPromptRef.timer = timer;
+              streamSend(JSON.stringify({ type: "prompt", question }));
             });
           },
           notifyUser: async (message: string) => {
-            safeSend(JSON.stringify({ type: "tool_progress", text: message }));
+            streamSend(JSON.stringify({ type: "tool_progress", text: message }));
           },
         };
 
-        // Convert uploaded images to multimodal ContentBlock[]
-        // 保留原始文本，agent-loop 用于 DB 存储（刷新后显示的是这个）
-        // 清理 /files/hex URL，防止 LLM 从历史上下文中拾取错误路径
         context.originalUserText = parsed.content.replace(
           /\[Uploaded:\s*([^\]]*)\]\(\/files\/[^)]+\)/g,
           "[$1]",
         );
         const userContent = await parseUserContent(parsed.content);
 
-        // Use processInputStream for streaming events
         const eventStream = ctx.orchestrator.processInputStream(
           sessionId,
           userContent,
@@ -326,92 +391,110 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           toolCallCount?: number;
         } = {};
 
-        // 客户端断开后停止迭代 eventStream，避免资源浪费
-        let aborted = false;
-        socket.once("close", () => {
-          aborted = true;
-        });
-
-        for await (const event of eventStream) {
-          if (aborted) break;
-          switch (event.type) {
-            case "tool_call": {
-              const data = event.data as { name: string; input: unknown };
-              safeSend(
-                JSON.stringify({
-                  type: "tool_call",
-                  toolName: data.name,
-                  toolInput:
-                    typeof data.input === "string"
-                      ? data.input
-                      : JSON.stringify(data.input),
-                }),
-              );
-              break;
+        // ── 消费事件流（不受 socket 断连影响） ──
+        try {
+          for await (const event of eventStream) {
+            if (stream.userAborted) break;
+            switch (event.type) {
+              case "tool_call": {
+                const data = event.data as { name: string; input: unknown };
+                streamSend(
+                  JSON.stringify({
+                    type: "tool_call",
+                    toolName: data.name,
+                    toolInput:
+                      typeof data.input === "string"
+                        ? data.input
+                        : JSON.stringify(data.input),
+                  }),
+                );
+                break;
+              }
+              case "tool_result": {
+                const data = event.data as {
+                  name: string;
+                  result: { content: string };
+                  durationMs?: number;
+                };
+                streamSend(
+                  JSON.stringify({
+                    type: "tool_result",
+                    toolName: data.name,
+                    toolResult: data.result.content,
+                    durationMs: data.durationMs,
+                  }),
+                );
+                break;
+              }
+              case "response_chunk": {
+                const data = event.data as { text: string };
+                streamSend(
+                  JSON.stringify({
+                    type: "text",
+                    text: data.text,
+                  }),
+                );
+                break;
+              }
+              case "response_complete": {
+                const data = event.data as { message: Message };
+                usageStats = {
+                  model: data.message.model,
+                  tokensIn: data.message.tokensIn,
+                  tokensOut: data.message.tokensOut,
+                  durationMs: data.message.durationMs,
+                  toolCallCount: data.message.toolCallCount,
+                };
+                break;
+              }
+              case "error": {
+                const data = event.data as {
+                  message?: string;
+                  error?: string;
+                };
+                streamSend(
+                  JSON.stringify({
+                    type: "error",
+                    error: data.message || data.error || "Unknown error",
+                  }),
+                );
+                break;
+              }
+              case "thinking":
+                streamSend(JSON.stringify({ type: "thinking" }));
+                break;
+              default:
+                break;
             }
-            case "tool_result": {
-              const data = event.data as {
-                name: string;
-                result: { content: string };
-                durationMs?: number;
-              };
-              safeSend(
-                JSON.stringify({
-                  type: "tool_result",
-                  toolName: data.name,
-                  toolResult: data.result.content,
-                  durationMs: data.durationMs,
-                }),
-              );
-              break;
-            }
-            case "response_chunk": {
-              const data = event.data as { text: string };
-              safeSend(
-                JSON.stringify({
-                  type: "text",
-                  text: data.text,
-                }),
-              );
-              break;
-            }
-            case "response_complete": {
-              const data = event.data as { message: Message };
-              usageStats = {
-                model: data.message.model,
-                tokensIn: data.message.tokensIn,
-                tokensOut: data.message.tokensOut,
-                durationMs: data.message.durationMs,
-                toolCallCount: data.message.toolCallCount,
-              };
-              break;
-            }
-            case "error": {
-              const data = event.data as { message?: string; error?: string };
-              safeSend(
-                JSON.stringify({
-                  type: "error",
-                  error: data.message || data.error || "Unknown error",
-                }),
-              );
-              break;
-            }
-            case "thinking":
-              safeSend(JSON.stringify({ type: "thinking" }));
-              break;
-            default:
-              // state_change — skip
-              break;
           }
-        }
 
-        safeSend(JSON.stringify({ type: "done", ...usageStats }));
+          streamSend(JSON.stringify({ type: "done", ...usageStats }));
+        } catch (err: unknown) {
+          Sentry.captureException(err);
+          const message = err instanceof Error ? err.message : String(err);
+          streamSend(JSON.stringify({ type: "error", error: message }));
+          streamSend(JSON.stringify({ type: "done" }));
+        } finally {
+          activeStreams.delete(sessionId);
+        }
       } catch (err: unknown) {
         Sentry.captureException(err);
         const message = err instanceof Error ? err.message : String(err);
-        safeSend(JSON.stringify({ type: "error", error: message }));
-        safeSend(JSON.stringify({ type: "done" }));
+        safeSendTo(socket, JSON.stringify({ type: "error", error: message }));
+        safeSendTo(socket, JSON.stringify({ type: "done" }));
+        activeStreams.delete(sessionId);
       }
     });
   });
+}
+
+/** Safe send to a specific socket — silently drops if not OPEN */
+function safeSendTo(socket: import("ws").WebSocket, data: string): void {
+  if (socket.readyState === 1) {
+    try {
+      socket.send(data);
+    } catch {
+      /* ignore */
+    }
+  }
 }

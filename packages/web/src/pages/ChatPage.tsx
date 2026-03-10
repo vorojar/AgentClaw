@@ -973,6 +973,8 @@ export function ChatPage() {
   );
   const skipHistoryRef = useRef(false);
   const stoppedRef = useRef(false);
+  /** WS 重连回放中：history 加载完后保留 streaming 消息 */
+  const resumingRef = useRef(false);
   const sendTimestampRef = useRef(0);
 
   useEffect(() => {
@@ -1029,7 +1031,16 @@ export function ChatPage() {
       try {
         const history = await getHistory(activeSessionId!);
         if (cancelled) return;
-        setMessages(historyToDisplayMessages(history));
+        const historyMessages = historyToDisplayMessages(history);
+        if (resumingRef.current) {
+          // WS 回放中：history 放前面，保留当前 streaming 消息在末尾
+          setMessages((prev) => {
+            const streaming = prev.filter((m) => m.streaming);
+            return [...historyMessages, ...streaming];
+          });
+        } else {
+          setMessages(historyMessages);
+        }
       } catch (err) {
         console.error("Failed to load history:", err);
         if (!cancelled) setMessages([]);
@@ -1152,7 +1163,8 @@ export function ChatPage() {
     }
     switch (msg.type) {
       case "resuming": {
-        // 服务端重连回放：清除当前 streaming 消息，后续回放事件会重建
+        // 服务端重连回放：标记回放中，防止 history 加载覆盖 streaming 状态
+        resumingRef.current = true;
         setIsSending(true);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
@@ -1324,6 +1336,7 @@ export function ChatPage() {
       }
       case "done": {
         stoppedRef.current = false;
+        resumingRef.current = false;
         setActiveToolName(null);
         const elapsed = sendTimestampRef.current
           ? Date.now() - sendTimestampRef.current

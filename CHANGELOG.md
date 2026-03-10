@@ -1,5 +1,10 @@
 # 更新日志
 
+## [1.3.4] - 2026-03-10
+
+### 修复
+- **Playwright MCP 无效 surrogate 字符导致 API 400 错误**：工具结果中包含 lone surrogate（如 Playwright 返回的页面内容），导致发给 Claude API 的 JSON 不合法。在 agent-loop 写入前和 context-manager 读取时两层清理，替换为 U+FFFD
+
 ## [1.3.3] - 2026-03-10
 
 ### 新增

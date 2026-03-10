@@ -3,11 +3,20 @@ import type {
   ContextManager,
   Message,
   ContentBlock,
+  ToolResultContent,
   MemoryStore,
   ConversationTurn,
   SkillRegistry,
   LLMProvider,
 } from "@agentclaw/types";
+
+/** Remove lone surrogates that break JSON serialization */
+function sanitizeString(s: string): string {
+  return s.replace(
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
+    "\uFFFD",
+  );
+}
 
 const DEFAULT_SYSTEM_PROMPT = `You are AgentClaw, a powerful AI assistant.
 
@@ -372,6 +381,14 @@ export class SimpleContextManager implements ContextManager {
     if (turn.role === "tool") {
       try {
         const blocks = JSON.parse(turn.content) as ContentBlock[];
+        // Sanitize tool result content to remove lone surrogates from DB
+        for (const b of blocks) {
+          if ((b as ToolResultContent).type === "tool_result") {
+            (b as ToolResultContent).content = sanitizeString(
+              (b as ToolResultContent).content,
+            );
+          }
+        }
         return {
           id: turn.id,
           role: "tool",

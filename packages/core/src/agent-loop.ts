@@ -48,6 +48,15 @@ const RETRYABLE_TOOLS = new Set([
 
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 2000; // ms
+
+/** Remove lone surrogates that break JSON serialization (e.g. from Playwright MCP) */
+function sanitizeString(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
+    "\uFFFD",
+  );
+}
 /** Stop the loop if this many consecutive iterations produce only errors */
 const MAX_CONSECUTIVE_ERRORS = 3;
 
@@ -669,6 +678,9 @@ export class SimpleAgentLoop implements AgentLoop {
           isError: result.isError,
           durationMs: toolDurationMs,
         } as TraceStep);
+
+        // Sanitize tool output to remove lone surrogates that break JSON/API calls
+        result.content = sanitizeString(result.content);
 
         // Store tool result as a turn
         const toolResultContent: ToolResultContent = {

@@ -937,19 +937,6 @@ export function ChatPage() {
   >([]);
   // Track which session is actually streaming (not affected by session switching)
   const streamingSessionRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (isSending) {
-      // Lock to current session when sending starts
-      if (!streamingSessionRef.current) {
-        streamingSessionRef.current = activeSessionId;
-        setStreamingSessionId(activeSessionId);
-      }
-    } else {
-      // Clear when done
-      streamingSessionRef.current = null;
-      setStreamingSessionId(null);
-    }
-  }, [isSending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sessionIdRef = useRef(activeSessionId);
   sessionIdRef.current = activeSessionId;
@@ -1051,9 +1038,20 @@ export function ChatPage() {
         const historyMessages = historyToDisplayMessages(history);
         if (resumingRef.current) {
           // WS 回放中：history 放前面，保留当前 streaming 消息在末尾
+          // Buffer 回放已包含当前 assistant 轮的完整状态，
+          // 去掉 history 末尾的 assistant 消息避免重复
           setMessages((prev) => {
             const streaming = prev.filter((m) => m.streaming);
-            return [...historyMessages, ...streaming];
+            let trimmed = historyMessages;
+            if (streaming.length > 0) {
+              while (
+                trimmed.length > 0 &&
+                trimmed[trimmed.length - 1].role === "assistant"
+              ) {
+                trimmed = trimmed.slice(0, -1);
+              }
+            }
+            return [...trimmed, ...streaming];
           });
         } else {
           setMessages(historyMessages);
@@ -1092,6 +1090,7 @@ export function ChatPage() {
     setWsDisconnected(false);
     setIsSending(false);
     setActiveToolName(null);
+    resumingRef.current = false;
     if (!activeSessionId) return;
     const conn = connectWebSocket(
       activeSessionId,
@@ -1129,6 +1128,25 @@ export function ChatPage() {
             pendingSendRef.current = null;
             pendingSkillRef.current = null;
             conn.send(msg, skill ?? undefined);
+          }
+          // If reconnecting to the session that was streaming, check if it's still active.
+          // Server sends "resuming" synchronously on connect if still streaming.
+          // If no "resuming" arrives within 500ms, the session has finished — clear stale spinner.
+          if (
+            streamingSessionRef.current &&
+            streamingSessionRef.current === activeSessionId
+          ) {
+            const snap = streamingSessionRef.current;
+            setTimeout(() => {
+              if (
+                wsGenRef.current === gen &&
+                streamingSessionRef.current === snap &&
+                !resumingRef.current
+              ) {
+                streamingSessionRef.current = null;
+                setStreamingSessionId(null);
+              }
+            }, 500);
           }
         }
       },
@@ -1185,6 +1203,8 @@ export function ChatPage() {
         // 服务端重连回放：标记回放中，防止 history 加载覆盖 streaming 状态
         resumingRef.current = true;
         setIsSending(true);
+        streamingSessionRef.current = sessionIdRef.current;
+        setStreamingSessionId(sessionIdRef.current);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
@@ -1411,6 +1431,8 @@ export function ChatPage() {
           return prev;
         });
         setIsSending(false);
+        streamingSessionRef.current = null;
+        setStreamingSessionId(null);
         refreshSessions();
         break;
       }
@@ -1555,6 +1577,8 @@ export function ChatPage() {
     setLastUserText(contentToSend);
     sendTimestampRef.current = Date.now();
     setIsSending(true);
+    streamingSessionRef.current = activeSessionId;
+    setStreamingSessionId(activeSessionId);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     const skillToSend = selectedSkill || undefined;

@@ -11,9 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **写代码** — 完成所有改动
 2. **构建验证** — `npm run build` 确认编译通过
-3. **前端验证** — 改了前端代码时，用 Playwright MCP 打开页面验证渲染和交互
-4. **提交推送** — `git commit` + `git push`，同步更新 CHANGELOG.md
-5. **压缩不是借口** — 如果上下文被压缩，回来后先检查 `git status` 和 `git diff`，确认是否有未完成的步骤
+3. **提交推送** — `git commit` + `git push`，同步更新 CHANGELOG.md
+4. **压缩不是借口** — 如果上下文被压缩，回来后先检查 `git status` 和 `git diff`，确认是否有未完成的步骤
 
 ## 开发纪律
 
@@ -118,17 +117,6 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / QQ / 钉钉 
 - `OPENAI_BASE_URL` — 用于 DeepSeek/Kimi/Qwen 等兼容 API
 - `DEFAULT_MODEL` — 默认模型名
 - `PORT` / `HOST` — gateway 监听地址（默认 3100 / 0.0.0.0）
-
-## 前端调试规则
-
-- 修改前端代码后，用 Playwright MCP 验证：
-  1. `browser_navigate` 打开相关页面
-  2. `browser_snapshot` 获取页面结构（优先用这个，比截图省 token）
-  3. `browser_console_logs` 检查有无报错
-  4. 如有报错或渲染异常，修复后重新验证，直到无错
-- 需要验证视觉效果时才用 `browser_screenshot`（布局、样式问题）
-- 需要测试交互时用 `browser_click` / `browser_type` 模拟操作
-- 开发服务器地址： http://localhost:3100
 
 ## 开发约定
 

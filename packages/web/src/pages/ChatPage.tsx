@@ -314,7 +314,7 @@ function PreviewPanel({
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
   const [sourceContent, setSourceContent] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [cacheBuster, setCacheBuster] = useState(Date.now);
+  const [cacheBuster, setCacheBuster] = useState(Date.now());
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -349,7 +349,7 @@ function PreviewPanel({
         }
       })
       .catch(() => {});
-  }, [sourceHref, isBinary]);
+  }, [sourceHref, isBinary, cacheBuster]);
 
   const handleCopy = useCallback(() => {
     if (!sourceContent) return;
@@ -433,13 +433,6 @@ function PreviewPanel({
           onClick={() => {
             setCacheBuster(Date.now());
             setIframeLoading(true);
-            // Also refresh source content
-            if (!isBinary) {
-              fetch(sourceHref)
-                .then((r) => r.text())
-                .then(setSourceContent)
-                .catch(() => {});
-            }
           }}
           title={t("common.refresh", "Refresh")}
         >

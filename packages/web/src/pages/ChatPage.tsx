@@ -314,6 +314,7 @@ function PreviewPanel({
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
   const [sourceContent, setSourceContent] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [cacheBuster, setCacheBuster] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -392,6 +393,9 @@ function PreviewPanel({
     document.addEventListener("mouseup", onUp);
   }, []);
 
+  const bustHref = cacheBuster
+    ? `${href}${href.includes("?") ? "&" : "?"}t=${cacheBuster}`
+    : href;
   const iframeProp = {
     className: "preview-panel-iframe",
     onLoad: () => setIframeLoading(false),
@@ -426,6 +430,23 @@ function PreviewPanel({
         <span className="preview-panel-title" title={filename}>
           {filename}
         </span>
+        <button
+          className="preview-panel-btn"
+          onClick={() => {
+            setCacheBuster(Date.now());
+            setIframeLoading(true);
+            // Also refresh source content
+            if (!isBinary) {
+              fetch(sourceHref)
+                .then((r) => r.text())
+                .then(setSourceContent)
+                .catch(() => {});
+            }
+          }}
+          title={t("common.refresh", "Refresh")}
+        >
+          <IconRefresh size={16} />
+        </button>
         {!isBinary && (
           <button
             className="preview-panel-btn"
@@ -501,7 +522,7 @@ function PreviewPanel({
               const isOfficeDoc = /\.(pptx|docx)$/i.test(filename);
               return (
                 <iframe
-                  src={href}
+                  src={bustHref}
                   sandbox={
                     isOfficeDoc ? undefined : "allow-scripts allow-same-origin"
                   }

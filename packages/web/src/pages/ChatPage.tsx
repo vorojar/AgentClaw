@@ -314,7 +314,7 @@ function PreviewPanel({
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
   const [sourceContent, setSourceContent] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [cacheBuster, setCacheBuster] = useState(0);
+  const [cacheBuster, setCacheBuster] = useState(Date.now);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -393,9 +393,7 @@ function PreviewPanel({
     document.addEventListener("mouseup", onUp);
   }, []);
 
-  const bustHref = cacheBuster
-    ? `${href}${href.includes("?") ? "&" : "?"}t=${cacheBuster}`
-    : href;
+  const bustHref = `${href}${href.includes("?") ? "&" : "?"}t=${cacheBuster}`;
   const iframeProp = {
     className: "preview-panel-iframe",
     onLoad: () => setIframeLoading(false),

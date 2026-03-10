@@ -63,7 +63,7 @@ types → providers/tools/memory → core → gateway/cli
 | `core` | SimpleAgentLoop（思考-行动-观察循环）、SimpleOrchestrator（会话管理）、SimplePlanner（任务分解）、ContextManager、MemoryExtractor、SkillRegistry、ToolHookManager（工具钩子）、SimpleSubAgentManager（子代理） |
 | `gateway` | Fastify HTTP/WS 服务 + ChannelManager（统一渠道生命周期）+ REST API + 定时任务调度 |
 | `cli` | 终端交互式对话 |
-| `web` | React 19 + Vite 前端（ChatPage, PlansPage, MemoryPage, SettingsPage） |
+| `web` | React 19 + Vite 前端（ChatPage, TasksPage, AgentsPage, ProjectDetailPage, SettingsPage, SkillsPage, MemoryPage, TracesPage 等） |
 
 ### 核心数据流
 
@@ -105,7 +105,7 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / QQ / 钉钉 
 ### 工具分层
 
 - **核心工具（永远加载）**：shell, file_read, file_write, file_edit, glob, grep, ask_user, web_fetch, web_search
-- **条件工具（按配置加载）**：send_file/schedule/update_todo (gateway), remember (memory), use_skill (skills), claude_code (claudeCode)
+- **条件工具（按配置加载）**：send_file/schedule/update_todo (gateway), remember (memory), use_skill (skills), claude_code (claudeCode), sandbox, subagent, browser_cdp, social_post
 
 ### Skill 系统
 

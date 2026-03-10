@@ -48,7 +48,7 @@ agentclaw/
 │   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp/DingTalk/Feishu/QQ Bot + 定时调度 + TaskManager
 │   ├── cli/         — 终端交互式对话
 │   └── web/         — React 19 + Vite 前端
-├── skills/          — 19 个技能定义 (SKILL.md)
+├── skills/          — 16 个技能定义 (SKILL.md)
 ├── docs/            — 架构文档 + 路线图
 └── data/            — 运行时数据 (部分 gitignored)
     └── agents/      — Agent 人格配置 (config.json + SOUL.md，纳入 git)
@@ -108,6 +108,7 @@ npm run cli          # 终端交互模式
 - **QQ Bot** — QQ 开放平台官方 API v2，WebSocket 模式
 - **钉钉** — Stream 模式，无需公网 IP
 - **飞书** — WebSocket 模式，无需公网 IP
+- **企业微信** — WebSocket 模式，@wecom/aibot-node-sdk
 - **REST API** — 会话、消息、Traces、Token 日志、配置、记忆
 
 ### 模型 Failover
@@ -154,15 +155,18 @@ npm run cli          # 终端交互模式
 | 核心 | `glob` | 按文件名模式搜索文件 |
 | 核心 | `grep` | 按正则搜索文件内容 |
 | 核心 | `ask_user` | 向用户提问 |
+| 核心 | `web_fetch` | 抓取网页内容（Readability 正文提取 + SPA 自动降级 Playwright） |
+| 核心 | `web_search` | 搜索互联网（SearXNG + Serper fallback） |
 | 条件 | `send_file` | 发送文件给用户 |
-| 条件 | `set_reminder` | 设置提醒 |
 | 条件 | `schedule` | 创建定时任务 |
+| 条件 | `update_todo` | 实时进度追踪 |
 | 条件 | `remember` | 保存长期记忆 |
-| 条件 | `plan_task` | 任务规划和分解 |
 | 条件 | `use_skill` | 调用技能 |
 | 条件 | `sandbox` | Docker 容器内安全执行命令 |
 | 条件 | `subagent` | 子代理编排（spawn/result/kill/list） |
 | 条件 | `browser_cdp` | 浏览器 CDP 自动化（Playwright） |
+| 条件 | `social_post` | 一键发帖到 X/小红书/即刻 |
+| 条件 | `claude_code` | 委托 Claude Code CLI 执行编码任务 |
 
 ## 技能系统
 
@@ -226,6 +230,7 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 | `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET` | 否 | 启用钉钉 Bot |
 | `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 否 | 启用飞书 Bot |
 | `QQ_BOT_APP_ID` / `QQ_BOT_APP_SECRET` | 否 | 启用 QQ Bot |
+| `WECOM_BOT_ID` / `WECOM_BOT_SECRET` | 否 | 启用企业微信 Bot |
 
 ## Web UI
 

@@ -63,6 +63,7 @@ export function Layout() {
     handleNewChat,
     handleDeleteSession,
     handleSelectSession,
+    streamingSessionId,
     projects,
     handleCreateProject,
     refreshSessions,
@@ -391,6 +392,9 @@ export function Layout() {
                         />
                       ) : (
                         <span className="sidebar-session-label">
+                          {s.id === streamingSessionId && (
+                            <span className="sidebar-session-spinner" />
+                          )}
                           {formatSessionLabel(s)}
                         </span>
                       )}

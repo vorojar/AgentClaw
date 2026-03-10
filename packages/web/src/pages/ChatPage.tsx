@@ -904,6 +904,7 @@ export function ChatPage() {
     pendingAgentId,
     setPendingAgentId,
     projects,
+    setStreamingSessionId,
   } = useSession();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -934,6 +935,11 @@ export function ChatPage() {
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
   >([]);
+  // Sync streaming state to sidebar
+  useEffect(() => {
+    setStreamingSessionId(isSending ? activeSessionId : null);
+  }, [isSending, activeSessionId, setStreamingSessionId]);
+
   const sessionIdRef = useRef(activeSessionId);
   sessionIdRef.current = activeSessionId;
   const skillMenuRef = useRef<HTMLDivElement>(null);

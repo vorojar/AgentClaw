@@ -27,10 +27,13 @@ interface SessionContextValue {
   searchQuery: string;
   pendingAgentId: string;
   pendingProjectId: string | null;
+  /** Session ID currently streaming (for sidebar indicator) */
+  streamingSessionId: string | null;
   setSidebarOpen: (v: boolean) => void;
   setSearchQuery: (v: string) => void;
   setPendingAgentId: (v: string) => void;
   setPendingProjectId: (v: string | null) => void;
+  setStreamingSessionId: (id: string | null) => void;
   handleNewChat: () => void;
   handleDeleteSession: (id: string) => Promise<void>;
   handleSelectSession: (id: string) => void;
@@ -75,6 +78,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [pendingAgentId, setPendingAgentId] = useState("default");
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [streamingSessionId, setStreamingSessionId] = useState<string | null>(
+    null,
+  );
 
   /* Load sessions & projects on mount */
   useEffect(() => {
@@ -438,10 +444,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         searchQuery,
         pendingAgentId,
         pendingProjectId,
+        streamingSessionId,
         setSidebarOpen: setSidebarOpenWithHistory,
         setSearchQuery,
         setPendingAgentId,
         setPendingProjectId,
+        setStreamingSessionId,
         handleNewChat,
         handleDeleteSession,
         handleSelectSession,

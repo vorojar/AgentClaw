@@ -486,6 +486,25 @@ textarea:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-session-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: sidebar-spin 0.8s linear infinite;
+}
+
+@keyframes sidebar-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .sidebar-session-more {

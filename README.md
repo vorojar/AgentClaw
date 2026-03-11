@@ -117,12 +117,13 @@ npm run cli          # 终端交互模式
 ### 安全执行
 - **Shell 沙箱**：拦截不可逆破坏性命令（`rm -rf /`、`shutdown`、`format`、fork bomb 等），`SHELL_SANDBOX=false` 可禁用
 - **Docker 沙箱**：`sandbox` 工具在 Docker 容器内执行命令，资源限制（512MB/1CPU），超时控制，自动清理
+- **Memory 内容审查**：remember 工具写入前扫描 prompt injection、隐形 unicode 和凭证窃取 payload，拦截恶意记忆注入
 
 ### 多 Agent 人格
 支持创建多个 Agent，每个 Agent 拥有独立的 Soul（人格/行为指令）、可选的 Model、Temperature、Max Iterations、Tools 过滤。5 个预设 Agent：AgentClaw（默认通用助理）、Coder（编程专家）、Writer（写作助手）、Analyst（数据分析师）、Researcher（研究员）。配置存储在 `data/agents/<id>/`，创建会话时可指定 Agent。
 
 ### 子代理编排
-`subagent` 工具可派生独立子 agent 并行执行任务，拥有独立 agent-loop 和会话上下文。支持 spawn/result/kill/list 操作，`mode: "explore"` 只读模式仅加载搜索/阅读工具子集，适用于并行调研、独立计算等可隔离任务。
+`subagent` 工具可派生独立子 agent 并行执行任务，拥有独立 agent-loop 和会话上下文。支持 spawn/spawn_and_wait/result/kill/list 操作，`mode: "explore"` 只读模式仅加载搜索/阅读工具子集。安全机制：工具黑名单（6 个危险工具始终禁止）、IterationBudget 父子共享迭代预算池防止无限消耗。
 
 ### 任务管理（TaskManager）
 完整的任务生命周期管理引擎：
@@ -134,7 +135,13 @@ npm run cli          # 终端交互模式
 - **Web UI** — Today/All Tasks/Decisions/Automations 四个标签页
 
 ### 对话压缩
-超过 20 轮对话后自动调用 LLM 生成摘要，减少 token 消耗。
+超过 20 轮对话后自动调用 LLM 生成摘要，减少 token 消耗。压缩时自动保护 tool_call/tool_result 配对完整性，防止 API 报错。
+
+### Frozen Snapshot
+Session 内冻结系统提示词中的动态上下文（记忆 + 技能目录），memory 写入持久化但不改变当前 session 的系统提示词，提高 Anthropic prompt cache 命中率。
+
+### 渠道格式提示
+不同消息渠道自动注入格式指导到系统提示词（如 Telegram 不用 Markdown、钉钉/飞书支持 Markdown 等），LLM 输出自动适配各渠道格式限制。
 
 ### TTS 语音回复
 用户发语音时 AI 以语音回复，支持 edge-tts 和 vibevoice 引擎。
@@ -236,13 +243,9 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 
 现代化 Web 界面，支持 Light/Dark 主题切换：
 
-- **聊天** — WebSocket 流式输出、工具调用卡片、文件上传/拖拽、视频/音频播放器、多模态图片、消息重新生成、对话导出、Agent 选择
+- **聊天** — WebSocket 流式输出、工具调用卡片（SubAgent 以 Mem 风格单卡片展示）、文件上传/拖拽、视频/音频播放器、多模态图片、消息重新生成、对话导出、Agent 选择
 - **任务** — Today/All Tasks/Decisions/Automations 四标签页，快速添加、决策卡片、每日简报时间配置、Task Runner 统计
-- **Agents** — 多 Agent 管理（创建/编辑/删除），5 个预设 Agent
-- **Traces** — LLM/工具执行时间线
-- **Token 日志** — 用量统计
-- **记忆** — 浏览/搜索/管理长期记忆
-- **设置** — 提供商配置、工具/技能列表、技能开关、技能导入 (GitHub/zip)
+- **设置** — 二级菜单结构，整合：常规（用量统计 + 外观/主题/语言）、渠道、Agents、子代理、记忆、工具、技能、Traces、API 参考
 
 ## 文档
 

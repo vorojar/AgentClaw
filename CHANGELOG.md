@@ -9,6 +9,8 @@
 ### 修复
 - **Subagent 记录持久化**：`SimpleSubAgentManager` 在 spawn/完成/失败/kill 时写入 SQLite，Subagents 页面不再永远 0 条
 - **MemoryStore 接口补齐**：`addSubAgent`/`updateSubAgent` 方法加入 `MemoryStore` 接口定义
+- **停止按钮恢复**：修复新会话首次发送时 stop 按钮不出现的问题（`prevSessionRef` 区分 ensureSession 触发 vs 用户切换）
+- **tool-status-bar 恢复**：撤销对 subagent 工具的 status-bar 隐藏，所有工具执行时底部状态栏正常显示
 
 ## [1.3.11] - 2026-03-11
 

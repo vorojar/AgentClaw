@@ -1539,9 +1539,16 @@ export function ChatPage() {
   });
 
   /* Reset streaming state on session switch (hook handles WS lifecycle) */
+  const prevSessionRef = useRef(activeSessionId);
   useEffect(() => {
-    resetStreamingLocal();
-  }, [activeSessionId, resetStreamingLocal]);
+    const prev = prevSessionRef.current;
+    prevSessionRef.current = activeSessionId;
+    // If previous session was null (new chat) and we're currently sending,
+    // this is ensureSession creating the session — don't reset.
+    if (!prev && isSending) return;
+    // Genuine session switch by user — reset streaming
+    if (prev !== activeSessionId) resetStreamingLocal();
+  }, [activeSessionId]);
 
   /* Clear active tool on WS disconnect */
   useEffect(() => {

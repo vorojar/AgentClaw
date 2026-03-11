@@ -20,6 +20,7 @@ import {
   splitMessage,
   errorMessage,
 } from "./utils.js";
+import { PLATFORM_HINTS } from "./platform-hints.js";
 
 /** Map WhatsApp JID → AgentClaw session ID */
 const chatSessionMap = new Map<string, string>();
@@ -150,7 +151,9 @@ async function ensureSession(
   if (existing) return existing;
 
   try {
-    const session = await appCtx.orchestrator.createSession();
+    const session = await appCtx.orchestrator.createSession({
+      platformHint: PLATFORM_HINTS.whatsapp,
+    });
     chatSessionMap.set(jid, session.id);
     appCtx.memoryStore.saveChatTarget("whatsapp", jid, session.id);
     return session.id;

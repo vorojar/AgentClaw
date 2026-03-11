@@ -214,7 +214,11 @@ export class SimpleOrchestrator implements Orchestrator {
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const loop = this.createAgentLoop(effectiveProvider, currentAgent);
+      const loop = this.createAgentLoop(
+        effectiveProvider,
+        currentAgent,
+        session.metadata,
+      );
       this.activeLoops.set(sessionId, loop);
 
       let handoffEvent: AgentEvent | null = null;
@@ -457,6 +461,7 @@ export class SimpleOrchestrator implements Orchestrator {
   private createAgentLoop(
     provider?: LLMProvider,
     agent?: AgentProfile,
+    sessionMetadata?: Record<string, unknown>,
   ): SimpleAgentLoop {
     const effectiveProvider = provider ?? this.provider;
 
@@ -468,6 +473,17 @@ export class SimpleOrchestrator implements Orchestrator {
     } else if (soul && systemPrompt) {
       // No {{soul}} placeholder — prepend soul to system prompt
       systemPrompt = soul + "\n\n" + systemPrompt;
+    }
+
+    // Resolve platform hint for channel-specific formatting guidance
+    if (systemPrompt) {
+      const platformHint = (sessionMetadata?.platformHint as string) ?? "";
+      systemPrompt = systemPrompt.replace("{{platformHint}}", platformHint);
+      // Handle {{#if platformHint}}...{{/if}} conditional
+      systemPrompt = systemPrompt.replace(
+        /\{\{#if platformHint\}\}(.*?)\{\{\/if\}\}/gs,
+        (_, content) => (platformHint ? content : ""),
+      );
     }
 
     // Inject agent roster for handoff awareness (skip current agent)

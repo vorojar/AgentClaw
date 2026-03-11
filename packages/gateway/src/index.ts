@@ -40,6 +40,7 @@ export { HeartbeatManager } from "./heartbeat.js";
 export type { HeartbeatConfig, HeartbeatDeps } from "./heartbeat.js";
 export { runHealthChecks, formatHealthResults } from "./health-check.js";
 export type { HealthCheckResult } from "./health-check.js";
+export { PLATFORM_HINTS, getPlatformHint } from "./platform-hints.js";
 export { ChannelManager } from "./channel-manager.js";
 export type { ChannelInfo } from "./channel-manager.js";
 

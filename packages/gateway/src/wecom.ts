@@ -39,6 +39,7 @@ import {
   splitMessage,
   broadcastSessionActivity,
 } from "./utils.js";
+import { PLATFORM_HINTS } from "./platform-hints.js";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -227,6 +228,7 @@ async function handleMessage(
       channel: "wecom",
       chatid: key,
       userId,
+      platformHint: PLATFORM_HINTS.wecom,
     });
     sessionId = session.id;
     chatSessionMap.set(key, sessionId);

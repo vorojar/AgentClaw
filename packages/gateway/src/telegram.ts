@@ -12,6 +12,7 @@ import {
   splitMessage,
   broadcastSessionActivity,
 } from "./utils.js";
+import { PLATFORM_HINTS } from "./platform-hints.js";
 
 /** Map Telegram chat ID → AgentClaw session ID */
 const chatSessionMap = new Map<number, string>();
@@ -181,7 +182,9 @@ export async function startTelegramBot(
     let sessionId = chatSessionMap.get(chatId);
     if (!sessionId) {
       try {
-        const session = await appCtx.orchestrator.createSession();
+        const session = await appCtx.orchestrator.createSession({
+          platformHint: PLATFORM_HINTS.telegram,
+        });
         sessionId = session.id;
         chatSessionMap.set(chatId, sessionId);
         appCtx.memoryStore.saveChatTarget(

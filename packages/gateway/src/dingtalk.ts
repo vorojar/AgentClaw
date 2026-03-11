@@ -13,6 +13,7 @@ import {
   splitMessage,
   broadcastSessionActivity,
 } from "./utils.js";
+import { PLATFORM_HINTS } from "./platform-hints.js";
 
 /** Map DingTalk conversationId → AgentClaw session ID */
 const chatSessionMap = new Map<string, string>();
@@ -162,7 +163,9 @@ export async function startDingTalkBot(
       let sessionId = chatSessionMap.get(conversationId);
       if (!sessionId) {
         try {
-          const session = await appCtx.orchestrator.createSession();
+          const session = await appCtx.orchestrator.createSession({
+            platformHint: PLATFORM_HINTS.dingtalk,
+          });
           sessionId = session.id;
           chatSessionMap.set(conversationId, sessionId);
           appCtx.memoryStore.saveChatTarget(

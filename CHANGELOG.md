@@ -9,6 +9,7 @@
 - **快照过滤模式**：get_content/snapshot 支持 `filter: "interactive"` — 只返回按钮、链接、输入框，跳过文本内容，节省 ~80% token
 - **批处理摘要模式**：batch 支持 `summary: true` — 中间步骤只返回 pass/fail，最后一步返回完整结果
 - **反自动化检测**：browser_cdp 启动时屏蔽 `navigator.webdriver` + `AutomationControlled` 标志
+- **记忆内容安全审查**：remember 工具写入前扫描 prompt injection、凭证窃取 payload 和不可见 unicode 字符，拦截恶意内容注入系统提示词
 
 ### 重构
 - **Settings 二级菜单**：Settings 页面新增左侧导航菜单，将 Channels、Agents、Subagents、Memory、Tools、Skills、Traces、API 整合为 Settings 子页面

@@ -75,6 +75,8 @@ export type {
   SubAgentStatus,
   SubAgentInfo,
   SubAgentSpawnOptions,
+  SubAgentTaskResult,
+  SubAgentProgressCallback,
   SubAgentManager,
 } from "./subagent.js";
 

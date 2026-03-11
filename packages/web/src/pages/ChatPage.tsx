@@ -805,6 +805,114 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
   );
 }
 
+/* ── SubAgentCard (Mem-style grouped card) ────────── */
+
+interface SubAgentTask {
+  goal: string;
+  status: "running" | "completed" | "failed" | "killed" | "pending";
+  result?: string;
+}
+
+function parseSubAgentTasks(entry: ToolCallEntry): SubAgentTask[] | null {
+  // Only for subagent spawn_and_wait
+  try {
+    const input = JSON.parse(entry.toolInput);
+    if (input.action !== "spawn_and_wait" || !Array.isArray(input.goals)) return null;
+
+    const goals: string[] = input.goals;
+    const tasks: SubAgentTask[] = goals.map((g) => ({
+      goal: g,
+      status: "pending" as const,
+    }));
+
+    // Parse progress from progressLines (each line is JSON)
+    if (entry.progressLines) {
+      for (const line of entry.progressLines) {
+        try {
+          const p = JSON.parse(line);
+          if (p.subagent && typeof p.index === "number" && tasks[p.index]) {
+            tasks[p.index].status = p.status;
+            if (p.result) tasks[p.index].result = p.result;
+          }
+        } catch {
+          /* not JSON progress, skip */
+        }
+      }
+    }
+
+    // If tool_result is available, parse final results
+    if (entry.toolResult) {
+      const blocks = entry.toolResult.split("\n\n");
+      for (let i = 0; i < blocks.length && i < tasks.length; i++) {
+        const block = blocks[i];
+        if (block.startsWith("✓")) {
+          tasks[i].status = "completed";
+          const lines = block.split("\n");
+          tasks[i].result = lines.slice(1).join("\n");
+        } else if (block.startsWith("✗")) {
+          tasks[i].status = "failed";
+          const lines = block.split("\n");
+          tasks[i].result = lines.slice(1).join("\n");
+        }
+      }
+    }
+
+    return tasks;
+  } catch {
+    return null;
+  }
+}
+
+function SubAgentCard({ entry }: { entry: ToolCallEntry }) {
+  const [expanded, setExpanded] = useState(false);
+  const tasks = parseSubAgentTasks(entry)!;
+  const done = tasks.filter(
+    (t) => t.status === "completed" || t.status === "failed",
+  ).length;
+  const allDone = entry.toolResult !== undefined;
+
+  return (
+    <div className="subagent-card">
+      <div className="subagent-card-header" onClick={() => setExpanded(!expanded)}>
+        <span className="subagent-card-icon">
+          {allDone ? <IconCheck size={14} /> : <IconClock size={14} />}
+        </span>
+        <span className="subagent-card-title">Subagents</span>
+        <span className="subagent-card-count">
+          {done} / {tasks.length}
+        </span>
+        {entry.durationMs !== undefined && (
+          <span className="tool-call-duration">{formatDuration(entry.durationMs)}</span>
+        )}
+        <span className="tool-call-chevron">
+          <IconChevronRight size={14} />
+        </span>
+      </div>
+      <div className="subagent-card-tasks">
+        {tasks.map((task, i) => (
+          <div key={i} className={`subagent-task subagent-task-${task.status}`}>
+            <span className="subagent-task-icon">
+              {task.status === "completed" ? (
+                <IconCheck size={13} />
+              ) : task.status === "failed" ? (
+                <IconXCircle size={13} />
+              ) : task.status === "running" ? (
+                <span className="subagent-task-spinner" />
+              ) : (
+                <span className="subagent-task-pending" />
+              )}
+            </span>
+            <span className="subagent-task-goal">{task.goal}</span>
+            {expanded && task.result && (
+              <pre className="subagent-task-result">{task.result}</pre>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── ToolCallGroup (collapsible) ──────────────────── */
 
 const TOOL_COLLAPSE_THRESHOLD = 3;
@@ -832,9 +940,13 @@ function ToolCallGroup({ entries }: { entries: ToolCallEntry[] }) {
             </span>
           </div>
         )}
-        {entries.map((tc) => (
-          <ToolCallCard key={tc.id} entry={tc} />
-        ))}
+        {entries.map((tc) =>
+          parseSubAgentTasks(tc) ? (
+            <SubAgentCard key={tc.id} entry={tc} />
+          ) : (
+            <ToolCallCard key={tc.id} entry={tc} />
+          ),
+        )}
       </>
     );
   }

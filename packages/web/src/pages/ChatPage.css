@@ -1696,3 +1696,129 @@
     font-size: 20px;
   }
 }
+
+/* ── SubAgent Card ──────────────────────────────── */
+.subagent-card {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-secondary);
+  animation: messageIn 0.25s ease;
+}
+
+.subagent-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.subagent-card-header:hover {
+  background: var(--bg-secondary);
+}
+
+.subagent-card-icon {
+  display: flex;
+  color: var(--accent);
+}
+
+.subagent-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subagent-card-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  padding: 1px 8px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.subagent-card-tasks {
+  display: flex;
+  flex-direction: column;
+}
+
+.subagent-task {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.subagent-task-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.subagent-task-completed .subagent-task-icon {
+  color: var(--accent);
+}
+
+.subagent-task-failed .subagent-task-icon {
+  color: var(--error);
+}
+
+.subagent-task-running .subagent-task-icon {
+  color: var(--accent);
+}
+
+.subagent-task-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.subagent-task-pending {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+}
+
+.subagent-task-goal {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.subagent-task-result {
+  width: 100%;
+  margin: 4px 0 0 21px;
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}

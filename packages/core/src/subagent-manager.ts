@@ -2,6 +2,8 @@ import type {
   SubAgentManager,
   SubAgentInfo,
   SubAgentSpawnOptions,
+  SubAgentTaskResult,
+  SubAgentProgressCallback,
   LLMProvider,
   MemoryStore,
   AgentConfig,
@@ -51,7 +53,10 @@ export class SimpleSubAgentManager implements SubAgentManager {
     this.parentContext = options.parentContext;
   }
 
-  spawn(goal: string, options?: SubAgentSpawnOptions): string {
+  private createEntry(
+    goal: string,
+    options?: SubAgentSpawnOptions,
+  ): SubAgentEntry {
     const id = generateId();
     const convId = generateId();
     const maxIterations = options?.maxIterations ?? 8;
@@ -93,31 +98,74 @@ export class SimpleSubAgentManager implements SubAgentManager {
       },
     });
 
-    const info: SubAgentInfo = {
-      id,
-      goal,
-      status: "running",
-      createdAt: new Date(),
-    };
-
-    const entry: SubAgentEntry = {
-      info,
+    return {
+      info: { id, goal, status: "running", createdAt: new Date() },
       loop,
       conversationId: convId,
       pendingInstructions: [],
     };
+  }
 
-    this.agents.set(id, entry);
+  spawn(goal: string, options?: SubAgentSpawnOptions): string {
+    const entry = this.createEntry(goal, options);
+    this.agents.set(entry.info.id, entry);
+
+    // Persist to database
+    this.memoryStore.addSubAgent({
+      id: entry.info.id,
+      goal,
+      model: options?.model ?? this.agentConfig?.model,
+    });
 
     // Run in background — fire and forget
     this.runAgent(entry).catch((err) => {
-      console.error(`[subagent:${id}] Fatal error:`, err);
+      console.error(`[subagent:${entry.info.id}] Fatal error:`, err);
       entry.info.status = "failed";
       entry.info.error = err instanceof Error ? err.message : String(err);
       entry.info.completedAt = new Date();
+      this.memoryStore.updateSubAgent(entry.info.id, {
+        status: "failed",
+        error: entry.info.error,
+        completedAt: new Date().toISOString(),
+      });
     });
 
-    return id;
+    return entry.info.id;
+  }
+
+  async spawnAndWait(
+    goals: string[],
+    options?: SubAgentSpawnOptions,
+    onProgress?: SubAgentProgressCallback,
+  ): Promise<SubAgentTaskResult[]> {
+    const results: SubAgentTaskResult[] = [];
+
+    for (let i = 0; i < goals.length; i++) {
+      const goal = goals[i];
+      onProgress?.(i, goals.length, goal, "running");
+
+      const entry = this.createEntry(goal, options);
+      this.agents.set(entry.info.id, entry);
+      this.memoryStore.addSubAgent({
+        id: entry.info.id,
+        goal,
+        model: options?.model ?? this.agentConfig?.model,
+      });
+
+      // Run synchronously — one at a time, no LLM contention
+      await this.runAgent(entry);
+
+      const taskResult: SubAgentTaskResult = {
+        goal,
+        status: entry.info.status,
+        result: entry.info.result,
+        error: entry.info.error,
+      };
+      results.push(taskResult);
+      onProgress?.(i, goals.length, goal, entry.info.status, entry.info.result);
+    }
+
+    return results;
   }
 
   async steer(id: string, instruction: string): Promise<void> {
@@ -141,6 +189,10 @@ export class SimpleSubAgentManager implements SubAgentManager {
     entry.loop.stop();
     entry.info.status = "killed";
     entry.info.completedAt = new Date();
+    this.memoryStore.updateSubAgent(id, {
+      status: "killed",
+      completedAt: new Date().toISOString(),
+    });
     return true;
   }
 
@@ -158,19 +210,58 @@ export class SimpleSubAgentManager implements SubAgentManager {
       // No subAgentManager — prevent sub-agent recursion
     };
 
+    const toolsUsed = new Set<string>();
+    let lastMessage: Message | undefined;
+    let iterations = 0;
+
     try {
-      const message = await entry.loop.run(
+      for await (const event of entry.loop.runStream(
         entry.info.goal,
         entry.conversationId,
         subContext,
-      );
-      entry.info.result = extractText(message);
+      )) {
+        if (event.type === "tool_call") {
+          const data = event.data as { name: string };
+          toolsUsed.add(data.name);
+        } else if (event.type === "response_complete") {
+          lastMessage = (event.data as { message: Message }).message;
+        } else if (event.type === "thinking") {
+          const data = event.data as { iteration?: number };
+          if (data.iteration) iterations = data.iteration;
+        }
+      }
+
+      const text = lastMessage
+        ? extractText(lastMessage)
+        : "No response generated.";
+      entry.info.result = text;
       entry.info.status = "completed";
+      entry.info.completedAt = new Date();
+
+      this.memoryStore.updateSubAgent(entry.info.id, {
+        status: "completed",
+        result: text,
+        tokensIn: lastMessage?.tokensIn ?? 0,
+        tokensOut: lastMessage?.tokensOut ?? 0,
+        toolsUsed: Array.from(toolsUsed),
+        iterations,
+        completedAt: new Date().toISOString(),
+      });
     } catch (err) {
       entry.info.error = err instanceof Error ? err.message : String(err);
       entry.info.status = "failed";
+      entry.info.completedAt = new Date();
+
+      this.memoryStore.updateSubAgent(entry.info.id, {
+        status: "failed",
+        error: entry.info.error,
+        tokensIn: lastMessage?.tokensIn ?? 0,
+        tokensOut: lastMessage?.tokensOut ?? 0,
+        toolsUsed: Array.from(toolsUsed),
+        iterations,
+        completedAt: new Date().toISOString(),
+      });
     }
-    entry.info.completedAt = new Date();
   }
 }
 

@@ -4,20 +4,28 @@ export const subagentTool: Tool = {
   name: "subagent",
   category: "builtin",
   description:
-    "Spawn and manage sub-agents for parallel task processing. " +
-    "Sub-agents have independent conversations and can run concurrently. " +
-    "Actions: spawn (create), result (poll/get result), kill (terminate), list (show all).",
+    "Spawn sub-agents for task processing. " +
+    "PREFERRED: Use spawn_and_wait with multiple goals — runs sequentially, returns all results at once. " +
+    "ALTERNATIVE: Use spawn/result/kill for advanced control (background execution, steering). " +
+    "Actions: spawn_and_wait (recommended), spawn, result, kill, list.",
   parameters: {
     type: "object",
     properties: {
       action: {
         type: "string",
-        description: "Action to perform: spawn | result | kill | list",
-        enum: ["spawn", "result", "kill", "list"],
+        description:
+          "Action: spawn_and_wait (recommended) | spawn | result | kill | list",
+        enum: ["spawn_and_wait", "spawn", "result", "kill", "list"],
+      },
+      goals: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Array of task descriptions (required for spawn_and_wait)",
       },
       goal: {
         type: "string",
-        description: "Task description for the sub-agent (required for spawn)",
+        description: "Single task description (required for spawn)",
       },
       id: {
         type: "string",
@@ -25,17 +33,16 @@ export const subagentTool: Tool = {
       },
       maxIterations: {
         type: "number",
-        description:
-          "Max iterations for the sub-agent (default: 8, only for spawn)",
+        description: "Max iterations per sub-agent (default: 8)",
       },
       model: {
         type: "string",
-        description: "Override model name (only for spawn)",
+        description: "Override model name",
       },
       mode: {
         type: "string",
         description:
-          'Spawn mode: "full" (default, all tools) or "explore" (read-only: file_read, glob, grep, web_fetch, web_search). Use explore for searching/reading tasks to save tokens.',
+          '"full" (default, all tools) or "explore" (read-only: file_read, glob, grep, web_fetch, web_search)',
         enum: ["full", "explore"],
         default: "full",
       },
@@ -56,22 +63,69 @@ export const subagentTool: Tool = {
     }
 
     const action = input.action as string;
+    const mode = (input.mode as string) || "full";
+    const EXPLORE_TOOLS = [
+      "file_read",
+      "glob",
+      "grep",
+      "web_fetch",
+      "web_search",
+      "shell",
+    ];
 
     switch (action) {
+      case "spawn_and_wait": {
+        const goals = input.goals as string[];
+        if (!goals || goals.length === 0) {
+          return {
+            content: "Missing required parameter: goals (array of strings)",
+            isError: true,
+          };
+        }
+
+        const results = await manager.spawnAndWait(
+          goals,
+          {
+            maxIterations: input.maxIterations as number | undefined,
+            model: input.model as string | undefined,
+            allowedTools: mode === "explore" ? EXPLORE_TOOLS : undefined,
+          },
+          // Progress callback → sends real-time updates to UI
+          (index, total, goal, status, result) => {
+            if (context?.notifyUser) {
+              const statusEmoji =
+                status === "running"
+                  ? "⏳"
+                  : status === "completed"
+                    ? "✓"
+                    : "✗";
+              const line = result
+                ? `${statusEmoji} [${index + 1}/${total}] ${goal}\n${result}`
+                : `${statusEmoji} [${index + 1}/${total}] ${goal}`;
+              context.notifyUser(
+                JSON.stringify({ subagent: true, index, total, goal, status, result: result ?? null }),
+              );
+            }
+          },
+        );
+
+        const lines = results.map((r, i) => {
+          const icon = r.status === "completed" ? "✓" : "✗";
+          const body = r.result ?? r.error ?? "No output";
+          return `${icon} Task ${i + 1}: ${r.goal}\n${body}`;
+        });
+
+        return {
+          content: lines.join("\n\n"),
+          isError: results.some((r) => r.status === "failed"),
+        };
+      }
+
       case "spawn": {
         const goal = input.goal as string;
         if (!goal) {
           return { content: "Missing required parameter: goal", isError: true };
         }
-        const mode = (input.mode as string) || "full";
-        const EXPLORE_TOOLS = [
-          "file_read",
-          "glob",
-          "grep",
-          "web_fetch",
-          "web_search",
-          "shell",
-        ];
         const id = manager.spawn(goal, {
           maxIterations: input.maxIterations as number | undefined,
           model: input.model as string | undefined,
@@ -144,7 +198,7 @@ export const subagentTool: Tool = {
 
       default:
         return {
-          content: `Unknown action: ${action}. Valid: spawn, result, kill, list`,
+          content: `Unknown action: ${action}. Valid: spawn_and_wait, spawn, result, kill, list`,
           isError: true,
         };
     }

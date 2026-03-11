@@ -1,5 +1,15 @@
 # 更新日志
 
+## [1.3.12] - 2026-03-11
+
+### 新增
+- **Subagent spawn_and_wait**：新增 `spawn_and_wait` action，一次提交多个子任务，顺序执行避免 LLM 并发竞争，结果一次性返回
+- **SubAgentCard 卡片 UI**：会话页中 subagent 调用以 Mem 风格单卡片展示，每个子任务一行（spinner → ✓/✗），替代之前 13+ 条工具调用的平铺显示
+
+### 修复
+- **Subagent 记录持久化**：`SimpleSubAgentManager` 在 spawn/完成/失败/kill 时写入 SQLite，Subagents 页面不再永远 0 条
+- **MemoryStore 接口补齐**：`addSubAgent`/`updateSubAgent` 方法加入 `MemoryStore` 接口定义
+
 ## [1.3.11] - 2026-03-11
 
 ### 重构

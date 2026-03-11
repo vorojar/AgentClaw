@@ -185,6 +185,29 @@ export interface MemoryStore {
     tokensOut: number;
     durationMs: number;
   }>;
+
+  /** Persist a new sub-agent record */
+  addSubAgent(agent: {
+    id: string;
+    sessionId?: string;
+    goal: string;
+    model?: string;
+  }): void;
+
+  /** Update a sub-agent record */
+  updateSubAgent(
+    id: string,
+    updates: {
+      status?: string;
+      result?: string;
+      error?: string;
+      tokensIn?: number;
+      tokensOut?: number;
+      toolsUsed?: string[];
+      iterations?: number;
+      completedAt?: string;
+    },
+  ): boolean;
 }
 
 /** A single conversation turn stored in memory */

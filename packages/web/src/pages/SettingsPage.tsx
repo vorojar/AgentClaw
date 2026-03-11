@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
+import { useTheme } from "../components/ThemeProvider";
 import {
   getConfig,
   getStats,
@@ -64,6 +65,7 @@ const TABS = [
 /* ── General tab (the original settings content) ── */
 function SettingsGeneral() {
   const { t } = useTranslation();
+  const { theme, toggle } = useTheme();
   const [config, setConfig] = useState<AppConfigInfo | null>(null);
   const [stats, setStats] = useState<UsageStatsInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -182,24 +184,37 @@ function SettingsGeneral() {
         </section>
       )}
 
-      {/* Language */}
+      {/* Appearance */}
       <section className="card settings-section">
-        <h2 className="settings-section-title">{t("settings.language")}</h2>
-        <div className="stats-system-info">
-          <select
-            className="memory-type-select"
-            value={lang}
-            onChange={(e) => {
-              setLang(e.target.value);
-              setLanguage(e.target.value);
-            }}
-          >
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
-          <span className="stats-sys-label" style={{ marginLeft: 8 }}>
-            {t("settings.languageHint")}
-          </span>
+        <h2 className="settings-section-title">{t("settings.appearance")}</h2>
+        <div className="settings-appearance-grid">
+          <div className="settings-appearance-item">
+            <span className="stats-sys-label">{t("settings.language")}</span>
+            <select
+              className="memory-type-select"
+              value={lang}
+              onChange={(e) => {
+                setLang(e.target.value);
+                setLanguage(e.target.value);
+              }}
+            >
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+          <div className="settings-appearance-item">
+            <span className="stats-sys-label">{t("settings.theme")}</span>
+            <select
+              className="memory-type-select"
+              value={theme}
+              onChange={(e) => {
+                if (e.target.value !== theme) toggle();
+              }}
+            >
+              <option value="dark">{t("settings.themeDark")}</option>
+              <option value="light">{t("settings.themeLight")}</option>
+            </select>
+          </div>
         </div>
       </section>
     </>

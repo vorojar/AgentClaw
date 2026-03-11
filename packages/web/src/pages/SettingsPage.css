@@ -343,6 +343,20 @@
   color: var(--text-muted);
 }
 
+/* ── Appearance grid ── */
+.settings-appearance-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 12px;
+}
+
+.settings-appearance-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ── Responsive: collapse settings menu on small screens ── */
 @media (max-width: 768px) {
   .settings-layout {

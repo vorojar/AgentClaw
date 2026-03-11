@@ -289,6 +289,10 @@
     "tools": "工具",
     "language": "语言",
     "languageHint": "界面显示语言",
+    "appearance": "外观",
+    "theme": "主题",
+    "themeDark": "深色",
+    "themeLight": "浅色",
     "tabs": {
       "general": "常规",
       "channels": "渠道",

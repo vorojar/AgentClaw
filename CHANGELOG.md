@@ -24,6 +24,7 @@
 - **停止按钮恢复**：修复新会话首次发送时 stop 按钮不出现的问题（`prevSessionRef` 区分 ensureSession 触发 vs 用户切换）
 - **tool-status-bar 恢复**：撤销对 subagent 工具的 status-bar 隐藏，所有工具执行时底部状态栏正常显示
 - **Settings Tools 标签页**：修复 Tools 标签页因缺少 switch case 而显示 General 内容的问题，Tools 现为独立页面展示工具详情列表
+- **主题切换移入 General**：将深色/浅色模式切换从仅侧边栏移入 Settings General "外观"区块，与语言设置并排（侧边栏快捷按钮保留）
 
 ## [1.3.9] - 2026-03-11
 

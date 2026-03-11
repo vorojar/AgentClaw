@@ -1543,8 +1543,11 @@ export function ChatPage() {
     // If previous session was null (new chat) and we're currently sending,
     // this is ensureSession creating the session — don't reset.
     if (!prev && isSending) return;
-    // Genuine session switch by user — reset streaming
-    if (prev !== activeSessionId) resetStreamingLocal();
+    // Genuine session switch by user — reset streaming + close preview
+    if (prev !== activeSessionId) {
+      resetStreamingLocal();
+      setPreviewFile(null);
+    }
   }, [activeSessionId]);
 
   /* Clear active tool on WS disconnect */

@@ -215,7 +215,7 @@ async function cmdScreenshot() {
   return { base64 };
 }
 
-async function cmdClick({ selector }) {
+async function cmdClick({ selector, human }) {
   if (!selector) throw new Error("Selector required");
   const tab = await getActiveTab();
 
@@ -256,25 +256,127 @@ async function cmdClick({ selector }) {
   const resolved = resolveSelector(selector);
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    func: (sel) => {
+    func: async (sel, isHuman) => {
       const el = document.querySelector(sel);
       if (!el) throw new Error(`Element not found: ${sel}`);
-      el.click();
+
+      if (isHuman) {
+        // Human-like click: move mouse to element center, then click with events
+        const rect = el.getBoundingClientRect();
+        const x = rect.left + rect.width / 2 + (Math.random() - 0.5) * 4;
+        const y = rect.top + rect.height / 2 + (Math.random() - 0.5) * 4;
+        // Random pre-click delay (50-300ms)
+        await new Promise((r) => setTimeout(r, 50 + Math.random() * 250));
+        el.dispatchEvent(
+          new MouseEvent("mousemove", {
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+          }),
+        );
+        await new Promise((r) => setTimeout(r, 20 + Math.random() * 60));
+        el.dispatchEvent(
+          new MouseEvent("mousedown", {
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+            button: 0,
+          }),
+        );
+        await new Promise((r) => setTimeout(r, 30 + Math.random() * 80));
+        el.dispatchEvent(
+          new MouseEvent("mouseup", {
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+            button: 0,
+          }),
+        );
+        el.dispatchEvent(
+          new MouseEvent("click", {
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+            button: 0,
+          }),
+        );
+      } else {
+        el.click();
+      }
       return true;
     },
-    args: [resolved],
+    args: [resolved, !!human],
   });
 
   if (results[0]?.error) throw new Error(results[0].error.message);
-  return { clicked: selector };
+  return { clicked: selector, human: !!human };
 }
 
-async function cmdType({ selector, text }) {
+async function cmdType({ selector, text, human }) {
   if (!selector || text === undefined)
     throw new Error("Selector and text required");
   const resolved = resolveSelector(selector);
   const tab = await getActiveTab();
 
+  // Human-like typing: send individual keystrokes with random delays
+  if (human) {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: async (sel, txt) => {
+        const el = document.querySelector(sel);
+        if (!el) throw new Error(`Element not found: ${sel}`);
+        el.focus();
+
+        const endsWithNewline = txt.endsWith("\n") || txt.endsWith("\r\n");
+        const content = endsWithNewline ? txt.replace(/\r?\n$/, "") : txt;
+
+        for (const ch of content) {
+          const delay = 30 + Math.random() * 120; // 30-150ms per keystroke
+          el.dispatchEvent(
+            new KeyboardEvent("keydown", { key: ch, bubbles: true }),
+          );
+          if (
+            el.isContentEditable ||
+            el.getAttribute("contenteditable") === "true"
+          ) {
+            document.execCommand("insertText", false, ch);
+          } else {
+            el.value += ch;
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          el.dispatchEvent(
+            new KeyboardEvent("keyup", { key: ch, bubbles: true }),
+          );
+          await new Promise((r) => setTimeout(r, delay));
+        }
+
+        if (endsWithNewline) {
+          const enterOpts = {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            bubbles: true,
+          };
+          el.dispatchEvent(new KeyboardEvent("keydown", enterOpts));
+          el.dispatchEvent(new KeyboardEvent("keypress", enterOpts));
+          const isInput = el.tagName === "INPUT" || el.tagName === "TEXTAREA";
+          if (isInput && el.form) {
+            try {
+              el.form.requestSubmit();
+            } catch {
+              el.form.submit();
+            }
+          }
+        }
+        return true;
+      },
+      args: [resolved, text],
+    });
+    if (results[0]?.error) throw new Error(results[0].error.message);
+    return { typed: selector, human: true };
+  }
+
+  // Fast mode (default): batch input
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: (sel, txt) => {
@@ -334,14 +436,15 @@ async function cmdType({ selector, text }) {
   return { typed: selector };
 }
 
-async function cmdGetContent({ selector }) {
+async function cmdGetContent({ selector, filter }) {
   const tab = await getActiveTab();
   const MAX_CONTENT = 50000;
   const sel = selector ? resolveSelector(selector) : null;
+  const interactiveOnly = filter === "interactive";
 
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    func: (sel, maxLen) => {
+    func: (sel, maxLen, interactiveOnly) => {
       // Clear old ref markers
       document
         .querySelectorAll("[data-ac-ref]")
@@ -476,8 +579,10 @@ async function cmdGetContent({ selector }) {
       function walk(node) {
         if (len >= maxLen) return;
         if (node.nodeType === 3) {
-          const t = node.textContent;
-          if (t && t.trim()) put(t);
+          if (!interactiveOnly) {
+            const t = node.textContent;
+            if (t && t.trim()) put(t);
+          }
           return;
         }
         if (node.nodeType !== 1) return;
@@ -486,21 +591,25 @@ async function cmdGetContent({ selector }) {
         if (SKIP.has(tag)) return;
         if (!vis(node)) return;
 
-        // Heading → markdown style
+        // Heading → markdown style (skip in interactive-only mode)
         if (/^H[1-6]$/.test(tag)) {
-          const t = (node.innerText || "").trim();
-          if (t) put("\n" + "#".repeat(+tag[1]) + " " + t + "\n");
+          if (!interactiveOnly) {
+            const t = (node.innerText || "").trim();
+            if (t) put("\n" + "#".repeat(+tag[1]) + " " + t + "\n");
+          }
           return;
         }
 
-        // Image
+        // Image (skip in interactive-only mode)
         if (tag === "IMG") {
-          const alt = (node.getAttribute("alt") || "").trim();
-          if (alt) put(`[img: ${alt}]`);
+          if (!interactiveOnly) {
+            const alt = (node.getAttribute("alt") || "").trim();
+            if (alt) put(`[img: ${alt}]`);
+          }
           return;
         }
 
-        // Interactive element → assign ref
+        // Interactive element → assign ref (always included)
         if (isInteractive(node)) {
           refCount++;
           const ref = "e" + refCount;
@@ -511,9 +620,9 @@ async function cmdGetContent({ selector }) {
 
         // Block element → line break
         const isBlock = BLOCK.has(tag);
-        if (isBlock) put("\n");
+        if (isBlock && !interactiveOnly) put("\n");
         for (const child of node.childNodes) walk(child);
-        if (isBlock) put("\n");
+        if (isBlock && !interactiveOnly) put("\n");
       }
 
       walk(root);
@@ -529,7 +638,7 @@ async function cmdGetContent({ selector }) {
       }
       return result;
     },
-    args: [sel, MAX_CONTENT],
+    args: [sel, MAX_CONTENT, interactiveOnly],
   });
 
   if (results[0]?.error) throw new Error(results[0].error.message);
@@ -765,7 +874,7 @@ async function cmdWaitFor({ selector, timeout }) {
   return { found: selector };
 }
 
-async function cmdBatch({ steps, auto_close }) {
+async function cmdBatch({ steps, auto_close, summary }) {
   if (!Array.isArray(steps) || steps.length === 0)
     throw new Error("steps must be a non-empty array");
   const results = [];
@@ -780,7 +889,12 @@ async function cmdBatch({ steps, auto_close }) {
         await waitForSelector(step.args.selector, step.args.timeout || 5000);
       }
       const result = await handleCommand(step.action, step.args || {});
-      results.push({ step: i + 1, action: step.action, ok: true, ...result });
+      if (summary && i < steps.length - 1) {
+        // Summary mode: intermediate steps only report status
+        results.push({ step: i + 1, action: step.action, ok: true });
+      } else {
+        results.push({ step: i + 1, action: step.action, ok: true, ...result });
+      }
     } catch (err) {
       results.push({
         step: i + 1,

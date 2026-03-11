@@ -64,15 +64,20 @@ For very long pages, scroll multiple times with sleep between each scroll to tri
 | action | args | description |
 |---|---|---|
 | open | `{"url": "..."}` | Open URL in new tab, wait for load |
-| click | `{"selector": "e5"}` or CSS selector | Click element by ref ID or CSS |
-| type | `{"selector": "e3", "text": "..."}` | Type text by ref ID or CSS selector |
+| click | `{"selector": "e5", "human": true}` | Click element. `human`: simulate mouse movement + random delay |
+| type | `{"selector": "e3", "text": "...", "human": true}` | Type text. `human`: individual keystrokes with 30-150ms random delay |
 | scroll | `{"direction": "down"}` | Scroll page: down/up/top/bottom, optional `pixels` and `selector` |
-| get_content | `{"selector": "..."}` (optional) | Get accessibility snapshot with ref IDs |
+| get_content | `{"selector": "...", "filter": "interactive"}` | Snapshot. `filter: "interactive"`: only buttons/links/inputs (~80% fewer tokens) |
 | screenshot | (none) | Capture visible tab |
 | wait_for | `{"selector": "...", "timeout": 5000}` | Wait for element to appear |
 | sleep | `{"ms": 1000}` | Wait fixed time |
 | close | (none) | Close current tab |
 | save_login | `{"name": "xiaohongshu"}` | Save cookies + localStorage for Playwright reuse |
+
+### Anti-detection options
+- **`human: true`** on click/type: simulates human behavior (random delays, mouse events). **Use on social media** (小红书、微博、抖音) to avoid bot detection.
+- **`filter: "interactive"`** on get_content: returns only clickable/typeable elements, skipping page text. Saves ~80% tokens when you just need to find a button.
+- **`summary: true`** on batch: intermediate steps return only pass/fail, last step returns full result. Saves tokens for long batch sequences.
 
 ### Accessibility Snapshot (get_content)
 

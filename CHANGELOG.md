@@ -2,6 +2,12 @@
 
 ## [1.3.10] - 2026-03-11
 
+### 新增
+- **人类化输入**：click/type 支持 `human: true` 参数 — click 模拟鼠标移动+随机延迟，type 逐字输入 30-150ms 间隔，降低社交平台 bot 检测风险
+- **快照过滤模式**：get_content/snapshot 支持 `filter: "interactive"` — 只返回按钮、链接、输入框，跳过文本内容，节省 ~80% token
+- **批处理摘要模式**：batch 支持 `summary: true` — 中间步骤只返回 pass/fail，最后一步返回完整结果
+- **反自动化检测**：browser_cdp 启动时屏蔽 `navigator.webdriver` + `AutomationControlled` 标志
+
 ### 重构
 - **ChatPage WS 连接提取**：将 WebSocket 连接生命周期（连接/重连/指数退避/可见性恢复/待发队列）提取为 `useSessionWebSocket` hook，ChatPage 减少 ~90 行
 - **ChatPage streaming 状态提取**：将 `isSending`/`activeToolName`/`streamingSessionRef` 及其状态转换封装为 `useStreamingState` hook，用 `startStreaming`/`stopStreaming`/`resetLocal` 命名方法替代散落的 setState 调用

@@ -101,6 +101,7 @@ async function ensureBrowser(): Promise<any> {
         `--user-data-dir=${PROFILE_DIR}`,
         "--no-first-run",
         "--no-default-browser-check",
+        "--disable-blink-features=AutomationControlled",
         "about:blank",
       ],
       { windowsHide: false },
@@ -129,6 +130,11 @@ async function ensureBrowser(): Promise<any> {
   const pages = defaultContext.pages();
   activePage = pages[0] || (await defaultContext.newPage());
 
+  // Stealth: mask automation signals
+  await defaultContext.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => false });
+  });
+
   return activePage;
 }
 
@@ -139,10 +145,12 @@ async function ensureBrowser(): Promise<any> {
 async function generateSnapshot(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
+  filter?: "interactive",
 ): Promise<string> {
+  const interactiveOnly = filter === "interactive";
   // This script runs in the browser context
   const snapshot = (await page.evaluate(`
-    (() => {
+    ((interactiveOnly) => {
       // Clear old refs
       document.querySelectorAll('[data-ac-ref]').forEach(el => el.removeAttribute('data-ac-ref'));
 
@@ -171,9 +179,10 @@ async function generateSnapshot(
         const indent = '  '.repeat(depth);
 
         if (node.nodeType === 3) {
-          // Text node
-          const text = node.textContent.trim();
-          if (text && text.length < 200) lines.push(indent + text);
+          if (!interactiveOnly) {
+            const text = node.textContent.trim();
+            if (text && text.length < 200) lines.push(indent + text);
+          }
           return;
         }
 
@@ -187,14 +196,16 @@ async function generateSnapshot(
         if (el.offsetParent === null && tag !== 'body' && tag !== 'html') return;
         if (el.getAttribute('aria-hidden') === 'true') return;
 
-        // Headings
+        // Headings (skip in interactive-only mode)
         if (/^h[1-6]$/.test(tag)) {
-          const level = parseInt(tag[1]);
-          lines.push(indent + '#'.repeat(level) + ' ' + el.textContent.trim().slice(0, 100));
+          if (!interactiveOnly) {
+            const level = parseInt(tag[1]);
+            lines.push(indent + '#'.repeat(level) + ' ' + el.textContent.trim().slice(0, 100));
+          }
           return;
         }
 
-        // Interactive element with ref
+        // Interactive element with ref (always included)
         if (ref) {
           const name = el.getAttribute('aria-label') || el.textContent.trim().slice(0, 60) || '';
           const type = el.getAttribute('type') || '';
@@ -208,8 +219,8 @@ async function generateSnapshot(
         const skip = new Set(['script', 'style', 'noscript', 'svg', 'path', 'meta', 'link', 'br', 'hr']);
         if (skip.has(tag)) return;
 
-        // Non-interactive element with role or semantic tag
-        if (role && role !== 'none' && role !== 'generic' && role !== 'presentation') {
+        // Non-interactive element with role or semantic tag (skip in interactive-only mode)
+        if (!interactiveOnly && role && role !== 'none' && role !== 'generic' && role !== 'presentation') {
           const name = el.getAttribute('aria-label') || '';
           if (name) lines.push(indent + role + ': ' + name);
         }
@@ -222,7 +233,7 @@ async function generateSnapshot(
 
       walk(document.body, 0);
       return lines.join('\\n');
-    })()
+    })(${interactiveOnly})
   `)) as string;
 
   return snapshot || "(empty page)";
@@ -285,6 +296,12 @@ export const browserCdpTool: Tool = {
         description:
           "JavaScript code to evaluate in the page (for evaluate action)",
       },
+      filter: {
+        type: "string",
+        description:
+          "Snapshot filter: 'interactive' returns only interactive elements (buttons, links, inputs), omitting text content. Saves tokens when you only need to find clickable elements.",
+        enum: ["interactive"],
+      },
       name: {
         type: "string",
         description:
@@ -323,7 +340,9 @@ export const browserCdpTool: Tool = {
 
         case "snapshot": {
           const page = await ensureBrowser();
-          const snapshot = await generateSnapshot(page);
+          const snapshotFilter =
+            input.filter === "interactive" ? "interactive" : undefined;
+          const snapshot = await generateSnapshot(page, snapshotFilter);
           const url = page.url();
           const title = await page.title();
           return {

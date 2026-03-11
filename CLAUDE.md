@@ -78,6 +78,15 @@ Orchestrator.processInputStream() → Gateway (WS JSON / Telegram / QQ / 钉钉 
 - ToolExecutionContext 由 gateway 层提供回调（sendFile, promptUser, notifyUser），工具通过它与用户交互
 - `sentFiles` 数组在 context 中跟踪已发送文件，agent-loop 在响应完成后将其持久化为 markdown 链接
 
+### 安全与性能机制
+
+- **Subagent 工具黑名单**：`SUBAGENT_BLOCKED_TOOLS`（在 `core/subagent-manager.ts`）始终过滤 6 个工具：subagent/ask_user/remember/schedule/send_file/social_post，防止递归委托、挂起、记忆污染
+- **IterationBudget**：父子代理共享同一个 `IterationBudget` 对象（在 `core/agent-loop.ts`），子代理消耗计入全局上限，防止子代理无限消耗迭代次数。为可选参数，未传入时不限制
+- **Memory 内容审查**：`remember` 工具写入前调 `scanMemoryContent()` 扫描 prompt injection（8 种模式）、隐形 unicode 字符和凭证窃取 payload
+- **Frozen Snapshot**：`context-manager.ts` 中 `dynamicContextCache` 每个 conversationId 只构建一次系统提示词，session 内不再重建。memory 写入持久化到 SQLite 但不改变当前 session 的系统提示词，提高 Anthropic prompt cache 命中率
+- **Context 压缩 tool pair 保护**：`sanitizeToolPairs()` 修复压缩后孤立的 tool_call/tool_result 对，压缩边界自动对齐避免在 pair 中间切割
+- **渠道格式提示（Platform Hints）**：`gateway/platform-hints.ts` 定义各渠道格式建议，通过 session metadata 传入 orchestrator，解析 `{{platformHint}}` 模板变量注入系统提示词
+
 ### 渠道系统
 
 `ChannelManager`（`packages/gateway/src/channel-manager.ts`）统一管理所有 bot 渠道的启停和广播。每个渠道是一个独立文件，返回 `{ stop, broadcast }` 接口：

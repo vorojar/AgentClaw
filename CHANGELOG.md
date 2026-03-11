@@ -3,17 +3,17 @@
 ## [1.3.10] - 2026-03-11
 
 ### 新增
-- **Subagent 迭代预算共享（IterationBudget）**：父子代理共享同一个迭代预算池，子代理消耗计入父级总量，防止子代理无限消耗迭代次数。`IterationBudget` 为可选参数，未传入时行为与之前完全一致
-- **Frozen Snapshot 系统提示词**：session 期间冻结 dynamic context（记忆 + 技能目录）快照，同一 conversationId 只在首轮构建，后续复用冻结快照。memory 写入照常持久化到 SQLite，但不改变当前 session 的系统提示词，提高 Anthropic prompt cache 命中率
-- **渠道格式提示（Platform Hints）**：不同消息渠道自动注入格式指导到系统提示词（如 Telegram 不使用 Markdown、钉钉支持 Markdown 等），通过 session metadata 传递，orchestrator 按渠道动态解析
-- **Subagent 工具黑名单**：子代理创建时自动过滤危险工具（subagent/ask_user/remember/schedule/send_file/social_post），防止递归委托、挂起、记忆污染和跨渠道副作用
+- **Subagent 安全防线**：工具黑名单（subagent/ask_user/remember/schedule/send_file/social_post 始终禁止）+ 迭代预算共享（`IterationBudget` 父子共享预算池，子代理消耗计入全局上限）
+- **Memory 内容安全审查**：remember 工具写入前扫描 prompt injection（8 种模式）、隐形 unicode 字符和凭证窃取 payload，拦截恶意内容注入系统提示词
+- **渠道格式提示（Platform Hints）**：不同消息渠道自动注入格式指导到系统提示词（Telegram/WhatsApp 不用 Markdown、Discord/钉钉/飞书支持 Markdown 等），通过 session metadata + `{{platformHint}}` 模板变量实现
+- **Frozen Snapshot 系统提示词**：session 内冻结 dynamic context（记忆 + 技能目录），memory 写入持久化到 SQLite 但不改变当前 session 系统提示词，提高 Anthropic prompt cache 命中率（~75% input token 成本节省）
+- **Context 压缩 tool pair 完整性保护**：压缩边界自动对齐避免在 tool_call/result 之间切割，`sanitizeToolPairs()` 移除孤立 tool result 并为缺失结果插入 stub，防止长对话压缩后 API 报错
 - **Subagent spawn_and_wait**：新增 `spawn_and_wait` action，一次提交多个子任务，顺序执行避免 LLM 并发竞争，结果一次性返回
 - **SubAgentCard 卡片 UI**：会话页中 subagent 调用以 Mem 风格单卡片展示，每个子任务一行（spinner → ✓/✗），替代之前 13+ 条工具调用的平铺显示
 - **人类化输入**：click/type 支持 `human: true` 参数 — click 模拟鼠标移动+随机延迟，type 逐字输入 30-150ms 间隔，降低社交平台 bot 检测风险
 - **快照过滤模式**：get_content/snapshot 支持 `filter: "interactive"` — 只返回按钮、链接、输入框，跳过文本内容，节省 ~80% token
 - **批处理摘要模式**：batch 支持 `summary: true` — 中间步骤只返回 pass/fail，最后一步返回完整结果
 - **反自动化检测**：browser_cdp 启动时屏蔽 `navigator.webdriver` + `AutomationControlled` 标志
-- **记忆内容安全审查**：remember 工具写入前扫描 prompt injection、凭证窃取 payload 和不可见 unicode 字符，拦截恶意内容注入系统提示词
 
 ### 重构
 - **Settings 二级菜单**：Settings 页面新增左侧导航菜单，将 Channels、Agents、Subagents、Memory、Tools、Skills、Traces、API 整合为 Settings 子页面

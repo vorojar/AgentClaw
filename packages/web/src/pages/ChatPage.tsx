@@ -1095,16 +1095,6 @@ export function ChatPage() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Reset streaming state on session switch (hook handles WS lifecycle) */
-  useEffect(() => {
-    resetStreamingLocal();
-  }, [activeSessionId, resetStreamingLocal]);
-
-  /* Clear active tool on WS disconnect */
-  useEffect(() => {
-    if (wsDisconnected) setActiveToolName(null);
-  }, [wsDisconnected, setActiveToolName]);
-
   /* WS message handler */
   const handleWsMessage = useCallback((msg: WSMessage) => {
     // After stop is requested, ignore streaming events until "done" arrives
@@ -1435,6 +1425,16 @@ export function ChatPage() {
     resumingRef,
     streamingSessionRef,
   });
+
+  /* Reset streaming state on session switch (hook handles WS lifecycle) */
+  useEffect(() => {
+    resetStreamingLocal();
+  }, [activeSessionId, resetStreamingLocal]);
+
+  /* Clear active tool on WS disconnect */
+  useEffect(() => {
+    if (wsDisconnected) setActiveToolName(null);
+  }, [wsDisconnected, setActiveToolName]);
 
   /* Send */
   const handleSend = useCallback(async () => {

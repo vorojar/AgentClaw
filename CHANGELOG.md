@@ -2,6 +2,9 @@
 
 ## [1.3.10] - 2026-03-11
 
+### 修复
+- **会话删除不停止 agent loop**：`closeSession()` 只清理数据但不调 `stopSession()`，导致删除会话后 agent loop 和 claude_code 子进程成为孤儿进程持续运行。现在删除会话时会先 stop 正在运行的 agent loop（触发 AbortController → 杀死 claude_code 子进程）
+
 ### 文档
 - **ARCHITECTURE.md 全面更新**：SubAgentManager（工具黑名单 + IterationBudget + spawn_and_wait）、ContextManager（Frozen Snapshot + sanitizeToolPairs）、新增 QQ Bot/企业微信渠道、Platform Hints、SettingsPage 二级菜单、SubAgentCard UI、新增"安全与性能机制"章节
 

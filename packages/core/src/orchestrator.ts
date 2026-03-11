@@ -364,6 +364,8 @@ export class SimpleOrchestrator implements Orchestrator {
   }
 
   async closeSession(sessionId: string): Promise<void> {
+    // Stop any running agent loop first (kills child processes like claude_code)
+    this.stopSession(sessionId);
     this.sessions.delete(sessionId);
     await this.memoryStore.deleteSession(sessionId);
   }

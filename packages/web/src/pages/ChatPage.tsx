@@ -1157,18 +1157,15 @@ export function ChatPage() {
         const historyMessages = historyToDisplayMessages(history);
         if (resumingRef.current) {
           // WS 回放中：history 放前面，保留当前 streaming 消息在末尾
-          // Buffer 回放已包含当前 assistant 轮的完整状态，
-          // 去掉 history 末尾的 assistant 消息避免重复
+          // Buffer 回放会重建当前 assistant 轮，无条件去掉 history 末尾 assistant 避免重复
           setMessages((prev) => {
             const streaming = prev.filter((m) => m.streaming);
             let trimmed = historyMessages;
-            if (streaming.length > 0) {
-              while (
-                trimmed.length > 0 &&
-                trimmed[trimmed.length - 1].role === "assistant"
-              ) {
-                trimmed = trimmed.slice(0, -1);
-              }
+            while (
+              trimmed.length > 0 &&
+              trimmed[trimmed.length - 1].role === "assistant"
+            ) {
+              trimmed = trimmed.slice(0, -1);
             }
             return [...trimmed, ...streaming];
           });

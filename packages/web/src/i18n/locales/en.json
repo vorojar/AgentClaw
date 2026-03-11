@@ -288,7 +288,18 @@
     "skillsLabel": "Skills",
     "tools": "Tools",
     "language": "Language",
-    "languageHint": "Interface display language"
+    "languageHint": "Interface display language",
+    "tabs": {
+      "general": "General",
+      "channels": "Channels",
+      "agents": "Agents",
+      "subagents": "Subagents",
+      "memory": "Memory",
+      "tools": "Tools",
+      "skills": "Skills",
+      "traces": "Traces",
+      "api": "API"
+    }
   },
   "api": {
     "title": "API Reference"

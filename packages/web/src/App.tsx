@@ -2,16 +2,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Layout } from "./components/Layout";
 import { ChatPage } from "./pages/ChatPage";
-import { MemoryPage } from "./pages/MemoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { SkillsPage } from "./pages/SkillsPage";
-import { TokenLogsPage } from "./pages/TokenLogsPage";
-import { TracesPage } from "./pages/TracesPage";
 import { TasksPage } from "./pages/TasksPage";
-import { ChannelsPage } from "./pages/ChannelsPage";
-import { SubagentsPage } from "./pages/SubagentsPage";
-import { AgentsPage } from "./pages/AgentsPage";
-import { ApiPage } from "./pages/ApiPage";
 import { ProjectDetailPage } from "./pages/ProjectDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./auth";
@@ -51,15 +43,37 @@ function AppRoutes() {
           <Route path="/chat/:sessionId" element={<ChatPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/channels" element={<ChannelsPage />} />
-          <Route path="/subagents" element={<SubagentsPage />} />
-          <Route path="/memory" element={<MemoryPage />} />
-          <Route path="/token-logs" element={<TokenLogsPage />} />
-          <Route path="/traces" element={<TracesPage />} />
-          <Route path="/api" element={<ApiPage />} />
-          <Route path="/agents" element={<AgentsPage />} />
-          <Route path="/skills" element={<SkillsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/:tab" element={<SettingsPage />} />
+          {/* Redirects from old paths */}
+          <Route
+            path="/channels"
+            element={<Navigate to="/settings/channels" replace />}
+          />
+          <Route
+            path="/subagents"
+            element={<Navigate to="/settings/subagents" replace />}
+          />
+          <Route
+            path="/agents"
+            element={<Navigate to="/settings/agents" replace />}
+          />
+          <Route
+            path="/memory"
+            element={<Navigate to="/settings/memory" replace />}
+          />
+          <Route
+            path="/traces"
+            element={<Navigate to="/settings/traces" replace />}
+          />
+          <Route
+            path="/skills"
+            element={<Navigate to="/settings/skills" replace />}
+          />
+          <Route
+            path="/api"
+            element={<Navigate to="/settings/api" replace />}
+          />
         </Route>
       </Routes>
     </SessionProvider>

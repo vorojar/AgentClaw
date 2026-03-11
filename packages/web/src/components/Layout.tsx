@@ -7,12 +7,7 @@ import { useSession } from "./SessionContext";
 import { updateSession, renameSession } from "../api/client";
 import {
   IconChat,
-  IconMemory,
-  IconTraces,
-  IconTokens,
   IconSettings,
-  IconSkills,
-  IconApi,
   IconSearch,
   IconPanelLeft,
   IconSun,
@@ -21,9 +16,6 @@ import {
   IconEdit,
   IconMenu,
   IconTasks,
-  IconChannels,
-  IconSubAgents,
-  IconAgents,
   IconProjects,
   IconChevronDown,
   IconMoreHorizontal,
@@ -133,18 +125,7 @@ export function Layout() {
     setRenamingSessionId(null);
   };
 
-  const MORE_PATHS = [
-    "/channels",
-    "/subagents",
-    "/agents",
-    "/memory",
-    "/traces",
-    "/token-logs",
-    "/skills",
-    "/api",
-  ];
-  const isMoreActive = MORE_PATHS.some((p) => location.pathname.startsWith(p));
-  const [moreOpen, setMoreOpen] = useState(isMoreActive);
+  const isSettingsActive = location.pathname.startsWith("/settings");
 
   const isChat =
     location.pathname === "/" || location.pathname.startsWith("/chat");
@@ -273,81 +254,6 @@ export function Layout() {
           )}
         </div>
 
-        {/* More group (collapsible) */}
-        <div className="sidebar-more">
-          <button
-            className={`sidebar-more-toggle${isMoreActive ? " active" : ""}`}
-            onClick={() => setMoreOpen((v) => !v)}
-          >
-            <span>{t("nav.more")}</span>
-            <span
-              className={`sidebar-more-chevron${moreOpen ? " expanded" : ""}`}
-            >
-              <IconChevronDown size={14} />
-            </span>
-          </button>
-          {moreOpen && (
-            <nav className="sidebar-nav sidebar-nav-more">
-              <NavLink
-                to="/channels"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconChannels size={16} /> {t("nav.channels")}
-              </NavLink>
-              <NavLink
-                to="/subagents"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconSubAgents size={16} /> {t("nav.subagents")}
-              </NavLink>
-              <NavLink
-                to="/agents"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconAgents size={16} /> {t("nav.agents")}
-              </NavLink>
-              <NavLink
-                to="/memory"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconMemory size={16} /> {t("nav.memory")}
-              </NavLink>
-              <NavLink
-                to="/traces"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconTraces size={16} /> {t("nav.traces")}
-              </NavLink>
-              <NavLink
-                to="/token-logs"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconTokens size={16} /> {t("nav.tokenLogs")}
-              </NavLink>
-              <NavLink
-                to="/skills"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconSkills size={16} /> {t("nav.skills")}
-              </NavLink>
-              <NavLink
-                to="/api"
-                className={({ isActive }) => (isActive ? "active" : "")}
-                onClick={closeSidebarOnMobile}
-              >
-                <IconApi size={16} /> {t("nav.api")}
-              </NavLink>
-            </nav>
-          )}
-        </div>
-
         {/* Session list */}
         {sessions.length > 0 &&
           (() => {
@@ -426,8 +332,8 @@ export function Layout() {
           <div className="sidebar-footer-row">
             <NavLink
               to="/settings"
-              className={({ isActive }) =>
-                `sidebar-footer-link${isActive ? " active" : ""}`
+              className={() =>
+                `sidebar-footer-link${isSettingsActive ? " active" : ""}`
               }
               onClick={closeSidebarOnMobile}
             >

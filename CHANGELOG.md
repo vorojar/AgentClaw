@@ -1,5 +1,13 @@
 # 更新日志
 
+## [1.3.11] - 2026-03-11
+
+### 重构
+- **Settings 二级菜单**：Settings 页面新增左侧导航菜单，将 Channels、Agents、Subagents、Memory、Tools、Skills、Traces、API 整合为 Settings 子页面
+- **侧边栏精简**：全局侧边栏从 10+ 入口精简为 Chat、Tasks、Projects、Settings 四项，管理功能统一收入 Settings
+- **移除 Token Logs 页面**：Token 消耗数据已被 Traces 和 General 统计完全覆盖，不再作为独立入口
+- **路由兼容**：旧路径（/channels、/memory 等）自动重定向到 /settings/* 对应页面
+
 ## [1.3.10] - 2026-03-11
 
 ### 新增

@@ -288,7 +288,18 @@
     "skillsLabel": "技能",
     "tools": "工具",
     "language": "语言",
-    "languageHint": "界面显示语言"
+    "languageHint": "界面显示语言",
+    "tabs": {
+      "general": "常规",
+      "channels": "渠道",
+      "agents": "智能体",
+      "subagents": "子代理",
+      "memory": "记忆",
+      "tools": "工具",
+      "skills": "技能",
+      "traces": "追踪",
+      "api": "API"
+    }
   },
   "api": {
     "title": "API 参考"

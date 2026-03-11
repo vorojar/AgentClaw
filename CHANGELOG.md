@@ -1,5 +1,11 @@
 # 更新日志
 
+## [1.3.10] - 2026-03-11
+
+### 重构
+- **ChatPage WS 连接提取**：将 WebSocket 连接生命周期（连接/重连/指数退避/可见性恢复/待发队列）提取为 `useSessionWebSocket` hook，ChatPage 减少 ~90 行
+- **ChatPage streaming 状态提取**：将 `isSending`/`activeToolName`/`streamingSessionRef` 及其状态转换封装为 `useStreamingState` hook，用 `startStreaming`/`stopStreaming`/`resetLocal` 命名方法替代散落的 setState 调用
+
 ## [1.3.9] - 2026-03-11
 
 ### 改进

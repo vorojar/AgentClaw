@@ -19,7 +19,6 @@ import {
   getHistory,
   deleteTurnsFrom,
   createSession,
-  connectWebSocket,
   uploadFile,
   renameSession,
   closeSession,
@@ -27,6 +26,8 @@ import {
   listSkills,
   listAgents,
 } from "../api/client";
+import { useSessionWebSocket } from "../hooks/useSessionWebSocket";
+import { useStreamingState } from "../hooks/useStreamingState";
 import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
 import { useSession } from "../components/SessionContext";
@@ -923,11 +924,8 @@ export function ChatPage() {
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
-  const [wsDisconnected, setWsDisconnected] = useState(false);
+  // wsConnected, wsDisconnected, wsRef — from useSessionWebSocket below
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [activeToolName, setActiveToolName] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<
     Array<{ file: File; preview?: string }>
   >([]);
@@ -947,8 +945,16 @@ export function ChatPage() {
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
   >([]);
-  // Track which session is actually streaming (not affected by session switching)
-  const streamingSessionRef = useRef<string | null>(null);
+  const {
+    isSending,
+    activeToolName,
+    streamingSessionRef,
+    startStreaming,
+    stopStreaming,
+    resetLocal: resetStreamingLocal,
+    setActiveToolName,
+    setIsSending,
+  } = useStreamingState({ setStreamingSessionId });
 
   const sessionIdRef = useRef(activeSessionId);
   sessionIdRef.current = activeSessionId;
@@ -956,14 +962,6 @@ export function ChatPage() {
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const wsRef = useRef<{
-    send: (c: string, skillName?: string) => void;
-    stop: () => void;
-    close: () => void;
-    promptReply: (c: string) => void;
-  } | null>(null);
-  const wsGenRef = useRef(0);
-  const wsRetryRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<DisplayMessage[]>(messages);
@@ -973,8 +971,6 @@ export function ChatPage() {
   inputValueRef.current = inputValue;
   const pendingFilesRef = useRef(pendingFiles);
   pendingFilesRef.current = pendingFiles;
-  const pendingSendRef = useRef<string | null>(null);
-  const pendingSkillRef = useRef<string | null>(null);
 
   /* ── Voice input (Web Speech API + MediaRecorder fallback) ─── */
   const [isListening, setIsListening] = useState(false);
@@ -1029,8 +1025,7 @@ export function ChatPage() {
   useEffect(() => {
     if (!activeSessionId) {
       setMessages([]);
-      setIsSending(false);
-      setActiveToolName(null);
+      // resetStreamingLocal() handled by session-switch effect below
       setLoadingHistory(false);
       // 新建会话时清空 todo
       setTodoItems([]);
@@ -1092,90 +1087,6 @@ export function ChatPage() {
     };
   }, [activeSessionId]);
 
-  /* WS connection — generation counter guards stale callbacks */
-  const connectWs = useCallback(() => {
-    // Always invalidate old WS callbacks first
-    const gen = ++wsGenRef.current;
-    wsRef.current?.close();
-    wsRef.current = null;
-    setWsConnected(false);
-    setWsDisconnected(false);
-    setIsSending(false);
-    setActiveToolName(null);
-    resumingRef.current = false;
-    if (!activeSessionId) return;
-    const conn = connectWebSocket(
-      activeSessionId,
-      (msg: WSMessage) => {
-        if (wsGenRef.current === gen) handleWsMessage(msg);
-      },
-      () => {
-        if (wsGenRef.current === gen) {
-          setWsConnected(false);
-          setWsDisconnected(true);
-          // Don't clear isSending here — agent loop is still running server-side.
-          // "resuming" on reconnect will confirm, "done" will clear properly.
-          setActiveToolName(null);
-          // Exponential backoff reconnect (1s, 2s, 4s, …, cap 30s) + jitter — no max retries
-          const retry = wsRetryRef.current;
-          const baseDelay = Math.min(
-            1000 * Math.pow(2, Math.min(retry, 5)),
-            30000,
-          );
-          const jitter = Math.random() * 1000;
-          wsRetryRef.current = retry + 1;
-          setTimeout(() => {
-            if (wsGenRef.current === gen) connectWs();
-          }, baseDelay + jitter);
-        }
-      },
-      () => {
-        if (wsGenRef.current === gen) {
-          wsRetryRef.current = 0; // Reset backoff on successful connect
-          setWsConnected(true);
-          setWsDisconnected(false);
-          // Send pending message (first message that triggered session creation)
-          if (pendingSendRef.current && conn) {
-            const msg = pendingSendRef.current;
-            const skill = pendingSkillRef.current;
-            pendingSendRef.current = null;
-            pendingSkillRef.current = null;
-            conn.send(msg, skill ?? undefined);
-          }
-          // If reconnecting to the session that was streaming, check if it's still active.
-          // Server sends "resuming" synchronously on connect if still streaming.
-          // If no "resuming" arrives within 500ms, the session has finished — clear stale spinner.
-          if (
-            streamingSessionRef.current &&
-            streamingSessionRef.current === activeSessionId
-          ) {
-            const snap = streamingSessionRef.current;
-            setTimeout(() => {
-              if (
-                wsGenRef.current === gen &&
-                streamingSessionRef.current === snap &&
-                !resumingRef.current
-              ) {
-                streamingSessionRef.current = null;
-                setStreamingSessionId(null);
-                setIsSending(false);
-              }
-            }, 500);
-          }
-        }
-      },
-    );
-    wsRef.current = conn;
-  }, [activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    connectWs();
-    return () => {
-      wsRef.current?.close();
-      wsRef.current = null;
-    };
-  }, [connectWs]);
-
   useEffect(() => {
     return () => {
       pendingFilesRef.current.forEach((pf) => {
@@ -1184,27 +1095,15 @@ export function ChatPage() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Auto-reconnect on visibility change (tab switch) and network recovery */
-  const wsDisconnectedRef = useRef(false);
-  wsDisconnectedRef.current = wsDisconnected;
+  /* Reset streaming state on session switch (hook handles WS lifecycle) */
   useEffect(() => {
-    const tryReconnect = () => {
-      if (wsDisconnectedRef.current && activeSessionId) {
-        wsRetryRef.current = 0;
-        connectWs();
-      }
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") tryReconnect();
-    };
-    const onOnline = () => tryReconnect();
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", onOnline);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", onOnline);
-    };
-  }, [connectWs, activeSessionId]);
+    resetStreamingLocal();
+  }, [activeSessionId, resetStreamingLocal]);
+
+  /* Clear active tool on WS disconnect */
+  useEffect(() => {
+    if (wsDisconnected) setActiveToolName(null);
+  }, [wsDisconnected, setActiveToolName]);
 
   /* WS message handler */
   const handleWsMessage = useCallback((msg: WSMessage) => {
@@ -1216,9 +1115,7 @@ export function ChatPage() {
       case "resuming": {
         // 服务端重连回放：标记回放中，防止 history 加载覆盖 streaming 状态
         resumingRef.current = true;
-        setIsSending(true);
-        streamingSessionRef.current = sessionIdRef.current;
-        setStreamingSessionId(sessionIdRef.current);
+        startStreaming(sessionIdRef.current);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === "assistant" && last.streaming) {
@@ -1444,9 +1341,7 @@ export function ChatPage() {
           }
           return prev;
         });
-        setIsSending(false);
-        streamingSessionRef.current = null;
-        setStreamingSessionId(null);
+        stopStreaming();
         refreshSessions();
         break;
       }
@@ -1520,12 +1415,26 @@ export function ChatPage() {
           }
           return [...prev, errMsg];
         });
-        setIsSending(false);
-        setActiveToolName(null);
+        resetStreamingLocal();
         break;
       }
     }
   }, []);
+
+  /* WS connection lifecycle (extracted hook) */
+  const {
+    wsRef,
+    wsConnected,
+    wsDisconnected,
+    setPendingSend,
+    reconnect: connectWs,
+  } = useSessionWebSocket({
+    sessionId: activeSessionId,
+    onMessage: handleWsMessage,
+    onStaleStreaming: stopStreaming,
+    resumingRef,
+    streamingSessionRef,
+  });
 
   /* Send */
   const handleSend = useCallback(async () => {
@@ -1590,9 +1499,7 @@ export function ChatPage() {
     setInputValue("");
     setLastUserText(contentToSend);
     sendTimestampRef.current = Date.now();
-    setIsSending(true);
-    streamingSessionRef.current = activeSessionId;
-    setStreamingSessionId(activeSessionId);
+    startStreaming(activeSessionId);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     const skillToSend = selectedSkill || undefined;
@@ -1602,8 +1509,7 @@ export function ChatPage() {
       wsRef.current.send(contentToSend, skillToSend);
     } else {
       // No WS — store message, create/reconnect session; onOpen will send it
-      pendingSendRef.current = contentToSend;
-      pendingSkillRef.current = skillToSend ?? null;
+      setPendingSend(contentToSend, skillToSend);
       if (!activeSessionId) {
         skipHistoryRef.current = true;
         await ensureSession();
@@ -1619,14 +1525,15 @@ export function ChatPage() {
     ensureSession,
     activeSessionId,
     connectWs,
+    setPendingSend,
+    startStreaming,
   ]);
 
   const handleStop = useCallback(() => {
     if (!wsRef.current) return;
     stoppedRef.current = true;
     wsRef.current.stop();
-    setIsSending(false);
-    setActiveToolName(null);
+    resetStreamingLocal();
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last && last.role === "assistant" && last.streaming)

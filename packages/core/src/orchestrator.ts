@@ -13,7 +13,7 @@ import type {
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 import type { SkillRegistryImpl } from "./skills/registry.js";
 import { generateId } from "@agentclaw/providers";
-import { SimpleAgentLoop } from "./agent-loop.js";
+import { SimpleAgentLoop, IterationBudget } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 import { MemoryExtractor } from "./memory-extractor.js";
 import { SimpleSubAgentManager } from "./subagent-manager.js";
@@ -138,6 +138,11 @@ export class SimpleOrchestrator implements Orchestrator {
     session.lastActiveAt = new Date();
     this.memoryStore.saveSession(session).catch(() => {});
 
+    // Shared iteration budget: parent + sub-agents consume from the same pool
+    const iterationBudget = new IterationBudget(
+      this.agentConfig?.maxIterations ?? 25,
+    );
+
     // Merge orchestrator-provided callbacks into the context
     const memoryStore = this.memoryStore;
     const mergedContext: ToolExecutionContext = {
@@ -179,6 +184,7 @@ export class SimpleOrchestrator implements Orchestrator {
         agentConfig: this.agentConfig,
         skillRegistry: this.skillRegistry,
         parentContext: context,
+        iterationBudget,
       }),
     };
 
@@ -218,6 +224,7 @@ export class SimpleOrchestrator implements Orchestrator {
         effectiveProvider,
         currentAgent,
         session.metadata,
+        iterationBudget,
       );
       this.activeLoops.set(sessionId, loop);
 
@@ -462,6 +469,7 @@ export class SimpleOrchestrator implements Orchestrator {
     provider?: LLMProvider,
     agent?: AgentProfile,
     sessionMetadata?: Record<string, unknown>,
+    iterationBudget?: IterationBudget,
   ): SimpleAgentLoop {
     const effectiveProvider = provider ?? this.provider;
 
@@ -523,6 +531,7 @@ export class SimpleOrchestrator implements Orchestrator {
       contextManager,
       memoryStore: this.memoryStore,
       config,
+      iterationBudget,
     });
   }
 }

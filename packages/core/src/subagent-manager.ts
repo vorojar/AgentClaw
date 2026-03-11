@@ -13,7 +13,7 @@ import type {
 import { ToolRegistryImpl } from "@agentclaw/tools";
 import type { SkillRegistryImpl } from "./skills/registry.js";
 import { generateId } from "@agentclaw/providers";
-import { SimpleAgentLoop } from "./agent-loop.js";
+import { SimpleAgentLoop, IterationBudget } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 
 /** Tools that sub-agents must never have access to */
@@ -46,6 +46,7 @@ export class SimpleSubAgentManager implements SubAgentManager {
   private agentConfig?: Partial<AgentConfig>;
   private skillRegistry?: SkillRegistryImpl;
   private parentContext?: ToolExecutionContext;
+  private iterationBudget?: IterationBudget;
 
   constructor(options: {
     provider: LLMProvider;
@@ -54,6 +55,7 @@ export class SimpleSubAgentManager implements SubAgentManager {
     agentConfig?: Partial<AgentConfig>;
     skillRegistry?: SkillRegistryImpl;
     parentContext?: ToolExecutionContext;
+    iterationBudget?: IterationBudget;
   }) {
     this.provider = options.provider;
     this.toolRegistry = options.toolRegistry;
@@ -61,6 +63,7 @@ export class SimpleSubAgentManager implements SubAgentManager {
     this.agentConfig = options.agentConfig;
     this.skillRegistry = options.skillRegistry;
     this.parentContext = options.parentContext;
+    this.iterationBudget = options.iterationBudget;
   }
 
   private createEntry(
@@ -115,6 +118,7 @@ export class SimpleSubAgentManager implements SubAgentManager {
         maxIterations,
         model: options?.model ?? this.agentConfig?.model,
       },
+      iterationBudget: this.iterationBudget,
     });
 
     return {

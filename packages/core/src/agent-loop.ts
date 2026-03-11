@@ -30,6 +30,28 @@ import {
 } from "node:fs";
 import { join, basename } from "node:path";
 
+/**
+ * Shared iteration budget between parent and child agents.
+ * When a sub-agent consumes iterations, they count against the parent's total.
+ */
+export class IterationBudget {
+  private used = 0;
+
+  constructor(public readonly max: number) {}
+
+  get remaining(): number {
+    return Math.max(0, this.max - this.used);
+  }
+
+  consume(n = 1): void {
+    this.used += n;
+  }
+
+  get exhausted(): boolean {
+    return this.used >= this.max;
+  }
+}
+
 const DEFAULT_CONFIG: AgentConfig = {
   maxIterations: 15,
   systemPrompt: "",
@@ -84,6 +106,7 @@ export class SimpleAgentLoop implements AgentLoop {
   private listeners: Set<AgentEventListener> = new Set();
   private aborted = false;
   private abortController: AbortController | null = null;
+  private iterationBudget?: IterationBudget;
 
   get state(): AgentState {
     return this._state;
@@ -99,12 +122,14 @@ export class SimpleAgentLoop implements AgentLoop {
     contextManager: ContextManager;
     memoryStore: MemoryStore;
     config?: Partial<AgentConfig>;
+    iterationBudget?: IterationBudget;
   }) {
     this.provider = options.provider;
     this.toolRegistry = options.toolRegistry;
     this.contextManager = options.contextManager;
     this.memoryStore = options.memoryStore;
     this._config = { ...DEFAULT_CONFIG, ...options.config };
+    this.iterationBudget = options.iterationBudget;
   }
 
   async run(
@@ -292,7 +317,15 @@ export class SimpleAgentLoop implements AgentLoop {
     let lastFullText = ""; // Keep last LLM text for fallback response
 
     while (iterations < this._config.maxIterations && !this.aborted) {
+      // Check shared budget (parent + children share the same IterationBudget)
+      if (this.iterationBudget?.exhausted) {
+        yield this.createEvent("thinking", {
+          text: "Iteration budget exhausted.",
+        });
+        break;
+      }
       iterations++;
+      this.iterationBudget?.consume();
 
       // Build context (iteration 2+ reuses cached dynamic prefix for KV-cache stability)
       this.setState("thinking");

@@ -82,8 +82,18 @@ export class SimpleContextManager implements ContextManager {
 
     let historyMessages: Message[];
     if (turns.length > this.compressAfter) {
-      const oldTurns = turns.slice(0, turns.length - this.compressAfter);
-      const recentTurns = turns.slice(turns.length - this.compressAfter);
+      // Find the compress boundary, avoiding splitting tool_call/result pairs
+      let splitIdx = turns.length - this.compressAfter;
+      // If the split point lands on a "tool" turn, push it forward past tool results
+      while (splitIdx < turns.length && turns[splitIdx].role === "tool") {
+        splitIdx++;
+      }
+      // Safety: don't compress everything
+      if (splitIdx >= turns.length - 2)
+        splitIdx = turns.length - this.compressAfter;
+
+      const oldTurns = turns.slice(0, splitIdx);
+      const recentTurns = turns.slice(splitIdx);
       const summary = await this.compressTurns(conversationId, oldTurns);
       historyMessages = [
         {
@@ -169,6 +179,9 @@ export class SimpleContextManager implements ContextManager {
         }
       }
     }
+
+    // ── 3.5. Fix orphaned tool_call/tool_result pairs after compression ──
+    historyMessages = this.sanitizeToolPairs(historyMessages);
 
     // ── 4. Assemble ──
     const finalPrompt = dynamicSuffix
@@ -470,5 +483,96 @@ export class SimpleContextManager implements ContextManager {
       createdAt: turn.createdAt,
       model: turn.model,
     };
+  }
+
+  /**
+   * Fix orphaned tool_call / tool_result pairs after compression.
+   *
+   * Two failure modes:
+   * 1. A tool result references a tool_call_id whose assistant tool_call was removed
+   *    → remove the orphaned tool result
+   * 2. An assistant message has tool_calls whose results were dropped
+   *    → insert stub tool results so the API doesn't reject
+   */
+  private sanitizeToolPairs(messages: Message[]): Message[] {
+    // Collect all tool_call IDs from assistant messages
+    const survivingCallIds = new Set<string>();
+    for (const msg of messages) {
+      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+        for (const block of msg.content as ContentBlock[]) {
+          if (block.type === "tool_use" && block.id) {
+            survivingCallIds.add(block.id);
+          }
+        }
+      }
+    }
+
+    // Collect all tool_result IDs from tool messages
+    const resultCallIds = new Set<string>();
+    for (const msg of messages) {
+      if (msg.role === "tool" && Array.isArray(msg.content)) {
+        for (const block of msg.content as ContentBlock[]) {
+          if (
+            (block as ToolResultContent).type === "tool_result" &&
+            (block as ToolResultContent).toolUseId
+          ) {
+            resultCallIds.add((block as ToolResultContent).toolUseId);
+          }
+        }
+      }
+    }
+
+    // 1. Remove tool messages whose tool_call_id has no matching assistant tool_call
+    let result = messages.filter((msg) => {
+      if (msg.role !== "tool" || !Array.isArray(msg.content)) return true;
+      const blocks = msg.content as ContentBlock[];
+      const toolResults = blocks.filter(
+        (b) => (b as ToolResultContent).type === "tool_result",
+      );
+      if (toolResults.length === 0) return true;
+      // Keep only if at least one tool_result has a surviving call
+      return toolResults.some((b) =>
+        survivingCallIds.has((b as ToolResultContent).toolUseId),
+      );
+    });
+
+    // 2. Insert stub results for assistant tool_calls whose results were dropped
+    const missingResults = new Set<string>();
+    for (const id of survivingCallIds) {
+      if (!resultCallIds.has(id)) missingResults.add(id);
+    }
+
+    if (missingResults.size > 0) {
+      const patched: Message[] = [];
+      for (const msg of result) {
+        patched.push(msg);
+        if (msg.role === "assistant" && Array.isArray(msg.content)) {
+          for (const block of msg.content as ContentBlock[]) {
+            if (
+              block.type === "tool_use" &&
+              block.id &&
+              missingResults.has(block.id)
+            ) {
+              patched.push({
+                id: `stub-${block.id}`,
+                role: "tool",
+                content: [
+                  {
+                    type: "tool_result",
+                    toolUseId: block.id,
+                    content:
+                      "[Result from earlier conversation — see context summary above]",
+                  },
+                ] as ContentBlock[],
+                createdAt: msg.createdAt,
+              });
+            }
+          }
+        }
+      }
+      result = patched;
+    }
+
+    return result;
   }
 }

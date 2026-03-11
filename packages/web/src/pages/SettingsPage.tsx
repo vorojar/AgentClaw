@@ -11,7 +11,6 @@ import {
   type ToolInfo,
 } from "../api/client";
 import {
-  IconChevronDown,
   IconSettings,
   IconChannels,
   IconSubAgents,
@@ -71,7 +70,6 @@ function SettingsGeneral() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState(getLanguage());
-  const [toolsExpanded, setToolsExpanded] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -208,21 +206,13 @@ function SettingsGeneral() {
         </div>
       </section>
 
-      {/* Tools (collapsible) */}
-      <section className="card settings-section">
-        <h2
-          className="settings-section-title settings-section-clickable"
-          onClick={() => setToolsExpanded((v) => !v)}
-        >
-          {t("settings.tools")}
-          <span className="settings-count">{tools.length}</span>
-          <span
-            className={`settings-chevron${toolsExpanded ? " expanded" : ""}`}
-          >
-            <IconChevronDown size={16} />
-          </span>
-        </h2>
-        {!toolsExpanded && tools.length > 0 && (
+      {/* Tools summary */}
+      {tools.length > 0 && (
+        <section className="card settings-section">
+          <h2 className="settings-section-title">
+            {t("settings.tools")}
+            <span className="settings-count">{tools.length}</span>
+          </h2>
           <div className="tools-badges">
             {tools.map((tool) => (
               <span
@@ -234,22 +224,48 @@ function SettingsGeneral() {
               </span>
             ))}
           </div>
-        )}
-        {toolsExpanded && (
-          <div className="tools-list">
-            {tools.map((tool) => (
-              <div key={tool.name} className="tool-item">
-                <div className="tool-header">
-                  <span className="tool-name">{tool.name}</span>
-                  <span className="badge badge-info">{tool.category}</span>
-                </div>
-                <div className="tool-description">{tool.description}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+        </section>
+      )}
     </>
+  );
+}
+
+/* ── Tools tab ── */
+function SettingsTools() {
+  const { t } = useTranslation();
+  const [tools, setTools] = useState<ToolInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    listTools()
+      .then(setTools)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="settings-loading">{t("settings.loadingSettings")}</div>
+    );
+  }
+
+  return (
+    <section className="card settings-section">
+      <h2 className="settings-section-title">
+        {t("settings.tools")}
+        <span className="settings-count">{tools.length}</span>
+      </h2>
+      <div className="tools-list">
+        {tools.map((tool) => (
+          <div key={tool.name} className="tool-item">
+            <div className="tool-header">
+              <span className="tool-name">{tool.name}</span>
+              <span className="badge badge-info">{tool.category}</span>
+            </div>
+            <div className="tool-description">{tool.description}</div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -281,6 +297,8 @@ export function SettingsPage() {
             <SubagentsPage />
           </div>
         );
+      case "tools":
+        return <SettingsTools />;
       case "memory":
         return (
           <div className="settings-embed">

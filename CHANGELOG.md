@@ -3,6 +3,7 @@
 ## [1.3.10] - 2026-03-11
 
 ### 新增
+- **Frozen Snapshot 系统提示词**：session 期间冻结 dynamic context（记忆 + 技能目录）快照，同一 conversationId 只在首轮构建，后续复用冻结快照。memory 写入照常持久化到 SQLite，但不改变当前 session 的系统提示词，提高 Anthropic prompt cache 命中率
 - **渠道格式提示（Platform Hints）**：不同消息渠道自动注入格式指导到系统提示词（如 Telegram 不使用 Markdown、钉钉支持 Markdown 等），通过 session metadata 传递，orchestrator 按渠道动态解析
 - **Subagent 工具黑名单**：子代理创建时自动过滤危险工具（subagent/ask_user/remember/schedule/send_file/social_post），防止递归委托、挂起、记忆污染和跨渠道副作用
 - **Subagent spawn_and_wait**：新增 `spawn_and_wait` action，一次提交多个子任务，顺序执行避免 LLM 并发竞争，结果一次性返回

@@ -66,7 +66,6 @@ function SettingsGeneral() {
   const { t } = useTranslation();
   const [config, setConfig] = useState<AppConfigInfo | null>(null);
   const [stats, setStats] = useState<UsageStatsInfo | null>(null);
-  const [tools, setTools] = useState<ToolInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState(getLanguage());
@@ -74,14 +73,12 @@ function SettingsGeneral() {
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const [configData, statsData, toolsData] = await Promise.all([
+      const [configData, statsData] = await Promise.all([
         getConfig(),
         getStats(),
-        listTools(),
       ]);
       setConfig(configData);
       setStats(statsData);
-      setTools(toolsData);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
@@ -205,27 +202,6 @@ function SettingsGeneral() {
           </span>
         </div>
       </section>
-
-      {/* Tools summary */}
-      {tools.length > 0 && (
-        <section className="card settings-section">
-          <h2 className="settings-section-title">
-            {t("settings.tools")}
-            <span className="settings-count">{tools.length}</span>
-          </h2>
-          <div className="tools-badges">
-            {tools.map((tool) => (
-              <span
-                key={tool.name}
-                className={`tool-badge tool-badge-${tool.category}`}
-                title={tool.description}
-              >
-                {tool.name}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
     </>
   );
 }

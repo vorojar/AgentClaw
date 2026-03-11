@@ -11,6 +11,7 @@ import {
   splitMessage,
   broadcastSessionActivity,
 } from "./utils.js";
+import { PLATFORM_HINTS } from "./platform-hints.js";
 
 // ── QQ Bot API Constants ───────────────────────────
 
@@ -382,7 +383,9 @@ export async function startQQBot(
     let sid = chatSessionMap.get(chatKey);
     if (!sid) {
       try {
-        const session = await appCtx.orchestrator.createSession();
+        const session = await appCtx.orchestrator.createSession({
+          platformHint: PLATFORM_HINTS.qq,
+        });
         sid = session.id;
         chatSessionMap.set(chatKey, sid);
         appCtx.memoryStore.saveChatTarget("qqbot", chatKey, sid);

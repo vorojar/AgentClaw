@@ -12,6 +12,7 @@ import {
   splitMessage,
   broadcastSessionActivity,
 } from "./utils.js";
+import { PLATFORM_HINTS } from "./platform-hints.js";
 
 /** Map Feishu chat_id → AgentClaw session ID */
 const chatSessionMap = new Map<string, string>();
@@ -146,7 +147,9 @@ export async function startFeishuBot(
     let sessionId = chatSessionMap.get(chat_id);
     if (!sessionId) {
       try {
-        const session = await appCtx.orchestrator.createSession();
+        const session = await appCtx.orchestrator.createSession({
+          platformHint: PLATFORM_HINTS.feishu,
+        });
         sessionId = session.id;
         chatSessionMap.set(chat_id, sessionId);
         appCtx.memoryStore.saveChatTarget("feishu", chat_id, sessionId);

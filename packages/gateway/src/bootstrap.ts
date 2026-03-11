@@ -381,14 +381,16 @@ export async function bootstrap(): Promise<AppContext> {
       hasClaudeCode: availableCli.includes("claude") ? "true" : "",
       health: formatHealthResults(healthResults),
     };
-    // Replace {{var}} placeholders (keep {{soul}} for per-agent resolution)
+    // Replace {{var}} placeholders (keep {{soul}} and {{platformHint}} for per-session resolution)
+    const deferredVars = new Set(["soul", "platformHint"]);
     defaultSystemPrompt = template.replace(/\{\{(\w+)\}\}/g, (match, key) =>
-      key === "soul" ? match : (vars[key] ?? ""),
+      deferredVars.has(key) ? match : (vars[key] ?? ""),
     );
-    // Handle {{#if var}}...{{/if}} conditionals
+    // Handle {{#if var}}...{{/if}} conditionals (keep deferred vars for per-session resolution)
     defaultSystemPrompt = defaultSystemPrompt.replace(
       /\{\{#if (\w+)\}\}(.*?)\{\{\/if\}\}/gs,
-      (_, key, content) => (vars[key] ? content : ""),
+      (match, key, content) =>
+        deferredVars.has(key) ? match : vars[key] ? content : "",
     );
     console.log(`[bootstrap] System prompt loaded from ${systemPromptPath}`);
   } else {

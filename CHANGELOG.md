@@ -3,6 +3,7 @@
 ## [1.3.10] - 2026-03-11
 
 ### 新增
+- **渠道格式提示（Platform Hints）**：不同消息渠道自动注入格式指导到系统提示词（如 Telegram 不使用 Markdown、钉钉支持 Markdown 等），通过 session metadata 传递，orchestrator 按渠道动态解析
 - **Subagent 工具黑名单**：子代理创建时自动过滤危险工具（subagent/ask_user/remember/schedule/send_file/social_post），防止递归委托、挂起、记忆污染和跨渠道副作用
 - **Subagent spawn_and_wait**：新增 `spawn_and_wait` action，一次提交多个子任务，顺序执行避免 LLM 并发竞争，结果一次性返回
 - **SubAgentCard 卡片 UI**：会话页中 subagent 调用以 Mem 风格单卡片展示，每个子任务一行（spinner → ✓/✗），替代之前 13+ 条工具调用的平铺显示

@@ -16,6 +16,16 @@ import { generateId } from "@agentclaw/providers";
 import { SimpleAgentLoop } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 
+/** Tools that sub-agents must never have access to */
+const SUBAGENT_BLOCKED_TOOLS = new Set([
+  "subagent", // 防止递归委托
+  "ask_user", // 子代理无法与用户交互，会永远挂起
+  "remember", // 防止污染共享长期记忆
+  "schedule", // 防止创建定时任务等副作用
+  "send_file", // 防止跨渠道副作用
+  "social_post", // 防止社交平台副作用
+]);
+
 interface SubAgentEntry {
   info: SubAgentInfo;
   loop: SimpleAgentLoop;
@@ -61,13 +71,22 @@ export class SimpleSubAgentManager implements SubAgentManager {
     const convId = generateId();
     const maxIterations = options?.maxIterations ?? 8;
 
-    // Build tool registry — filter if allowedTools specified
-    let toolRegistry = this.toolRegistry;
+    // Build tool registry — filter if allowedTools specified, always strip blocked tools
+    let toolRegistry: ToolRegistryImpl;
     if (options?.allowedTools && options.allowedTools.length > 0) {
       const allowed = new Set(options.allowedTools);
       const filtered = new ToolRegistryImpl();
       for (const tool of this.toolRegistry.list()) {
-        if (allowed.has(tool.name)) {
+        if (allowed.has(tool.name) && !SUBAGENT_BLOCKED_TOOLS.has(tool.name)) {
+          filtered.register(tool);
+        }
+      }
+      toolRegistry = filtered;
+    } else {
+      // No allowlist — use all tools except blocked ones
+      const filtered = new ToolRegistryImpl();
+      for (const tool of this.toolRegistry.list()) {
+        if (!SUBAGENT_BLOCKED_TOOLS.has(tool.name)) {
           filtered.register(tool);
         }
       }

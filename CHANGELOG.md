@@ -3,6 +3,7 @@
 ## [1.3.10] - 2026-03-11
 
 ### 新增
+- **Subagent 工具黑名单**：子代理创建时自动过滤危险工具（subagent/ask_user/remember/schedule/send_file/social_post），防止递归委托、挂起、记忆污染和跨渠道副作用
 - **Subagent spawn_and_wait**：新增 `spawn_and_wait` action，一次提交多个子任务，顺序执行避免 LLM 并发竞争，结果一次性返回
 - **SubAgentCard 卡片 UI**：会话页中 subagent 调用以 Mem 风格单卡片展示，每个子任务一行（spinner → ✓/✗），替代之前 13+ 条工具调用的平铺显示
 - **人类化输入**：click/type 支持 `human: true` 参数 — click 模拟鼠标移动+随机延迟，type 逐字输入 30-150ms 间隔，降低社交平台 bot 检测风险

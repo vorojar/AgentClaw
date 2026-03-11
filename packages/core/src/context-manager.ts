@@ -35,8 +35,10 @@ export class SimpleContextManager implements ContextManager {
   private summaryCache = new Map<string, string>();
 
   /**
-   * Cache dynamic context (memories + skills) per conversation.
-   * Reused on agent loop iterations 2+ so we don't re-search memories every iteration.
+   * Frozen snapshot of dynamic context (memories + skills) per conversation.
+   * Built once on the first turn, reused for the entire session.
+   * Memory writes during session persist to DB but don't alter the system prompt,
+   * keeping it stable for prefix cache efficiency (Anthropic prompt caching).
    */
   private dynamicContextCache = new Map<
     string,
@@ -118,7 +120,10 @@ export class SimpleContextManager implements ContextManager {
     let dynamicSuffix: string;
     let skillMatch: { name: string; confidence: number } | undefined;
 
-    if (options?.reuseContext && this.dynamicContextCache.has(conversationId)) {
+    // Frozen snapshot: once built for a conversation, reuse for entire session.
+    // Memory changes during session are persisted to DB but don't alter the
+    // system prompt — this keeps the prompt stable for prefix cache efficiency.
+    if (this.dynamicContextCache.has(conversationId)) {
       const cached = this.dynamicContextCache.get(conversationId)!;
       dynamicSuffix = cached.suffix;
       skillMatch = cached.skillMatch;

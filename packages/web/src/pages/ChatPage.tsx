@@ -1218,12 +1218,12 @@ export function ChatPage() {
         // 服务端重连回放：标记回放中，防止 history 加载覆盖 streaming 状态
         resumingRef.current = true;
         startStreaming(sessionIdRef.current);
+        // Remove trailing assistant message regardless of streaming flag —
+        // history may have loaded first (streaming: false), buffer replay will rebuild it
         setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          if (last && last.role === "assistant" && last.streaming) {
-            return prev.slice(0, -1);
-          }
-          return prev;
+          let end = prev.length;
+          while (end > 0 && prev[end - 1].role === "assistant") end--;
+          return end < prev.length ? prev.slice(0, end) : prev;
         });
         break;
       }

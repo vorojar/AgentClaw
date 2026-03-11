@@ -56,6 +56,7 @@ export function Layout() {
     handleDeleteSession,
     handleSelectSession,
     streamingSessionId,
+    activeLoopIds,
     projects,
     handleCreateProject,
     refreshSessions,
@@ -298,7 +299,8 @@ export function Layout() {
                         />
                       ) : (
                         <span className="sidebar-session-label">
-                          {s.id === streamingSessionId && (
+                          {(s.id === streamingSessionId ||
+                            activeLoopIds.has(s.id)) && (
                             <span className="sidebar-session-spinner" />
                           )}
                           {formatSessionLabel(s)}

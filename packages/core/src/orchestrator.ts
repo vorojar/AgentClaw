@@ -354,6 +354,11 @@ export class SimpleOrchestrator implements Orchestrator {
     return Array.from(this.sessions.values());
   }
 
+  /** Return IDs of sessions that have an active agent loop running */
+  getActiveSessionIds(): string[] {
+    return Array.from(this.activeLoops.keys());
+  }
+
   stopSession(sessionId: string): boolean {
     const loop = this.activeLoops.get(sessionId);
     if (loop) {

@@ -185,6 +185,10 @@ export function listSessions(projectId?: string): Promise<SessionInfo[]> {
   return request(`/sessions${qs}`);
 }
 
+export function getActiveLoops(): Promise<string[]> {
+  return request("/active-loops");
+}
+
 export function closeSession(id: string): Promise<void> {
   return request(`/sessions/${id}`, { method: "DELETE" });
 }

@@ -93,6 +93,11 @@ export function registerSessionRoutes(
     },
   );
 
+  // GET /api/active-loops - List session IDs with active agent loops
+  app.get("/api/active-loops", async (_req, reply) => {
+    return reply.send(ctx.orchestrator.getActiveSessionIds());
+  });
+
   // DELETE /api/sessions/:id - Close session
   app.delete<{ Params: { id: string } }>(
     "/api/sessions/:id",

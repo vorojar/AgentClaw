@@ -13,6 +13,7 @@ import {
   listSessions,
   createSession,
   closeSession,
+  getActiveLoops,
   listProjects,
   createProject,
 } from "../api/client";
@@ -29,6 +30,8 @@ interface SessionContextValue {
   pendingProjectId: string | null;
   /** Session ID currently streaming (for sidebar indicator) */
   streamingSessionId: string | null;
+  /** Session IDs with active agent loops on the backend */
+  activeLoopIds: Set<string>;
   setSidebarOpen: (v: boolean) => void;
   setSearchQuery: (v: string) => void;
   setPendingAgentId: (v: string) => void;
@@ -81,6 +84,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [streamingSessionId, setStreamingSessionId] = useState<string | null>(
     null,
   );
+  const [activeLoopIds, setActiveLoopIds] = useState<Set<string>>(new Set());
+
+  /* Poll backend for active agent loops (every 3s) */
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () => {
+      getActiveLoops()
+        .then((ids) => {
+          if (!cancelled) setActiveLoopIds(new Set(ids));
+        })
+        .catch(() => {});
+    };
+    poll();
+    const timer = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   /* Load sessions & projects on mount */
   useEffect(() => {
@@ -120,6 +142,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const handleDeleteSession = useCallback(
     async (id: string) => {
+      // Warn if agent loop is still running for this session
+      if (activeLoopIds.has(id)) {
+        const ok = window.confirm(
+          "This session has an active agent running. Stop and delete?",
+        );
+        if (!ok) return;
+      }
       try {
         await closeSession(id);
         setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -131,7 +160,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to delete session:", err);
       }
     },
-    [activeSessionId, navigate],
+    [activeSessionId, activeLoopIds, navigate],
   );
 
   const handleSelectSession = useCallback(
@@ -445,6 +474,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         pendingAgentId,
         pendingProjectId,
         streamingSessionId,
+        activeLoopIds,
         setSidebarOpen: setSidebarOpenWithHistory,
         setSearchQuery,
         setPendingAgentId,

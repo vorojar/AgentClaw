@@ -1113,7 +1113,8 @@ export function ChatPage() {
         if (wsGenRef.current === gen) {
           setWsConnected(false);
           setWsDisconnected(true);
-          setIsSending(false);
+          // Don't clear isSending here — agent loop is still running server-side.
+          // "resuming" on reconnect will confirm, "done" will clear properly.
           setActiveToolName(null);
           // Exponential backoff reconnect (1s, 2s, 4s, …, cap 30s) + jitter — no max retries
           const retry = wsRetryRef.current;
@@ -1157,6 +1158,7 @@ export function ChatPage() {
               ) {
                 streamingSessionRef.current = null;
                 setStreamingSessionId(null);
+                setIsSending(false);
               }
             }, 500);
           }

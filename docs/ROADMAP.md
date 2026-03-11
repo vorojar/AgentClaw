@@ -504,9 +504,44 @@
 
 ---
 
+## Phase 13: Security & Performance — "更安全更快" (Safer & Faster)（第十三阶段：安全与性能）✅ 已完成
+
+**Goal**: Subagent 安全防线 + 记忆内容审查 + 渠道格式提示 + 系统提示词缓存优化 + Context 压缩保护 + UI 改进
+
+### 13.1 Subagent 安全防线 ✅
+- [x] SUBAGENT_BLOCKED_TOOLS 工具黑名单（subagent/ask_user/remember/schedule/send_file/social_post 6 个工具始终禁止），防止递归委托、挂起、记忆污染
+- [x] IterationBudget 父子共享迭代预算池，子代理消耗计入全局上限
+- [x] spawn_and_wait 批量执行模式，一次提交多个子任务顺序执行
+
+### 13.2 Memory 内容安全审查 ✅
+- [x] remember 工具写入前 scanMemoryContent() 扫描 8 种 prompt injection 模式
+- [x] 隐形 unicode 字符检测（零宽字符、方向覆盖等）
+- [x] 凭证窃取 payload 拦截
+
+### 13.3 渠道格式提示（Platform Hints）✅
+- [x] gateway/platform-hints.ts 定义 9 个渠道的格式建议
+- [x] 通过 session metadata + {{platformHint}} 模板变量注入系统提示词
+- [x] 6 个渠道文件（telegram/dingtalk/feishu/qqbot/wecom/whatsapp）传递 platformHint
+
+### 13.4 Frozen Snapshot 系统提示词 ✅
+- [x] dynamicContextCache 每个 conversationId 只构建一次
+- [x] Session 内 memory 写入持久化到 SQLite 但不改变当前系统提示词
+- [x] 提高 Anthropic prompt cache 命中率（~75% input token 成本节省）
+
+### 13.5 Context 压缩 tool pair 保护 ✅
+- [x] sanitizeToolPairs() 移除孤立 tool result、为缺失结果插入 stub
+- [x] 压缩边界自动对齐，不在 tool_call/tool_result 之间切割
+
+### 13.6 UI 改进 ✅
+- [x] Settings 二级菜单重构（General/Channels/Agents/Subagents/Memory/Tools/Skills/Traces/API）
+- [x] SubAgentCard 卡片 UI（子代理调用以单卡片展示）
+- [x] 主题切换从侧边栏移至 Settings > General > 外观
+
+---
+
 ## Current Focus（当前重点）
 
-**Phase 1-12 已完成。**
+**Phase 1-13 已完成。**
 
 **Phase 10 进行中**：测试覆盖扩展和 LLM Embedding 接入待做。
 

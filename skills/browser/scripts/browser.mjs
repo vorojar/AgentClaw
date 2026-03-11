@@ -55,24 +55,30 @@ async function main() {
       break;
     }
     case 'click': {
-      const selector = rest[0];
+      const human = rest.includes('--human');
+      const selector = rest.filter(a => !a.startsWith('--'))[0];
       if (!selector) { console.error('Error: selector required'); process.exit(1); }
-      await exec('click', { selector });
-      console.log(`Clicked: ${selector}`);
+      await exec('click', { selector, human });
+      console.log(`Clicked: ${selector}${human ? ' (human)' : ''}`);
       break;
     }
     case 'type': {
-      const [selector, rawText] = rest;
+      const human = rest.includes('--human');
+      const args = rest.filter(a => !a.startsWith('--'));
+      const [selector, rawText] = args;
       if (!selector || !rawText) { console.error('Error: selector and text required'); process.exit(1); }
       // Convert literal \n from CLI args to real newline (LLM sends "\\n" via shell)
       const text = rawText.replace(/\\n/g, '\n');
-      await exec('type', { selector, text });
-      console.log(`Typed into: ${selector}`);
+      await exec('type', { selector, text, human });
+      console.log(`Typed into: ${selector}${human ? ' (human)' : ''}`);
       break;
     }
     case 'get_content': {
-      const selector = rest[0];
-      const result = await exec('get_content', { selector });
+      const filterInteractive = rest.includes('--filter') && rest[rest.indexOf('--filter') + 1] === 'interactive';
+      const selector = rest.filter(a => !a.startsWith('--') && a !== 'interactive')[0];
+      const args = { selector };
+      if (filterInteractive) args.filter = 'interactive';
+      const result = await exec('get_content', args);
       console.log(result.text);
       break;
     }
@@ -84,6 +90,7 @@ async function main() {
     case 'batch': {
       const fileIdx = rest.indexOf('--file');
       const autoClose = rest.includes('--auto-close');
+      const summary = rest.includes('--summary');
       let json;
       if (fileIdx !== -1 && rest[fileIdx + 1]) {
         // Read JSON from file (avoids shell quoting issues)
@@ -96,7 +103,7 @@ async function main() {
       if (!json) { console.error('Error: JSON array required. Use: batch \'[...]\' or batch --file steps.json'); process.exit(1); }
       let steps;
       try { steps = JSON.parse(json); } catch { console.error('Error: invalid JSON'); process.exit(1); }
-      const result = await exec('batch', { steps, auto_close: autoClose });
+      const result = await exec('batch', { steps, auto_close: autoClose, summary });
       for (const r of result.results) {
         const tag = r.ok ? 'OK' : 'FAIL';
         let detail = '';

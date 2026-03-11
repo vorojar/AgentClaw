@@ -2,6 +2,9 @@
 
 ## [1.3.10] - 2026-03-11
 
+### 文档
+- **ARCHITECTURE.md 全面更新**：SubAgentManager（工具黑名单 + IterationBudget + spawn_and_wait）、ContextManager（Frozen Snapshot + sanitizeToolPairs）、新增 QQ Bot/企业微信渠道、Platform Hints、SettingsPage 二级菜单、SubAgentCard UI、新增"安全与性能机制"章节
+
 ### 新增
 - **Subagent 安全防线**：工具黑名单（subagent/ask_user/remember/schedule/send_file/social_post 始终禁止）+ 迭代预算共享（`IterationBudget` 父子共享预算池，子代理消耗计入全局上限）
 - **Memory 内容安全审查**：remember 工具写入前扫描 prompt injection（8 种模式）、隐形 unicode 字符和凭证窃取 payload，拦截恶意内容注入系统提示词

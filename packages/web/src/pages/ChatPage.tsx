@@ -91,6 +91,8 @@ interface DisplayMessage {
   tokensOut?: number;
   durationMs?: number;
   toolCallCount?: number;
+  /** Placeholder "thinking" state — shown immediately after send, removed on first real event */
+  thinking?: boolean;
 }
 
 /* ── Preview Context (allows static mdComponents to open side panel) ── */
@@ -1250,7 +1252,7 @@ export function ChatPage() {
           if (last && last.role === "assistant" && last.streaming) {
             return [
               ...prev.slice(0, -1),
-              { ...last, content: last.content + (msg.text ?? "") },
+              { ...last, thinking: false, content: last.content + (msg.text ?? "") },
             ];
           }
           return [
@@ -1280,7 +1282,7 @@ export function ChatPage() {
           if (last && last.role === "assistant" && last.streaming) {
             return [
               ...prev.slice(0, -1),
-              { ...last, toolCalls: [...last.toolCalls, entry] },
+              { ...last, thinking: false, toolCalls: [...last.toolCalls, entry] },
             ];
           }
           return [
@@ -1614,7 +1616,15 @@ export function ChatPage() {
       streaming: false,
       toolCalls: [],
     };
-    setMessages((prev) => [...prev, userMsg]);
+    const thinkingMsg: DisplayMessage = {
+      key: nextKey(),
+      role: "assistant",
+      content: "",
+      streaming: true,
+      toolCalls: [],
+      thinking: true,
+    };
+    setMessages((prev) => [...prev, userMsg, thinkingMsg]);
     setInputValue("");
     setLastUserText(contentToSend);
     sendTimestampRef.current = Date.now();
@@ -1721,7 +1731,15 @@ export function ChatPage() {
         streaming: false,
         toolCalls: [],
       };
-      setMessages((prev) => [...prev, userMsg]);
+      const thinkingMsg2: DisplayMessage = {
+        key: nextKey(),
+        role: "assistant",
+        content: "",
+        streaming: true,
+        toolCalls: [],
+        thinking: true,
+      };
+      setMessages((prev) => [...prev, userMsg, thinkingMsg2]);
       setLastUserText(text);
       sendTimestampRef.current = Date.now();
       setIsSending(true);
@@ -2357,16 +2375,15 @@ export function ChatPage() {
                           )
                         ) : (
                           <>
-                            {(() => {
-                              const visible = m.toolCalls.filter(
-                                (tc) =>
-                                  tc.toolName !== "send_file" &&
-                                  tc.toolName !== "update_todo",
-                              );
-                              return visible.length > 0 ? (
-                                <ToolCallGroup entries={visible} />
-                              ) : null;
-                            })()}
+                            {m.thinking && (
+                              <div className="message-row assistant">
+                                <div className="message-bubble thinking-bubble">
+                                  <div className="thinking-dots">
+                                    <span /><span /><span />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             {m.content &&
                               (() => {
                                 const parsed = parseMessageContent(m.content);
@@ -2488,6 +2505,16 @@ export function ChatPage() {
                                   </div>
                                 );
                               })()}
+                            {(() => {
+                              const visible = m.toolCalls.filter(
+                                (tc) =>
+                                  tc.toolName !== "send_file" &&
+                                  tc.toolName !== "update_todo",
+                              );
+                              return visible.length > 0 ? (
+                                <ToolCallGroup entries={visible} />
+                              ) : null;
+                            })()}
                             {showRegenerate &&
                               idx === messages.length - 1 &&
                               m.role === "assistant" && (

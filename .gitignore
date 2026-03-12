@@ -31,6 +31,10 @@ Thumbs.db
 # Turbo
 .turbo/
 
+# Python
+__pycache__/
+*.pyc
+
 # Tools cache
 .dmux/
 .ruff_cache/

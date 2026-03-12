@@ -10,6 +10,7 @@
 - **ARCHITECTURE.md 全面更新**：SubAgentManager（工具黑名单 + IterationBudget + spawn_and_wait）、ContextManager（Frozen Snapshot + sanitizeToolPairs）、新增 QQ Bot/企业微信渠道、Platform Hints、SettingsPage 二级菜单、SubAgentCard UI、新增"安全与性能机制"章节
 
 ### 新增
+- **Thinking 动画**：发送消息后立即显示三圆点跳动动画（纯前端），第一个真实事件到达时自动消失，消除等待 LLM 响应的空白感；同时调整渲染顺序为 文字→工具卡片（原为工具卡片→文字）
 - **Traces 渠道标记**：每条 trace 记录来源渠道（web/telegram/dingtalk/feishu/qq/whatsapp/wecom/system），前端 TracesPage 显示渠道标签，SQLite traces 表新增 channel 列（自动迁移）
 - **bilingual-subtitle 防呆升级**：`process.py` 直接支持 URL 输入（自动下载 CC 字幕 → 回退音频/视频下载 → Whisper），LLM 只需一条命令，不再需要手动分步调 yt-dlp
 - **Traces 工具调用统计面板**：Traces 页面顶部新增可展开的统计面板，显示当前页工具调用总数、成功率、错误数、工具种类数；展开后显示按工具名分组的详细表格（调用次数、成功率、平均耗时）

@@ -11,6 +11,7 @@
 
 ### 新增
 - **Traces 渠道标记**：每条 trace 记录来源渠道（web/telegram/dingtalk/feishu/qq/whatsapp/wecom/system），前端 TracesPage 显示渠道标签，SQLite traces 表新增 channel 列（自动迁移）
+- **bilingual-subtitle 防呆升级**：`process.py` 直接支持 URL 输入（自动下载 CC 字幕 → 回退音频/视频下载 → Whisper），LLM 只需一条命令，不再需要手动分步调 yt-dlp
 - **Traces 工具调用统计面板**：Traces 页面顶部新增可展开的统计面板，显示当前页工具调用总数、成功率、错误数、工具种类数；展开后显示按工具名分组的详细表格（调用次数、成功率、平均耗时）
 - **确定性 Workflow Agent**：新增 WorkflowRunner 执行引擎，支持 Sequential 串行和 Parallel 并行执行确定性工具调用流程，步骤间通过 `{{stepId.content}}` 模板变量传递数据，支持条件执行、错误处理策略（stop/continue）、AbortSignal
 - **Trajectory 自动评估框架**：新增 evaluateTrace/evaluateBatch/formatEvalReport 三层评估，支持工具选择正确性、参数正确性、禁用工具检查、响应内容匹配、模型和耗时约束，附带黄金测试集示例

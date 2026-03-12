@@ -623,23 +623,122 @@ def burn_subtitles(video, subtitle_file, output, fontsize=14, margin=25, is_ass=
     print(f'  最后错误: {result.stderr[-500:] if result.stderr else "未知错误"}')
     return False
 
+# ============== URL 下载支持 ==============
+
+def is_url(s):
+    """检查是否为 URL"""
+    return s.startswith('http://') or s.startswith('https://')
+
+def download_from_url(url, output_dir, srt_only=False, language='en'):
+    """
+    从 URL 下载视频/音频，智能选择最优策略：
+    1. 先尝试下载 CC 字幕（最快，跳过 Whisper）
+    2. 如果没有 CC 字幕：
+       - srt_only 模式：只下载音频 mp3（体积小 20 倍）
+       - 烧录模式：下载完整视频 mp4
+    返回 (media_file, cc_srt_files) — cc_srt_files 非空表示已有字幕，无需 Whisper
+    """
+    print(f'\n[0/4] 从 URL 下载...')
+    print(f'  URL: {url}')
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 映射语言代码到 yt-dlp 字幕语言
+    sub_langs = 'en,zh*' if language in ('en', 'zh') else f'{language},en,zh*'
+
+    # Step 1: 尝试下载 CC 字幕
+    print(f'  尝试获取 CC 字幕...')
+    cc_result = subprocess.run(
+        ['yt-dlp', '--no-warnings', '--write-auto-subs', '--write-subs',
+         '--sub-langs', sub_langs, '--skip-download', '--convert-subs', 'srt',
+         '-o', os.path.join(output_dir, '%(id)s'), url],
+        capture_output=True, text=True, timeout=60
+    )
+
+    # 检查是否下载到了 SRT 文件
+    cc_srt_files = []
+    for f in os.listdir(output_dir):
+        if f.endswith('.srt'):
+            cc_srt_files.append(os.path.join(output_dir, f))
+
+    if cc_srt_files:
+        print(f'  找到 CC 字幕: {", ".join(os.path.basename(f) for f in cc_srt_files)}')
+        # CC 字幕模式下如果需要烧录，还得下载视频
+        if not srt_only:
+            print(f'  下载视频用于烧录字幕...')
+            dl_result = subprocess.run(
+                ['yt-dlp', '--no-warnings', '-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b',
+                 '--merge-output-format', 'mp4',
+                 '-o', os.path.join(output_dir, '%(id)s.%(ext)s'), url],
+                capture_output=True, text=True, timeout=600
+            )
+            # 找到下载的视频
+            for f in os.listdir(output_dir):
+                if f.endswith('.mp4'):
+                    media_file = os.path.join(output_dir, f)
+                    print(f'  视频: {f} ({format_size(os.path.getsize(media_file))})')
+                    return media_file, cc_srt_files
+        return None, cc_srt_files
+
+    print(f'  无 CC 字幕，需要 Whisper 转写')
+
+    if srt_only:
+        # 只需字幕 → 下载音频（体积小得多）
+        print(f'  下载音频（mp3）...')
+        dl_result = subprocess.run(
+            ['yt-dlp', '--no-warnings', '-x', '--audio-format', 'mp3',
+             '--audio-quality', '0',
+             '-o', os.path.join(output_dir, '%(id)s.%(ext)s'), url],
+            capture_output=True, text=True, timeout=600
+        )
+        # 找到下载的音频
+        for f in os.listdir(output_dir):
+            if f.endswith('.mp3'):
+                media_file = os.path.join(output_dir, f)
+                print(f'  音频: {f} ({format_size(os.path.getsize(media_file))})')
+                return media_file, []
+    else:
+        # 需要烧录 → 下载视频
+        print(f'  下载视频（mp4）...')
+        dl_result = subprocess.run(
+            ['yt-dlp', '--no-warnings', '-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b',
+             '--merge-output-format', 'mp4',
+             '-o', os.path.join(output_dir, '%(id)s.%(ext)s'), url],
+            capture_output=True, text=True, timeout=600
+        )
+        for f in os.listdir(output_dir):
+            if f.endswith('.mp4'):
+                media_file = os.path.join(output_dir, f)
+                print(f'  视频: {f} ({format_size(os.path.getsize(media_file))})')
+                return media_file, []
+
+    # 下载失败
+    stderr = dl_result.stderr if dl_result else ''
+    stdout = dl_result.stdout if dl_result else ''
+    print(f'  下载失败')
+    if stderr:
+        print(f'  stderr: {stderr[-300:]}')
+    if stdout:
+        print(f'  stdout: {stdout[-300:]}')
+    sys.exit(1)
+
 # ============== 主程序 ==============
 
 def main():
     start_time = time.time()
 
     parser = argparse.ArgumentParser(
-        description='双语字幕一键生成工具',
+        description='双语字幕一键生成工具（支持本地文件和 URL）',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例:
-  python process.py video.mp4
-  python process.py video.mp4 -o output.mp4 -l en -t zh-CN
-  python process.py video.mp4 --fontsize 16 --margin 30
+  python process.py video.mp4 --srt-only
+  python process.py 'https://x.com/user/status/123' --srt-only -o out.srt
+  python process.py 'https://youtube.com/watch?v=xxx' -o output.mp4
+  python process.py video.mp4 -l zh --source-only --srt-only
         '''
     )
-    parser.add_argument('video', help='输入视频文件')
-    parser.add_argument('-o', '--output', help='输出视频文件')
+    parser.add_argument('video', help='输入视频文件或 URL')
+    parser.add_argument('-o', '--output', help='输出文件路径')
     parser.add_argument('-l', '--language', default='en', help='源语言 (默认: en)')
     parser.add_argument('-t', '--target', default='zh-CN', help='目标语言 (默认: zh-CN)')
     parser.add_argument('-m', '--model', default='small', help='Whisper 模型 (默认: small)')
@@ -659,14 +758,55 @@ def main():
         return 1
 
     if args.karaoke and (args.chinese_only or not args.source_only and not args.chinese_only):
-        # 卡拉OK模式强制为仅原文
         if not args.source_only:
             print('提示: 卡拉OK模式自动启用 --source-only（仅原文）')
             args.source_only = True
 
+    # URL 模式：自动下载
+    cc_srt_files = []
+    if is_url(args.video):
+        # 确定输出目录
+        if args.output:
+            output_dir = os.path.dirname(os.path.abspath(args.output))
+        else:
+            output_dir = os.getcwd()
+        dl_dir = os.path.join(output_dir, '_dl_tmp')
+
+        media_file, cc_srt_files = download_from_url(
+            args.video, dl_dir, srt_only=args.srt_only, language=args.language
+        )
+
+        if cc_srt_files and args.srt_only:
+            # 已有 CC 字幕且只需 SRT → 直接输出，跳过 Whisper
+            # 选择最匹配的字幕文件
+            best = cc_srt_files[0]
+            for f in cc_srt_files:
+                if args.language in os.path.basename(f):
+                    best = f
+                    break
+
+            output_path = args.output or os.path.join(output_dir, os.path.basename(best))
+            if os.path.abspath(best) != os.path.abspath(output_path):
+                import shutil
+                shutil.copy2(best, output_path)
+            elapsed = time.time() - start_time
+            print(f'\n已有 CC 字幕，无需 Whisper 转写')
+            print(f'  字幕: {output_path}')
+            print(f'  总耗时: {format_duration(elapsed)}')
+            return 0
+
+        if media_file:
+            args.video = media_file
+        elif cc_srt_files:
+            # 有 CC 字幕但无媒体文件（不应发生，但做防御）
+            pass
+        else:
+            print('错误: 下载失败')
+            return 1
+
     # 验证输入
-    if not os.path.exists(args.video):
-        print(f'错误: 视频文件不存在: {args.video}')
+    if not is_url(args.video) and not os.path.exists(args.video):
+        print(f'错误: 文件不存在: {args.video}')
         return 1
 
     # 设置输出路径
@@ -692,7 +832,7 @@ def main():
     print('双语字幕生成器')
     print('=' * 50)
     print(f'输入: {args.video}')
-    print(f'输出: {video_output}')
+    print(f'输出: {"(SRT only)" if args.srt_only else video_output}')
 
     # 步骤 1: 提取
     segments = extract_subtitles(args.video, None, args.language, args.model, word_timestamps=args.karaoke, no_speech_threshold=args.no_speech_threshold)

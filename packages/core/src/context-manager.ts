@@ -3,6 +3,7 @@ import type {
   ContextManager,
   Message,
   ContentBlock,
+  ToolUseContent,
   ToolResultContent,
   MemoryStore,
   ConversationTurn,
@@ -143,24 +144,33 @@ export class SimpleContextManager implements ContextManager {
     }
 
     // ── 3. Truncate old tool results to save context ──
-    // Keep the last 2 tool result messages intact; truncate earlier ones.
+    // Keep the last 2 tool result messages intact; older ones get a compact
+    // placeholder that preserves *which* tool was called (aids LLM reasoning).
     const TOOL_RESULT_KEEP_RECENT = 2;
     const TOOL_RESULT_MAX_CHARS = 500;
     let toolResultCount = 0;
-    // Count tool messages from the end
     for (let i = historyMessages.length - 1; i >= 0; i--) {
       if (historyMessages[i].role === "tool") toolResultCount++;
     }
     if (toolResultCount > TOOL_RESULT_KEEP_RECENT) {
-      // 浅拷贝数组并对需要截断的消息创建新对象，避免修改原始 Message
+      // Build tool_use_id → tool_name map from assistant messages
+      const toolNameMap = new Map<string, string>();
+      for (const msg of historyMessages) {
+        if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+        for (const block of msg.content as ContentBlock[]) {
+          if (block.type === "tool_use") {
+            const tu = block as ToolUseContent;
+            toolNameMap.set(tu.id, tu.name);
+          }
+        }
+      }
+
       historyMessages = historyMessages.map((m) => ({ ...m }));
       let seen = 0;
-      // Walk from end, skip recent ones, truncate older ones
       for (let i = historyMessages.length - 1; i >= 0; i--) {
         if (historyMessages[i].role !== "tool") continue;
         seen++;
         if (seen <= TOOL_RESULT_KEEP_RECENT) continue;
-        // Truncate this old tool result
         const msg = historyMessages[i];
         if (
           typeof msg.content === "string" &&
@@ -176,9 +186,12 @@ export class SimpleContextManager implements ContextManager {
               typeof block.content === "string" &&
               block.content.length > TOOL_RESULT_MAX_CHARS
             ) {
-              block.content =
-                block.content.slice(0, TOOL_RESULT_MAX_CHARS) +
-                `\n... [truncated, ${block.content.length} chars total]`;
+              const name = toolNameMap.get(
+                (block as ToolResultContent).toolUseId,
+              );
+              block.content = name
+                ? `[Previous: used ${name}]`
+                : `[Previous tool result truncated, ${block.content.length} chars]`;
             }
           }
         }

@@ -321,6 +321,11 @@ export const shellTool: Tool = {
         description:
           "Automatically send output files to user. Skips the need for a separate send_file call.",
       },
+      background: {
+        type: "boolean",
+        description:
+          "Run command in background. Returns immediately with a task ID; you'll be notified when it completes. Use for long-running commands (build, test, install) so you can continue other work.",
+      },
       ...(process.platform === "win32" && detectedShell.name === "bash"
         ? {
             shell: {
@@ -348,6 +353,7 @@ export const shellTool: Tool = {
       timeout *= 1000;
     }
     const autoSend = input.auto_send as boolean | undefined;
+    const background = input.background as boolean | undefined;
 
     // Shell sandbox: block destructive commands
     const blocked = validateCommand(command);
@@ -388,6 +394,40 @@ export const shellTool: Tool = {
 
     const extraEnv: Record<string, string> = {};
     if (context?.workDir) extraEnv.WORKDIR = context.workDir;
+
+    // ── Background mode: fire-and-forget, agent continues working ──
+    if (background) {
+      const bgId = `bg_${Date.now().toString(36)}`;
+      const shortCmd = command.length > 60 ? command.slice(0, 60) + "..." : command;
+      // Initialize queue if needed
+      if (context && !context.backgroundQueue) context.backgroundQueue = [];
+      // Fire and forget — push result to queue when done
+      runShell(effectiveCommand, timeout, effectiveShell, context?.abortSignal, extraEnv).then(
+        (r) => {
+          context?.backgroundQueue?.push({
+            id: bgId,
+            command: shortCmd,
+            content: r.content,
+            isError: !!r.isError,
+            completedAt: new Date(),
+          });
+        },
+        (err) => {
+          context?.backgroundQueue?.push({
+            id: bgId,
+            command: shortCmd,
+            content: `Background task failed: ${err instanceof Error ? err.message : String(err)}`,
+            isError: true,
+            completedAt: new Date(),
+          });
+        },
+      );
+      return {
+        content: `Background task started (${bgId}): \`${shortCmd}\`\nYou'll be notified when it completes. Continue with other work.`,
+        isError: false,
+        metadata: { backgroundId: bgId },
+      };
+    }
 
     const result = await runShell(effectiveCommand, timeout, effectiveShell, context?.abortSignal, extraEnv);
 

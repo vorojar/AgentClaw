@@ -389,6 +389,26 @@ export class SimpleAgentLoop implements AgentLoop {
       iterations++;
       this.iterationBudget?.consume();
 
+      // ── Drain background task results ──
+      // Completed background tasks are injected as runtime hints so the LLM
+      // sees them naturally at the start of the next iteration.
+      if (context?.backgroundQueue && context.backgroundQueue.length > 0) {
+        const completed = context.backgroundQueue.splice(0);
+        for (const bg of completed) {
+          const status = bg.isError ? "FAILED" : "OK";
+          // Truncate long output — overflow mode will catch it if stored as tool result,
+          // but here we inline into hints so keep it short
+          const output =
+            bg.content.length > 2000
+              ? bg.content.slice(0, 2000) +
+                `\n... [truncated, ${bg.content.length} chars]`
+              : bg.content;
+          runtimeHints.push(
+            `[Background task ${bg.id} completed (${status})]\n$ ${bg.command}\n${output}`,
+          );
+        }
+      }
+
       // Build context (iteration 2+ reuses cached dynamic prefix for KV-cache stability)
       this.setState("thinking");
       const { systemPrompt, messages, skillMatch } =

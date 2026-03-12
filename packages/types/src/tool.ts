@@ -102,6 +102,14 @@ export interface ToolExecutionContext {
   agents?: Array<{ id: string; name: string; description: string }>;
   /** Source channel (web, telegram, dingtalk, etc.) — propagated to traces */
   channel?: string;
+  /** Queue for background task results — shell tool pushes, agent-loop drains */
+  backgroundQueue?: Array<{
+    id: string;
+    command: string;
+    content: string;
+    isError: boolean;
+    completedAt: Date;
+  }>;
 }
 
 /** A tool that can be executed */

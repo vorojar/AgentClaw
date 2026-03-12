@@ -213,6 +213,7 @@ function runShell(
   timeout: number,
   shellChoice?: string,
   abortSignal?: AbortSignal,
+  extraEnv?: Record<string, string>,
 ): Promise<ToolResult> {
   const useShell =
     shellChoice === "powershell" && process.platform === "win32"
@@ -234,6 +235,7 @@ function runShell(
           ...process.env,
           PYTHONIOENCODING: "utf-8",
           PYTHONUTF8: "1",
+          ...extraEnv,
         },
       },
       (error, stdout, stderr) => {
@@ -384,7 +386,10 @@ export const shellTool: Tool = {
       }
     }
 
-    const result = await runShell(effectiveCommand, timeout, effectiveShell, context?.abortSignal);
+    const extraEnv: Record<string, string> = {};
+    if (context?.workDir) extraEnv.WORKDIR = context.workDir;
+
+    const result = await runShell(effectiveCommand, timeout, effectiveShell, context?.abortSignal, extraEnv);
 
     const MAX_CONTENT = 12_000;
     if (result.content.length > MAX_CONTENT) {

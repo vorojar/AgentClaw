@@ -808,10 +808,15 @@ def main():
         return 1
 
     # 设置输出路径
-    # URL 模式下输出到 cwd（不要输出到临时下载目录），本地文件模式输出到文件所在目录
+    # 优先级：-o 指定目录 > WORKDIR 环境变量 > (URL模式)cwd > (本地模式)文件所在目录
     video_base = os.path.splitext(os.path.basename(args.video))[0]
-    if url_mode:
-        out_dir = os.path.dirname(os.path.abspath(args.output)) if args.output else os.getcwd()
+    workdir = os.environ.get('WORKDIR', '')
+    if args.output:
+        out_dir = os.path.dirname(os.path.abspath(args.output))
+    elif workdir:
+        out_dir = workdir
+    elif url_mode:
+        out_dir = os.getcwd()
     else:
         out_dir = os.path.dirname(os.path.abspath(args.video))
 

@@ -271,7 +271,8 @@
     "outputLabel": "Output",
     "response": "Response",
     "copyTraceUrl": "Copy Trace URL",
-    "urlCopied": "Copied"
+    "urlCopied": "Copied",
+    "turnCount": "{{count}} turns"
   },
   "settings": {
     "title": "Settings",

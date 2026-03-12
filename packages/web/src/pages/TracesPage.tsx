@@ -225,14 +225,14 @@ function CopyTraceButton({ traceId }: { traceId: string }) {
   );
 }
 
-function TraceCard({ trace }: { trace: TraceInfo }) {
+function TraceCard({ trace, nested }: { trace: TraceInfo; nested?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
   const steps = parseSteps(trace.steps);
   const timeline = buildTimeline(steps);
 
   return (
-    <div className="card trace-card">
+    <div className={`card trace-card${nested ? " trace-card-nested" : ""}`}>
       <div className="trace-card-header" onClick={() => setExpanded(!expanded)}>
         <div className="trace-card-left">
           <span className="trace-expand">{expanded ? "\u25BC" : "\u25B6"}</span>
@@ -279,6 +279,95 @@ function TraceCard({ trace }: { trace: TraceInfo }) {
       )}
     </div>
   );
+}
+
+/** Group consecutive traces that share the same conversationId */
+interface TraceGroup {
+  conversationId: string;
+  traces: TraceInfo[];
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalDurationMs: number;
+}
+
+function groupTraces(items: TraceInfo[]): (TraceInfo | TraceGroup)[] {
+  const result: (TraceInfo | TraceGroup)[] = [];
+  let i = 0;
+  while (i < items.length) {
+    const current = items[i];
+    // Look ahead for consecutive traces with the same conversationId
+    let j = i + 1;
+    while (
+      j < items.length &&
+      items[j].conversationId === current.conversationId
+    ) {
+      j++;
+    }
+    if (j - i === 1) {
+      // Single trace — no grouping needed
+      result.push(current);
+    } else {
+      const group = items.slice(i, j);
+      result.push({
+        conversationId: current.conversationId,
+        traces: group,
+        totalTokensIn: group.reduce((s, t) => s + t.tokensIn, 0),
+        totalTokensOut: group.reduce((s, t) => s + t.tokensOut, 0),
+        totalDurationMs: group.reduce((s, t) => s + t.durationMs, 0),
+      });
+    }
+    i = j;
+  }
+  return result;
+}
+
+function TraceGroupCard({ group }: { group: TraceGroup }) {
+  const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
+  const firstTrace = group.traces[0];
+  const lastTrace = group.traces[group.traces.length - 1];
+
+  return (
+    <div className="card trace-group">
+      <div
+        className="trace-group-header"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="trace-card-left">
+          <span className="trace-expand">{expanded ? "\u25BC" : "\u25B6"}</span>
+          <span className="trace-group-label">{firstTrace.userInput}</span>
+          <span className="trace-group-count">
+            {t("traces.turnCount", { count: group.traces.length })}
+          </span>
+        </div>
+        <div className="trace-card-meta">
+          <span className="trace-tokens">
+            {formatNumber(group.totalTokensIn)}&uarr;{" "}
+            {formatNumber(group.totalTokensOut)}&darr;
+          </span>
+          <span className="trace-duration">
+            {formatDuration(group.totalDurationMs)}
+          </span>
+          <code className="model-name">{firstTrace.model ?? "\u2014"}</code>
+          <span className="trace-time">
+            {formatDateTime(lastTrace.createdAt)}
+          </span>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="trace-group-body">
+          {group.traces.map((tr) => (
+            <TraceCard key={tr.id} trace={tr} nested />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function isTraceGroup(item: TraceInfo | TraceGroup): item is TraceGroup {
+  return "traces" in item;
 }
 
 export function TracesPage() {
@@ -346,9 +435,13 @@ export function TracesPage() {
           <div className="traces-empty">{t("traces.noTraces")}</div>
         ) : (
           <div className="traces-list">
-            {items.map((tr) => (
-              <TraceCard key={tr.id} trace={tr} />
-            ))}
+            {groupTraces(items).map((item, i) =>
+              isTraceGroup(item) ? (
+                <TraceGroupCard key={item.conversationId + i} group={item} />
+              ) : (
+                <TraceCard key={item.id} trace={item} />
+              ),
+            )}
           </div>
         )}
       </div>

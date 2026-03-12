@@ -21,6 +21,8 @@ AgentClaw（指挥官）
   ├── 技能 x16 (browser, gws-calendar/gmail/drive/sheets/tasks, pdf, docx, xlsx, pptx...)
   ├── 多 Agent (AgentClaw/Coder/Writer/Analyst/Researcher)
   ├── 子代理 (并行任务派发与汇总)
+  ├── 确定性工作流 (Sequential/Parallel 编排，零 LLM 消耗)
+  ├── Trajectory 评估 (黄金测试集，7 维度自动评估)
   ├── 工具钩子 (before/after 拦截 + allow/deny 策略)
   └── MCP 集成 (外部工具服务器)
 ```
@@ -44,7 +46,7 @@ agentclaw/
 │   ├── providers/   — LLM 适配器 (Claude, OpenAI兼容, Gemini) + FailoverProvider
 │   ├── tools/       — 工具注册表 + 分层内置工具 + MCP 客户端
 │   ├── memory/      — SQLite 持久化 (会话/消息/记忆/Traces/Token日志)
-│   ├── core/        — Agent Loop + Orchestrator + Planner + ContextManager + SkillRegistry
+│   ├── core/        — Agent Loop + Orchestrator + Planner + ContextManager + SkillRegistry + WorkflowRunner + Eval
 │   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp/DingTalk/Feishu/QQ Bot + 定时调度 + TaskManager
 │   ├── cli/         — 终端交互式对话
 │   └── web/         — React 19 + Vite 前端
@@ -133,6 +135,24 @@ npm run cli          # 终端交互模式
 - **决策** — 需要用户拍板时推送决策卡片，heartbeat 定期提醒（不消耗 LLM token）
 - **每日简报** — 定时推送（默认 09:00，可在页面配置），汇总待办/进行中/等决策任务
 - **Web UI** — Today/All Tasks/Decisions/Automations 四个标签页
+
+### 确定性工作流编排
+WorkflowRunner 引擎支持将固定流程硬编码为 WorkflowDefinition，**零 LLM 调用、零 token 消耗**执行：
+- **Sequential** — 步骤串行执行，前一步结果通过 `{{stepId.content}}` 模板传给下一步
+- **Parallel** — 子步骤并行执行（Promise.all），结果合并后继续
+- 支持条件执行、错误处理策略（stop/continue）、AbortSignal 中断
+
+### Trajectory 自动评估
+基于 Google AgentOps 三层评估框架，验证 agent 的推理路径是否正确：
+- 定义"黄金测试集"（JSON 格式，prompt + 期望工具调用序列 + 约束条件）
+- 7 个评估维度：工具选择、参数正确性、错误状态、禁用工具、响应内容匹配、模型、耗时
+- `evaluateBatch()` 批量评估 + `formatEvalReport()` 生成可读报告
+
+### Traces 工具调用统计
+Traces 页面顶部可展开的统计面板：
+- 总调用数、成功率、错误数、工具种类数
+- 按工具名分组的详细表格（调用次数、成功率、平均耗时）
+- 同一会话的多轮 trace 自动分组，显示总 token/耗时/轮次
 
 ### 对话压缩
 超过 20 轮对话后自动调用 LLM 生成摘要，减少 token 消耗。压缩时自动保护 tool_call/tool_result 配对完整性，防止 API 报错。

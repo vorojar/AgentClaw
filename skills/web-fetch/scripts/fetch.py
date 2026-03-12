@@ -4,15 +4,56 @@
 import argparse
 import sys
 import io
+from urllib.parse import urlparse
 
 # Force UTF-8 stdout on Windows (avoid GBK encoding errors)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
+# ── Precise content selectors for known sites ──
+# When matched, only extract content from these selectors (much cleaner).
+SITE_SELECTORS: dict[str, str] = {
+    "x.com": 'article[data-testid="tweet"]',
+    "twitter.com": 'article[data-testid="tweet"]',
+    "zhihu.com": "div.RichContent-inner, div.Post-RichText",
+    "www.zhihu.com": "div.RichContent-inner, div.Post-RichText",
+    "weibo.com": "div.detail_wbtext_4CRf9, div.Feed_body_3R0rO",
+    "m.weibo.com": "div.weibo-text",
+    "www.xiaohongshu.com": "div#detail-desc, div.note-content",
+    "xiaohongshu.com": "div#detail-desc, div.note-content",
+}
+
+# ── Generic noise removal JS — works on all sites ──
+GENERIC_CLEANUP_JS = """
+() => {
+    // Remove semantic noise elements
+    const selectors = [
+        'nav', 'header', 'footer', 'aside', 'dialog',
+        '[role="navigation"]', '[role="banner"]', '[role="complementary"]',
+        '[role="dialog"]', '[role="alertdialog"]',
+        '[aria-label="cookie"]', '[class*="cookie"]', '[id*="cookie"]',
+        '[class*="sidebar"]', '[class*="Sidebar"]',
+        '[class*="popup"]', '[class*="modal"]', '[class*="overlay"]',
+        '[class*="ad-"]', '[class*="ads-"]', '[class*="advert"]',
+        '[class*="banner"]', '[id*="banner"]',
+        '[class*="signup"]', '[class*="SignUp"]',
+        '[class*="login"]', '[class*="Login"]',
+        '[data-testid="loginButton"]', '[data-testid="signupButton"]',
+    ];
+    for (const sel of selectors) {
+        document.querySelectorAll(sel).forEach(el => el.remove());
+    }
+    // Remove hidden elements
+    document.querySelectorAll('[aria-hidden="true"], [hidden]').forEach(el => el.remove());
+}
+"""
 
 
 def fetch(
     url: str, scroll: bool = False, max_length: int = 10000, raw: bool = False
 ) -> str:
     from playwright.sync_api import sync_playwright
+
+    hostname = urlparse(url).hostname or ""
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -45,7 +86,30 @@ def fetch(
         if raw:
             content = page.content()
         else:
-            content = html_to_markdown(page.content())
+            # Layer 1: Generic cleanup (all sites)
+            page.evaluate(GENERIC_CLEANUP_JS)
+
+            # Layer 2: Precise selector extraction (known sites)
+            site_selector = SITE_SELECTORS.get(hostname)
+            if site_selector:
+                extracted = page.evaluate(
+                    """(selector) => {
+                    const els = document.querySelectorAll(selector);
+                    if (els.length === 0) return null;
+                    return Array.from(els).map(el => el.innerHTML).join('<hr>');
+                }""",
+                    site_selector,
+                )
+                if extracted:
+                    # Get page title for context
+                    title = page.title() or ""
+                    html = f"<h1>{title}</h1>{extracted}" if title else extracted
+                    content = html_to_markdown(html)
+                else:
+                    # Selector didn't match — fall back to full page
+                    content = html_to_markdown(page.content())
+            else:
+                content = html_to_markdown(page.content())
 
         browser.close()
 
@@ -60,8 +124,8 @@ def html_to_markdown(html: str) -> str:
     from markdownify import markdownify
     import re
 
-    # Remove script/style/nav/footer
-    for tag in ("script", "style", "nav", "footer", "header", "noscript", "svg"):
+    # Remove script/style/noscript/svg (may remain after DOM cleanup)
+    for tag in ("script", "style", "noscript", "svg"):
         html = re.sub(rf"<{tag}[\s\S]*?</{tag}>", "", html, flags=re.IGNORECASE)
 
     md = markdownify(

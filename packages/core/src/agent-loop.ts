@@ -82,6 +82,67 @@ function sanitizeString(s: string): string {
 /** Stop the loop if this many consecutive iterations produce only errors */
 const MAX_CONSECUTIVE_ERRORS = 3;
 
+/**
+ * Overflow threshold (chars). Tool outputs exceeding this are saved to a temp
+ * file so the LLM receives a concise preview + file reference instead of the
+ * full content.  The LLM can then use file_read / grep to explore at will.
+ */
+const OVERFLOW_THRESHOLD = 8_000;
+/** How many chars of the original output to keep as an inline preview */
+const OVERFLOW_PREVIEW_CHARS = 1_500;
+
+/**
+ * Overflow mode: when a tool's output exceeds OVERFLOW_THRESHOLD, save the
+ * full content to a temp file and replace result.content with a preview +
+ * file reference.  This turns "truncation → data loss" into "deferred access".
+ *
+ * Returns the overflow file path if overflow was applied, null otherwise.
+ */
+function applyOverflow(
+  result: {
+    content: string;
+    isError?: boolean;
+    metadata?: Record<string, unknown>;
+  },
+  toolName: string,
+  sessionTmpDir: string,
+): string | null {
+  // Don't overflow errors (usually short and important) or short outputs
+  if (result.isError || result.content.length <= OVERFLOW_THRESHOLD)
+    return null;
+
+  // Save full content to file
+  const ts = Date.now();
+  const safeName = toolName.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const fileName = `overflow_${safeName}_${ts}.txt`;
+  const filePath = join(sessionTmpDir, fileName).replace(/\\/g, "/");
+  writeFileSync(filePath, result.content, "utf-8");
+
+  const totalChars = result.content.length;
+  const totalLines = result.content.split("\n").length;
+
+  // Replace content with preview + reference
+  const preview = result.content.slice(0, OVERFLOW_PREVIEW_CHARS);
+  // Cut at last newline to avoid mid-line break
+  const lastNL = preview.lastIndexOf("\n");
+  const cleanPreview =
+    lastNL > OVERFLOW_PREVIEW_CHARS * 0.5 ? preview.slice(0, lastNL) : preview;
+
+  result.content =
+    cleanPreview +
+    `\n\n... [输出过长，完整内容已保存: ${filePath} (${totalLines} 行, ${totalChars} 字符)]\n` +
+    `用 file_read 查看完整内容，或用 grep 搜索关键信息。`;
+
+  // Record overflow info in metadata
+  if (!result.metadata) result.metadata = {};
+  result.metadata.overflow = true;
+  result.metadata.overflowPath = filePath;
+  result.metadata.originalLength = totalChars;
+  result.metadata.originalLines = totalLines;
+
+  return filePath;
+}
+
 /** Build a dedup key for per-tool failure tracking */
 function buildFailKey(
   toolName: string,
@@ -692,6 +753,9 @@ export class SimpleAgentLoop implements AgentLoop {
               result!,
             );
           }
+
+          // Overflow mode: large outputs → save to file, give LLM a preview
+          applyOverflow(result!, effectiveToolName, sessionTmpDir);
         }
 
         const toolDurationMs = Date.now() - toolStart;

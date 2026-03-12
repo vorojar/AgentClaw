@@ -2,6 +2,9 @@
 
 ## [1.3.10] - 2026-03-12
 
+### 新增
+- **溢出模式（Overflow Mode）**：工具输出超过 8000 字符时，完整内容自动保存到 `data/tmp/{会话ID}/overflow_{工具名}_{时间戳}.txt`，LLM 只收到前 1500 字符预览 + 文件引用。LLM 可用 `file_read`/`grep` 按需探索完整内容。将"截断→数据丢失"变为"延迟加载→按需访问"，统一解决所有工具的大输出问题
+
 ### 优化
 - **TTS 延迟优化**：用 `@bestcodes/edge-tts` 替换 Python edge-tts，消除 Python 进程冷启动（~500-800ms）；mp3 buffer 通过 pipe 传给 ffmpeg（需要 ogg 时），不再写中间临时文件；新增 `TtsFormat` 参数支持直出 mp3（跳过 ffmpeg，总延迟 ~300-600ms）；MAX_TTS_LENGTH 提升到 1000 字符
 - **语音回复防呆**：语音消息转文字后注入提示，告知 LLM 框架会自动将文字回复转语音，防止 LLM 自己用 bash 跑 edge-tts CLI 生成音频（Telegram/QQ）

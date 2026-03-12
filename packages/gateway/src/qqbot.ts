@@ -346,7 +346,7 @@ export async function startQQBot(
                   timeout: 30000,
                 }).trim();
                 if (result) {
-                  text += `\n[用户语音转文字: ${result}]`;
+                  text += `\n[用户语音转文字: ${result}]（框架会自动将你的文字回复转为语音发送，直接回复文字即可，不要自己生成音频文件）`;
                 } else {
                   text += `\n[用户发送了语音，转录为空]`;
                 }

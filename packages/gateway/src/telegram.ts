@@ -372,7 +372,7 @@ export async function startTelegramBot(
           timeout: 30000,
         }).trim();
         text = result
-          ? `[用户语音转文字: ${result}]${caption ? `\n用户附言: ${caption}` : ""}`
+          ? `[用户语音转文字: ${result}]（框架会自动将你的文字回复转为语音发送，直接回复文字即可，不要自己生成音频文件）${caption ? `\n用户附言: ${caption}` : ""}`
           : `[用户发送了语音，转录为空]`;
       } catch {
         // Fallback: let LLM handle it

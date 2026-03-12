@@ -3,7 +3,8 @@
 ## [1.3.10] - 2026-03-12
 
 ### 优化
-- **TTS 延迟优化**：用 `@bestcodes/edge-tts` 替换 Python edge-tts，消除 Python 进程冷启动（~500-800ms）；mp3 buffer 通过 pipe 传给 ffmpeg（需要 ogg 时），不再写中间临时文件；新增 `TtsFormat` 参数支持直出 mp3（跳过 ffmpeg，总延迟 ~300-600ms）
+- **TTS 延迟优化**：用 `@bestcodes/edge-tts` 替换 Python edge-tts，消除 Python 进程冷启动（~500-800ms）；mp3 buffer 通过 pipe 传给 ffmpeg（需要 ogg 时），不再写中间临时文件；新增 `TtsFormat` 参数支持直出 mp3（跳过 ffmpeg，总延迟 ~300-600ms）；MAX_TTS_LENGTH 提升到 1000 字符
+- **语音回复防呆**：语音消息转文字后注入提示，告知 LLM 框架会自动将文字回复转语音，防止 LLM 自己用 bash 跑 edge-tts CLI 生成音频（Telegram/QQ）
 
 ### 修复
 - **会话删除不停止 agent loop**：`closeSession()` 只清理数据但不调 `stopSession()`，导致删除会话后 agent loop 和 claude_code 子进程成为孤儿进程持续运行。现在删除会话时会先 stop 正在运行的 agent loop（触发 AbortController → 杀死 claude_code 子进程）

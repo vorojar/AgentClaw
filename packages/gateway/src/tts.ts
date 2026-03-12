@@ -15,7 +15,7 @@ function cleanForSpeech(text: string): string {
     .trim();
 }
 
-const MAX_TTS_LENGTH = 500;
+const MAX_TTS_LENGTH = 1000;
 
 /** Generate speech via @bestcodes/edge-tts (Node.js, no Python) */
 async function edgeTts(text: string, voice: string): Promise<Buffer> {

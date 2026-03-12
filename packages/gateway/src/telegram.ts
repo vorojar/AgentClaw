@@ -184,6 +184,7 @@ export async function startTelegramBot(
       try {
         const session = await appCtx.orchestrator.createSession({
           platformHint: PLATFORM_HINTS.telegram,
+          channel: "telegram",
         });
         sessionId = session.id;
         chatSessionMap.set(chatId, sessionId);

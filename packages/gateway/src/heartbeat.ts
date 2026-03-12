@@ -97,7 +97,9 @@ export class HeartbeatManager {
 ${tasksSummary}${memoriesSummary ? "\n" + memoriesSummary : ""}`;
 
     try {
-      const session = await this.deps.orchestrator.createSession();
+      const session = await this.deps.orchestrator.createSession({
+        channel: "system",
+      });
       let text = "";
       let tokensIn = 0;
       let tokensOut = 0;

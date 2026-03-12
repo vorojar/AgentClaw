@@ -165,6 +165,7 @@ export async function startDingTalkBot(
         try {
           const session = await appCtx.orchestrator.createSession({
             platformHint: PLATFORM_HINTS.dingtalk,
+            channel: "dingtalk",
           });
           sessionId = session.id;
           chatSessionMap.set(conversationId, sessionId);

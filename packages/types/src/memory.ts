@@ -62,6 +62,8 @@ export interface Trace {
   steps: TraceStep[];
   response?: string;
   model?: string;
+  /** Source channel: web, telegram, dingtalk, feishu, qq, whatsapp, wecom, api */
+  channel?: string;
   tokensIn: number;
   tokensOut: number;
   durationMs: number;

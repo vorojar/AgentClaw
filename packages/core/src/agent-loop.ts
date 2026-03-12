@@ -182,6 +182,7 @@ export class SimpleAgentLoop implements AgentLoop {
       conversationId: convId,
       userInput: typeof input === "string" ? input : JSON.stringify(input),
       steps: [],
+      channel: context?.channel,
       tokensIn: 0,
       tokensOut: 0,
       durationMs: 0,

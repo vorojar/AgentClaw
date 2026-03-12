@@ -100,6 +100,8 @@ export interface ToolExecutionContext {
   subAgentManager?: import("./subagent.js").SubAgentManager;
   /** Available agents for handoff tool */
   agents?: Array<{ id: string; name: string; description: string }>;
+  /** Source channel (web, telegram, dingtalk, etc.) — propagated to traces */
+  channel?: string;
 }
 
 /** A tool that can be executed */

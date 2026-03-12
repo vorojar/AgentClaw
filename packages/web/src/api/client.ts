@@ -431,6 +431,7 @@ export interface TraceInfo {
   steps: TraceStep[] | string;
   response?: string;
   model?: string;
+  channel?: string;
   tokensIn: number;
   tokensOut: number;
   durationMs: number;

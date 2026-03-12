@@ -385,6 +385,7 @@ export async function startQQBot(
       try {
         const session = await appCtx.orchestrator.createSession({
           platformHint: PLATFORM_HINTS.qq,
+          channel: "qq",
         });
         sid = session.id;
         chatSessionMap.set(chatKey, sid);

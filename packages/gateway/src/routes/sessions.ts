@@ -51,7 +51,10 @@ export function registerSessionRoutes(
       try {
         const agentId = req.body?.agentId || "default";
         const projectId = req.body?.projectId;
-        const session = await ctx.orchestrator.createSession({ agentId });
+        const session = await ctx.orchestrator.createSession({
+          agentId,
+          channel: "web",
+        });
         // Attach project if specified
         if (projectId) {
           (session as { projectId?: string }).projectId = projectId;

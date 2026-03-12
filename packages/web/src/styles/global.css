@@ -764,6 +764,14 @@ textarea:focus {
   background: var(--accent-subtle-bg);
   color: var(--accent);
 }
+.badge-channel {
+  background: var(--accent-subtle-bg);
+  color: var(--accent);
+  font-size: 11px;
+  padding: 1px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
 /* Card */
 .card {

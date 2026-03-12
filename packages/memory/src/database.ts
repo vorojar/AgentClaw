@@ -101,9 +101,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
-CREATE INDEX IF NOT EXISTS idx_tasks_executor ON tasks(executor);
-CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON tasks(deadline);
-CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);
 
 -- Sub-agent execution records (real-time + historical)
 CREATE TABLE IF NOT EXISTS subagents (
@@ -221,6 +218,20 @@ export function initDatabase(dbPath: string): Database.Database {
   addColumnIfMissing(db, "tasks", "progress", "INTEGER DEFAULT 0");
   addColumnIfMissing(db, "tasks", "completed_at", "TEXT");
   addColumnIfMissing(db, "tasks", "metadata", "TEXT");
+
+  // Traces: add channel column
+  addColumnIfMissing(db, "traces", "channel", "TEXT");
+
+  // Create indexes for migration-added columns (must run after addColumnIfMissing)
+  try {
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_tasks_executor ON tasks(executor);
+      CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON tasks(deadline);
+      CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);
+    `);
+  } catch {
+    // Indexes may already exist
+  }
 
   // Migration: populate FTS5 index from existing memories (one-time sync)
   const ftsCount = countRows(db, "memories_fts");

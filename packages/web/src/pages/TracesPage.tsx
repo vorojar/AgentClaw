@@ -407,6 +407,9 @@ function TraceCard({ trace, nested }: { trace: TraceInfo; nested?: boolean }) {
           <span className="trace-duration">
             {formatDuration(trace.durationMs)}
           </span>
+          {trace.channel && (
+            <span className="badge badge-channel">{trace.channel}</span>
+          )}
           <code className="model-name">{trace.model ?? "\u2014"}</code>
           <span className="trace-time">{formatDateTime(trace.createdAt)}</span>
           <CopyTraceButton traceId={trace.id} />

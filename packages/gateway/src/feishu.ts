@@ -149,6 +149,7 @@ export async function startFeishuBot(
       try {
         const session = await appCtx.orchestrator.createSession({
           platformHint: PLATFORM_HINTS.feishu,
+          channel: "feishu",
         });
         sessionId = session.id;
         chatSessionMap.set(chat_id, sessionId);

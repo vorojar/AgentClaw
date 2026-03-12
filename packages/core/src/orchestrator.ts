@@ -209,6 +209,11 @@ export class SimpleOrchestrator implements Orchestrator {
     let handoffCount = 0;
     const MAX_HANDOFFS = 3;
 
+    // Propagate channel from session metadata to context (for trace recording)
+    if (session.metadata?.channel && !mergedContext.channel) {
+      mergedContext.channel = session.metadata.channel as string;
+    }
+
     // Pass available agents to tools (for handoff validation)
     const agentRoster = Array.from(this.agents.values())
       .filter((a) => a.id !== "default")

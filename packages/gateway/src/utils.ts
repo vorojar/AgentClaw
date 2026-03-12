@@ -86,7 +86,10 @@ export async function collectResponse(
   prompt: string,
 ): Promise<string> {
   // Background sessions are always hidden from the sidebar
-  const session = await orchestrator.createSession({ hidden: true });
+  const session = await orchestrator.createSession({
+    hidden: true,
+    channel: "system",
+  });
   let text = "";
   for await (const event of orchestrator.processInputStream(
     session.id,

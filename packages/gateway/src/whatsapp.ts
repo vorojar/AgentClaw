@@ -153,6 +153,7 @@ async function ensureSession(
   try {
     const session = await appCtx.orchestrator.createSession({
       platformHint: PLATFORM_HINTS.whatsapp,
+      channel: "whatsapp",
     });
     chatSessionMap.set(jid, session.id);
     appCtx.memoryStore.saveChatTarget("whatsapp", jid, session.id);

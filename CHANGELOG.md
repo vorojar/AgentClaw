@@ -1,6 +1,6 @@
 # 更新日志
 
-## [1.3.10] - 2026-03-12
+## [1.3.10] - 2026-03-13
 
 ### 新增
 - **溢出模式（Overflow Mode）**：工具输出超过 8000 字符时，完整内容自动保存到 `data/tmp/{会话ID}/overflow_{工具名}_{时间戳}.txt`，LLM 只收到前 1500 字符预览 + 文件引用。LLM 可用 `file_read`/`grep` 按需探索完整内容。将"截断→数据丢失"变为"延迟加载→按需访问"，统一解决所有工具的大输出问题
@@ -26,7 +26,7 @@
 - **ARCHITECTURE.md 全面更新**：SubAgentManager（工具黑名单 + IterationBudget + spawn_and_wait）、ContextManager（Frozen Snapshot + sanitizeToolPairs）、新增 QQ Bot/企业微信渠道、Platform Hints、SettingsPage 二级菜单、SubAgentCard UI、新增"安全与性能机制"章节
 
 ### 新增
-- **Thinking 动画**：发送消息后立即显示三圆点跳动动画（纯前端），第一个真实事件到达时自动消失，消除等待 LLM 响应的空白感；同时调整渲染顺序为 文字→工具卡片（原为工具卡片→文字）
+- **Thinking 动画增强**：发送消息后立即显示三圆点跳动动画，且在工具调用期间持续显示（工具完成后恢复 thinking → 收到最终文本/done 时消失），消除工具执行时的无反馈空白感；渲染顺序调整为 文字→工具卡片→thinking dots，dots 始终在最底部
 - **Traces 渠道标记**：每条 trace 记录来源渠道（web/telegram/dingtalk/feishu/qq/whatsapp/wecom/system），前端 TracesPage 显示渠道标签，SQLite traces 表新增 channel 列（自动迁移）
 - **bilingual-subtitle 防呆升级**：`process.py` 直接支持 URL 输入（自动下载 CC 字幕 → 回退音频/视频下载 → Whisper），LLM 只需一条命令，不再需要手动分步调 yt-dlp
 - **Traces 工具调用统计面板**：Traces 页面顶部新增可展开的统计面板，显示当前页工具调用总数、成功率、错误数、工具种类数；展开后显示按工具名分组的详细表格（调用次数、成功率、平均耗时）

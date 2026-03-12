@@ -1282,7 +1282,7 @@ export function ChatPage() {
           if (last && last.role === "assistant" && last.streaming) {
             return [
               ...prev.slice(0, -1),
-              { ...last, thinking: false, toolCalls: [...last.toolCalls, entry] },
+              { ...last, toolCalls: [...last.toolCalls, entry] },
             ];
           }
           return [
@@ -1315,7 +1315,8 @@ export function ChatPage() {
                 break;
               }
             }
-            return [...prev.slice(0, -1), { ...last, toolCalls }];
+            // After tool completes, LLM will think again — show thinking animation
+            return [...prev.slice(0, -1), { ...last, thinking: true, toolCalls }];
           }
           return prev;
         });
@@ -1431,6 +1432,7 @@ export function ChatPage() {
               {
                 ...last,
                 content,
+                thinking: false,
                 streaming: false,
                 model: msg.model ?? last.model,
                 tokensIn: msg.tokensIn ?? last.tokensIn,
@@ -1510,7 +1512,7 @@ export function ChatPage() {
           if (last && last.role === "assistant" && last.streaming) {
             return [
               ...prev.slice(0, -1),
-              { ...last, streaming: false },
+              { ...last, thinking: false, streaming: false },
               errMsg,
             ];
           }
@@ -2375,15 +2377,6 @@ export function ChatPage() {
                           )
                         ) : (
                           <>
-                            {m.thinking && (
-                              <div className="message-row assistant">
-                                <div className="message-bubble thinking-bubble">
-                                  <div className="thinking-dots">
-                                    <span /><span /><span />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                             {m.content &&
                               (() => {
                                 const parsed = parseMessageContent(m.content);
@@ -2515,6 +2508,15 @@ export function ChatPage() {
                                 <ToolCallGroup entries={visible} />
                               ) : null;
                             })()}
+                            {m.thinking && (
+                              <div className="message-row assistant">
+                                <div className="message-bubble thinking-bubble">
+                                  <div className="thinking-dots">
+                                    <span /><span /><span />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             {showRegenerate &&
                               idx === messages.length - 1 &&
                               m.role === "assistant" && (

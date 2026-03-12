@@ -24,6 +24,6 @@ export default defineConfig({
     "@sentry/node",
     "ws",
     "@wecom/aibot-node-sdk",
-    "@bestcodes/edge-tts",
+    "node-edge-tts",
   ],
 });

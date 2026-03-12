@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { resolve as resolvePath, join } from "node:path";
 
 /** Strip markdown formatting for speech output */
@@ -17,13 +17,18 @@ function cleanForSpeech(text: string): string {
 
 const MAX_TTS_LENGTH = 1000;
 
-/** Generate speech via @bestcodes/edge-tts (Node.js, no Python) */
-async function edgeTts(text: string, voice: string): Promise<Buffer> {
-  const { generateSpeech } = await import("@bestcodes/edge-tts");
-  return generateSpeech({ text, voice }) as Promise<Buffer>;
+/** Generate speech via node-edge-tts (Node.js, no Python) → mp3 file */
+async function edgeTts(
+  text: string,
+  voice: string,
+  outPath: string,
+): Promise<void> {
+  const { EdgeTTS } = await import("node-edge-tts");
+  const tts = new EdgeTTS({ voice });
+  await tts.ttsPromise(text, outPath);
 }
 
-/** Generate speech via vibevoice HTTP service */
+/** Generate speech via vibevoice HTTP service → buffer */
 async function vibevoiceTts(text: string, voice: string): Promise<Buffer> {
   const url = process.env.VIBEVOICE_URL || "http://localhost:8001";
   const res = await fetch(`${url}/tts`, {
@@ -35,19 +40,18 @@ async function vibevoiceTts(text: string, voice: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
-/** Convert mp3/wav buffer to ogg/opus via ffmpeg (pipe, no temp files) */
-function toOggOpus(input: Buffer): Promise<Buffer> {
+/** Convert mp3 file to ogg/opus via ffmpeg */
+function toOggOpus(inputPath: string, outputPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = execFile(
+    execFile(
       "ffmpeg",
-      ["-i", "pipe:0", "-c:a", "libopus", "-b:a", "48k", "-f", "ogg", "pipe:1"],
-      { encoding: "buffer" as any, timeout: 15_000, windowsHide: true },
-      (err, stdout) => {
+      ["-y", "-i", inputPath, "-c:a", "libopus", "-b:a", "48k", outputPath],
+      { timeout: 15_000, windowsHide: true },
+      (err) => {
         if (err) reject(err);
-        else resolve(stdout as unknown as Buffer);
+        else resolve();
       },
     );
-    proc.stdin!.end(input);
   });
 }
 
@@ -55,8 +59,8 @@ export type TtsFormat = "mp3" | "ogg";
 
 /**
  * Text-to-speech: returns file path or null.
- * - format "mp3": direct output, no ffmpeg (~300-600ms)
- * - format "ogg": mp3 → ffmpeg pipe → ogg/opus (~500-800ms)
+ * - format "mp3": direct output, no ffmpeg
+ * - format "ogg": mp3 → ffmpeg → ogg/opus
  */
 export async function textToSpeech(
   text: string,
@@ -68,26 +72,32 @@ export async function textToSpeech(
   const provider = process.env.TTS_PROVIDER || "edge";
   const voice = process.env.TTS_VOICE || "zh-CN-XiaoxiaoNeural";
 
+  const tmpDir = resolvePath(process.cwd(), "data", "tmp");
+  mkdirSync(tmpDir, { recursive: true });
+  const ts = Date.now();
+
   try {
-    const raw =
-      provider === "vibevoice"
-        ? await vibevoiceTts(cleaned, voice)
-        : await edgeTts(cleaned, voice);
-
-    const tmpDir = resolvePath(process.cwd(), "data", "tmp");
-    mkdirSync(tmpDir, { recursive: true });
-
-    if (format === "mp3") {
-      const outPath = join(tmpDir, `tts_${Date.now()}.mp3`);
-      writeFileSync(outPath, raw);
-      return outPath;
+    if (provider === "vibevoice") {
+      const buf = await vibevoiceTts(cleaned, voice);
+      const mp3Path = join(tmpDir, `tts_${ts}.mp3`);
+      const { writeFileSync } = await import("node:fs");
+      writeFileSync(mp3Path, buf);
+      if (format === "mp3") return mp3Path;
+      const oggPath = join(tmpDir, `tts_${ts}.ogg`);
+      await toOggOpus(mp3Path, oggPath);
+      return oggPath;
     }
 
-    // ogg/opus
-    const ogg = await toOggOpus(raw);
-    const outPath = join(tmpDir, `tts_${Date.now()}.ogg`);
-    writeFileSync(outPath, ogg);
-    return outPath;
+    // edge-tts (default)
+    const mp3Path = join(tmpDir, `tts_${ts}.mp3`);
+    await edgeTts(cleaned, voice, mp3Path);
+
+    if (format === "mp3") return mp3Path;
+
+    // Convert to ogg/opus for Telegram/WhatsApp voice notes
+    const oggPath = join(tmpDir, `tts_${ts}.ogg`);
+    await toOggOpus(mp3Path, oggPath);
+    return oggPath;
   } catch (err: any) {
     console.error("[tts] Failed:", err.message);
     return null;

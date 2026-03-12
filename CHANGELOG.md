@@ -2,6 +2,9 @@
 
 ## [1.3.10] - 2026-03-12
 
+### 优化
+- **TTS 延迟优化**：用 `@bestcodes/edge-tts` 替换 Python edge-tts，消除 Python 进程冷启动（~500-800ms）；mp3 buffer 通过 pipe 传给 ffmpeg（需要 ogg 时），不再写中间临时文件；新增 `TtsFormat` 参数支持直出 mp3（跳过 ffmpeg，总延迟 ~300-600ms）
+
 ### 修复
 - **会话删除不停止 agent loop**：`closeSession()` 只清理数据但不调 `stopSession()`，导致删除会话后 agent loop 和 claude_code 子进程成为孤儿进程持续运行。现在删除会话时会先 stop 正在运行的 agent loop（触发 AbortController → 杀死 claude_code 子进程）
 - **切换会话再切回时工具卡片重复**：history API 和 WS "resuming" 信号存在竞态条件，两处修复：(1) resuming handler 改为无条件移除末尾 assistant（不检查 streaming 标志）；(2) history merge 去掉 `if (streaming.length > 0)` 守卫——当 resuming 先到但 buffer 事件还没处理时，streaming 为空导致 history 的 assistant 不被清除，buffer 回放再叠加一个

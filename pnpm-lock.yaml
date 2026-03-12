@@ -94,6 +94,9 @@ importers:
       '@agentclaw/types':
         specifier: workspace:*
         version: link:../types
+      '@bestcodes/edge-tts':
+        specifier: ^3.0.1
+        version: 3.0.1(typescript@5.9.3)
       '@fastify/compress':
         specifier: ^8.3.1
         version: 8.3.1
@@ -402,6 +405,11 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@bestcodes/edge-tts@3.0.1':
+    resolution: {integrity: sha512-k8tcTRIcw6YWVZonOWrKjkItQqevnzuJ5AiRpYms1pFAGUdcPsenmQ3+WVw118WqPweJAkGvkWfJdUp9JDHiiQ==}
+    peerDependencies:
+      typescript: ^5.9.3
 
   '@biomejs/biome@2.4.5':
     resolution: {integrity: sha512-OWNCyMS0Q011R6YifXNOg6qsOg64IVc7XX6SqGsrGszPbkVCoaO7Sr/lISFnXZ9hjQhDewwZ40789QmrG0GYgQ==}
@@ -3891,6 +3899,10 @@ packages:
     resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
     hasBin: true
 
+  uuid@13.0.0:
+    resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
+    hasBin: true
+
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
@@ -4248,6 +4260,19 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@bestcodes/edge-tts@3.0.1(typescript@5.9.3)':
+    dependencies:
+      axios: 1.13.6(debug@4.4.3)
+      https-proxy-agent: 7.0.6
+      typescript: 5.9.3
+      uuid: 13.0.0
+      ws: 8.19.0
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - supports-color
+      - utf-8-validate
 
   '@biomejs/biome@2.4.5':
     optionalDependencies:
@@ -8114,6 +8139,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   uuid@11.1.0: {}
+
+  uuid@13.0.0: {}
 
   uuid@9.0.1: {}
 

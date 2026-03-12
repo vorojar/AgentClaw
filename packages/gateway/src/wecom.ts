@@ -366,7 +366,17 @@ async function handleMessage(
     broadcastSessionActivity(sessionId, "wecom");
   } catch (err) {
     Sentry.captureException(err);
-    console.error("[wecom] Error processing message:", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("[wecom] Error processing message:", errMsg);
+
+    // Session expired after restart — clear stale mapping and prompt retry
+    if (errMsg.includes("Session not found")) {
+      chatSessionMap.delete(key);
+      try {
+        await client.replyStream(frame, streamId, "会话已过期，请重新发送消息。", true);
+      } catch {}
+      return;
+    }
 
     try {
       await client.replyStream(

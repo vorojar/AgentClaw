@@ -7,6 +7,9 @@
 - **语音回复防呆**：语音消息转文字后注入提示，告知 LLM 框架会自动将文字回复转语音，防止 LLM 自己用 bash 跑 edge-tts CLI 生成音频（Telegram/QQ）
 
 ### 修复
+- **企业微信重启后报错**：gateway 重启后 orchestrator 内存中 session 丢失，但企业微信从数据库恢复了旧 sessionId 映射，导致 "Session not found" 错误。现在检测到过期 session 时自动清除映射并提示用户重发
+
+### 修复
 - **会话删除不停止 agent loop**：`closeSession()` 只清理数据但不调 `stopSession()`，导致删除会话后 agent loop 和 claude_code 子进程成为孤儿进程持续运行。现在删除会话时会先 stop 正在运行的 agent loop（触发 AbortController → 杀死 claude_code 子进程）
 - **切换会话再切回时工具卡片重复**：history API 和 WS "resuming" 信号存在竞态条件，两处修复：(1) resuming handler 改为无条件移除末尾 assistant（不检查 streaming 标志）；(2) history merge 去掉 `if (streaming.length > 0)` 守卫——当 resuming 先到但 buffer 事件还没处理时，streaming 为空导致 history 的 assistant 不被清除，buffer 回放再叠加一个
 

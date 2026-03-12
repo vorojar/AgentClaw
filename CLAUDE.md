@@ -2,10 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 语言要求
+## 语言要求和绩效规范
 
 - **必须使用中文回答所有问题**，严格执行，无例外。
-- **你写的代码，我会让Codex review**
+- **你写的代码，我会让Codex Review**，如果2次以上写错需要人工指正，将扣除绩效。
 
 ## 标准工作流（每次任务必须完整执行，不可跳步）
 

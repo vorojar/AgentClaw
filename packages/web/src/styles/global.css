@@ -770,7 +770,7 @@ textarea:focus {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 10px;
 }
 
 /* ── Floating menu button for non-chat pages ─────── */

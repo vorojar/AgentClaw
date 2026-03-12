@@ -385,6 +385,7 @@
   cursor: pointer;
   transition: background 0.15s;
   background: var(--accent-subtle-bg);
+  border-bottom: 1px solid var(--accent-subtle-border);
 }
 .trace-group-header:hover {
   background: var(--bg-tertiary);
@@ -409,6 +410,7 @@
   border: 1px solid var(--accent-subtle-border);
   white-space: nowrap;
   flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .trace-group-body {
@@ -416,6 +418,7 @@
   flex-direction: column;
   gap: 1px;
   background: var(--border);
+  padding: 10px;
 }
 
 .trace-card-nested {
@@ -425,5 +428,5 @@
 }
 
 .trace-card-nested .trace-card-header {
-  padding: 10px 16px 10px 28px;
+  padding: 10px 16px 10px 32px;
 }

@@ -764,13 +764,11 @@ def main():
 
     # URL 模式：自动下载
     cc_srt_files = []
-    if is_url(args.video):
-        # 确定输出目录
-        if args.output:
-            output_dir = os.path.dirname(os.path.abspath(args.output))
-        else:
-            output_dir = os.getcwd()
-        dl_dir = os.path.join(output_dir, '_dl_tmp')
+    url_mode = is_url(args.video)
+    dl_dir = None
+    if url_mode:
+        import tempfile
+        dl_dir = tempfile.mkdtemp(prefix='subtitle_dl_')
 
         media_file, cc_srt_files = download_from_url(
             args.video, dl_dir, srt_only=args.srt_only, language=args.language
@@ -778,15 +776,16 @@ def main():
 
         if cc_srt_files and args.srt_only:
             # 已有 CC 字幕且只需 SRT → 直接输出，跳过 Whisper
-            # 选择最匹配的字幕文件
             best = cc_srt_files[0]
             for f in cc_srt_files:
                 if args.language in os.path.basename(f):
                     best = f
                     break
 
-            output_path = args.output or os.path.join(output_dir, os.path.basename(best))
-            if os.path.abspath(best) != os.path.abspath(output_path):
+            # 输出到 -o 指定路径，或当前工作目录
+            output_path = args.output or os.path.join(os.getcwd(), os.path.basename(best))
+            output_path = os.path.abspath(output_path)
+            if os.path.abspath(best) != output_path:
                 import shutil
                 shutil.copy2(best, output_path)
             elapsed = time.time() - start_time
@@ -798,7 +797,6 @@ def main():
         if media_file:
             args.video = media_file
         elif cc_srt_files:
-            # 有 CC 字幕但无媒体文件（不应发生，但做防御）
             pass
         else:
             print('错误: 下载失败')
@@ -810,8 +808,12 @@ def main():
         return 1
 
     # 设置输出路径
-    video_dir = os.path.dirname(os.path.abspath(args.video))
+    # URL 模式下输出到 cwd（不要输出到临时下载目录），本地文件模式输出到文件所在目录
     video_base = os.path.splitext(os.path.basename(args.video))[0]
+    if url_mode:
+        out_dir = os.path.dirname(os.path.abspath(args.output)) if args.output else os.getcwd()
+    else:
+        out_dir = os.path.dirname(os.path.abspath(args.video))
 
     if args.karaoke:
         suffix = '_karaoke'
@@ -830,8 +832,8 @@ def main():
         subtitle_output = os.path.abspath(args.output)
         video_output = None
     else:
-        subtitle_output = os.path.join(video_dir, f'{video_base}{suffix}{sub_ext}')
-        video_output = args.output or os.path.join(video_dir, f'{video_base}{suffix}.mp4')
+        subtitle_output = os.path.join(out_dir, f'{video_base}{suffix}{sub_ext}')
+        video_output = args.output or os.path.join(out_dir, f'{video_base}{suffix}.mp4')
 
     print('=' * 50)
     print('双语字幕生成器')
@@ -874,6 +876,11 @@ def main():
         print(f'  视频: {video_output}')
     print(f'  总耗时: {format_duration(elapsed)}')
     print('=' * 50)
+
+    # 清理 URL 下载临时目录
+    if dl_dir:
+        import shutil
+        shutil.rmtree(dl_dir, ignore_errors=True)
 
     return 0
 

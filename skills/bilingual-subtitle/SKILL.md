@@ -42,18 +42,25 @@ All output files go to the working directory (工作目录). Always use `auto_se
 ```
 If SRT files are downloaded (e.g. `{WORKDIR}/ID.en.srt`), use them directly — no need to run Whisper.
 If output says "There are no subtitles", fall back to Step 2.
+> **Note**: Bilibili videos rarely have CC subtitles. For bilibili.com URLs, skip Step 1 and go directly to Step 2.
 
-### Step 2a: Subtitles / summary only → download audio (Whisper only needs audio)
+### Step 2a: Subtitles / summary only → download audio then Whisper
 ```
 {"command": "yt-dlp --no-warnings -x --audio-format mp3 --audio-quality 0 -o '{WORKDIR}/%(id)s.%(ext)s' 'URL'", "timeout": 300000}
 ```
-Then run process.py on the mp3 file with `--srt-only`.
+Then extract subtitles (replace `ID` with the actual video ID from yt-dlp output):
+```
+{"command": "python skills/bilingual-subtitle/scripts/process.py '{WORKDIR}/ID.mp3' --srt-only -o {WORKDIR}/ID_bilingual.srt", "timeout": 300000, "auto_send": true}
+```
 
-### Step 2b: Burn subtitles into video → download video (need video source for encoding)
+### Step 2b: Burn subtitles into video → download video then process
 ```
 {"command": "yt-dlp --no-warnings -f 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b' --merge-output-format mp4 -o '{WORKDIR}/%(id)s.%(ext)s' 'URL'", "timeout": 300000}
 ```
-Then run process.py on the mp4 file without `--srt-only`.
+Then burn subtitles (replace `ID` with the actual video ID from yt-dlp output):
+```
+{"command": "python skills/bilingual-subtitle/scripts/process.py '{WORKDIR}/ID.mp4' -o {WORKDIR}/ID_bilingual.mp4", "timeout": 600000, "auto_send": true}
+```
 
 ## Parameters
 | Parameter | Description | Default |
@@ -70,8 +77,21 @@ Then run process.py on the mp4 file without `--srt-only`.
 | `--karaoke` | Karaoke mode with word-level highlight | - |
 | `--no-speech-threshold` | Filter non-speech segments (0-1) | `0.6` |
 
+## Common combos
+
+### Chinese video from URL → Chinese-only subtitles (最常见场景)
+Step 1: download audio
+```
+{"command": "yt-dlp --no-warnings -x --audio-format mp3 --audio-quality 0 -o '{WORKDIR}/%(id)s.%(ext)s' 'URL'", "timeout": 300000}
+```
+Step 2: extract Chinese subtitles (replace `ID` with actual video ID)
+```
+{"command": "python skills/bilingual-subtitle/scripts/process.py '{WORKDIR}/ID.mp3' -l zh --chinese-only --srt-only -o {WORKDIR}/ID_zh.srt", "timeout": 300000, "auto_send": true}
+```
+
 ## Rules
 - ALWAYS use bash shell (default), never PowerShell.
+- ALWAYS copy the exact command templates above. Do NOT rename scripts or invent parameters.
 - timeout: 300000 (5min) for --srt-only, 600000 (10min) for full pipeline with video encoding.
 - GPU auto-detected: NVIDIA CUDA > Apple Silicon mlx > CPU int8. No config needed.
 - For Chinese source videos, use `-l zh` to set source language.

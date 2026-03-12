@@ -430,3 +430,107 @@
 .trace-card-nested .trace-card-header {
   padding: 10px 16px 10px 32px;
 }
+
+/* ── Tool stats panel ────────────────────── */
+
+.tool-stats-panel {
+  margin-bottom: 16px;
+}
+
+.tool-stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.tool-stats-summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.tool-stats-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-stats-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tool-stats-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.tool-stats-success {
+  color: var(--success);
+}
+
+.tool-stats-warn {
+  color: var(--warning);
+}
+
+.tool-stats-error {
+  color: var(--error);
+}
+
+/* ── Tool stats table ────────────────────── */
+
+.tool-stats-table-wrap {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  overflow-x: auto;
+}
+
+.tool-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tool-stats-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tool-stats-table td {
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.tool-stats-table tr:last-child td {
+  border-bottom: none;
+}
+
+.tool-stats-name {
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--accent-subtle-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.tool-stats-duration {
+  color: var(--text-muted);
+}

@@ -272,7 +272,17 @@
     "response": "回复",
     "copyTraceUrl": "复制追踪 URL",
     "urlCopied": "已复制",
-    "turnCount": "{{count}} 轮"
+    "turnCount": "{{count}} 轮",
+    "stats": {
+      "totalCalls": "工具调用",
+      "successRate": "成功率",
+      "errors": "错误数",
+      "toolTypes": "工具种类",
+      "toolName": "工具",
+      "calls": "调用次数",
+      "errorsCol": "错误",
+      "avgDuration": "平均耗时"
+    }
   },
   "settings": {
     "title": "设置",

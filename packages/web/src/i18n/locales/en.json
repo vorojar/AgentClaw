@@ -272,7 +272,17 @@
     "response": "Response",
     "copyTraceUrl": "Copy Trace URL",
     "urlCopied": "Copied",
-    "turnCount": "{{count}} turns"
+    "turnCount": "{{count}} turns",
+    "stats": {
+      "totalCalls": "Tool Calls",
+      "successRate": "Success Rate",
+      "errors": "Errors",
+      "toolTypes": "Tool Types",
+      "toolName": "Tool",
+      "calls": "Calls",
+      "errorsCol": "Errors",
+      "avgDuration": "Avg Duration"
+    }
   },
   "settings": {
     "title": "Settings",

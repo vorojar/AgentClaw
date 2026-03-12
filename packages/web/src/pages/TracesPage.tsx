@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import { getTraces, type TraceInfo, type TraceStep } from "../api/client";
@@ -7,6 +7,164 @@ import { formatDateTime, formatDuration, formatNumber } from "../utils/format";
 import "./TracesPage.css";
 
 const PAGE_SIZE = 20;
+
+/* ── Tool call statistics ─────────────────── */
+
+interface ToolStat {
+  name: string;
+  total: number;
+  success: number;
+  errors: number;
+  totalDurationMs: number;
+}
+
+interface ToolStats {
+  totalCalls: number;
+  totalSuccess: number;
+  totalErrors: number;
+  byTool: ToolStat[];
+}
+
+function computeToolStats(items: TraceInfo[]): ToolStats {
+  const map = new Map<string, ToolStat>();
+  let totalCalls = 0;
+  let totalSuccess = 0;
+  let totalErrors = 0;
+
+  for (const trace of items) {
+    const steps = parseSteps(trace.steps);
+    for (const step of steps) {
+      if (step.type !== "tool_result") continue;
+      const name = step.name ?? "unknown";
+      totalCalls++;
+      const isErr = !!step.isError;
+      if (isErr) totalErrors++;
+      else totalSuccess++;
+
+      let stat = map.get(name);
+      if (!stat) {
+        stat = { name, total: 0, success: 0, errors: 0, totalDurationMs: 0 };
+        map.set(name, stat);
+      }
+      stat.total++;
+      if (isErr) stat.errors++;
+      else stat.success++;
+      stat.totalDurationMs +=
+        ((step as Record<string, unknown>).durationMs as number) ?? 0;
+    }
+  }
+
+  const byTool = Array.from(map.values()).sort((a, b) => b.total - a.total);
+  return { totalCalls, totalSuccess, totalErrors, byTool };
+}
+
+function ToolStatsPanel({ items }: { items: TraceInfo[] }) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const stats = useMemo(() => computeToolStats(items), [items]);
+
+  if (stats.totalCalls === 0) return null;
+
+  const successRate =
+    stats.totalCalls > 0
+      ? ((stats.totalSuccess / stats.totalCalls) * 100).toFixed(1)
+      : "0";
+
+  return (
+    <div className="card tool-stats-panel">
+      <div className="tool-stats-header" onClick={() => setExpanded(!expanded)}>
+        <div className="tool-stats-summary">
+          <span className="tool-stats-item">
+            <span className="tool-stats-label">
+              {t("traces.stats.totalCalls")}
+            </span>
+            <span className="tool-stats-value">{stats.totalCalls}</span>
+          </span>
+          <span className="tool-stats-item">
+            <span className="tool-stats-label">
+              {t("traces.stats.successRate")}
+            </span>
+            <span className="tool-stats-value tool-stats-success">
+              {successRate}%
+            </span>
+          </span>
+          <span className="tool-stats-item">
+            <span className="tool-stats-label">{t("traces.stats.errors")}</span>
+            <span
+              className={`tool-stats-value${stats.totalErrors > 0 ? " tool-stats-error" : ""}`}
+            >
+              {stats.totalErrors}
+            </span>
+          </span>
+          <span className="tool-stats-item">
+            <span className="tool-stats-label">
+              {t("traces.stats.toolTypes")}
+            </span>
+            <span className="tool-stats-value">{stats.byTool.length}</span>
+          </span>
+        </div>
+        <span className="tl-chevron" style={{ fontSize: 12 }}>
+          {expanded ? "\u25BC" : "\u25B6"}
+        </span>
+      </div>
+
+      {expanded && (
+        <div className="tool-stats-table-wrap">
+          <table className="tool-stats-table">
+            <thead>
+              <tr>
+                <th>{t("traces.stats.toolName")}</th>
+                <th>{t("traces.stats.calls")}</th>
+                <th>{t("traces.stats.successRate")}</th>
+                <th>{t("traces.stats.errorsCol")}</th>
+                <th>{t("traces.stats.avgDuration")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.byTool.map((s) => {
+                const rate =
+                  s.total > 0 ? ((s.success / s.total) * 100).toFixed(1) : "0";
+                const avgMs =
+                  s.total > 0 ? Math.round(s.totalDurationMs / s.total) : 0;
+                return (
+                  <tr key={s.name}>
+                    <td>
+                      <code className="tool-stats-name">{s.name}</code>
+                    </td>
+                    <td>{s.total}</td>
+                    <td>
+                      <span
+                        className={
+                          Number(rate) >= 90
+                            ? "tool-stats-success"
+                            : Number(rate) >= 50
+                              ? "tool-stats-warn"
+                              : "tool-stats-error"
+                        }
+                      >
+                        {rate}%
+                      </span>
+                    </td>
+                    <td>
+                      <span className={s.errors > 0 ? "tool-stats-error" : ""}>
+                        {s.errors}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="tool-stats-duration">
+                        {formatDuration(avgMs)}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function parseSteps(steps: TraceStep[] | string): TraceStep[] {
   if (typeof steps === "string") {
@@ -428,6 +586,8 @@ export function TracesPage() {
             </button>
           </div>
         </div>
+
+        {!loading && items.length > 0 && <ToolStatsPanel items={items} />}
 
         {loading ? (
           <div className="traces-loading">{t("common.loading")}</div>

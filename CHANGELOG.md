@@ -1,6 +1,6 @@
 # 更新日志
 
-## [1.3.10] - 2026-03-11
+## [1.3.10] - 2026-03-12
 
 ### 修复
 - **会话删除不停止 agent loop**：`closeSession()` 只清理数据但不调 `stopSession()`，导致删除会话后 agent loop 和 claude_code 子进程成为孤儿进程持续运行。现在删除会话时会先 stop 正在运行的 agent loop（触发 AbortController → 杀死 claude_code 子进程）
@@ -10,6 +10,8 @@
 - **ARCHITECTURE.md 全面更新**：SubAgentManager（工具黑名单 + IterationBudget + spawn_and_wait）、ContextManager（Frozen Snapshot + sanitizeToolPairs）、新增 QQ Bot/企业微信渠道、Platform Hints、SettingsPage 二级菜单、SubAgentCard UI、新增"安全与性能机制"章节
 
 ### 新增
+- **Traces 工具调用统计面板**：Traces 页面顶部新增可展开的统计面板，显示当前页工具调用总数、成功率、错误数、工具种类数；展开后显示按工具名分组的详细表格（调用次数、成功率、平均耗时）
+- **Traces 按 conversationId 分组**：同一会话的多轮 trace 自动分组为可展开的卡片，显示总 token/耗时/轮次
 - **Subagent 安全防线**：工具黑名单（subagent/ask_user/remember/schedule/send_file/social_post 始终禁止）+ 迭代预算共享（`IterationBudget` 父子共享预算池，子代理消耗计入全局上限）
 - **Memory 内容安全审查**：remember 工具写入前扫描 prompt injection（8 种模式）、隐形 unicode 字符和凭证窃取 payload，拦截恶意内容注入系统提示词
 - **渠道格式提示（Platform Hints）**：不同消息渠道自动注入格式指导到系统提示词（Telegram/WhatsApp 不用 Markdown、Discord/钉钉/飞书支持 Markdown 等），通过 session metadata + `{{platformHint}}` 模板变量实现

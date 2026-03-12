@@ -419,6 +419,7 @@ export interface TraceStep {
   input?: Record<string, unknown>;
   content?: string;
   isError?: boolean;
+  durationMs?: number;
 }
 
 export interface TraceInfo {

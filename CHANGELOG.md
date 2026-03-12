@@ -11,6 +11,8 @@
 
 ### 新增
 - **Traces 工具调用统计面板**：Traces 页面顶部新增可展开的统计面板，显示当前页工具调用总数、成功率、错误数、工具种类数；展开后显示按工具名分组的详细表格（调用次数、成功率、平均耗时）
+- **确定性 Workflow Agent**：新增 WorkflowRunner 执行引擎，支持 Sequential 串行和 Parallel 并行执行确定性工具调用流程，步骤间通过 `{{stepId.content}}` 模板变量传递数据，支持条件执行、错误处理策略（stop/continue）、AbortSignal
+- **Trajectory 自动评估框架**：新增 evaluateTrace/evaluateBatch/formatEvalReport 三层评估，支持工具选择正确性、参数正确性、禁用工具检查、响应内容匹配、模型和耗时约束，附带黄金测试集示例
 - **Traces 按 conversationId 分组**：同一会话的多轮 trace 自动分组为可展开的卡片，显示总 token/耗时/轮次
 - **Subagent 安全防线**：工具黑名单（subagent/ask_user/remember/schedule/send_file/social_post 始终禁止）+ 迭代预算共享（`IterationBudget` 父子共享预算池，子代理消耗计入全局上限）
 - **Memory 内容安全审查**：remember 工具写入前扫描 prompt injection（8 种模式）、隐形 unicode 字符和凭证窃取 payload，拦截恶意内容注入系统提示词

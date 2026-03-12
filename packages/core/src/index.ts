@@ -12,3 +12,11 @@ export { TaskManager } from "./task-manager.js";
 export type { TaskManagerConfig } from "./task-manager.js";
 export { WorkflowRunner } from "./workflow.js";
 export type { WorkflowRunnerOptions } from "./workflow.js";
+export { evaluateTrace, evaluateBatch, formatEvalReport } from "./eval.js";
+export type {
+  ExpectedToolCall,
+  TrajectoryTestCase,
+  CheckResult,
+  TrajectoryEvalResult,
+  EvalReport,
+} from "./eval.js";

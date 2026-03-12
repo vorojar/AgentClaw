@@ -64,6 +64,36 @@ const turndown = new TurndownService({
   bulletListMarker: "-",
 });
 
+/** Lines commonly found in SPA page chrome (navigation, login prompts, etc.) */
+const NOISE_PATTERNS = [
+  /^Don't miss what's happening$/,
+  /^People on X are the first to know\.?$/,
+  /^\[Log in\].*$/,
+  /^\[Sign up\].*$/,
+  /^See new posts?$/,
+  /^## Article$/,
+  /^# Conversation$/,
+  /^Discover more$/,
+  /^Trending now$/,
+  /^Terms of Service/,
+  /^Privacy Policy/,
+  /^Cookie Policy/,
+  /^\[.*?\]\(\/login\)$/,
+  /^\[.*?\]\(\/i\/flow\/signup\)$/,
+  /^Show more$/i,
+  /^Show this thread$/i,
+];
+
+/** Remove common SPA navigation noise from markdown output */
+function cleanMarkdown(md: string): string {
+  return md
+    .split("\n")
+    .filter((line) => !NOISE_PATTERNS.some((p) => p.test(line.trim())))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Convert HTML to Markdown: Readability extracts article → turndown converts, fallback to full-page */
 function htmlToMarkdown(html: string, url?: string): string {
   // Try Readability first for article extraction
@@ -75,7 +105,7 @@ function htmlToMarkdown(html: string, url?: string): string {
     if (article?.content && (article.textContent?.length ?? 0) > 200) {
       const title = article.title ? `# ${article.title}\n\n` : "";
       const md = turndown.turndown(article.content);
-      return (title + md).replace(/\n{3,}/g, "\n\n").trim();
+      return cleanMarkdown(title + md);
     }
   } catch {
     // Readability failed, fall through to full-page conversion
@@ -87,7 +117,7 @@ function htmlToMarkdown(html: string, url?: string): string {
   html = html.replace(/<nav[\s\S]*?<\/nav>/gi, "");
 
   const md = turndown.turndown(html);
-  return md.replace(/\n{3,}/g, "\n\n").trim();
+  return cleanMarkdown(md);
 }
 
 export const webFetchTool: Tool = {

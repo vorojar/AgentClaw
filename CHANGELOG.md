@@ -4,6 +4,7 @@
 
 ### 新增
 - **溢出模式（Overflow Mode）**：工具输出超过 8000 字符时，完整内容自动保存到 `data/tmp/{会话ID}/overflow_{工具名}_{时间戳}.txt`，LLM 只收到前 1500 字符预览 + 文件引用。LLM 可用 `file_read`/`grep` 按需探索完整内容。将"截断→数据丢失"变为"延迟加载→按需访问"，统一解决所有工具的大输出问题
+- **web_fetch 移除 max_length 参数**：溢出模式已在 agent-loop 层统一处理 LLM 上下文保护，web_fetch 不再截断内容。彻底杜绝弱模型设置过小 max_length 导致文章被截断翻译一半的问题。内部保留 200K 硬上限防内存爆炸
 
 ### 优化
 - **TTS 延迟优化**：用 `@bestcodes/edge-tts` 替换 Python edge-tts，消除 Python 进程冷启动（~500-800ms）；mp3 buffer 通过 pipe 传给 ffmpeg（需要 ogg 时），不再写中间临时文件；新增 `TtsFormat` 参数支持直出 mp3（跳过 ffmpeg，总延迟 ~300-600ms）；MAX_TTS_LENGTH 提升到 1000 字符

@@ -48,9 +48,7 @@ GENERIC_CLEANUP_JS = """
 """
 
 
-def fetch(
-    url: str, scroll: bool = False, max_length: int = 10000, raw: bool = False
-) -> str:
+def fetch(url: str, scroll: bool = False, raw: bool = False) -> str:
     from playwright.sync_api import sync_playwright
 
     hostname = urlparse(url).hostname or ""
@@ -113,10 +111,6 @@ def fetch(
 
         browser.close()
 
-    if len(content) > max_length:
-        content = (
-            content[:max_length] + f"\n\n... (truncated, {len(content)} total chars)"
-        )
     return content
 
 
@@ -151,19 +145,11 @@ def main():
         "--scroll", action="store_true", help="Scroll page to trigger lazy loading"
     )
     parser.add_argument(
-        "--max-length",
-        type=int,
-        default=10000,
-        help="Max output length (default: 10000)",
-    )
-    parser.add_argument(
         "--raw", action="store_true", help="Output raw HTML instead of markdown"
     )
     args = parser.parse_args()
 
-    result = fetch(
-        args.url, scroll=args.scroll, max_length=args.max_length, raw=args.raw
-    )
+    result = fetch(args.url, scroll=args.scroll, raw=args.raw)
     print(result)
 
 

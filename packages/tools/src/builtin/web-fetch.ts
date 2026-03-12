@@ -9,7 +9,8 @@ import { resolve, join, basename } from "node:path";
 
 const execFileAsync = promisify(execFile);
 
-const DEFAULT_MAX_LENGTH = 10_000;
+/** 内部硬上限：防止极端页面撑爆内存（溢出模式会在 8K 处接管 LLM 上下文保护） */
+const INTERNAL_MAX_LENGTH = 200_000;
 const FETCH_TIMEOUT = 10_000;
 /** Playwright 子进程超时（毫秒） */
 const PLAYWRIGHT_TIMEOUT = 30_000;
@@ -129,7 +130,6 @@ export const webFetchTool: Tool = {
     type: "object",
     properties: {
       url: { type: "string" },
-      max_length: { type: "number", default: 10000 },
       save_as: {
         type: "string",
         description:
@@ -149,7 +149,6 @@ export const webFetchTool: Tool = {
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
     const url = input.url as string;
-    const maxLength = (input.max_length as number) ?? DEFAULT_MAX_LENGTH;
     const saveAs = input.save_as as string | undefined;
     const autoSend = input.auto_send as boolean | undefined;
 
@@ -211,7 +210,7 @@ export const webFetchTool: Tool = {
         const isSPADomain = SPA_DOMAINS.has(parsedUrl.hostname);
         if (isSPADomain || (content.length < 1500 && body.length > 2000)) {
           // 直接带 --scroll 抓取，避免两次 Playwright 启动开销
-          const pwContent = await tryPlaywrightFetch(url, maxLength, true);
+          const pwContent = await tryPlaywrightFetch(url, true);
           if (pwContent !== null && pwContent.length >= 500) {
             content = pwContent;
             strategy = "playwright";
@@ -278,16 +277,9 @@ export const webFetchTool: Tool = {
         };
       }
 
-      // Hint: content is already markdown, no need for LLM to rewrite
-      if (content.length > 1000 && strategy !== "login_wall") {
-        content +=
-          "\n\n[提示] 以上内容已为 Markdown 格式，可直接用 web_fetch 的 save_as 参数保存，无需重新整理。";
-      }
-
-      // Truncate if needed
-      const truncated = content.length > maxLength;
-      if (truncated) {
-        content = content.slice(0, maxLength) + "\n\n... [truncated]";
+      // 内部硬上限：防止极端页面撑爆进程内存（溢出模式在 agent-loop 层处理 LLM 上下文）
+      if (content.length > INTERNAL_MAX_LENGTH) {
+        content = content.slice(0, INTERNAL_MAX_LENGTH) + "\n\n... [truncated at internal safety limit]";
       }
 
       return {
@@ -298,7 +290,6 @@ export const webFetchTool: Tool = {
           strategy,
           status: response.status,
           contentType,
-          truncated,
           originalLength: content.length,
         },
       };
@@ -329,7 +320,6 @@ export const webFetchTool: Tool = {
  */
 async function tryPlaywrightFetch(
   url: string,
-  maxLength: number,
   scroll = false,
 ): Promise<string | null> {
   const scriptPath = resolve(
@@ -341,7 +331,7 @@ async function tryPlaywrightFetch(
   }
 
   try {
-    const args = [scriptPath, "--url", url, "--max-length", String(maxLength)];
+    const args = [scriptPath, "--url", url];
     if (scroll) args.push("--scroll");
     const { stdout } = await execFileAsync("python", args, {
       timeout: scroll ? PLAYWRIGHT_TIMEOUT * 2 : PLAYWRIGHT_TIMEOUT,

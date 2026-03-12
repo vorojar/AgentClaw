@@ -10,3 +10,5 @@ export { ToolHookManager } from "./tool-hooks.js";
 export { SimpleSubAgentManager } from "./subagent-manager.js";
 export { TaskManager } from "./task-manager.js";
 export type { TaskManagerConfig } from "./task-manager.js";
+export { WorkflowRunner } from "./workflow.js";
+export type { WorkflowRunnerOptions } from "./workflow.js";

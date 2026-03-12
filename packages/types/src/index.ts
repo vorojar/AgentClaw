@@ -59,6 +59,10 @@ export type {
   Session,
   Orchestrator,
   AgentProfile,
+  WorkflowStep,
+  WorkflowDefinition,
+  WorkflowStepResult,
+  WorkflowResult,
 } from "./agent.js";
 
 export type { PlanStatus, PlanStep, Plan, Planner } from "./planner.js";

@@ -108,6 +108,50 @@ export interface AgentProfile {
   sortOrder?: number;
 }
 
+/* ── Workflow (deterministic orchestration) ─────────────── */
+
+/** A single step in a deterministic workflow */
+export interface WorkflowStep {
+  /** Unique step identifier (used to reference output in templates) */
+  id: string;
+  /** Step type */
+  type: "tool" | "parallel";
+  /** For type=tool: tool name to invoke */
+  toolName?: string;
+  /** For type=tool: static input (supports {{stepId.content}} templates) */
+  toolInput?: Record<string, unknown>;
+  /** For type=parallel: sub-steps to run concurrently */
+  steps?: WorkflowStep[];
+  /** Error handling: "stop" aborts workflow, "continue" proceeds (default: "stop") */
+  onError?: "stop" | "continue";
+  /** Optional condition: template expression that must be truthy to execute */
+  condition?: string;
+}
+
+/** A complete workflow definition */
+export interface WorkflowDefinition {
+  name: string;
+  description?: string;
+  /** Steps executed sequentially (unless step.type is "parallel") */
+  steps: WorkflowStep[];
+}
+
+/** Result of a single workflow step */
+export interface WorkflowStepResult {
+  stepId: string;
+  content: string;
+  isError: boolean;
+  durationMs: number;
+}
+
+/** Result of a full workflow execution */
+export interface WorkflowResult {
+  success: boolean;
+  stepResults: WorkflowStepResult[];
+  totalDurationMs: number;
+  error?: string;
+}
+
 /** Orchestrator — top-level coordinator */
 export interface Orchestrator {
   /** Start a new session */

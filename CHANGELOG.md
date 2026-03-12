@@ -7,6 +7,9 @@
 - **语音回复防呆**：语音消息转文字后注入提示，告知 LLM 框架会自动将文字回复转语音，防止 LLM 自己用 bash 跑 edge-tts CLI 生成音频（Telegram/QQ）
 
 ### 修复
+- **web_fetch save_as + auto_send**：`web_fetch` 新增 `save_as` 参数（框架直接写文件，跳过 LLM 逐字转抄）和 `auto_send` 参数（保存后自动发送给用户）。"抓取→保存→发送"从 3 轮 LLM 调用（~134s）降到 1 轮（~15s），省掉 LLM 转抄 6000+ output tokens 的开销
+
+### 修复
 - **企业微信重启后报错**：gateway 重启后 orchestrator 内存中 session 丢失，但企业微信从数据库恢复了旧 sessionId 映射，导致 "Session not found" 错误。现在检测到过期 session 时自动清除映射并提示用户重发
 
 ### 修复

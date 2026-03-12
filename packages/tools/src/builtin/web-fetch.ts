@@ -1,11 +1,11 @@
-import type { Tool, ToolResult } from "@agentclaw/types";
+import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 import TurndownService from "turndown";
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { resolve, join, basename } from "node:path";
 
 const execFileAsync = promisify(execFile);
 
@@ -92,20 +92,36 @@ function htmlToMarkdown(html: string, url?: string): string {
 
 export const webFetchTool: Tool = {
   name: "web_fetch",
-  description: "Fetch URL content as text (HTML auto-converted).",
+  description:
+    "Fetch URL content as text (HTML auto-converted). Use save_as to save content directly as a file (skips LLM rewriting). Combine with auto_send to deliver the file to the user in one step.",
   category: "builtin",
   parameters: {
     type: "object",
     properties: {
       url: { type: "string" },
       max_length: { type: "number", default: 10000 },
+      save_as: {
+        type: "string",
+        description:
+          "Save fetched content to this filename (e.g. 'article.md'). The framework writes the file directly — no need to call file_write separately.",
+      },
+      auto_send: {
+        type: "boolean",
+        description:
+          "When used with save_as, automatically send the saved file to the user. No need for a separate send_file call.",
+      },
     },
     required: ["url"],
   },
 
-  async execute(input: Record<string, unknown>): Promise<ToolResult> {
+  async execute(
+    input: Record<string, unknown>,
+    context?: ToolExecutionContext,
+  ): Promise<ToolResult> {
     const url = input.url as string;
     const maxLength = (input.max_length as number) ?? DEFAULT_MAX_LENGTH;
+    const saveAs = input.save_as as string | undefined;
+    const autoSend = input.auto_send as boolean | undefined;
 
     // Validate URL
     let parsedUrl: URL;
@@ -190,10 +206,52 @@ export const webFetchTool: Tool = {
         content = body;
       }
 
+      // ── save_as: write content to file directly (skip LLM rewriting) ──
+      if (saveAs && strategy !== "login_wall") {
+        const workDir =
+          context?.workDir ??
+          join(resolve(process.cwd(), "data", "tmp"), `fetch_${Date.now()}`);
+        mkdirSync(workDir, { recursive: true });
+        const filePath = join(workDir, basename(saveAs));
+        writeFileSync(filePath, content, "utf-8");
+
+        // auto_send: deliver file to user immediately
+        if (autoSend && context?.sendFile) {
+          try {
+            await context.sendFile(filePath, basename(saveAs));
+            return {
+              content: `Fetched and sent: ${basename(saveAs)} (${content.length} chars from ${url})`,
+              isError: false,
+              autoComplete: true,
+              metadata: { url, strategy, filePath, saved: true, sent: true },
+            };
+          } catch {
+            // sendFile failed, fall through to saved-only response
+          }
+        }
+
+        // Truncate content for LLM context (file has full content)
+        const preview =
+          content.length > 500
+            ? content.slice(0, 500) + "\n\n... [full content saved to file]"
+            : content;
+        return {
+          content: `Saved to ${basename(saveAs)} (${content.length} chars).\n\nPreview:\n${preview}`,
+          isError: false,
+          metadata: {
+            url,
+            strategy,
+            filePath,
+            saved: true,
+            originalLength: content.length,
+          },
+        };
+      }
+
       // Hint: content is already markdown, no need for LLM to rewrite
       if (content.length > 1000 && strategy !== "login_wall") {
         content +=
-          "\n\n[提示] 以上内容已为 Markdown 格式，可直接用 file_write 保存，无需重新整理。";
+          "\n\n[提示] 以上内容已为 Markdown 格式，可直接用 web_fetch 的 save_as 参数保存，无需重新整理。";
       }
 
       // Truncate if needed

@@ -825,14 +825,19 @@ def main():
     else:
         suffix = '_bilingual'
         sub_ext = '.srt'
-    subtitle_output = os.path.join(video_dir, f'{video_base}{suffix}{sub_ext}')
-    video_output = args.output or os.path.join(video_dir, f'{video_base}{suffix}.mp4')
+    # If -o points to a subtitle file (.srt/.ass) and --srt-only, use it directly as subtitle_output
+    if args.output and args.srt_only and args.output.endswith(('.srt', '.ass')):
+        subtitle_output = os.path.abspath(args.output)
+        video_output = None
+    else:
+        subtitle_output = os.path.join(video_dir, f'{video_base}{suffix}{sub_ext}')
+        video_output = args.output or os.path.join(video_dir, f'{video_base}{suffix}.mp4')
 
     print('=' * 50)
     print('双语字幕生成器')
     print('=' * 50)
     print(f'输入: {args.video}')
-    print(f'输出: {"(SRT only)" if args.srt_only else video_output}')
+    print(f'输出: {subtitle_output if args.srt_only else video_output}')
 
     # 步骤 1: 提取
     segments = extract_subtitles(args.video, None, args.language, args.model, word_timestamps=args.karaoke, no_speech_threshold=args.no_speech_threshold)

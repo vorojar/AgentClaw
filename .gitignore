@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Browser skill temp files
+steps.json
+
 # Build outputs
 dist/
 *.tsbuildinfo

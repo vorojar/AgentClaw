@@ -1124,12 +1124,6 @@
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-.agent-menu-avatar {
-  font-size: 16px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
 .agent-menu-text {
   display: flex;
   flex-direction: column;

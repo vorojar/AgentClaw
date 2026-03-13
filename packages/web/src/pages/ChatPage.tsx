@@ -2121,7 +2121,6 @@ export function ChatPage() {
               setAgentMenuOpen(false);
             }}
           >
-            <span className="agent-menu-avatar">{a.avatar || "🤖"}</span>
             <span className="agent-menu-text">
               <span className="agent-menu-name">{a.name}</span>
               {a.description && (

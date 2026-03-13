@@ -32,41 +32,30 @@
 - **Subagent 安全防线**：工具黑名单 + IterationBudget 父子共享预算
 - **Memory 内容安全审查**：拦截 prompt injection、隐形 unicode、凭证窃取
 - **渠道格式提示**：各渠道自动注入格式指导到系统提示词
-- **Frozen Snapshot**：session 内冻结 dynamic context，提高 prompt cache 命中率
+- **Frozen Snapshot**：session 内冻结 dynamic context，prompt cache 命中率提升，~75% input token 成本节省
 - **Context 压缩 tool pair 保护**：压缩边界不在 tool_call/result 间切割
 - **Subagent spawn_and_wait**：一次提交多个子任务，顺序执行结果一次性返回
 - **SubAgentCard 卡片 UI**：subagent 调用以单卡片展示
-- **人类化输入**：click/type 模拟真人操作节奏
-- **快照过滤模式**：`filter: "interactive"` 只返回交互元素
-- **批处理摘要模式**：中间步骤只返回 pass/fail
-- **反自动化检测**：屏蔽 `navigator.webdriver` 标志
+- **Browser 增强**：人类化输入（模拟真人节奏）、快照过滤模式（只返回交互元素）、批处理摘要、反自动化检测
 
 ### 优化
-- **TTS 去 Python 化**：用 `@bestcodes/edge-tts` 替换，延迟 ~300-600ms
+- **TTS 去 Python 化**：用 `@bestcodes/edge-tts` 替换，冷启动从 ~800ms 降至 0，总延迟 ~300-600ms
 - **语音回复防呆**：注入提示防止 LLM 自己跑 edge-tts CLI
 
 ### 修复
-- **web_fetch save_as + auto_send**：抓取→保存→发送从 3 轮降到 1 轮
+- **web_fetch save_as + auto_send**：抓取→保存→发送从 3 轮降到 1 轮（~134s → ~15s）
 - **企业微信重启后 Session not found**：检测过期 session 自动清除映射
 - **会话删除不停止 agent loop**：删除时先 stop 运行中的 loop
 - **切换会话工具卡片重复**：修复 history/WS resuming 竞态条件
 
 ### 重构
-- **Settings 二级菜单**：Settings 页面新增左侧导航菜单，将 Channels、Agents、Subagents、Memory、Tools、Skills、Traces、API 整合为 Settings 子页面
-- **侧边栏精简**：全局侧边栏从 10+ 入口精简为 Chat、Tasks、Projects、Settings 四项，管理功能统一收入 Settings
-- **移除 Token Logs 页面**：Token 消耗数据已被 Traces 和 General 统计完全覆盖，不再作为独立入口
-- **路由兼容**：旧路径（/channels、/memory 等）自动重定向到 /settings/* 对应页面
-- **ChatPage WS 连接提取**：将 WebSocket 连接生命周期（连接/重连/指数退避/可见性恢复/待发队列）提取为 `useSessionWebSocket` hook，ChatPage 减少 ~90 行
-- **ChatPage streaming 状态提取**：将 `isSending`/`activeToolName`/`streamingSessionRef` 及其状态转换封装为 `useStreamingState` hook，用 `startStreaming`/`stopStreaming`/`resetLocal` 命名方法替代散落的 setState 调用
+- **Settings 整合**：管理页面（Channels/Agents/Memory/Tools/Skills/Traces 等）收入 Settings 子页面，侧边栏精简为 4 项，旧路径自动重定向
+- **ChatPage hooks 提取**：WS 连接和 streaming 状态各提取为独立 hook，ChatPage 减少 ~150 行
 
 ### 修复
-- **Subagent 记录持久化**：`SimpleSubAgentManager` 在 spawn/完成/失败/kill 时写入 SQLite，Subagents 页面不再永远 0 条
-- **MemoryStore 接口补齐**：`addSubAgent`/`updateSubAgent` 方法加入 `MemoryStore` 接口定义
-- **停止按钮恢复**：修复新会话首次发送时 stop 按钮不出现的问题（`prevSessionRef` 区分 ensureSession 触发 vs 用户切换）
-- **tool-status-bar 恢复**：撤销对 subagent 工具的 status-bar 隐藏，所有工具执行时底部状态栏正常显示
-- **context 压缩 tool_call/tool_result 完整性保护**：压缩边界避开 tool result 消息切割，sanitizeToolPairs 移除孤立 tool result 并为缺失结果插入 stub，防止 API 报错
-- **Settings Tools 标签页**：修复 Tools 标签页因缺少 switch case 而显示 General 内容的问题，Tools 现为独立页面展示工具详情列表
-- **主题切换移入 General**：将深色/浅色模式切换从仅侧边栏移入 Settings General "外观"区块，与语言设置并排（侧边栏快捷按钮保留）
+- **Subagent 记录持久化**：spawn/完成/失败/kill 写入 SQLite，页面不再永远 0 条
+- **停止按钮恢复**：新会话首次发送时 stop 按钮不出现
+- **Settings Tools 标签页**：缺少 switch case 导致显示 General 内容
 
 ## [1.3.9] - 2026-03-11
 

@@ -36,7 +36,8 @@ if (-not $NoBuild) {
 
 # 3. 后台启动 gateway
 Write-Host "[3/3] Starting gateway..." -ForegroundColor Green
-Start-Process -FilePath "node" -ArgumentList "packages/gateway/dist/index.js" -WindowStyle Hidden
+$env:NODE_PATH = "packages\gateway\node_modules"
+Start-Process -FilePath "node" -ArgumentList "packages\gateway\dist\index.js" -WindowStyle Hidden
 
 # 轮询等待启动（最多 10 秒）
 for ($i = 0; $i -lt 20; $i++) {

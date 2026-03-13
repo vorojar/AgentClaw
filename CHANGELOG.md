@@ -19,6 +19,8 @@
 
 ### 修复
 - **移动端返回键弹层竞争**：新增 `useBackClose` hook 统一管理 overlay 栈
+- **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale
+- **Handoff 消息缺少必填字段**：补全 `streaming` 和 `toolCalls`，消除潜在运行时崩溃
 
 ## [1.3.9.1] - 2026-03-12
 

@@ -1283,6 +1283,8 @@ export function ChatPage() {
               role: "system" as const,
               content: handoffNotice,
               createdAt: new Date().toISOString(),
+              streaming: false,
+              toolCalls: [],
             },
           ];
         });
@@ -1724,9 +1726,9 @@ export function ChatPage() {
       return prev;
     });
     sendTimestampRef.current = Date.now();
-    setIsSending(true);
+    startStreaming(activeSessionId);
     wsRef.current.send(lastUserText);
-  }, [isSending, lastUserText]);
+  }, [isSending, lastUserText, activeSessionId, startStreaming]);
 
   const handleEditSubmit = useCallback(
     async (msgKey: string) => {
@@ -1787,10 +1789,10 @@ export function ChatPage() {
       setMessages((prev) => [...prev, userMsg, thinkingMsg2]);
       setLastUserText(text);
       sendTimestampRef.current = Date.now();
-      setIsSending(true);
+      startStreaming(activeSessionId);
       wsRef.current!.send(text);
     },
-    [editMsgValue, isSending, activeSessionId, messages, refreshSessions],
+    [editMsgValue, isSending, activeSessionId, messages, refreshSessions, startStreaming],
   );
 
   const handleFiles = useCallback((files: File[]) => {

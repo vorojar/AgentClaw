@@ -21,60 +21,6 @@ export interface HealthCheckResult {
 const CHECK_TIMEOUT = 3_000;
 
 /**
- * 检查 Google OAuth token 是否可刷新
- * 条件：data/google-tokens.json 存在 或 环境变量 GOOGLE_REFRESH_TOKEN 已设置
- */
-async function checkGoogleOAuth(): Promise<HealthCheckResult | null> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-
-  // 如果环境变量不完整，跳过
-  if (!clientId || !clientSecret || !refreshToken) {
-    return null;
-  }
-
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT);
-
-    const resp = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timer);
-
-    if (resp.ok) {
-      return { name: "Google OAuth", ok: true, message: "token 刷新成功" };
-    }
-
-    const body = await resp.text().catch(() => "");
-    return {
-      name: "Google OAuth",
-      ok: false,
-      message: `token 刷新失败 (HTTP ${resp.status})${body ? `: ${body.slice(0, 100)}` : ""}`,
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      name: "Google OAuth",
-      ok: false,
-      message: msg.includes("abort")
-        ? "token 刷新超时"
-        : `token 刷新失败: ${msg}`,
-    };
-  }
-}
-
-/**
  * 检查 IMAP 邮件服务器 TCP 连接
  * 条件：EMAIL_IMAP_HOST 环境变量已设置
  */
@@ -216,7 +162,6 @@ async function checkComfyUI(): Promise<HealthCheckResult | null> {
 export async function runHealthChecks(): Promise<HealthCheckResult[]> {
   // 收集所有需要执行的检查（null 表示未配置，跳过）
   const checks = await Promise.allSettled([
-    checkGoogleOAuth(),
     checkIMAP(),
     checkSearXNG(),
     Promise.resolve(checkChromeExtension()),

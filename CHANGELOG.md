@@ -20,6 +20,9 @@
 ### 安全
 - **WebSocket / CORS origin 校验**：新增 `ALLOWED_ORIGINS` 环境变量，限制可连接的来源域名；未配置时保持全放通（向后兼容）
 
+### 移除
+- **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
+
 ### 修复
 - **移动端返回键弹层竞争**：新增 `useBackClose` hook 统一管理 overlay 栈
 - **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale

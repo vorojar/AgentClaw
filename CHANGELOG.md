@@ -11,6 +11,7 @@
 ### 重构
 - **ASR 去 Python 化**：语音转文字从 `python transcribe.py`（faster-whisper）迁移到 `sherpa-onnx-node`（C++ N-API addon），消除 Python 进程冷启动开销。模型懒加载 + 5 分钟空闲自动卸载；连续语音消息延迟从 2-5s 降至 <50ms。SILK 解码改用 ffmpeg（去掉 Python pilk 依赖）。WhatsApp 语音消息也加了 ASR 转录（之前缺失）
 - **ASR API 签名修复**：`acceptWaveform` 改用对象参数 `{samples, sampleRate}`（匹配 sherpa-onnx-node 高级 API）；移除不存在的 `free()` 调用（GC 自动回收）；模型文件优先 int8 量化版本，fallback 到全精度
+- **SILK 语音解码**：引入 `silk-wasm`（WASM 版腾讯 SILK 编解码器），QQ/微信的 SILK 格式语音（`.amr` 假扩展名）先通过 silk-wasm 解码为 PCM 再转 WAV，替代原来依赖 Python pilk 的方案
 
 ### 修复
 - **移动端返回键统一关闭弹层**：新增 `useBackClose` hook（全局 overlay 栈 + 单一 `popstate` 监听器），sidebar 和 PreviewPanel 共享同一套逻辑。按返回键始终关闭最顶层弹层，不再出现两个 popstate handler 竞争导致行为不一致的问题

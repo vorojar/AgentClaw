@@ -27,5 +27,6 @@ export default defineConfig({
     "node-edge-tts",
     "sherpa-onnx-node",
     /^sherpa-onnx-/,
+    "silk-wasm",
   ],
 });

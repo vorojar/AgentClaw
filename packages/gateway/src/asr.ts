@@ -6,7 +6,15 @@
  * on consecutive calls.
  */
 
-import { existsSync, openSync, readSync, closeSync, unlinkSync } from "node:fs";
+import {
+  existsSync,
+  openSync,
+  readSync,
+  closeSync,
+  unlinkSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import os from "node:os";
@@ -162,6 +170,52 @@ function isSilk(filePath: string): boolean {
 
 /* ── Audio format conversion ── */
 
+async function decodeSilk(inputPath: string): Promise<string> {
+  // silk-wasm decodes SILK to PCM (s16le, 24000 Hz mono)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const silk = require("silk-wasm") as {
+    decode: (
+      input: Buffer,
+      sampleRate: number,
+    ) => Promise<{ data: Uint8Array; duration: number }>;
+  };
+  const silkBuf = readFileSync(inputPath);
+  const { data: pcmBuf } = await silk.decode(silkBuf, 24000);
+  // Write raw PCM, then use ffmpeg to wrap as 16kHz WAV
+  const pcmPath = inputPath + ".asr.pcm";
+  const wavPath = inputPath + ".asr.wav";
+  writeFileSync(pcmPath, pcmBuf);
+  try {
+    execFileSync(
+      "ffmpeg",
+      [
+        "-y",
+        "-f",
+        "s16le",
+        "-ar",
+        "24000",
+        "-ac",
+        "1",
+        "-i",
+        pcmPath,
+        "-ar",
+        "16000",
+        "-f",
+        "wav",
+        wavPath,
+      ],
+      { timeout: 15000, windowsHide: true },
+    );
+  } finally {
+    try {
+      unlinkSync(pcmPath);
+    } catch {
+      /* ignore */
+    }
+  }
+  return wavPath;
+}
+
 function convertToWav(inputPath: string): string {
   const wavPath = inputPath + ".asr.wav";
   execFileSync(
@@ -188,8 +242,17 @@ export async function transcribe(filePath: string): Promise<string> {
   let wavPath = filePath;
   let cleanup: string | null = null;
 
-  // Non-WAV or SILK → convert via ffmpeg
-  if (!filePath.toLowerCase().endsWith(".wav") || isSilk(filePath)) {
+  // SILK → decode via silk-wasm + ffmpeg resample
+  // Non-WAV → convert via ffmpeg
+  if (isSilk(filePath)) {
+    try {
+      wavPath = await decodeSilk(filePath);
+      cleanup = wavPath;
+    } catch (err) {
+      console.error("[ASR] SILK decode failed:", err);
+      return "";
+    }
+  } else if (!filePath.toLowerCase().endsWith(".wav")) {
     try {
       wavPath = convertToWav(filePath);
       cleanup = wavPath;

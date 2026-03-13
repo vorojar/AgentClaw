@@ -328,6 +328,27 @@ function PreviewPanel({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
+  // Mobile: browser-back closes preview instead of navigating away
+  const historyPushedRef = useRef(false);
+  useEffect(() => {
+    history.pushState({ _preview: true }, "");
+    historyPushedRef.current = true;
+    const onPop = () => {
+      if (historyPushedRef.current) {
+        historyPushedRef.current = false;
+        onClose();
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (historyPushedRef.current) {
+        historyPushedRef.current = false;
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    };
+  }, [onClose]);
+
   // Reset state when file changes
   useEffect(() => {
     setIframeLoading(true);

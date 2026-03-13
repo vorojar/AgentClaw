@@ -15,9 +15,17 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
+
+// createRequire anchored to this file's location so pnpm deps resolve
+// regardless of process.cwd() or NODE_PATH.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const _require = createRequire(join(__dirname, "..", "package.json"));
 
 /* ── Config ── */
 
@@ -57,16 +65,13 @@ function loadSherpa(): SherpaOnnx {
   // the require cache for addon-static-import.js with the resolved binary.
   const platform = os.platform() === "win32" ? "win" : os.platform();
   const nativePkg = `sherpa-onnx-${platform}-${os.arch()}`;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const nativePath = require.resolve(`${nativePkg}/sherpa-onnx.node`);
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const nativeAddon = require(nativePath);
+  const nativePath = _require.resolve(`${nativePkg}/sherpa-onnx.node`);
+  const nativeAddon = _require(nativePath);
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const addonStaticPath =
-    require.resolve("sherpa-onnx-node/addon-static-import.js");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const cache = require.cache as Record<string, unknown>;
+  const addonStaticPath = _require.resolve(
+    "sherpa-onnx-node/addon-static-import.js",
+  );
+  const cache = _require.cache as Record<string, unknown>;
   cache[addonStaticPath] = {
     id: addonStaticPath,
     filename: addonStaticPath,
@@ -74,12 +79,11 @@ function loadSherpa(): SherpaOnnx {
     exports: nativeAddon,
     children: [],
     paths: [],
-    path: require("node:path").dirname(addonStaticPath),
+    path: dirname(addonStaticPath),
   };
 
   // Now sherpa-onnx-node will find the addon
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  _sherpa = require("sherpa-onnx-node") as SherpaOnnx;
+  _sherpa = _require("sherpa-onnx-node") as SherpaOnnx;
   return _sherpa;
 }
 
@@ -172,8 +176,7 @@ function isSilk(filePath: string): boolean {
 
 async function decodeSilk(inputPath: string): Promise<string> {
   // silk-wasm decodes SILK to PCM (s16le, 24000 Hz mono)
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const silk = require("silk-wasm") as {
+  const silk = _require("silk-wasm") as {
     decode: (
       input: Buffer,
       sampleRate: number,

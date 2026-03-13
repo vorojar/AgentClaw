@@ -90,7 +90,8 @@
     "input": "INPUT",
     "output": "OUTPUT",
     "error": "ERROR",
-    "appError": "Application error"
+    "appError": "Application error",
+    "thinking": ["Thinking", "Pondering", "Processing", "Musing", "Computing", "Synthesizing", "Generating", "Brewing", "Cooking", "Imagining"]
   },
   "tasks": {
     "title": "Tasks",

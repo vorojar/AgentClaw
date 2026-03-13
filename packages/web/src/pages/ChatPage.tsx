@@ -917,32 +917,19 @@ function SubAgentCard({ entry }: { entry: ToolCallEntry }) {
 
 /* ── ThinkingIndicator (rotating phrases) ─────────── */
 
-const THINKING_PHRASES = [
-  "Thinking",
-  "Pondering",
-  "Processing",
-  "Musing",
-  "Computing",
-  "Synthesizing",
-  "Ruminating",
-  "Cogitating",
-  "Generating",
-  "Brewing",
-  "Cooking",
-  "Imagining",
-];
-
 function ThinkingIndicator() {
+  const { t } = useTranslation();
+  const phrases = t("chat.thinking", { returnObjects: true }) as string[];
   const [index, setIndex] = useState(() =>
-    Math.floor(Math.random() * THINKING_PHRASES.length),
+    Math.floor(Math.random() * phrases.length),
   );
 
   useEffect(() => {
     const id = setInterval(() => {
-      setIndex((prev) => (prev + 1) % THINKING_PHRASES.length);
-    }, 3000);
+      setIndex((prev) => (prev + 1) % phrases.length);
+    }, 4000);
     return () => clearInterval(id);
-  }, []);
+  }, [phrases.length]);
 
   return (
     <div className="message-row assistant">
@@ -952,7 +939,7 @@ function ThinkingIndicator() {
             <span /><span /><span />
           </div>
           <span className="thinking-phrase" key={index}>
-            {THINKING_PHRASES[index]}…
+            {phrases[index]}…
           </span>
         </div>
       </div>

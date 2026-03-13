@@ -28,5 +28,6 @@ export default defineConfig({
     "sherpa-onnx-node",
     /^sherpa-onnx-/,
     "silk-wasm",
+    "opencc-js",
   ],
 });

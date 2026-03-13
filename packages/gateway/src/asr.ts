@@ -27,6 +27,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _require = createRequire(join(__dirname, "..", "package.json"));
 
+/* ── Traditional → Simplified Chinese ── */
+
+const opencc = _require("opencc-js") as {
+  Converter: (opts: { from: string; to: string }) => (text: string) => string;
+};
+const t2s = opencc.Converter({ from: "tw", to: "cn" });
+
 /* ── Config ── */
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -274,7 +281,8 @@ export async function transcribe(filePath: string): Promise<string> {
     });
     rec.decode(stream);
     const result = rec.getResult(stream);
-    return (result.text || "").trim();
+    const text = (result.text || "").trim();
+    return text ? t2s(text) : "";
   } catch (err) {
     console.error("[ASR] Transcription failed:", err);
     return "";

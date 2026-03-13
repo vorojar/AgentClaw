@@ -145,6 +145,9 @@ importers:
       node-edge-tts:
         specifier: ^1.2.10
         version: 1.2.10
+      opencc-js:
+        specifier: ^1.0.5
+        version: 1.0.5
       qrcode-terminal:
         specifier: ^0.12.0
         version: 0.12.0
@@ -3244,6 +3247,9 @@ packages:
         optional: true
       zod:
         optional: true
+
+  opencc-js@1.0.5:
+    resolution: {integrity: sha512-LD+1SoNnZdlRwtYTjnQdFrSVCAaYpuDqL5CkmOaHOkKoKh7mFxUicLTRVNLU5C+Jmi1vXQ3QL4jWdgSaa4sKjg==}
 
   option@0.2.4:
     resolution: {integrity: sha512-pkEqbDyl8ou5cpq+VsnQbe/WlEy5qS7xPzMS1U55OCG9KPvwFD46zDbxQIj3egJSFc3D+XhYOPUzz49zQAVy7A==}
@@ -7435,6 +7441,8 @@ snapshots:
       zod: 3.25.76
     transitivePeerDependencies:
       - encoding
+
+  opencc-js@1.0.5: {}
 
   option@0.2.4: {}
 

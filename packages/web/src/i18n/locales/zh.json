@@ -58,7 +58,7 @@
   },
   "chat": {
     "welcomeTitle": "有什么我可以帮你的？",
-    "askPlaceholder": "问 AgentClaw...",
+    "askPlaceholder": "今天我能帮你做什么？",
     "replyPlaceholder": "回复 AgentClaw...",
     "listeningPlaceholder": "正在听...",
     "recordingPlaceholder": "录音中...",

@@ -58,7 +58,7 @@
   },
   "chat": {
     "welcomeTitle": "What can I do for you?",
-    "askPlaceholder": "Ask AgentClaw...",
+    "askPlaceholder": "How can I help you today?",
     "replyPlaceholder": "Reply to AgentClaw...",
     "listeningPlaceholder": "Listening...",
     "recordingPlaceholder": "Recording...",

@@ -2442,7 +2442,6 @@ export function ChatPage() {
                                 className="btn-agent-selector"
                                 onClick={() => setAgentMenuOpen((v) => !v)}
                               >
-                                <span className="agent-selector-avatar">{currentAgent?.avatar || "🤖"}</span>
                                 <span className="agent-selector-name">{currentAgent?.name || "Agent"}</span>
                                 <IconChevronRight size={12} />
                               </button>
@@ -2752,7 +2751,6 @@ export function ChatPage() {
                               className="btn-agent-selector"
                               onClick={() => setAgentMenuOpen((v) => !v)}
                             >
-                              <span className="agent-selector-avatar">{currentAgent?.avatar || "🤖"}</span>
                               <span className="agent-selector-name">{currentAgent?.name || "Agent"}</span>
                               <IconChevronRight size={12} />
                             </button>

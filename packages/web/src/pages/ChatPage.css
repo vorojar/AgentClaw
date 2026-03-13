@@ -1082,11 +1082,6 @@
   flex-shrink: 0;
 }
 
-.agent-selector-avatar {
-  font-size: 14px;
-  line-height: 1;
-}
-
 .agent-selector-name {
   max-width: 100px;
   overflow: hidden;

@@ -15,7 +15,7 @@
 - **web_fetch 移除 max_length**：由溢出模式统一处理上下文保护
 
 ### 重构
-- **ASR 去 Python 化**：迁移到 sherpa-onnx-node，SILK 解码改用 silk-wasm，输出繁转简（opencc-js）
+- **ASR 去 Python 化**：迁移到 sherpa-onnx-node，连续语音延迟从 2-5s 降至 <50ms；SILK 解码改用 silk-wasm（支持 QQ/微信语音）；输出繁转简（opencc-js）
 
 ### 修复
 - **移动端返回键弹层竞争**：新增 `useBackClose` hook 统一管理 overlay 栈
@@ -50,9 +50,6 @@
 - **企业微信重启后 Session not found**：检测过期 session 自动清除映射
 - **会话删除不停止 agent loop**：删除时先 stop 运行中的 loop
 - **切换会话工具卡片重复**：修复 history/WS resuming 竞态条件
-
-### 文档
-- **ARCHITECTURE.md 全面更新**
 
 ### 重构
 - **Settings 二级菜单**：Settings 页面新增左侧导航菜单，将 Channels、Agents、Subagents、Memory、Tools、Skills、Traces、API 整合为 Settings 子页面

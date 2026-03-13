@@ -29,6 +29,7 @@
   --warning-subtle-bg: rgba(200, 168, 78, 0.12);
   --mcp-color: #9b8abf;
   --text-on-accent: #1a1d17;
+  --input-bg: #2b2f27;
 }
 
 /* Light theme — Serene Sage */
@@ -55,6 +56,7 @@
   --warning-subtle-bg: rgba(176, 147, 67, 0.12);
   --mcp-color: #9b8abf;
   --text-on-accent: #fff;
+  --input-bg: #ffffff;
 }
 
 * {

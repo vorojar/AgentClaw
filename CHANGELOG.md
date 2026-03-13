@@ -3,60 +3,56 @@
 ## [1.3.10] - 2026-03-13
 
 ### 新增
-- **溢出模式（Overflow Mode）**：工具输出超过 8000 字符时，完整内容自动保存到 `data/tmp/{会话ID}/overflow_{工具名}_{时间戳}.txt`，LLM 只收到前 1500 字符预览 + 文件引用。LLM 可用 `file_read`/`grep` 按需探索完整内容。将"截断→数据丢失"变为"延迟加载→按需访问"，统一解决所有工具的大输出问题
-- **web_fetch 移除 max_length 参数**：溢出模式已在 agent-loop 层统一处理 LLM 上下文保护，web_fetch 不再截断内容。彻底杜绝弱模型设置过小 max_length 导致文章被截断翻译一半的问题。内部保留 200K 硬上限防内存爆炸
-- **micro_compact 标注工具名**：上下文压缩削减旧工具输出时，不再直接截断为无意义的前 500 字符，而是替换为 `[Previous: used grep]` 等标注，让 LLM 知道之前调过哪些工具，避免重复调用、保持推理连贯性
-- **后台任务模式**：shell 工具新增 `background` 参数，长时间命令（build/test/install）可在后台执行，agent 立即返回继续其他工作。命令完成后结果自动注入下一轮 LLM 上下文
+- **Thinking 动画**：发送后即时显示轮播短语（Thinking/Pondering/Brewing… 等），工具调用期间持续显示
+- **溢出模式**：工具大输出自动存文件，LLM 收预览 + 引用可按需探索
+- **后台任务模式**：shell 工具新增 `background` 参数，长时间命令后台执行
 
 ### 改进
-- **欢迎页 `/` 斜杠命令面板**：输入 `/` 弹出浮动菜单，合并 Agent 切换和技能选择，支持键盘导航（↑↓/Enter/Esc）和模糊搜索，移动端适配
-- **Agent 选择器**：输入框左下角显示当前 Agent 名字（药丸按钮），点击弹出下拉菜单切换，多 Agent 时自动显示、单 Agent 时隐藏
-- **移除欢迎页顶部 Agent 药丸组 + `田` 技能按钮**：Agent 切换移到输入框内，技能选择通过 `/` 面板，界面更简洁
+- **`/` 斜杠命令面板**：输入 `/` 弹出技能选择菜单，支持键盘导航和模糊搜索
+- **Agent 选择器**：输入框左下角药丸按钮，点击弹出下拉切换，多 Agent 时显示、单 Agent 时隐藏
+- **欢迎页精简**：移除顶部 Agent 药丸组和 `田` 技能按钮
+- **micro_compact 标注工具名**：压缩旧工具输出时替换为 `[Previous: used grep]` 等标注
+- **web_fetch 移除 max_length**：由溢出模式统一处理上下文保护
 
 ### 重构
-- **ASR 去 Python 化**：语音转文字从 `python transcribe.py`（faster-whisper）迁移到 `sherpa-onnx-node`（C++ N-API addon），消除 Python 进程冷启动开销。模型懒加载 + 5 分钟空闲自动卸载；连续语音消息延迟从 2-5s 降至 <50ms。SILK 解码改用 ffmpeg（去掉 Python pilk 依赖）。WhatsApp 语音消息也加了 ASR 转录（之前缺失）
-- **ASR API 签名修复**：`acceptWaveform` 改用对象参数 `{samples, sampleRate}`（匹配 sherpa-onnx-node 高级 API）；移除不存在的 `free()` 调用（GC 自动回收）；模型文件优先 int8 量化版本，fallback 到全精度
-- **SILK 语音解码**：引入 `silk-wasm`（WASM 版腾讯 SILK 编解码器），QQ/微信的 SILK 格式语音（`.amr` 假扩展名）先通过 silk-wasm 解码为 PCM 再转 WAV，替代原来依赖 Python pilk 的方案
+- **ASR 去 Python 化**：迁移到 sherpa-onnx-node，SILK 解码改用 silk-wasm，输出繁转简（opencc-js）
 
 ### 修复
-- **移动端返回键统一关闭弹层**：新增 `useBackClose` hook（全局 overlay 栈 + 单一 `popstate` 监听器），sidebar 和 PreviewPanel 共享同一套逻辑。按返回键始终关闭最顶层弹层，不再出现两个 popstate handler 竞争导致行为不一致的问题
+- **移动端返回键弹层竞争**：新增 `useBackClose` hook 统一管理 overlay 栈
 
-### 优化
-- **TTS 延迟优化**：用 `@bestcodes/edge-tts` 替换 Python edge-tts，消除 Python 进程冷启动（~500-800ms）；mp3 buffer 通过 pipe 传给 ffmpeg（需要 ogg 时），不再写中间临时文件；新增 `TtsFormat` 参数支持直出 mp3（跳过 ffmpeg，总延迟 ~300-600ms）；MAX_TTS_LENGTH 提升到 1000 字符
-- **语音回复防呆**：语音消息转文字后注入提示，告知 LLM 框架会自动将文字回复转语音，防止 LLM 自己用 bash 跑 edge-tts CLI 生成音频（Telegram/QQ）
-
-### 修复
-- **web_fetch save_as + auto_send**：`web_fetch` 新增 `save_as` 参数（框架直接写文件，跳过 LLM 逐字转抄）和 `auto_send` 参数（保存后自动发送给用户）。"抓取→保存→发送"从 3 轮 LLM 调用（~134s）降到 1 轮（~15s），省掉 LLM 转抄 6000+ output tokens 的开销
-
-### 修复
-- **企业微信重启后报错**：gateway 重启后 orchestrator 内存中 session 丢失，但企业微信从数据库恢复了旧 sessionId 映射，导致 "Session not found" 错误。现在检测到过期 session 时自动清除映射并提示用户重发
-
-### 修复
-- **会话删除不停止 agent loop**：`closeSession()` 只清理数据但不调 `stopSession()`，导致删除会话后 agent loop 和 claude_code 子进程成为孤儿进程持续运行。现在删除会话时会先 stop 正在运行的 agent loop（触发 AbortController → 杀死 claude_code 子进程）
-- **切换会话再切回时工具卡片重复**：history API 和 WS "resuming" 信号存在竞态条件，两处修复：(1) resuming handler 改为无条件移除末尾 assistant（不检查 streaming 标志）；(2) history merge 去掉 `if (streaming.length > 0)` 守卫——当 resuming 先到但 buffer 事件还没处理时，streaming 为空导致 history 的 assistant 不被清除，buffer 回放再叠加一个
-
-### 文档
-- **ARCHITECTURE.md 全面更新**：SubAgentManager（工具黑名单 + IterationBudget + spawn_and_wait）、ContextManager（Frozen Snapshot + sanitizeToolPairs）、新增 QQ Bot/企业微信渠道、Platform Hints、SettingsPage 二级菜单、SubAgentCard UI、新增"安全与性能机制"章节
+## [1.3.9.1] - 2026-03-12
 
 ### 新增
-- **Thinking 动画增强**：发送消息后立即显示跳动圆点 + 轮播短语（Thinking… / Pondering… / Brewing… 等 12 个词，每 3 秒切换，淡入动画），工具调用期间持续显示，收到最终文本/done 时消失；渲染位置调整为 文字→工具卡片→thinking indicator（始终在最底部）
-- **Traces 渠道标记**：每条 trace 记录来源渠道（web/telegram/dingtalk/feishu/qq/whatsapp/wecom/system），前端 TracesPage 显示渠道标签，SQLite traces 表新增 channel 列（自动迁移）
-- **bilingual-subtitle 防呆升级**：`process.py` 直接支持 URL 输入（自动下载 CC 字幕 → 回退音频/视频下载 → Whisper），LLM 只需一条命令，不再需要手动分步调 yt-dlp
-- **Traces 工具调用统计面板**：Traces 页面顶部新增可展开的统计面板，显示当前页工具调用总数、成功率、错误数、工具种类数；展开后显示按工具名分组的详细表格（调用次数、成功率、平均耗时）
-- **确定性 Workflow Agent**：新增 WorkflowRunner 执行引擎，支持 Sequential 串行和 Parallel 并行执行确定性工具调用流程，步骤间通过 `{{stepId.content}}` 模板变量传递数据，支持条件执行、错误处理策略（stop/continue）、AbortSignal
-- **Trajectory 自动评估框架**：新增 evaluateTrace/evaluateBatch/formatEvalReport 三层评估，支持工具选择正确性、参数正确性、禁用工具检查、响应内容匹配、模型和耗时约束，附带黄金测试集示例
-- **Traces 按 conversationId 分组**：同一会话的多轮 trace 自动分组为可展开的卡片，显示总 token/耗时/轮次
-- **Subagent 安全防线**：工具黑名单（subagent/ask_user/remember/schedule/send_file/social_post 始终禁止）+ 迭代预算共享（`IterationBudget` 父子共享预算池，子代理消耗计入全局上限）
-- **Memory 内容安全审查**：remember 工具写入前扫描 prompt injection（8 种模式）、隐形 unicode 字符和凭证窃取 payload，拦截恶意内容注入系统提示词
-- **渠道格式提示（Platform Hints）**：不同消息渠道自动注入格式指导到系统提示词（Telegram/WhatsApp 不用 Markdown、Discord/钉钉/飞书支持 Markdown 等），通过 session metadata + `{{platformHint}}` 模板变量实现
-- **Frozen Snapshot 系统提示词**：session 内冻结 dynamic context（记忆 + 技能目录），memory 写入持久化到 SQLite 但不改变当前 session 系统提示词，提高 Anthropic prompt cache 命中率（~75% input token 成本节省）
-- **Context 压缩 tool pair 完整性保护**：压缩边界自动对齐避免在 tool_call/result 之间切割，`sanitizeToolPairs()` 移除孤立 tool result 并为缺失结果插入 stub，防止长对话压缩后 API 报错
-- **Subagent spawn_and_wait**：新增 `spawn_and_wait` action，一次提交多个子任务，顺序执行避免 LLM 并发竞争，结果一次性返回
-- **SubAgentCard 卡片 UI**：会话页中 subagent 调用以 Mem 风格单卡片展示，每个子任务一行（spinner → ✓/✗），替代之前 13+ 条工具调用的平铺显示
-- **人类化输入**：click/type 支持 `human: true` 参数 — click 模拟鼠标移动+随机延迟，type 逐字输入 30-150ms 间隔，降低社交平台 bot 检测风险
-- **快照过滤模式**：get_content/snapshot 支持 `filter: "interactive"` — 只返回按钮、链接、输入框，跳过文本内容，节省 ~80% token
-- **批处理摘要模式**：batch 支持 `summary: true` — 中间步骤只返回 pass/fail，最后一步返回完整结果
-- **反自动化检测**：browser_cdp 启动时屏蔽 `navigator.webdriver` + `AutomationControlled` 标志
+- **Traces 渠道标记**：每条 trace 记录来源渠道，前端显示标签
+- **Traces 工具调用统计面板**：顶部可展开统计面板，按工具名分组详细表格
+- **Traces 按 conversationId 分组**：同一会话多轮 trace 自动分组
+- **bilingual-subtitle 防呆**：process.py 直接支持 URL 输入
+- **确定性 Workflow Agent**：Sequential/Parallel 执行引擎，步骤间模板变量传递
+- **Trajectory 自动评估框架**：工具选择/参数正确性评估 + 黄金测试集
+- **Subagent 安全防线**：工具黑名单 + IterationBudget 父子共享预算
+- **Memory 内容安全审查**：拦截 prompt injection、隐形 unicode、凭证窃取
+- **渠道格式提示**：各渠道自动注入格式指导到系统提示词
+- **Frozen Snapshot**：session 内冻结 dynamic context，提高 prompt cache 命中率
+- **Context 压缩 tool pair 保护**：压缩边界不在 tool_call/result 间切割
+- **Subagent spawn_and_wait**：一次提交多个子任务，顺序执行结果一次性返回
+- **SubAgentCard 卡片 UI**：subagent 调用以单卡片展示
+- **人类化输入**：click/type 模拟真人操作节奏
+- **快照过滤模式**：`filter: "interactive"` 只返回交互元素
+- **批处理摘要模式**：中间步骤只返回 pass/fail
+- **反自动化检测**：屏蔽 `navigator.webdriver` 标志
+
+### 优化
+- **TTS 去 Python 化**：用 `@bestcodes/edge-tts` 替换，延迟 ~300-600ms
+- **语音回复防呆**：注入提示防止 LLM 自己跑 edge-tts CLI
+
+### 修复
+- **web_fetch save_as + auto_send**：抓取→保存→发送从 3 轮降到 1 轮
+- **企业微信重启后 Session not found**：检测过期 session 自动清除映射
+- **会话删除不停止 agent loop**：删除时先 stop 运行中的 loop
+- **切换会话工具卡片重复**：修复 history/WS resuming 竞态条件
+
+### 文档
+- **ARCHITECTURE.md 全面更新**
 
 ### 重构
 - **Settings 二级菜单**：Settings 页面新增左侧导航菜单，将 Channels、Agents、Subagents、Memory、Tools、Skills、Traces、API 整合为 Settings 子页面

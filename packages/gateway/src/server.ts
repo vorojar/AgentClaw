@@ -54,8 +54,14 @@ export async function createServer(
 
   // Register plugins
   await app.register(compress);
+  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS?.trim();
   await app.register(cors, {
-    origin: true,
+    origin: allowedOriginsRaw
+      ? allowedOriginsRaw
+          .split(",")
+          .map((o) => o.trim())
+          .filter(Boolean)
+      : true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   });

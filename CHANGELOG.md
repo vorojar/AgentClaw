@@ -17,6 +17,9 @@
 ### 重构
 - **ASR 去 Python 化**：迁移到 sherpa-onnx-node，连续语音延迟从 2-5s 降至 <50ms；SILK 解码改用 silk-wasm（支持 QQ/微信语音）；输出繁转简（opencc-js）
 
+### 安全
+- **WebSocket / CORS origin 校验**：新增 `ALLOWED_ORIGINS` 环境变量，限制可连接的来源域名；未配置时保持全放通（向后兼容）
+
 ### 修复
 - **移动端返回键弹层竞争**：新增 `useBackClose` hook 统一管理 overlay 栈
 - **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale

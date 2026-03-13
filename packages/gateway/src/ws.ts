@@ -126,6 +126,18 @@ async function parseUserContent(
   return blocks.length > 0 ? blocks : text;
 }
 
+/** Parse ALLOWED_ORIGINS env (comma-separated) into a Set; empty = allow all */
+function getAllowedOrigins(): Set<string> | null {
+  const raw = process.env.ALLOWED_ORIGINS?.trim();
+  if (!raw) return null; // not configured → allow all (backward compat)
+  return new Set(
+    raw
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
+  );
+}
+
 const wsClients = new Set<import("ws").WebSocket>();
 
 /** Get all active WebSocket clients for broadcasting */
@@ -155,6 +167,16 @@ const activeStreams = new Map<string, ActiveStream>();
 
 export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
   app.get("/ws", { websocket: true }, (socket, req) => {
+    // ── Origin 校验：防止恶意网页通过 WS 连接 ──
+    const allowedOrigins = getAllowedOrigins();
+    if (allowedOrigins) {
+      const origin = req.headers.origin;
+      if (!origin || !allowedOrigins.has(origin)) {
+        socket.close(4003, "Origin not allowed");
+        return;
+      }
+    }
+
     wsClients.add(socket);
 
     // ── Server-side ping to keep connection alive through proxies ──

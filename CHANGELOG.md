@@ -86,8 +86,6 @@
 - **切换会话时工具调用串台**：切换会话时重置 resumingRef，防止 loadHistory 的 resuming 分支把旧会话的 streaming 消息合并到新会话
 - **WS 重连时工具调用重复显示**：loadHistory resuming 合并时去掉 history 末尾的 assistant 消息，避免与 buffer 回放重复
 
-### 变更
-- **移除 CLAUDE.md 前端 Playwright 验证规则**：删除标准工作流中的前端验证步骤和前端调试规则章节
 
 ## [1.3.7] - 2026-03-10
 

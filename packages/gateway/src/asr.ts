@@ -29,13 +29,11 @@ interface SherpaOnnx {
 interface OfflineRecognizerInstance {
   createStream: () => OfflineStreamInstance;
   decode: (stream: OfflineStreamInstance) => void;
-  getResult: (stream: OfflineStreamInstance) => { text: string };
-  free: () => void;
+  getResult: (stream: OfflineStreamInstance) => { text: string; lang?: string };
 }
 
 interface OfflineStreamInstance {
-  acceptWaveform: (sampleRate: number, samples: Float32Array) => void;
-  free: () => void;
+  acceptWaveform: (obj: { samples: Float32Array; sampleRate: number }) => void;
 }
 
 interface WaveObject {
@@ -89,8 +87,13 @@ function getModelDir(): string {
 function loadRecognizer(): OfflineRecognizerInstance {
   const sherpa = loadSherpa();
   const modelDir = getModelDir();
-  const encoder = join(modelDir, `${MODEL_PREFIX}-encoder.int8.onnx`);
-  const decoder = join(modelDir, `${MODEL_PREFIX}-decoder.int8.onnx`);
+  // Prefer int8 quantized models; fall back to full-precision if not available
+  const encoderInt8 = join(modelDir, `${MODEL_PREFIX}-encoder.int8.onnx`);
+  const encoderFull = join(modelDir, `${MODEL_PREFIX}-encoder.onnx`);
+  const decoderInt8 = join(modelDir, `${MODEL_PREFIX}-decoder.int8.onnx`);
+  const decoderFull = join(modelDir, `${MODEL_PREFIX}-decoder.onnx`);
+  const encoder = existsSync(encoderInt8) ? encoderInt8 : encoderFull;
+  const decoder = existsSync(decoderInt8) ? decoderInt8 : decoderFull;
   const tokens = join(modelDir, `${MODEL_PREFIX}-tokens.txt`);
 
   if (!existsSync(encoder)) {
@@ -135,10 +138,7 @@ function resetIdleTimer() {
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
     console.log("[ASR] Idle timeout — unloading model.");
-    if (recognizer) {
-      recognizer.free();
-      recognizer = null;
-    }
+    recognizer = null; // let GC reclaim
     idleTimer = null;
   }, IDLE_TIMEOUT_MS);
 }
@@ -202,10 +202,12 @@ export async function transcribe(filePath: string): Promise<string> {
   try {
     const wave = sherpa.readWave(wavPath, true);
     const stream = rec.createStream();
-    stream.acceptWaveform(wave.sampleRate, wave.samples);
+    stream.acceptWaveform({
+      samples: wave.samples,
+      sampleRate: wave.sampleRate,
+    });
     rec.decode(stream);
     const result = rec.getResult(stream);
-    stream.free();
     return (result.text || "").trim();
   } catch (err) {
     console.error("[ASR] Transcription failed:", err);

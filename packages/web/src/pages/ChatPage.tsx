@@ -2092,7 +2092,7 @@ export function ChatPage() {
             }}
             onMouseEnter={() => setSlashIndex(idx)}
           >
-            <span className="slash-menu-icon">⚡</span>
+            <span className="slash-menu-icon">/</span>
             <span className="slash-menu-text">
               <span className="slash-menu-label">{item.name}</span>
               {item.description && (

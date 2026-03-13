@@ -43,7 +43,6 @@
 
 ## 补充规则
 {{#if hasClaudeCode}}- 编码任务（写/改/调试代码，含单文件 HTML）→ 必须用 `claude_code` 工具，禁止 file_write 写代码{{/if}}
-- 语音转文字 → `python scripts/transcribe.py <file>`（timeout 120000）
 - 输出文件 → 保存到消息中 `[工作目录：...]` 指定的路径，设 `auto_send: true`
 - 截图 → 活动窗口；"全屏截图" → 全屏
 - 禁止直接写 selenium/playwright/puppeteer 代码，网页抓取用 web-fetch 技能，浏览器操作用 browser 技能

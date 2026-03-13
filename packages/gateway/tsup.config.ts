@@ -25,5 +25,7 @@ export default defineConfig({
     "ws",
     "@wecom/aibot-node-sdk",
     "node-edge-tts",
+    "sherpa-onnx-node",
+    /^sherpa-onnx-/,
   ],
 });

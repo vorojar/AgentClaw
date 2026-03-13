@@ -596,6 +596,19 @@ async function handleMediaMessage(
   const filePath = join(uploadsDir, fileName);
   writeFileSync(filePath, fileBuffer);
 
-  const text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
+  let text: string;
+  if (isVoice) {
+    try {
+      const { transcribe } = await import("./asr.js");
+      const result = await transcribe(filePath);
+      text = result
+        ? `[用户语音转文字: ${result}]（框架会自动将你的文字回复转为语音发送，直接回复文字即可，不要自己生成音频文件）${caption ? `\n用户附言: ${caption}` : ""}`
+        : `[用户发送了语音，转录为空]`;
+    } catch {
+      text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
+    }
+  } else {
+    text = `[用户发送了${fileType}: ${fileName}, 已保存到 ${filePath.replace(/\\/g, "/")}]${caption ? `\n用户附言: ${caption}` : ""}`;
+  }
   await processMessage(sock, appCtx, jid, text, fileType, isVoice);
 }

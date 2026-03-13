@@ -8,6 +8,9 @@
 - **micro_compact 标注工具名**：上下文压缩削减旧工具输出时，不再直接截断为无意义的前 500 字符，而是替换为 `[Previous: used grep]` 等标注，让 LLM 知道之前调过哪些工具，避免重复调用、保持推理连贯性
 - **后台任务模式**：shell 工具新增 `background` 参数，长时间命令（build/test/install）可在后台执行，agent 立即返回继续其他工作。命令完成后结果自动注入下一轮 LLM 上下文
 
+### 重构
+- **ASR 去 Python 化**：语音转文字从 `python transcribe.py`（faster-whisper）迁移到 `sherpa-onnx-node`（C++ N-API addon），消除 Python 进程冷启动开销。模型懒加载 + 5 分钟空闲自动卸载；连续语音消息延迟从 2-5s 降至 <50ms。SILK 解码改用 ffmpeg（去掉 Python pilk 依赖）。WhatsApp 语音消息也加了 ASR 转录（之前缺失）
+
 ### 修复
 - **移动端返回键统一关闭弹层**：新增 `useBackClose` hook（全局 overlay 栈 + 单一 `popstate` 监听器），sidebar 和 PreviewPanel 共享同一套逻辑。按返回键始终关闭最顶层弹层，不再出现两个 popstate handler 竞争导致行为不一致的问题
 

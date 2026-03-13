@@ -365,12 +365,8 @@ export async function startTelegramBot(
     // Auto-transcribe voice/audio at framework level
     if (isVoice) {
       try {
-        const { execSync } = await import("node:child_process");
-        const scriptPath = join(process.cwd(), "scripts", "transcribe.py").replace(/\\/g, "/");
-        const result = execSync(`python "${scriptPath}" "${filePath.replace(/\\/g, "/")}"`, {
-          encoding: "utf-8",
-          timeout: 30000,
-        }).trim();
+        const { transcribe } = await import("./asr.js");
+        const result = await transcribe(filePath);
         text = result
           ? `[用户语音转文字: ${result}]（框架会自动将你的文字回复转为语音发送，直接回复文字即可，不要自己生成音频文件）${caption ? `\n用户附言: ${caption}` : ""}`
           : `[用户发送了语音，转录为空]`;

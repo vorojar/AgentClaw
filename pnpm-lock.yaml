@@ -148,6 +148,12 @@ importers:
       qrcode-terminal:
         specifier: ^0.12.0
         version: 0.12.0
+      sherpa-onnx-node:
+        specifier: ^1.12.29
+        version: 1.12.29
+      sherpa-onnx-win-x64:
+        specifier: ^1.12.28
+        version: 1.12.28
       ws:
         specifier: ^8.19.0
         version: 8.19.0
@@ -3624,6 +3630,39 @@ packages:
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
+
+  sherpa-onnx-darwin-arm64@1.12.29:
+    resolution: {integrity: sha512-NJfrkNDmoNxtX8HU9DikmujNozas24XK/720z/Bzptx1HxSJy4nEPjUBoiiUw8GQg4ErhPXkI20i2BhX5Qj2Dg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  sherpa-onnx-darwin-x64@1.12.29:
+    resolution: {integrity: sha512-VvBARGvzd72gdLf+ooETAWUQmtnmobuEI7B2tP9JKzjY7rUswR72myTKq/pgdMOtKZcnrI4CEuC9vlWFYF9oFA==}
+    cpu: [x64]
+    os: [darwin]
+
+  sherpa-onnx-linux-arm64@1.12.29:
+    resolution: {integrity: sha512-tRK89/GvFcs/GSW0eo1ao3CV4OY3VL73vcll/OrvF6DCVADnBc0u3nSKS+sVLA0tEA+iMT8lh/+zXBCIKgdG5w==}
+    cpu: [arm64]
+    os: [linux]
+
+  sherpa-onnx-linux-x64@1.12.29:
+    resolution: {integrity: sha512-7JxaPID43PZ/Qbw0kQfMgmAbPfzFD+3a/Mar2oPqUI0xgOAAM0OnVfXaJOCZU8yQ74czExnkzXLx8OfEdIo9Bg==}
+    cpu: [x64]
+    os: [linux]
+
+  sherpa-onnx-node@1.12.29:
+    resolution: {integrity: sha512-WrX2/4F8xX6Lyq8ZGLe0x+sPpDI+oqp83wdy1psw6qIPp342vgSq2kuUDN0dXZL3b3Wd594dw+FgSSL5DvIOIw==}
+
+  sherpa-onnx-win-ia32@1.12.29:
+    resolution: {integrity: sha512-L+S3jM+7yTrA3alG+r3CXkRzsZUcBnuL+gcwpUMz5tPq0WI2rl22UvqLIUjoplt8tMqEOYonzsLPY+Gll8ym8w==}
+    cpu: [ia32]
+    os: [win32]
+
+  sherpa-onnx-win-x64@1.12.28:
+    resolution: {integrity: sha512-p8vpdVUtPRuI9ksm2EnuabK9+r285m5ARYzZkCfvg9ia/TQAq8pVoOCOuUTbMteBSQRPOl9lamfOcg3Sy085yQ==}
+    cpu: [x64]
+    os: [win32]
 
   side-channel-list@1.0.0:
     resolution: {integrity: sha512-FCLHtRD/gnpCiCHEiJLOwdmFP+wzCmDEkc9y7NsYxeF4u7Btsn1ZuwgwJGxImImHicJArLP4R0yX4c2KCrMrTA==}
@@ -7900,6 +7939,31 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
+
+  sherpa-onnx-darwin-arm64@1.12.29:
+    optional: true
+
+  sherpa-onnx-darwin-x64@1.12.29:
+    optional: true
+
+  sherpa-onnx-linux-arm64@1.12.29:
+    optional: true
+
+  sherpa-onnx-linux-x64@1.12.29:
+    optional: true
+
+  sherpa-onnx-node@1.12.29:
+    optionalDependencies:
+      sherpa-onnx-darwin-arm64: 1.12.29
+      sherpa-onnx-darwin-x64: 1.12.29
+      sherpa-onnx-linux-arm64: 1.12.29
+      sherpa-onnx-linux-x64: 1.12.29
+      sherpa-onnx-win-ia32: 1.12.29
+
+  sherpa-onnx-win-ia32@1.12.29:
+    optional: true
+
+  sherpa-onnx-win-x64@1.12.28: {}
 
   side-channel-list@1.0.0:
     dependencies:

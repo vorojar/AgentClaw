@@ -339,12 +339,8 @@ export async function startQQBot(
             if (isVoice) {
               hasVoice = true;
               try {
-                const { execSync } = await import("node:child_process");
-                const scriptPath = join(process.cwd(), "scripts", "transcribe.py").replace(/\\/g, "/");
-                const result = execSync(`python "${scriptPath}" "${filePath}"`, {
-                  encoding: "utf-8",
-                  timeout: 30000,
-                }).trim();
+                const { transcribe } = await import("./asr.js");
+                const result = await transcribe(filePath);
                 if (result) {
                   text += `\n[用户语音转文字: ${result}]（框架会自动将你的文字回复转为语音发送，直接回复文字即可，不要自己生成音频文件）`;
                 } else {

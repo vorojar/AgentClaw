@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
   createContext,
   useContext,
 } from "react";
@@ -1091,6 +1092,10 @@ export function ChatPage() {
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [skillMenuOpen, setSkillMenuOpen] = useState(false);
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashIndex, setSlashIndex] = useState(0);
+  const slashMenuRef = useRef<HTMLDivElement>(null);
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
@@ -1956,8 +1961,111 @@ export function ChatPage() {
     [handleFiles],
   );
 
+  // Build slash menu items from agents + skills
+  const slashItems = useMemo(() => {
+    const items: Array<{
+      type: "agent" | "skill";
+      id: string;
+      name: string;
+      avatar?: string;
+      description?: string;
+      active?: boolean;
+    }> = [];
+    for (const a of agents) {
+      items.push({
+        type: "agent",
+        id: a.id,
+        name: a.name,
+        avatar: a.avatar,
+        description: a.description,
+        active: pendingAgentId === a.id,
+      });
+    }
+    for (const s of skills) {
+      items.push({
+        type: "skill",
+        id: s.id || s.name,
+        name: s.name,
+        description: s.description,
+      });
+    }
+    return items;
+  }, [agents, skills, pendingAgentId]);
+
+  const filteredSlashItems = useMemo(() => {
+    if (!slashQuery) return slashItems;
+    const q = slashQuery.toLowerCase();
+    return slashItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        (item.description || "").toLowerCase().includes(q),
+    );
+  }, [slashItems, slashQuery]);
+
+  const handleSlashSelect = useCallback(
+    (item: { type: string; id: string; name: string }) => {
+      if (item.type === "agent") {
+        setPendingAgentId(item.id);
+      } else {
+        setSelectedSkill((prev) => (prev === item.name ? null : item.name));
+      }
+      setInputValue("");
+      setSlashMenuOpen(false);
+      textareaRef.current?.focus();
+    },
+    [setPendingAgentId],
+  );
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const val = e.target.value;
+      setInputValue(val);
+      const ta = e.target;
+      ta.style.height = "auto";
+      ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
+
+      // Slash command detection: only when input starts with "/"
+      if (val.startsWith("/")) {
+        const query = val.slice(1);
+        setSlashQuery(query);
+        setSlashMenuOpen(true);
+        setSlashIndex(0);
+      } else {
+        setSlashMenuOpen(false);
+      }
+    },
+    [],
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Slash menu navigation
+      if (slashMenuOpen && filteredSlashItems.length > 0) {
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSlashIndex((i) =>
+            i <= 0 ? filteredSlashItems.length - 1 : i - 1,
+          );
+          return;
+        }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSlashIndex((i) =>
+            i >= filteredSlashItems.length - 1 ? 0 : i + 1,
+          );
+          return;
+        }
+        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          handleSlashSelect(filteredSlashItems[slashIndex]);
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setSlashMenuOpen(false);
+          return;
+        }
+      }
       // Mobile: Enter = newline (send via button). Desktop: Enter = send.
       if (
         e.key === "Enter" &&
@@ -1969,22 +2077,95 @@ export function ChatPage() {
         handleSend();
       }
     },
-    [handleSend],
+    [
+      handleSend,
+      slashMenuOpen,
+      filteredSlashItems,
+      slashIndex,
+      handleSlashSelect,
+    ],
   );
 
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setInputValue(e.target.value);
-      const ta = e.target;
-      ta.style.height = "auto";
-      ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
-    },
-    [],
-  );
+  const renderSlashMenu = () => {
+    if (!slashMenuOpen || filteredSlashItems.length === 0) return null;
+    const agentItems = filteredSlashItems.filter((i) => i.type === "agent");
+    const skillItems = filteredSlashItems.filter((i) => i.type === "skill");
+    let globalIdx = 0;
+    return (
+      <div className="slash-menu">
+        {agentItems.length > 0 && (
+          <>
+            <div className="slash-menu-section">{t("chat.agents")}</div>
+            {agentItems.map((item) => {
+              const idx = globalIdx++;
+              return (
+                <button
+                  key={`${item.type}-${item.id}`}
+                  className={`slash-menu-item${idx === slashIndex ? " focused" : ""}${item.active ? " active" : ""}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSlashSelect(item);
+                  }}
+                  onMouseEnter={() => setSlashIndex(idx)}
+                >
+                  <span className="slash-menu-icon">
+                    {item.avatar || "🤖"}
+                  </span>
+                  <span className="slash-menu-text">
+                    <span className="slash-menu-label">{item.name}</span>
+                    {item.description && (
+                      <span className="slash-menu-desc">
+                        {item.description}
+                      </span>
+                    )}
+                  </span>
+                  {item.active && (
+                    <span className="slash-menu-check">✓</span>
+                  )}
+                </button>
+              );
+            })}
+          </>
+        )}
+        {agentItems.length > 0 && skillItems.length > 0 && (
+          <div className="slash-menu-divider" />
+        )}
+        {skillItems.length > 0 && (
+          <>
+            <div className="slash-menu-section">{t("chat.skills")}</div>
+            {skillItems.map((item) => {
+              const idx = globalIdx++;
+              return (
+                <button
+                  key={`${item.type}-${item.id}`}
+                  className={`slash-menu-item${idx === slashIndex ? " focused" : ""}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSlashSelect(item);
+                  }}
+                  onMouseEnter={() => setSlashIndex(idx)}
+                >
+                  <span className="slash-menu-icon">⚡</span>
+                  <span className="slash-menu-text">
+                    <span className="slash-menu-label">{item.name}</span>
+                    {item.description && (
+                      <span className="slash-menu-desc">
+                        {item.description}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </>
+        )}
+      </div>
+    );
+  };
 
-  // Close header menu and skill menu on outside click
+  // Close header menu, skill menu, and slash menu on outside click
   useEffect(() => {
-    if (!headerMenuOpen && !skillMenuOpen) return;
+    if (!headerMenuOpen && !skillMenuOpen && !slashMenuOpen) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (
@@ -2002,10 +2183,17 @@ export function ChatPage() {
       ) {
         setSkillMenuOpen(false);
       }
+      if (
+        slashMenuOpen &&
+        slashMenuRef.current &&
+        !slashMenuRef.current.contains(target)
+      ) {
+        setSlashMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [headerMenuOpen, skillMenuOpen]);
+  }, [headerMenuOpen, skillMenuOpen, slashMenuOpen]);
 
   const handleMoveToProject = useCallback(
     async (projectId: string) => {
@@ -2241,28 +2429,11 @@ export function ChatPage() {
               {/* Messages */}
               {messages.length === 0 && !loadingHistory ? (
                 <div className="chat-welcome">
-                  {agents.length > 1 && (
-                    <div className="agent-selector">
-                      {agents.map((a) => (
-                        <button
-                          key={a.id}
-                          className={`agent-chip${pendingAgentId === a.id ? " active" : ""}`}
-                          onClick={() => setPendingAgentId(a.id)}
-                          title={a.description || a.name}
-                        >
-                          {a.avatar && (
-                            <span className="agent-avatar">{a.avatar}</span>
-                          )}
-                          <span>{a.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                   <h2 className="chat-welcome-title">
                     {t("chat.welcomeTitle")}
                   </h2>
                   <div className="chat-welcome-input">
-                    <div className="chat-input-box">
+                    <div className="chat-input-box" ref={slashMenuRef}>
                       <textarea
                         ref={textareaRef}
                         value={inputValue}
@@ -2273,6 +2444,7 @@ export function ChatPage() {
                         disabled={isSending}
                         rows={2}
                       />
+                      {renderSlashMenu()}
                       <div className="chat-input-actions">
                         <div className="chat-input-actions-left">
                           <button
@@ -2283,40 +2455,6 @@ export function ChatPage() {
                           >
                             <IconPaperclip size={18} />
                           </button>
-                          {skills.length > 0 && (
-                            <div
-                              className="skill-menu-anchor"
-                              ref={skillMenuRef}
-                            >
-                              <button
-                                className={`btn-skill${selectedSkill ? " active" : ""}`}
-                                onClick={() => setSkillMenuOpen((v) => !v)}
-                                disabled={isSending}
-                                title={t("chat.selectSkill")}
-                              >
-                                <IconSkills size={18} />
-                              </button>
-                              {skillMenuOpen && (
-                                <div className="skill-popup">
-                                  {skills.slice(0, 5).map((s) => (
-                                    <button
-                                      key={s.id}
-                                      className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
-                                      onClick={() => {
-                                        setSelectedSkill((prev) =>
-                                          prev === s.name ? null : s.name,
-                                        );
-                                        setSkillMenuOpen(false);
-                                      }}
-                                      title={s.description}
-                                    >
-                                      {s.name}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
                           {selectedSkill && (
                             <span className="skill-selected-inline">
                               {selectedSkill}
@@ -2603,6 +2741,37 @@ export function ChatPage() {
                       disabled={isSending && !pendingPrompt}
                       rows={2}
                     />
+                    {slashMenuOpen && filteredSlashItems.length > 0 && (
+                      <div className="slash-menu">
+                        {filteredSlashItems.map((item, i) => (
+                          <button
+                            key={`${item.type}-${item.id}`}
+                            className={`slash-menu-item${i === slashIndex ? " focused" : ""}${item.active ? " active" : ""}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSlashSelect(item);
+                            }}
+                            onMouseEnter={() => setSlashIndex(i)}
+                          >
+                            <span className="slash-menu-icon">
+                              {item.type === "agent"
+                                ? item.avatar || "🤖"
+                                : "⚡"}
+                            </span>
+                            <span className="slash-menu-label">
+                              {item.name}
+                            </span>
+                            <span className="slash-menu-type">
+                              {item.type === "agent"
+                                ? item.active
+                                  ? "✓"
+                                  : ""
+                                : ""}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="chat-input-actions">
                       <div className="chat-input-actions-left">
                         <button
@@ -2613,37 +2782,6 @@ export function ChatPage() {
                         >
                           <IconPaperclip size={18} />
                         </button>
-                        {skills.length > 0 && (
-                          <div className="skill-menu-anchor" ref={skillMenuRef}>
-                            <button
-                              className={`btn-skill${selectedSkill ? " active" : ""}`}
-                              onClick={() => setSkillMenuOpen((v) => !v)}
-                              disabled={isSending}
-                              title={t("chat.selectSkill")}
-                            >
-                              <IconSkills size={18} />
-                            </button>
-                            {skillMenuOpen && (
-                              <div className="skill-popup">
-                                {skills.slice(0, 5).map((s) => (
-                                  <button
-                                    key={s.id}
-                                    className={`skill-popup-item${selectedSkill === s.name ? " active" : ""}`}
-                                    onClick={() => {
-                                      setSelectedSkill((prev) =>
-                                        prev === s.name ? null : s.name,
-                                      );
-                                      setSkillMenuOpen(false);
-                                    }}
-                                    title={s.description}
-                                  >
-                                    {s.name}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
                         {selectedSkill && (
                           <span className="skill-selected-inline">
                             {selectedSkill}

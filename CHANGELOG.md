@@ -8,6 +8,11 @@
 - **micro_compact 标注工具名**：上下文压缩削减旧工具输出时，不再直接截断为无意义的前 500 字符，而是替换为 `[Previous: used grep]` 等标注，让 LLM 知道之前调过哪些工具，避免重复调用、保持推理连贯性
 - **后台任务模式**：shell 工具新增 `background` 参数，长时间命令（build/test/install）可在后台执行，agent 立即返回继续其他工作。命令完成后结果自动注入下一轮 LLM 上下文
 
+### 改进
+- **欢迎页 `/` 斜杠命令面板**：输入 `/` 弹出浮动菜单，合并 Agent 切换和技能选择，支持键盘导航（↑↓/Enter/Esc）和模糊搜索，移动端适配
+- **移除欢迎页顶部 Agent 选择器**：原顶部药丸按钮组改为通过 `/` 面板选择，减少视觉噪音
+- **移除 `田` 技能菜单按钮**：输入框旁的技能弹出面板已被 `/` 面板取代，精简界面
+
 ### 重构
 - **ASR 去 Python 化**：语音转文字从 `python transcribe.py`（faster-whisper）迁移到 `sherpa-onnx-node`（C++ N-API addon），消除 Python 进程冷启动开销。模型懒加载 + 5 分钟空闲自动卸载；连续语音消息延迟从 2-5s 降至 <50ms。SILK 解码改用 ffmpeg（去掉 Python pilk 依赖）。WhatsApp 语音消息也加了 ASR 转录（之前缺失）
 - **ASR API 签名修复**：`acceptWaveform` 改用对象参数 `{samples, sampleRate}`（匹配 sherpa-onnx-node 高级 API）；移除不存在的 `free()` 调用（GC 自动回收）；模型文件优先 int8 量化版本，fallback 到全精度

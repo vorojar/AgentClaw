@@ -1172,7 +1172,7 @@
   position: relative;
   max-width: 780px;
   margin: 0 auto;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 12px 14px 8px;

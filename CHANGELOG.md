@@ -9,7 +9,7 @@
 - **后台任务模式**：shell 工具新增 `background` 参数，长时间命令（build/test/install）可在后台执行，agent 立即返回继续其他工作。命令完成后结果自动注入下一轮 LLM 上下文
 
 ### 修复
-- **移动端返回键关闭 Preview 面板**：PreviewPanel 打开时 `pushState` 虚拟历史条目，按返回键触发 `popstate` 关闭面板而不是导航离开页面；面板通过代码关闭时自动清理历史条目
+- **移动端返回键统一关闭弹层**：新增 `useBackClose` hook（全局 overlay 栈 + 单一 `popstate` 监听器），sidebar 和 PreviewPanel 共享同一套逻辑。按返回键始终关闭最顶层弹层，不再出现两个 popstate handler 竞争导致行为不一致的问题
 
 ### 优化
 - **TTS 延迟优化**：用 `@bestcodes/edge-tts` 替换 Python edge-tts，消除 Python 进程冷启动（~500-800ms）；mp3 buffer 通过 pipe 传给 ffmpeg（需要 ogg 时），不再写中间临时文件；新增 `TtsFormat` 参数支持直出 mp3（跳过 ffmpeg，总延迟 ~300-600ms）；MAX_TTS_LENGTH 提升到 1000 字符

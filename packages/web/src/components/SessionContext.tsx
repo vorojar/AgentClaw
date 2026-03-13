@@ -7,6 +7,7 @@ import {
   useRef,
 } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { pushOverlay, removeOverlay } from "../hooks/useBackClose";
 import {
   type SessionInfo,
   type ProjectInfo,
@@ -223,41 +224,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   }, []);
 
-  // ── Mobile: browser-back closes sidebar ──
-  const sidebarHistoryRef = useRef(false);
+  // ── Mobile: browser-back closes sidebar (unified overlay stack) ──
+  const overlayIdRef = useRef<number | null>(null);
 
   const setSidebarOpenWithHistory = useCallback(
     (open: boolean) => {
       setSidebarOpen(open);
       if (!isMobile()) return;
-      if (open && !sidebarHistoryRef.current) {
-        // Push dummy entry so "back" closes sidebar instead of navigating away
-        history.pushState({ _sidebar: true }, "");
-        sidebarHistoryRef.current = true;
-      } else if (!open && sidebarHistoryRef.current) {
-        // Closed by code (backdrop / nav item) — replace dummy entry instead
-        // of history.back() which races with NavLink navigate()
-        sidebarHistoryRef.current = false;
-        history.replaceState(
-          null,
-          "",
-          window.location.pathname + window.location.search,
-        );
+      if (open && overlayIdRef.current === null) {
+        overlayIdRef.current = pushOverlay(() => {
+          overlayIdRef.current = null;
+          setSidebarOpen(false);
+        });
+      } else if (!open && overlayIdRef.current !== null) {
+        removeOverlay(overlayIdRef.current);
+        overlayIdRef.current = null;
       }
     },
     [], // eslint-disable-line react-hooks/exhaustive-deps
   );
-
-  useEffect(() => {
-    function onPopState() {
-      if (sidebarHistoryRef.current) {
-        sidebarHistoryRef.current = false;
-        setSidebarOpen(false);
-      }
-    }
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mobile: drag-to-reveal sidebar (follows finger) ──
   const openRef = useRef(sidebarOpen);

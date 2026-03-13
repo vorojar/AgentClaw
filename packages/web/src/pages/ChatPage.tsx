@@ -1096,6 +1096,8 @@ export function ChatPage() {
   const [slashQuery, setSlashQuery] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
   const slashMenuRef = useRef<HTMLDivElement>(null);
+  const [agentMenuOpen, setAgentMenuOpen] = useState(false);
+  const agentMenuRef = useRef<HTMLDivElement>(null);
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
@@ -1961,26 +1963,20 @@ export function ChatPage() {
     [handleFiles],
   );
 
-  // Build slash menu items from agents + skills
+  // Current agent for display
+  const currentAgent = useMemo(
+    () => agents.find((a) => a.id === pendingAgentId) || agents[0],
+    [agents, pendingAgentId],
+  );
+
+  // Build slash menu items — skills only (agents use dedicated selector)
   const slashItems = useMemo(() => {
     const items: Array<{
-      type: "agent" | "skill";
+      type: "skill";
       id: string;
       name: string;
-      avatar?: string;
       description?: string;
-      active?: boolean;
     }> = [];
-    for (const a of agents) {
-      items.push({
-        type: "agent",
-        id: a.id,
-        name: a.name,
-        avatar: a.avatar,
-        description: a.description,
-        active: pendingAgentId === a.id,
-      });
-    }
     for (const s of skills) {
       items.push({
         type: "skill",
@@ -1990,7 +1986,7 @@ export function ChatPage() {
       });
     }
     return items;
-  }, [agents, skills, pendingAgentId]);
+  }, [skills]);
 
   const filteredSlashItems = useMemo(() => {
     if (!slashQuery) return slashItems;
@@ -2004,16 +2000,12 @@ export function ChatPage() {
 
   const handleSlashSelect = useCallback(
     (item: { type: string; id: string; name: string }) => {
-      if (item.type === "agent") {
-        setPendingAgentId(item.id);
-      } else {
-        setSelectedSkill((prev) => (prev === item.name ? null : item.name));
-      }
+      setSelectedSkill((prev) => (prev === item.name ? null : item.name));
       setInputValue("");
       setSlashMenuOpen(false);
       textareaRef.current?.focus();
     },
-    [setPendingAgentId],
+    [],
   );
 
   const handleInputChange = useCallback(
@@ -2088,84 +2080,66 @@ export function ChatPage() {
 
   const renderSlashMenu = () => {
     if (!slashMenuOpen || filteredSlashItems.length === 0) return null;
-    const agentItems = filteredSlashItems.filter((i) => i.type === "agent");
-    const skillItems = filteredSlashItems.filter((i) => i.type === "skill");
-    let globalIdx = 0;
     return (
       <div className="slash-menu">
-        {agentItems.length > 0 && (
-          <>
-            <div className="slash-menu-section">{t("chat.agents")}</div>
-            {agentItems.map((item) => {
-              const idx = globalIdx++;
-              return (
-                <button
-                  key={`${item.type}-${item.id}`}
-                  className={`slash-menu-item${idx === slashIndex ? " focused" : ""}${item.active ? " active" : ""}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSlashSelect(item);
-                  }}
-                  onMouseEnter={() => setSlashIndex(idx)}
-                >
-                  <span className="slash-menu-icon">
-                    {item.avatar || "🤖"}
-                  </span>
-                  <span className="slash-menu-text">
-                    <span className="slash-menu-label">{item.name}</span>
-                    {item.description && (
-                      <span className="slash-menu-desc">
-                        {item.description}
-                      </span>
-                    )}
-                  </span>
-                  {item.active && (
-                    <span className="slash-menu-check">✓</span>
-                  )}
-                </button>
-              );
-            })}
-          </>
-        )}
-        {agentItems.length > 0 && skillItems.length > 0 && (
-          <div className="slash-menu-divider" />
-        )}
-        {skillItems.length > 0 && (
-          <>
-            <div className="slash-menu-section">{t("chat.skills")}</div>
-            {skillItems.map((item) => {
-              const idx = globalIdx++;
-              return (
-                <button
-                  key={`${item.type}-${item.id}`}
-                  className={`slash-menu-item${idx === slashIndex ? " focused" : ""}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSlashSelect(item);
-                  }}
-                  onMouseEnter={() => setSlashIndex(idx)}
-                >
-                  <span className="slash-menu-icon">⚡</span>
-                  <span className="slash-menu-text">
-                    <span className="slash-menu-label">{item.name}</span>
-                    {item.description && (
-                      <span className="slash-menu-desc">
-                        {item.description}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </>
-        )}
+        {filteredSlashItems.map((item, idx) => (
+          <button
+            key={`${item.type}-${item.id}`}
+            className={`slash-menu-item${idx === slashIndex ? " focused" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleSlashSelect(item);
+            }}
+            onMouseEnter={() => setSlashIndex(idx)}
+          >
+            <span className="slash-menu-icon">⚡</span>
+            <span className="slash-menu-text">
+              <span className="slash-menu-label">{item.name}</span>
+              {item.description && (
+                <span className="slash-menu-desc">
+                  {item.description}
+                </span>
+              )}
+            </span>
+          </button>
+        ))}
       </div>
     );
   };
 
-  // Close header menu, skill menu, and slash menu on outside click
+  const renderAgentMenu = () => {
+    if (!agentMenuOpen || agents.length <= 1) return null;
+    return (
+      <div className="agent-menu">
+        {agents.map((a) => (
+          <button
+            key={a.id}
+            className={`agent-menu-item${pendingAgentId === a.id ? " active" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setPendingAgentId(a.id);
+              setAgentMenuOpen(false);
+            }}
+          >
+            <span className="agent-menu-avatar">{a.avatar || "🤖"}</span>
+            <span className="agent-menu-text">
+              <span className="agent-menu-name">{a.name}</span>
+              {a.description && (
+                <span className="agent-menu-desc">{a.description}</span>
+              )}
+            </span>
+            {pendingAgentId === a.id && (
+              <span className="agent-menu-check">✓</span>
+            )}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  // Close header menu, skill menu, slash menu, and agent menu on outside click
   useEffect(() => {
-    if (!headerMenuOpen && !skillMenuOpen && !slashMenuOpen) return;
+    if (!headerMenuOpen && !skillMenuOpen && !slashMenuOpen && !agentMenuOpen) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (
@@ -2190,10 +2164,17 @@ export function ChatPage() {
       ) {
         setSlashMenuOpen(false);
       }
+      if (
+        agentMenuOpen &&
+        agentMenuRef.current &&
+        !agentMenuRef.current.contains(target)
+      ) {
+        setAgentMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [headerMenuOpen, skillMenuOpen, slashMenuOpen]);
+  }, [headerMenuOpen, skillMenuOpen, slashMenuOpen, agentMenuOpen]);
 
   const handleMoveToProject = useCallback(
     async (projectId: string) => {
@@ -2455,6 +2436,19 @@ export function ChatPage() {
                           >
                             <IconPaperclip size={18} />
                           </button>
+                          {agents.length > 1 && (
+                            <div className="agent-selector-wrap" ref={agentMenuRef}>
+                              <button
+                                className="btn-agent-selector"
+                                onClick={() => setAgentMenuOpen((v) => !v)}
+                              >
+                                <span className="agent-selector-avatar">{currentAgent?.avatar || "🤖"}</span>
+                                <span className="agent-selector-name">{currentAgent?.name || "Agent"}</span>
+                                <IconChevronRight size={12} />
+                              </button>
+                              {renderAgentMenu()}
+                            </div>
+                          )}
                           {selectedSkill && (
                             <span className="skill-selected-inline">
                               {selectedSkill}
@@ -2741,37 +2735,7 @@ export function ChatPage() {
                       disabled={isSending && !pendingPrompt}
                       rows={2}
                     />
-                    {slashMenuOpen && filteredSlashItems.length > 0 && (
-                      <div className="slash-menu">
-                        {filteredSlashItems.map((item, i) => (
-                          <button
-                            key={`${item.type}-${item.id}`}
-                            className={`slash-menu-item${i === slashIndex ? " focused" : ""}${item.active ? " active" : ""}`}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              handleSlashSelect(item);
-                            }}
-                            onMouseEnter={() => setSlashIndex(i)}
-                          >
-                            <span className="slash-menu-icon">
-                              {item.type === "agent"
-                                ? item.avatar || "🤖"
-                                : "⚡"}
-                            </span>
-                            <span className="slash-menu-label">
-                              {item.name}
-                            </span>
-                            <span className="slash-menu-type">
-                              {item.type === "agent"
-                                ? item.active
-                                  ? "✓"
-                                  : ""
-                                : ""}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {renderSlashMenu()}
                     <div className="chat-input-actions">
                       <div className="chat-input-actions-left">
                         <button
@@ -2782,6 +2746,19 @@ export function ChatPage() {
                         >
                           <IconPaperclip size={18} />
                         </button>
+                        {agents.length > 1 && (
+                          <div className="agent-selector-wrap" ref={agentMenuRef}>
+                            <button
+                              className="btn-agent-selector"
+                              onClick={() => setAgentMenuOpen((v) => !v)}
+                            >
+                              <span className="agent-selector-avatar">{currentAgent?.avatar || "🤖"}</span>
+                              <span className="agent-selector-name">{currentAgent?.name || "Agent"}</span>
+                              <IconChevronRight size={12} />
+                            </button>
+                            {renderAgentMenu()}
+                          </div>
+                        )}
                         {selectedSkill && (
                           <span className="skill-selected-inline">
                             {selectedSkill}

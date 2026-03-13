@@ -758,11 +758,18 @@
   min-height: 0 !important;
 }
 
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 20px;
+}
+
 .thinking-dots {
   display: flex;
   gap: 4px;
   align-items: center;
-  height: 20px;
+  flex-shrink: 0;
 }
 
 .thinking-dots span {
@@ -783,6 +790,14 @@
   animation-delay: 0.4s;
 }
 
+.thinking-phrase {
+  font-size: 13px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  animation: thinking-fade-in 0.5s ease-out;
+  white-space: nowrap;
+}
+
 @keyframes thinking-bounce {
   0%,
   80%,
@@ -793,6 +808,17 @@
   40% {
     opacity: 1;
     transform: scale(1.2);
+  }
+}
+
+@keyframes thinking-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 0.6;
+    transform: translateY(0);
   }
 }
 

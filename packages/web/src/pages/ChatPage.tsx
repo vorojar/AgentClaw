@@ -915,6 +915,51 @@ function SubAgentCard({ entry }: { entry: ToolCallEntry }) {
   );
 }
 
+/* ── ThinkingIndicator (rotating phrases) ─────────── */
+
+const THINKING_PHRASES = [
+  "Thinking",
+  "Pondering",
+  "Processing",
+  "Musing",
+  "Computing",
+  "Synthesizing",
+  "Ruminating",
+  "Cogitating",
+  "Generating",
+  "Brewing",
+  "Cooking",
+  "Imagining",
+];
+
+function ThinkingIndicator() {
+  const [index, setIndex] = useState(() =>
+    Math.floor(Math.random() * THINKING_PHRASES.length),
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((prev) => (prev + 1) % THINKING_PHRASES.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="message-row assistant">
+      <div className="message-bubble thinking-bubble">
+        <div className="thinking-indicator">
+          <div className="thinking-dots">
+            <span /><span /><span />
+          </div>
+          <span className="thinking-phrase" key={index}>
+            {THINKING_PHRASES[index]}…
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── ToolCallGroup (collapsible) ──────────────────── */
 
 const TOOL_COLLAPSE_THRESHOLD = 3;
@@ -2508,15 +2553,7 @@ export function ChatPage() {
                                 <ToolCallGroup entries={visible} />
                               ) : null;
                             })()}
-                            {m.thinking && (
-                              <div className="message-row assistant">
-                                <div className="message-bubble thinking-bubble">
-                                  <div className="thinking-dots">
-                                    <span /><span /><span />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                            {m.thinking && <ThinkingIndicator />}
                             {showRegenerate &&
                               idx === messages.length - 1 &&
                               m.role === "assistant" && (

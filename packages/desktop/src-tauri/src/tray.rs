@@ -14,7 +14,11 @@ pub fn create_tray(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Err
         .item(&quit)
         .build()?;
 
+    let icon = app.default_window_icon().cloned()
+        .ok_or("No default icon")?;
+
     TrayIconBuilder::new()
+        .icon(icon)
         .menu(&menu)
         .tooltip("AgentClaw")
         .on_menu_event(move |app, event| {

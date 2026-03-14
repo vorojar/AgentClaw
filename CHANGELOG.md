@@ -1,6 +1,6 @@
 # 更新日志
 
-## [1.3.10.1] - 2026-03-14
+## [1.3.11] - 2026-03-14
 
 ### 新增
 - **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）

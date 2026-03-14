@@ -27,6 +27,10 @@
 - **LLM 流式资源释放**：Claude provider 和 agent-loop 增加 `try/finally` 保护，用户中止对话时主动 `abort()` SDK stream，防止 HTTP 连接悬挂
 - **Context cache 清理接口**：新增 `clearConversationCache()` 方法，支持 session 关闭时释放动态上下文缓存和摘要缓存
 
+### 性能
+- **Subagent 返回精简**：子代理结果超过 2000 字符时自动截断（保留首尾各半），减少主 agent context 消耗
+- **Skill 目录全局缓存**：技能列表构建一次后跨所有会话复用，每次 `buildDynamicContext` 省去重复的 `list()` + `filter()` + `map()` 开销
+
 ### 移除
 - **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
 

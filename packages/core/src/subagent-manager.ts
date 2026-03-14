@@ -288,10 +288,25 @@ export class SimpleSubAgentManager implements SubAgentManager {
   }
 }
 
+/** Max chars for sub-agent result — keeps parent context lean */
+const SUBAGENT_RESULT_MAX_CHARS = 2000;
+
 function extractText(message: Message): string {
-  if (typeof message.content === "string") return message.content;
-  return (message.content as Array<{ type: string; text?: string }>)
-    .filter((b) => b.type === "text" && b.text)
-    .map((b) => b.text!)
-    .join("\n");
+  let text: string;
+  if (typeof message.content === "string") {
+    text = message.content;
+  } else {
+    text = (message.content as Array<{ type: string; text?: string }>)
+      .filter((b) => b.type === "text" && b.text)
+      .map((b) => b.text!)
+      .join("\n");
+  }
+  if (text.length <= SUBAGENT_RESULT_MAX_CHARS) return text;
+  // Keep first and last portions for best context
+  const half = Math.floor(SUBAGENT_RESULT_MAX_CHARS / 2) - 20;
+  return (
+    text.slice(0, half) +
+    `\n\n... [truncated ${text.length - SUBAGENT_RESULT_MAX_CHARS} chars] ...\n\n` +
+    text.slice(-half)
+  );
 }

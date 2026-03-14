@@ -35,6 +35,9 @@ export class SimpleContextManager implements ContextManager {
   private compressAfter: number;
   private summaryCache = new Map<string, string>();
 
+  /** Cached skill catalog string — built once, reused across all conversations */
+  private skillCatalogCache?: string;
+
   /**
    * Frozen snapshot of dynamic context (memories + skills) per conversation.
    * Built once on the first turn, reused for the entire session.
@@ -262,7 +265,7 @@ export class SimpleContextManager implements ContextManager {
       // Memory search failed — continue without memories
     }
 
-    // ── Skill catalog ──
+    // ── Skill catalog (cached globally — skill list doesn't change at runtime) ──
     if (this.skillRegistry) {
       try {
         const preSkillName = options?.preSelectedSkillName;
@@ -274,16 +277,21 @@ export class SimpleContextManager implements ContextManager {
           }
         }
 
-        const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
-        if (allSkills.length > 0) {
-          const catalog = allSkills
-            .map((s) =>
-              s.description ? `${s.name}: ${s.description}` : s.name,
-            )
-            .join("\n- ");
-          parts.push(
-            `Skills (call use_skill(name) to activate):\n- ${catalog}`,
-          );
+        if (this.skillCatalogCache === undefined) {
+          const allSkills = this.skillRegistry.list().filter((s) => s.enabled);
+          if (allSkills.length > 0) {
+            const catalog = allSkills
+              .map((s) =>
+                s.description ? `${s.name}: ${s.description}` : s.name,
+              )
+              .join("\n- ");
+            this.skillCatalogCache = `Skills (call use_skill(name) to activate):\n- ${catalog}`;
+          } else {
+            this.skillCatalogCache = "";
+          }
+        }
+        if (this.skillCatalogCache) {
+          parts.push(this.skillCatalogCache);
         }
       } catch {
         // Skill catalog failed — continue without it

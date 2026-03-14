@@ -3,7 +3,7 @@
 ## [1.4.0] - 2026-03-14
 
 ### 新增
-- **Tauri v2 桌面客户端**：Rust 窗口 + 系统托盘 + Bun sidecar 自动启停，三平台 CI/CD（.exe/.dmg/.deb）
+- **Tauri v2 桌面客户端**：Rust 窗口 + 系统托盘 + sidecar 自动启停，三平台 CI/CD（.exe/.dmg/.deb）
 - **统一配置系统**：`config.json` + 环境变量 + `.env` 三层合并，配置 REST API（读/写/验证）
 - **Setup Wizard**：首次启动 4 步引导，未配置时发消息自动弹出
 - **Provider N 选 1**：卡片式布局，每个 Provider 独立 API Key + 模型，radio 切换运行时生效

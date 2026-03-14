@@ -107,6 +107,7 @@ function collectProviders(cfg: AppConfig): {
           baseURL,
           defaultModel: getProviderModel(cfg, "openai"),
           providerName: "openai",
+          extraBody: cfg.disableThinking ? { think: false } : undefined,
         }),
     });
   }
@@ -135,6 +136,7 @@ function collectProviders(cfg: AppConfig): {
       baseURL,
       defaultModel: model,
       providerName: "local",
+      extraBody: cfg.disableThinking ? { think: false } : undefined,
     });
     return { provider: localProvider, providerName: "local", model };
   }

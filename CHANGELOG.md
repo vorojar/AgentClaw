@@ -8,6 +8,8 @@
 - **Setup Wizard**：首次启动 4 步引导，未配置时发消息自动弹出
 - **Provider N 选 1**：卡片式布局，每个 Provider 独立 API Key + 模型，radio 切换运行时生效
 - **静态文件托管**：gateway 生产模式自动托管 web 前端
+- **disableThinking 配置**：`config.json` 或 `DISABLE_THINKING=true`，Ollama 自动切原生 API 关闭思考
+- **配置热更新**：前端保存 model/baseUrl/apiKey 等字段后自动重建 provider，无需重启
 
 ### 修复
 - Tauri 启动 panic（移除无效 `plugins.shell.sidecar` 字段）

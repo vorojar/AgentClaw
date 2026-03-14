@@ -43,6 +43,7 @@ export interface AppConfig {
   maxIterations?: number;
   ollamaBaseUrl?: string;
   ollamaModel?: string;
+  disableThinking?: boolean;
   volcanoEmbeddingKey?: string;
   searxngUrl?: string;
 }
@@ -85,6 +86,7 @@ const ENV_MAP: Record<string, string> = {
   OLLAMA_BASE_URL: "ollamaBaseUrl",
   OLLAMA_MODEL: "ollamaModel",
   VOLCANO_EMBEDDING_KEY: "volcanoEmbeddingKey",
+  DISABLE_THINKING: "disableThinking",
   SEARXNG_URL: "searxngUrl",
 };
 
@@ -110,7 +112,7 @@ const DEFAULTS: Partial<AppConfig> = {
 const NUMBER_FIELDS = new Set(["port", "maxIterations"]);
 
 /** 需要解析为布尔值的字段 */
-const BOOLEAN_FIELDS = new Set(["whatsapp.enabled"]);
+const BOOLEAN_FIELDS = new Set(["whatsapp.enabled", "disableThinking"]);
 
 /**
  * 获取 config.json 文件路径。

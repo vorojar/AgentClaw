@@ -23,6 +23,8 @@ export interface OpenAICompatibleOptions {
   models?: ModelInfo[];
   /** Embedding model to use (default: text-embedding-3-small). Set to "" to disable embed(). */
   embeddingModel?: string;
+  /** Extra body params to include in every request (e.g. { think: false } for Ollama) */
+  extraBody?: Record<string, unknown>;
 }
 
 /**
@@ -34,12 +36,15 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
   readonly models: ModelInfo[];
 
   private client: OpenAI;
+  private baseURL: string | undefined;
   private defaultModel: string;
   private embeddingModel: string;
+  private extraBody: Record<string, unknown> | undefined;
 
   constructor(options: OpenAICompatibleOptions = {}) {
     super();
     this.name = options.providerName ?? "openai";
+    this.baseURL = options.baseURL;
     this.client = new OpenAI({
       apiKey: options.apiKey ?? "",
       baseURL: options.baseURL,
@@ -48,6 +53,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       options.embeddingModel ??
       process.env.OPENAI_EMBEDDING_MODEL ??
       "text-embedding-3-small";
+    this.extraBody = options.extraBody;
     this.models = options.models ?? [
       {
         id: "gpt-4o",
@@ -120,6 +126,12 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
   }
 
   async *stream(request: LLMRequest): AsyncIterable<LLMStreamChunk> {
+    // Ollama's OpenAI-compat endpoint ignores `think` param — use native API
+    if (this.isOllama && this.extraBody?.think === false) {
+      yield* this.streamOllamaNative(request);
+      return;
+    }
+
     const model = request.model ?? this.defaultModel;
     const messages = this.convertMessages(
       request.messages,
@@ -167,10 +179,11 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       if (!delta) continue;
 
       // Text content — also check "reasoning" field for thinking-mode models
+      const deltaExtra = delta as unknown as Record<string, string>;
       const deltaText =
-        delta.content ||
-        (delta as unknown as Record<string, string>).reasoning ||
-        "";
+        this.extraBody?.think === false
+          ? delta.content || ""
+          : delta.content || deltaExtra.reasoning || "";
       if (deltaText) {
         yield { type: "text", text: deltaText };
       }
@@ -232,6 +245,137 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       .map((d) => d.embedding);
   }
 
+  // ---- Ollama native API ----
+
+  /** Check if baseURL points to an Ollama instance */
+  private get isOllama(): boolean {
+    return !!this.baseURL?.includes("11434");
+  }
+
+  /** Derive Ollama native API base from the OpenAI-compat baseURL */
+  private get ollamaBaseUrl(): string {
+    // e.g. http://localhost:11434/v1 → http://localhost:11434
+    return this.baseURL!.replace(/\/v1\/?$/, "");
+  }
+
+  /**
+   * Stream via Ollama native /api/chat endpoint.
+   * Used when disableThinking is set, because Ollama's OpenAI-compat endpoint
+   * ignores the `think` parameter.
+   */
+  private async *streamOllamaNative(
+    request: LLMRequest,
+  ): AsyncIterable<LLMStreamChunk> {
+    const model = request.model ?? this.defaultModel;
+    const messages = this.convertMessages(
+      request.messages,
+      request.systemPrompt,
+    );
+    // Convert OpenAI message format to Ollama native format
+    const ollamaMessages = messages.map((m) => ({
+      role: m.role,
+      content:
+        typeof m.content === "string"
+          ? m.content
+          : Array.isArray(m.content)
+            ? m.content.map((p: any) => p.text ?? "").join("")
+            : "",
+      ...(m.role === "assistant" && (m as any).tool_calls
+        ? { tool_calls: (m as any).tool_calls }
+        : {}),
+      ...(m.role === "tool" ? { tool_call_id: (m as any).tool_call_id } : {}),
+    }));
+
+    const tools = request.tools ? this.convertTools(request.tools) : undefined;
+    const body: Record<string, unknown> = {
+      model,
+      messages: ollamaMessages,
+      stream: true,
+      think: false,
+      ...(tools && tools.length > 0 ? { tools } : {}),
+    };
+
+    const url = `${this.ollamaBaseUrl}/api/chat`;
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`[${this.name}/${model}] ${msg}`);
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`[${this.name}/${model}] ${response.status} ${text}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error(`[${this.name}/${model}] No response body`);
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let tokensIn = 0;
+    let tokensOut = 0;
+    let finishReason: string | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Ollama streams NDJSON — one JSON object per line
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let chunk: any;
+        try {
+          chunk = JSON.parse(line);
+        } catch {
+          continue;
+        }
+
+        if (chunk.message?.content) {
+          yield { type: "text", text: chunk.message.content };
+        }
+
+        // Tool calls from Ollama native API
+        if (chunk.message?.tool_calls) {
+          for (const tc of chunk.message.tool_calls) {
+            if (tc.function?.name) {
+              yield {
+                type: "tool_use_start",
+                toolUse: {
+                  id: tc.id ?? `call_${Date.now()}`,
+                  name: tc.function.name,
+                  input: JSON.stringify(tc.function.arguments ?? {}),
+                },
+              };
+            }
+          }
+        }
+
+        if (chunk.done) {
+          finishReason = chunk.done_reason || "stop";
+          tokensIn = chunk.prompt_eval_count ?? 0;
+          tokensOut = chunk.eval_count ?? 0;
+        }
+      }
+    }
+
+    yield {
+      type: "done",
+      usage: { tokensIn, tokensOut },
+      model,
+      stopReason: this.mapFinishReason(finishReason),
+    };
+  }
+
   // ---- Internal helpers ----
 
   /** Build shared optional params for both chat() and stream(). */
@@ -244,6 +388,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
         : {}),
       ...(request.maxTokens != null ? { max_tokens: request.maxTokens } : {}),
       ...(request.stopSequences ? { stop: request.stopSequences } : {}),
+      ...(this.extraBody ?? {}),
     };
   }
 
@@ -389,7 +534,9 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
     // - DeepSeek V3: "reasoning_content"
     const extra = msg as unknown as Record<string, string>;
     const text =
-      msg.content || extra.reasoning_content || extra.reasoning || "";
+      this.extraBody?.think === false
+        ? msg.content || ""
+        : msg.content || extra.reasoning_content || extra.reasoning || "";
     if (text) {
       blocks.push({ type: "text", text });
     }

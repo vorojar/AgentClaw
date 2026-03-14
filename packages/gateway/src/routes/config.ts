@@ -19,7 +19,15 @@ function rebuildProvider(cfg: AppConfig): {
   name: string;
   model?: string;
 } | null {
-  const active = cfg.activeProvider;
+  const active =
+    cfg.activeProvider ||
+    (cfg.anthropicApiKey
+      ? "claude"
+      : cfg.openaiApiKey
+        ? "openai"
+        : cfg.geminiApiKey
+          ? "gemini"
+          : undefined);
   if (active === "claude" && cfg.anthropicApiKey) {
     const model = cfg.anthropicModel || cfg.defaultModel;
     return {
@@ -39,6 +47,7 @@ function rebuildProvider(cfg: AppConfig): {
         baseURL: cfg.openaiBaseUrl,
         defaultModel: model,
         providerName: "openai",
+        extraBody: cfg.disableThinking ? { think: false } : undefined,
       }),
       name: "openai",
       model,
@@ -127,26 +136,30 @@ export function registerConfigRoutes(
         if (restart) restart();
       }
 
-      // 运行时更新 model
-      if (updates.defaultModel !== undefined) {
-        ctx.config.model = updates.defaultModel;
-        (ctx.orchestrator as any).setModel(updates.defaultModel);
+      // 1. 先保存到 config.json（去除 dailyBriefTime，它存在 DB 里）
+      const { dailyBriefTime: _dbt, ...configUpdates } = updates;
+      if (Object.keys(configUpdates).length > 0) {
+        saveConfig(configUpdates as Partial<AppConfig>);
       }
 
-      // 兼容旧的 model 字段
-      if (
-        (updates as any).model !== undefined &&
-        updates.defaultModel === undefined
-      ) {
-        ctx.config.model = (updates as any).model;
-        (ctx.orchestrator as any).setModel((updates as any).model);
-      }
+      // 2. 重新加载完整配置
+      const cfg = loadConfig();
+      (ctx as any).appConfig = cfg;
 
-      // 运行时切换 activeProvider — 重建 provider 实例
-      if (updates.activeProvider !== undefined) {
-        const cfg = loadConfig();
-        // Apply pending updates that haven't been saved yet
-        Object.assign(cfg, configUpdates);
+      // 3. 判断是否需要热重建 provider
+      const providerFields = [
+        "activeProvider",
+        "openaiModel",
+        "openaiBaseUrl",
+        "openaiApiKey",
+        "anthropicModel",
+        "anthropicApiKey",
+        "geminiModel",
+        "geminiApiKey",
+        "defaultModel",
+        "disableThinking",
+      ];
+      if (providerFields.some((f) => f in configUpdates)) {
         const newProvider = rebuildProvider(cfg);
         if (newProvider) {
           ctx.config.provider = newProvider.name;
@@ -155,21 +168,13 @@ export function registerConfigRoutes(
           if (newProvider.model) {
             (ctx.orchestrator as any).setModel(newProvider.model);
           }
-          // Also update the provider reference on ctx
           (ctx as any).provider = newProvider.provider;
         }
+      } else if (configUpdates.defaultModel !== undefined) {
+        // 仅改了 defaultModel 但没改 provider 相关字段
+        ctx.config.model = configUpdates.defaultModel as string;
+        (ctx.orchestrator as any).setModel(configUpdates.defaultModel);
       }
-
-      // 把配置保存到 config.json（去除 dailyBriefTime，它存在 DB 里）
-      const { dailyBriefTime: _dbt, ...configUpdates } = updates;
-      if (Object.keys(configUpdates).length > 0) {
-        saveConfig(configUpdates as Partial<AppConfig>);
-      }
-
-      // 重新加载配置并返回脱敏结果
-      const cfg = loadConfig();
-      // 更新 appConfig 引用
-      (ctx as any).appConfig = cfg;
 
       const dailyBriefTime =
         (ctx.memoryStore as any).getSetting?.("daily_brief_time") || "09:00";

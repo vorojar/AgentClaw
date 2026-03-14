@@ -127,7 +127,6 @@ export async function createServer(
     await app.register(fastifyStatic, {
       root: webDistDir,
       prefix: "/",
-      wildcard: false,
       setHeaders(res, pathName) {
         // index.html must never be cached (references hashed asset filenames)
         if (pathName.endsWith("index.html") || pathName.endsWith(".html")) {
@@ -142,9 +141,9 @@ export async function createServer(
       if (
         request.url.startsWith("/api/") ||
         request.url.startsWith("/ws") ||
-        request.url.startsWith("/assets/") ||
         request.url.startsWith("/files/") ||
-        request.url.startsWith("/preview/")
+        request.url.startsWith("/preview/") ||
+        /\.\w+$/.test(request.url)
       ) {
         reply.code(404).send({ error: "Not found" });
       } else {

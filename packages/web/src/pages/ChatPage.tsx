@@ -2645,35 +2645,40 @@ export function ChatPage() {
                                           }}
                                         />
                                       ))}
-                                      <div className="message-content-md">
-                                        <ReactMarkdown
-                                          remarkPlugins={[remarkGfm]}
-                                          components={mdComponents}
-                                        >
-                                          {parsed.text}
-                                        </ReactMarkdown>
-                                        {m.streaming &&
-                                          m.toolCalls.length === 0 && (
-                                            <span className="streaming-cursor" />
+                                      {/* 没有工具调用时，文本直接放在气泡里 */}
+                                      {(m.role === "user" || m.toolCalls.length === 0) && (
+                                        <>
+                                          <div className="message-content-md">
+                                            <ReactMarkdown
+                                              remarkPlugins={[remarkGfm]}
+                                              components={mdComponents}
+                                            >
+                                              {parsed.text}
+                                            </ReactMarkdown>
+                                            {m.streaming &&
+                                              m.toolCalls.length === 0 && (
+                                                <span className="streaming-cursor" />
+                                              )}
+                                          </div>
+                                          {(m.createdAt ||
+                                            (m.role === "assistant" &&
+                                              !m.streaming)) && (
+                                            <div className="message-meta">
+                                              {formatTimeOnly(m.createdAt)}
+                                              {(() => {
+                                                const usage =
+                                                  m.role === "assistant"
+                                                    ? formatUsageStats(m)
+                                                    : null;
+                                                if (usage)
+                                                  return ` \u00b7 ${usage}`;
+                                                if (m.model)
+                                                  return ` \u00b7 ${m.model}`;
+                                                return "";
+                                              })()}
+                                            </div>
                                           )}
-                                      </div>
-                                      {(m.createdAt ||
-                                        (m.role === "assistant" &&
-                                          !m.streaming)) && (
-                                        <div className="message-meta">
-                                          {formatTimeOnly(m.createdAt)}
-                                          {(() => {
-                                            const usage =
-                                              m.role === "assistant"
-                                                ? formatUsageStats(m)
-                                                : null;
-                                            if (usage)
-                                              return ` \u00b7 ${usage}`;
-                                            if (m.model)
-                                              return ` \u00b7 ${m.model}`;
-                                            return "";
-                                          })()}
-                                        </div>
+                                        </>
                                       )}
                                       {m.role === "user" && !isSending && (
                                         <button
@@ -2701,6 +2706,34 @@ export function ChatPage() {
                                 <ToolCallGroup entries={visible} />
                               ) : null;
                             })()}
+                            {/* 有工具调用时，文本放在工具卡片下面 */}
+                            {m.role === "assistant" && m.toolCalls.length > 0 && parsed.text && (
+                              <div className="message-row assistant">
+                                <div className="message-bubble">
+                                  <div className="message-content-md">
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkGfm]}
+                                      components={mdComponents}
+                                    >
+                                      {parsed.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  {(m.createdAt || !m.streaming) && (
+                                    <div className="message-meta">
+                                      {formatTimeOnly(m.createdAt)}
+                                      {(() => {
+                                        const usage = formatUsageStats(m);
+                                        if (usage)
+                                          return ` \u00b7 ${usage}`;
+                                        if (m.model)
+                                          return ` \u00b7 ${m.model}`;
+                                        return "";
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                             {m.thinking && <ThinkingIndicator />}
                             {showRegenerate &&
                               idx === messages.length - 1 &&

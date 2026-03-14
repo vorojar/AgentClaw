@@ -664,15 +664,15 @@ function SectionLabel({ label, text }: { label: string; text: string }) {
 function toolCallLabel(name: string, input: string): string {
   try {
     const obj = JSON.parse(input);
-    if (name === "bash" && obj.command) {
-      const cmd = String(obj.command);
-      return `bash: ${cmd.length > 80 ? cmd.slice(0, 80) + "..." : cmd}`;
+    // Extract the most informative field for each tool
+    const val =
+      obj.command ?? obj.query ?? obj.url ?? obj.path ?? obj.pattern ??
+      obj.name ?? obj.filename ?? obj.content ?? obj.skill_name;
+    if (val !== undefined) {
+      const s = String(val);
+      const summary = s.length > 80 ? s.slice(0, 80) + "…" : s;
+      return `${name}: ${summary}`;
     }
-    if (name === "use_skill" && obj.name) return `use_skill: ${obj.name}`;
-    if (name === "file_read" && obj.path) return `file_read: ${obj.path}`;
-    if (name === "file_write" && obj.path) return `file_write: ${obj.path}`;
-    if (name === "send_file" && obj.filename)
-      return `send_file: ${obj.filename}`;
   } catch {
     /* not JSON */
   }

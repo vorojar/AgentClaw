@@ -26,6 +26,7 @@ import {
   updateSession,
   listSkills,
   listAgents,
+  getConfig,
 } from "../api/client";
 import { useSessionWebSocket } from "../hooks/useSessionWebSocket";
 import { useStreamingState } from "../hooks/useStreamingState";
@@ -33,6 +34,7 @@ import { CodeBlock } from "../components/CodeBlock";
 import { FileDropZone } from "../components/FileDropZone";
 import { useSession } from "../components/SessionContext";
 import { useTheme } from "../components/ThemeProvider";
+import { SetupWizard } from "./SetupWizard";
 import {
   IconMenu,
   IconPaperclip,
@@ -1078,6 +1080,8 @@ export function ChatPage() {
   >([]);
   const [lastUserText, setLastUserText] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const configCheckedRef = useRef(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [headerSubMenu, setHeaderSubMenu] = useState(false);
@@ -1635,6 +1639,21 @@ export function ChatPage() {
     }
 
     if ((!text && pendingFiles.length === 0) || isSending) return;
+
+    // 首次发消息时检查是否已配置 LLM provider
+    if (!configCheckedRef.current) {
+      try {
+        const cfg = await getConfig();
+        const hasKey = !!(cfg.anthropicApiKey || cfg.openaiApiKey || cfg.geminiApiKey);
+        configCheckedRef.current = hasKey;
+        if (!hasKey) {
+          setShowSetupWizard(true);
+          return;
+        }
+      } catch {
+        // 配置接口失败，继续发送让 gateway 报错
+      }
+    }
 
     let contentToSend = text;
     const imageUrls: string[] = [];
@@ -2831,6 +2850,17 @@ export function ChatPage() {
           {/* end chat-body */}
         </div>
       </FileDropZone>
+
+      {showSetupWizard && (
+        <SetupWizard
+          modal
+          onComplete={() => {
+            setShowSetupWizard(false);
+            configCheckedRef.current = true;
+          }}
+          onClose={() => setShowSetupWizard(false)}
+        />
+      )}
     </PreviewContext.Provider>
   );
 }

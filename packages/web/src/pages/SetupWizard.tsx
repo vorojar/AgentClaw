@@ -15,14 +15,26 @@ const PROVIDERS = [
 
 type ProviderId = (typeof PROVIDERS)[number]["id"];
 
-/** 总步骤数 */
-const TOTAL_STEPS = 4;
+/** 总步骤数（弹层模式跳过 welcome，3 步） */
+const TOTAL_STEPS_FULL = 4;
+const TOTAL_STEPS_MODAL = 3;
 
-export function SetupWizard() {
+interface SetupWizardProps {
+  /** 弹层模式：作为 overlay 显示，完成后调用 onComplete */
+  modal?: boolean;
+  onComplete?: () => void;
+  onClose?: () => void;
+}
+
+export function SetupWizard({
+  modal,
+  onComplete,
+  onClose,
+}: SetupWizardProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(0); // 0=welcome, 1=provider, 2=credentials, 3=complete
+  const [step, setStep] = useState(modal ? 1 : 0); // modal 跳过 welcome
   const [provider, setProvider] = useState<ProviderId | null>(null);
 
   // 表单字段
@@ -37,12 +49,14 @@ export function SetupWizard() {
 
   /* ── 步骤指示器 ── */
   function StepDots() {
+    const total = modal ? TOTAL_STEPS_MODAL : TOTAL_STEPS_FULL;
+    const current = modal ? step - 1 : step; // modal 模式从 step 1 开始，映射到 dot 0
     return (
       <div className="setup-steps">
-        {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+        {Array.from({ length: total }, (_, i) => (
           <div
             key={i}
-            className={`setup-step-dot ${i === step ? "active" : i < step ? "done" : ""}`}
+            className={`setup-step-dot ${i === current ? "active" : i < current ? "done" : ""}`}
           />
         ))}
       </div>
@@ -294,7 +308,16 @@ export function SetupWizard() {
             <h1 className="setup-title">{t("setup.completeTitle")}</h1>
             <p className="setup-subtitle">{t("setup.completeSubtitle")}</p>
             <div className="setup-actions">
-              <button className="btn-primary" onClick={() => navigate("/chat")}>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  if (modal && onComplete) {
+                    onComplete();
+                  } else {
+                    navigate("/chat");
+                  }
+                }}
+              >
                 {t("setup.startChatting")}
               </button>
             </div>
@@ -307,8 +330,13 @@ export function SetupWizard() {
   }
 
   return (
-    <div className="setup-wizard">
+    <div className={`setup-wizard ${modal ? "setup-modal-overlay" : ""}`}>
       <div className="setup-card">
+        {modal && onClose && (
+          <button type="button" className="setup-close" onClick={onClose}>
+            &times;
+          </button>
+        )}
         <StepDots />
         {renderContent()}
       </div>

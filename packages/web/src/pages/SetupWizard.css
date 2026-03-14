@@ -200,3 +200,46 @@
 .setup-skip:hover {
   color: var(--text-primary);
 }
+
+/* ── 弹层模式 ── */
+.setup-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  min-height: unset;
+}
+
+.setup-modal-overlay .setup-card {
+  position: relative;
+  animation: setup-slide-up 0.3s ease;
+}
+
+.setup-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+
+.setup-close:hover {
+  color: var(--text-primary);
+}
+
+@keyframes setup-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -92,6 +92,11 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
     const contentBlocks = this.convertResponseMessage(choice.message);
     const tokensIn = response.usage?.prompt_tokens ?? 0;
     const tokensOut = response.usage?.completion_tokens ?? 0;
+    const usageAny = response.usage as unknown as
+      | Record<string, Record<string, number>>
+      | undefined;
+    const cacheReadTokens =
+      usageAny?.prompt_tokens_details?.cached_tokens || undefined;
 
     const message: Message = {
       id: generateId(),
@@ -101,6 +106,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       model,
       tokensIn,
       tokensOut,
+      cacheReadTokens,
     };
 
     return {
@@ -108,6 +114,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       model,
       tokensIn,
       tokensOut,
+      cacheReadTokens,
       stopReason: this.mapFinishReason(choice.finish_reason),
     };
   }
@@ -135,6 +142,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
     let tokensIn = 0;
     let tokensOut = 0;
+    let cacheReadTokens = 0;
     let finishReason: string | null = null;
 
     for await (const chunk of stream) {
@@ -144,6 +152,11 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       if (chunk.usage) {
         tokensIn = chunk.usage.prompt_tokens ?? 0;
         tokensOut = chunk.usage.completion_tokens ?? 0;
+        const chunkUsageAny = chunk.usage as unknown as
+          | Record<string, Record<string, number>>
+          | undefined;
+        cacheReadTokens =
+          chunkUsageAny?.prompt_tokens_details?.cached_tokens ?? 0;
       }
 
       if (chunk.choices?.[0]?.finish_reason) {
@@ -193,7 +206,11 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
     // Emit "done" after the stream ends so the usage-only chunk has been processed
     yield {
       type: "done",
-      usage: { tokensIn, tokensOut },
+      usage: {
+        tokensIn,
+        tokensOut,
+        cacheReadTokens: cacheReadTokens || undefined,
+      },
       model,
       stopReason: this.mapFinishReason(finishReason),
     };

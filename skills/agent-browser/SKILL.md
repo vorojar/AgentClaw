@@ -13,7 +13,7 @@ agent-browser open <url>
 agent-browser snapshot          # Accessibility tree with @refs (best for AI)
 agent-browser click @e2         # Click by ref
 agent-browser fill @e3 "value"  # Clear + fill by ref
-agent-browser screenshot out.png
+agent-browser screenshot $WORKDIR/out.png
 agent-browser close
 ```
 
@@ -67,12 +67,13 @@ agent-browser find placeholder "Search..." fill "query"
 ```
 
 ### Screenshots & PDF
+IMPORTANT: Always use `$WORKDIR/filename` for output paths so files land in the session directory.
 ```bash
-agent-browser screenshot <path>              # Page screenshot
-agent-browser screenshot <path> --fullpage   # Full page
-agent-browser screenshot <path> --annotate   # With element labels
-agent-browser screenshot <path> --selector <sel>  # Element only
-agent-browser pdf <path>                     # Save as PDF
+agent-browser screenshot $WORKDIR/page.png              # Page screenshot
+agent-browser screenshot $WORKDIR/page.png --fullpage   # Full page
+agent-browser screenshot $WORKDIR/page.png --annotate   # With element labels
+agent-browser screenshot $WORKDIR/page.png --selector <sel>  # Element only
+agent-browser pdf $WORKDIR/doc.pdf                      # Save as PDF
 ```
 
 ### Wait
@@ -159,5 +160,5 @@ agent-browser --auto-connect state save ./auth.json
 - **Always use `snapshot`** first — refs are the most reliable selectors
 - **Refs reset on navigation** — run `snapshot` again after `open` or page change
 - Use `--state` or `--session-name` to persist login across runs
-- For file output, save to `data/tmp/` directory
+- **File output must use `$WORKDIR`**: e.g. `agent-browser screenshot $WORKDIR/page.png`. `$WORKDIR` points to the per-session temp directory (`data/tmp/{sessionId}/`), where files are auto-served via `/files/`. Never use bare relative paths — they save to the wrong location.
 - Results from `shell` tool are returned directly to you

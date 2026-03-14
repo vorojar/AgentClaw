@@ -14,6 +14,7 @@
 - **Context cache 清理接口**：新增 `clearConversationCache()` 方法，支持 session 关闭时释放动态上下文缓存和摘要缓存
 
 ### 性能
+- **OpenAI 兼容 provider 支持 prompt cache**：提取 `usage.prompt_tokens_details.cached_tokens`，火山引擎 doubao 等模型的隐式缓存数据现可正确记录到 trace
 - **Subagent 返回精简**：子代理结果超过 2000 字符时自动截断（保留首尾各半），减少主 agent context 消耗
 - **Skill 目录全局缓存**：技能列表构建一次后跨所有会话复用，省去重复构建开销
 
@@ -21,6 +22,7 @@
 - **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
 
 ### 修复
+- **send_file 自动归档到 session 目录**：LLM 用相对路径保存文件时，send_file 自动复制到 `data/tmp/{sessionId}/`，确保 `/files/` 路由可访问
 - **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale
 - **Handoff 消息缺少必填字段**：补全 `streaming` 和 `toolCalls`，消除潜在运行时崩溃
 

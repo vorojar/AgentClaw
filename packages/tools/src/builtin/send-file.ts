@@ -36,7 +36,7 @@ export const sendFileTool: Tool = {
         ? resolve(context.workDir, filePath)
         : null;
     const resolvedPath = resolve(filePath);
-    const effectivePath =
+    let effectivePath =
       workDirPath && existsSync(workDirPath)
         ? workDirPath
         : existsSync(filePath)
@@ -49,6 +49,21 @@ export const sendFileTool: Tool = {
         content: `File not found: ${filePath}`,
         isError: true,
       };
+    }
+
+    // Auto-relocate: if file is outside workDir, copy it into workDir
+    // so it's accessible via /files/{sessionId}/ and associated with the session
+    if (context.workDir && effectivePath !== workDirPath) {
+      const { basename, join } = await import("node:path");
+      const { copyFileSync, mkdirSync } = await import("node:fs");
+      const dest = join(context.workDir, basename(effectivePath));
+      try {
+        mkdirSync(context.workDir, { recursive: true });
+        copyFileSync(effectivePath, dest);
+        effectivePath = dest;
+      } catch {
+        // best-effort — send from original location if copy fails
+      }
     }
 
     try {

@@ -65,6 +65,8 @@ export interface LLMResponse {
   model: string;
   tokensIn: number;
   tokensOut: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
   stopReason: "end_turn" | "tool_use" | "max_tokens" | "stop_sequence";
 }
 

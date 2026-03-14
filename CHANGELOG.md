@@ -1,6 +1,29 @@
 # 更新日志
 
-## [1.3.10] - 2026-03-14
+## [1.3.10.1] - 2026-03-14
+
+### 新增
+- **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）
+
+### 安全
+- **WebSocket / CORS origin 校验**：新增 `ALLOWED_ORIGINS` 环境变量，限制可连接的来源域名；未配置时保持全放通（向后兼容）
+
+### 稳定性
+- **LLM 流式资源释放**：Claude provider 和 agent-loop 增加 `try/finally` 保护，用户中止对话时主动 `abort()` SDK stream，防止 HTTP 连接悬挂
+- **Context cache 清理接口**：新增 `clearConversationCache()` 方法，支持 session 关闭时释放动态上下文缓存和摘要缓存
+
+### 性能
+- **Subagent 返回精简**：子代理结果超过 2000 字符时自动截断（保留首尾各半），减少主 agent context 消耗
+- **Skill 目录全局缓存**：技能列表构建一次后跨所有会话复用，省去重复构建开销
+
+### 移除
+- **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
+
+### 修复
+- **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale
+- **Handoff 消息缺少必填字段**：补全 `streaming` 和 `toolCalls`，消除潜在运行时崩溃
+
+## [1.3.10] - 2026-03-13
 
 ### 新增
 - **Thinking 动画**：发送后即时显示轮播短语（Thinking/Pondering/Brewing… 等），工具调用期间持续显示
@@ -17,27 +40,8 @@
 ### 重构
 - **ASR 去 Python 化**：迁移到 sherpa-onnx-node，连续语音延迟从 2-5s 降至 <50ms；SILK 解码改用 silk-wasm（支持 QQ/微信语音）；输出繁转简（opencc-js）
 
-### 改进
-- **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）
-
-### 安全
-- **WebSocket / CORS origin 校验**：新增 `ALLOWED_ORIGINS` 环境变量，限制可连接的来源域名；未配置时保持全放通（向后兼容）
-
-### 稳定性
-- **LLM 流式资源释放**：Claude provider 和 agent-loop 增加 `try/finally` 保护，用户中止对话时主动 `abort()` SDK stream，防止 HTTP 连接悬挂
-- **Context cache 清理接口**：新增 `clearConversationCache()` 方法，支持 session 关闭时释放动态上下文缓存和摘要缓存
-
-### 性能
-- **Subagent 返回精简**：子代理结果超过 2000 字符时自动截断（保留首尾各半），减少主 agent context 消耗
-- **Skill 目录全局缓存**：技能列表构建一次后跨所有会话复用，每次 `buildDynamicContext` 省去重复的 `list()` + `filter()` + `map()` 开销
-
-### 移除
-- **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
-
 ### 修复
 - **移动端返回键弹层竞争**：新增 `useBackClose` hook 统一管理 overlay 栈
-- **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale
-- **Handoff 消息缺少必填字段**：补全 `streaming` 和 `toolCalls`，消除潜在运行时崩溃
 
 ## [1.3.9.1] - 2026-03-12
 

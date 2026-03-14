@@ -2707,7 +2707,9 @@ export function ChatPage() {
                               ) : null;
                             })()}
                             {/* 有工具调用时，文本放在工具卡片下面 */}
-                            {m.role === "assistant" && m.toolCalls.length > 0 && parsed.text && (
+                            {m.role === "assistant" && m.toolCalls.length > 0 && m.content && (() => {
+                              const parsed = parseMessageContent(m.content);
+                              return parsed.text ? (
                               <div className="message-row assistant">
                                 <div className="message-bubble">
                                   <div className="message-content-md">
@@ -2733,7 +2735,8 @@ export function ChatPage() {
                                   )}
                                 </div>
                               </div>
-                            )}
+                              ) : null;
+                            })()}
                             {m.thinking && <ThinkingIndicator />}
                             {showRegenerate &&
                               idx === messages.length - 1 &&

@@ -32,7 +32,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/agentclaw-server"]
+    "externalBin": ["binaries/agentclaw-server"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
+    }
   },
   "plugins": {
     "shell": {

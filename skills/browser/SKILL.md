@@ -1,6 +1,6 @@
 ---
 name: browser
-description: 需要用户浏览器登录态或交互操作（点击、输入、截图）时使用，纯抓取请用 web_fetch 工具 | Browser automation requiring login state or interaction (click, type, screenshot); use web_fetch tool for plain fetching
+description: 操控用户真实浏览器（需 Chrome 扩展连接），用于需要用户当前登录态的场景（如社交媒体发帖）。无头自动化请用 agent-browser | Control user's real Chrome browser (requires extension). For headless automation use agent-browser skill instead
 ---
 
 Control the user's real browser (with their logins/cookies) via the AgentClaw Browser Bridge extension.

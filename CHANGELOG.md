@@ -3,6 +3,7 @@
 ## [1.3.12] - 2026-03-14
 
 ### 新增
+- **agent-browser 集成**：引入 Vercel agent-browser（Rust 原生无头浏览器，7MB 安装 / 8MB 内存），140+ 命令覆盖导航、交互、截图、网络拦截、设备模拟，支持登录态持久化（state 文件 / session / profile / 从用户 Chrome 导入）
 - **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）
 
 ### 安全

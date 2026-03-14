@@ -429,10 +429,25 @@ textarea:focus {
 }
 
 .sidebar-projects-new {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
   color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .sidebar-projects-new:hover {
+  background: var(--bg-tertiary);
   color: var(--accent);
 }
 

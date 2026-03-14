@@ -238,7 +238,7 @@ export function Layout() {
                   setCreateModalOpen(true);
                 }}
               >
-                <IconEdit size={14} />
+                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
                 {t("nav.newProject")}
               </button>
               {projects.map((p) => (

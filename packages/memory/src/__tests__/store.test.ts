@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import Database from "better-sqlite3";
 import { initDatabase } from "../database.js";
+import type { DbAdapter } from "../db-adapter.js";
 import { SQLiteMemoryStore } from "../store.js";
 import type {
   SessionData,
@@ -9,7 +9,7 @@ import type {
 
 // ── 辅助函数 ──
 
-function createStore(): { db: Database.Database; store: SQLiteMemoryStore } {
+function createStore(): { db: DbAdapter; store: SQLiteMemoryStore } {
   const db = initDatabase(":memory:");
   const store = new SQLiteMemoryStore(db);
   return { db, store };
@@ -85,7 +85,7 @@ describe("initDatabase — 数据库初始化", () => {
 
 describe("SQLiteMemoryStore — 会话 CRUD", () => {
   let store: SQLiteMemoryStore;
-  let db: Database.Database;
+  let db: DbAdapter;
 
   beforeEach(() => {
     ({ db, store } = createStore());
@@ -155,7 +155,7 @@ describe("SQLiteMemoryStore — 会话 CRUD", () => {
 
 describe("SQLiteMemoryStore — 对话轮次", () => {
   let store: SQLiteMemoryStore;
-  let db: Database.Database;
+  let db: DbAdapter;
 
   beforeEach(() => {
     ({ db, store } = createStore());
@@ -244,7 +244,7 @@ describe("SQLiteMemoryStore — 对话轮次", () => {
 
 describe("SQLiteMemoryStore — 记忆 CRUD", () => {
   let store: SQLiteMemoryStore;
-  let db: Database.Database;
+  let db: DbAdapter;
 
   beforeEach(() => {
     ({ db, store } = createStore());
@@ -398,7 +398,7 @@ describe("SQLiteMemoryStore — 记忆 CRUD", () => {
 
 describe("SQLiteMemoryStore — FTS5 全文搜索", () => {
   let store: SQLiteMemoryStore;
-  let db: Database.Database;
+  let db: DbAdapter;
 
   beforeEach(() => {
     ({ db, store } = createStore());
@@ -474,7 +474,7 @@ describe("SQLiteMemoryStore — FTS5 全文搜索", () => {
 
 describe("SQLiteMemoryStore — Token 日志", () => {
   let store: SQLiteMemoryStore;
-  let db: Database.Database;
+  let db: DbAdapter;
 
   beforeEach(() => {
     ({ db, store } = createStore());
@@ -560,7 +560,7 @@ describe("SQLiteMemoryStore — Token 日志", () => {
 
 describe("SQLiteMemoryStore — 使用统计", () => {
   let store: SQLiteMemoryStore;
-  let db: Database.Database;
+  let db: DbAdapter;
 
   beforeEach(() => {
     ({ db, store } = createStore());

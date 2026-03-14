@@ -22,6 +22,8 @@ import { TaskManager } from "@agentclaw/core";
 
 export { bootstrap } from "./bootstrap.js";
 export type { AppContext, AppRuntimeConfig } from "./bootstrap.js";
+export { loadConfig, saveConfig, maskConfig, maskApiKey, getConfigPath } from "./config.js";
+export type { AppConfig } from "./config.js";
 export { createServer } from "./server.js";
 export type { ServerOptions } from "./server.js";
 export { TaskScheduler } from "./scheduler.js";

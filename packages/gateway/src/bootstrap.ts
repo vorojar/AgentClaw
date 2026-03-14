@@ -32,6 +32,7 @@ import {
   formatHealthResults,
   type HealthCheckResult,
 } from "./health-check.js";
+import { loadConfig, type AppConfig } from "./config.js";
 
 export interface AppContext {
   provider: LLMProvider;
@@ -41,6 +42,8 @@ export interface AppContext {
   memoryStore: SQLiteMemoryStore;
   skillRegistry: SkillRegistryImpl;
   config: AppRuntimeConfig;
+  /** 完整的应用配置（来自 config.json + 环境变量） */
+  appConfig: AppConfig;
   scheduler: TaskScheduler;
   agents: AgentProfile[];
   /** Reload agents from DB and update orchestrator */
@@ -67,12 +70,12 @@ export interface AppRuntimeConfig {
  * Collect all configured providers in priority order.
  * The first provider uses DEFAULT_MODEL; backup providers use their own defaults.
  */
-function collectProviders(): {
+function collectProviders(cfg: AppConfig): {
   provider: LLMProvider;
   providerName: string;
   model?: string;
 } {
-  const defaultModel = process.env.DEFAULT_MODEL;
+  const defaultModel = cfg.defaultModel;
 
   // Provider candidates in priority order: first configured wins the default model
   const candidates: Array<{
@@ -80,7 +83,7 @@ function collectProviders(): {
     create: (isFirst: boolean) => LLMProvider;
   }> = [];
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const anthropicKey = cfg.anthropicApiKey;
   if (anthropicKey) {
     candidates.push({
       name: "claude",
@@ -92,9 +95,9 @@ function collectProviders(): {
     });
   }
 
-  const openaiKey = process.env.OPENAI_API_KEY;
+  const openaiKey = cfg.openaiApiKey;
   if (openaiKey) {
-    const baseURL = process.env.OPENAI_BASE_URL;
+    const baseURL = cfg.openaiBaseUrl;
     candidates.push({
       name: "openai",
       create: (isFirst) =>
@@ -107,7 +110,7 @@ function collectProviders(): {
     });
   }
 
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const geminiKey = cfg.geminiApiKey;
   if (geminiKey) {
     candidates.push({
       name: "gemini",
@@ -122,10 +125,10 @@ function collectProviders(): {
   // Fallback: local Ollama when no cloud key is set
   if (candidates.length === 0) {
     const baseURL =
-      process.env.OLLAMA_BASE_URL ||
+      cfg.ollamaBaseUrl ||
       process.env.LLM_BASE_URL ||
       "http://localhost:11434/v1";
-    const model = process.env.OLLAMA_MODEL || defaultModel || "llama3";
+    const model = cfg.ollamaModel || defaultModel || "llama3";
     const localProvider = new OpenAICompatibleProvider({
       apiKey: "ollama",
       baseURL,
@@ -149,20 +152,21 @@ function collectProviders(): {
 }
 
 /**
- * Create an optional provider from environment variables.
+ * Create an optional provider from config fields.
  * Used for vision and fast providers which share the same configuration pattern.
- * Returns null if the API key env var is not set.
+ * Returns null if the API key is not set.
  */
 function createOptionalProvider(
-  envPrefix: string,
+  apiKey: string | undefined,
+  providerType: string | undefined,
+  model: string | undefined,
+  baseURL: string | undefined,
+  label: string,
   fallbackName: string,
 ): { provider: LLMProvider; type: string; model?: string } | null {
-  const apiKey = process.env[`${envPrefix}_API_KEY`];
   if (!apiKey) return null;
 
-  const baseURL = process.env[`${envPrefix}_BASE_URL`];
-  const model = process.env[`${envPrefix}_MODEL`];
-  const type = process.env[`${envPrefix}_PROVIDER`] || "openai";
+  const type = providerType || "openai";
 
   let provider: LLMProvider;
   if (type === "claude") {
@@ -179,22 +183,32 @@ function createOptionalProvider(
   }
 
   console.log(
-    `[bootstrap] ${envPrefix.charAt(0) + envPrefix.slice(1).toLowerCase()} provider: ${type}, model: ${model ?? "default"}`,
+    `[bootstrap] ${label} provider: ${type}, model: ${model ?? "default"}`,
   );
   return { provider, type, model };
 }
 
 export async function bootstrap(): Promise<AppContext> {
+  // 加载统一配置（config.json + 环境变量 + 默认值）
+  const cfg = loadConfig();
+
   // Database setup
-  const databasePath = process.env.DB_PATH || "./data/agentclaw.db";
+  const databasePath = cfg.dbPath;
   mkdirSync(dirname(databasePath), { recursive: true });
   const db = initDatabase(databasePath);
 
   // Provider (with automatic failover when multiple API keys are configured)
-  const { provider, providerName, model } = collectProviders();
+  const { provider, providerName, model } = collectProviders(cfg);
 
   // Vision provider (optional, for multimodal image support)
-  const visionResult = createOptionalProvider("VISION", "vision");
+  const visionResult = createOptionalProvider(
+    cfg.visionApiKey,
+    cfg.visionProvider,
+    cfg.visionModel,
+    undefined,
+    "Vision",
+    "vision",
+  );
   const visionProvider = visionResult?.provider;
   const visionProviderName = visionResult?.type;
   const visionModelName = visionResult?.model;
@@ -205,7 +219,14 @@ export async function bootstrap(): Promise<AppContext> {
   }
 
   // Fast provider (optional, for simple chat routing)
-  const fastResult = createOptionalProvider("FAST", "fast");
+  const fastResult = createOptionalProvider(
+    cfg.fastApiKey,
+    cfg.fastProvider,
+    cfg.fastModel,
+    undefined,
+    "Fast",
+    "fast",
+  );
   const fastProvider = fastResult?.provider;
   const fastProviderName = fastResult?.type;
   const fastModelName = fastResult?.model;
@@ -265,7 +286,7 @@ export async function bootstrap(): Promise<AppContext> {
   const memoryStore = new SQLiteMemoryStore(db);
 
   // Embedding: prefer dedicated Volcano Engine API, fallback to LLM provider
-  const volcanoEmbedKey = process.env.VOLCANO_EMBEDDING_KEY;
+  const volcanoEmbedKey = cfg.volcanoEmbeddingKey;
   if (volcanoEmbedKey) {
     const embedding = new VolcanoEmbedding({
       apiKey: volcanoEmbedKey,
@@ -326,10 +347,7 @@ export async function bootstrap(): Promise<AppContext> {
   );
 
   // Load system prompt from external file, with runtime variable substitution
-  const systemPromptPath = resolve(
-    process.cwd(),
-    process.env.SYSTEM_PROMPT_FILE || "system-prompt.md",
-  );
+  const systemPromptPath = resolve(process.cwd(), cfg.systemPromptFile);
   let defaultSystemPrompt: string;
 
   // 启动时运行健康检查，将结果注入系统提示词
@@ -404,7 +422,7 @@ export async function bootstrap(): Promise<AppContext> {
   const scheduler = new TaskScheduler(memoryStore);
 
   // Skill registry
-  const skillsDir = process.env.SKILLS_DIR || "./skills/";
+  const skillsDir = cfg.skillsDir;
   const skillRegistry = new SkillRegistryImpl();
   skillRegistry.setSettingsPath(
     resolve(process.cwd(), "data", "skill-settings.json"),
@@ -419,9 +437,7 @@ export async function bootstrap(): Promise<AppContext> {
   );
 
   // Orchestrator
-  const maxIterations = process.env.MAX_ITERATIONS
-    ? parseInt(process.env.MAX_ITERATIONS, 10)
-    : undefined;
+  const maxIterations = cfg.maxIterations;
 
   const orchestrator = new SimpleOrchestrator({
     provider,
@@ -496,6 +512,7 @@ export async function bootstrap(): Promise<AppContext> {
     memoryStore,
     skillRegistry,
     config,
+    appConfig: cfg,
     scheduler,
     agents,
     refreshAgents,

@@ -369,6 +369,31 @@ export interface AppConfigInfo {
   databasePath: string;
   skillsDir: string;
   dailyBriefTime?: string;
+  // LLM keys（脱敏后的值）
+  anthropicApiKey?: string;
+  openaiApiKey?: string;
+  openaiBaseUrl?: string;
+  geminiApiKey?: string;
+  defaultModel?: string;
+  // Vision / Fast
+  visionApiKey?: string;
+  visionProvider?: string;
+  visionModel?: string;
+  fastApiKey?: string;
+  fastProvider?: string;
+  fastModel?: string;
+  // Server
+  port?: number;
+  host?: string;
+  apiKey?: string;
+  dbPath?: string;
+  systemPromptFile?: string;
+  // Optional
+  maxIterations?: number;
+  ollamaBaseUrl?: string;
+  ollamaModel?: string;
+  volcanoEmbeddingKey?: string;
+  searxngUrl?: string;
 }
 
 export function getConfig(): Promise<AppConfigInfo> {
@@ -381,6 +406,38 @@ export function updateConfig(
   return request("/config", {
     method: "PUT",
     body: JSON.stringify(updates),
+  });
+}
+
+/** 更新应用配置（写入 config.json） */
+export function updateAppConfig(
+  config: Partial<AppConfigInfo>,
+): Promise<AppConfigInfo> {
+  return request("/config", {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
+/** 验证 LLM API key 有效性 */
+export interface ValidateParams {
+  provider: string;
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+}
+
+export interface ValidateResult {
+  valid: boolean;
+  error?: string;
+}
+
+export function validateApiKey(
+  params: ValidateParams,
+): Promise<ValidateResult> {
+  return request("/config/validate", {
+    method: "POST",
+    body: JSON.stringify(params),
   });
 }
 

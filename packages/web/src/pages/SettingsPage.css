@@ -357,6 +357,70 @@
   gap: 10px;
 }
 
+/* ── Config editor ── */
+.config-key-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.config-key-row .config-input {
+  flex: 1;
+}
+
+.config-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.config-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle-bg);
+}
+
+.config-input::placeholder {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.config-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.config-validate-msg {
+  font-size: 13px;
+}
+
+.config-validate-msg.success {
+  color: var(--accent);
+}
+
+.config-validate-msg.error {
+  color: var(--error);
+}
+
+.config-save-msg {
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.config-save-msg.success {
+  color: var(--accent);
+}
+
 /* ── Responsive: collapse settings menu on small screens ── */
 @media (max-width: 768px) {
   .settings-layout {

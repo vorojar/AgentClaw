@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { createDatabase, type DbAdapter } from "./db-adapter.js";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS conversations (
@@ -170,12 +170,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
  * Initialize (or open) a SQLite database at the given path
  * and ensure all required tables exist.
  */
-export function initDatabase(dbPath: string): Database.Database {
-  const db = new Database(dbPath);
-
-  // Enable WAL mode for better concurrent read performance
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+export function initDatabase(dbPath: string): DbAdapter {
+  // createDatabase 内部已执行 WAL + foreign_keys PRAGMA
+  const db = createDatabase(dbPath);
 
   // Execute schema creation
   db.exec(SCHEMA_SQL);
@@ -262,7 +259,7 @@ export function initDatabase(dbPath: string): Database.Database {
  * Rebuild memories table if CHECK constraint doesn't include 'identity'.
  * SQLite does not support ALTER CHECK, so we recreate the table.
  */
-function rebuildMemoriesTableIfNeeded(db: Database.Database): void {
+function rebuildMemoriesTableIfNeeded(db: DbAdapter): void {
   try {
     db.exec(
       "INSERT INTO memories (id, type, content, importance) VALUES ('__check_probe__', 'identity', '__probe__', 0)",
@@ -295,7 +292,7 @@ function rebuildMemoriesTableIfNeeded(db: Database.Database): void {
  * SQLite does not support ALTER CHECK, so we recreate the table.
  * The rebuilt table drops CHECK constraints entirely to avoid future migration pain.
  */
-function rebuildTasksTableIfNeeded(db: Database.Database): void {
+function rebuildTasksTableIfNeeded(db: DbAdapter): void {
   // Probe with 'triaged' status — if CHECK rejects it, we need to rebuild
   try {
     db.exec(
@@ -331,7 +328,7 @@ function rebuildTasksTableIfNeeded(db: Database.Database): void {
 }
 
 /** Count rows in a table */
-function countRows(db: Database.Database, table: string): number {
+function countRows(db: DbAdapter, table: string): number {
   return (
     db.prepare(`SELECT COUNT(*) AS cnt FROM ${table}`).get() as { cnt: number }
   ).cnt;
@@ -339,7 +336,7 @@ function countRows(db: Database.Database, table: string): number {
 
 /** Add a column to a table if it doesn't already exist */
 function addColumnIfMissing(
-  db: Database.Database,
+  db: DbAdapter,
   table: string,
   column: string,
   type: string,

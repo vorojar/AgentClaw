@@ -1,5 +1,13 @@
 # 更新日志
 
+## [1.3.13] - 2026-03-14
+
+### 新增
+- **统一配置系统**：新增 `config.json` 配置文件支持，gateway 启动时合并 config.json + 环境变量 + .env（优先级：环境变量 > config.json > .env > 默认值），为桌面版 GUI 配置铺路
+- **配置 REST API**：`GET /api/config`（脱敏返回）、`PUT /api/config`（合并写入）、`POST /api/config/validate`（验证 API key 有效性）
+- **Settings 配置编辑**：Settings 页面 General tab 新增 API Key 编辑区，支持 Anthropic/OpenAI/Gemini 三家 provider 的密钥输入、验证和保存
+- **SQLite 数据库适配层**：`db-adapter.ts` 抽象层屏蔽 better-sqlite3 / bun:sqlite 差异，为 Bun 单文件桌面打包做准备
+
 ## [1.3.12] - 2026-03-14
 
 ### 新增

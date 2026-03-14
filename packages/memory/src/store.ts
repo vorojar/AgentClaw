@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { DbAdapter } from "./db-adapter.js";
 import { randomUUID } from "node:crypto";
 import type {
   MemoryStore,
@@ -30,12 +30,12 @@ export type EmbedFn = (texts: string[]) => Promise<number[][]>;
  * When no LLM embed function is provided, falls back to SimpleBagOfWords.
  */
 export class SQLiteMemoryStore implements MemoryStore {
-  private db: Database.Database;
+  private db: DbAdapter;
   private embedFn?: EmbedFn;
   private bow: SimpleBagOfWords;
   private hasFts: boolean;
 
-  constructor(db: Database.Database, embedFn?: EmbedFn) {
+  constructor(db: DbAdapter, embedFn?: EmbedFn) {
     this.db = db;
     this.embedFn = embedFn;
     this.bow = new SimpleBagOfWords(512);
@@ -1310,7 +1310,7 @@ interface MemoryRow {
   content: string;
   source_turn_id: string | null;
   importance: number;
-  embedding: Buffer | null;
+  embedding: Buffer | Uint8Array | null;
   created_at: string;
   accessed_at: string;
   access_count: number;

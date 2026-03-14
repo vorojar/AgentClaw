@@ -23,6 +23,7 @@ export default defineConfig({
     "xlsx",
     "@sentry/node",
     "ws",
+    "@fastify/static",
     "@wecom/aibot-node-sdk",
     "node-edge-tts",
     "sherpa-onnx-node",

@@ -120,10 +120,10 @@ export async function createServer(
   // Preview: /preview/xxx.{md,docx,xlsx,csv,pptx} → rendered HTML
   registerPreviewRoutes(app, dataTmpDir);
 
-  // Serve Web UI static files (built by @agentclaw/web)
+  // 托管 Web UI 静态文件（生产模式；设置 SERVE_STATIC=false 可关闭，开发时用 Vite dev server）
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const webDistDir = resolve(__dirname, "../../web/dist");
-  if (existsSync(webDistDir)) {
+  if (process.env.SERVE_STATIC !== "false" && existsSync(webDistDir)) {
     await app.register(fastifyStatic, {
       root: webDistDir,
       prefix: "/",

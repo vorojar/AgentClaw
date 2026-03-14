@@ -356,6 +356,24 @@
   "fileDrop": {
     "dropHere": "Drop files here"
   },
+  "setup": {
+    "welcomeTitle": "Welcome to AgentClaw",
+    "welcomeSubtitle": "Let's set up your LLM provider to get started. It only takes a minute.",
+    "getStarted": "Get Started",
+    "skipSetup": "Skip for now",
+    "providerTitle": "Choose a Provider",
+    "providerSubtitle": "Select the LLM provider you'd like to use.",
+    "credentialsTitle": "Enter Credentials",
+    "credentialsSubtitle": "Provide your API key to connect to the provider.",
+    "modelName": "Model Name",
+    "enterKeyFirst": "Please enter an API key first",
+    "validationFailed": "Validation failed",
+    "validating": "Validating...",
+    "validateAndSave": "Validate & Save",
+    "completeTitle": "All Set!",
+    "completeSubtitle": "Your LLM provider is configured. You can change it anytime in Settings.",
+    "startChatting": "Start Chatting"
+  },
   "project": {
     "notFound": "Project not found",
     "sessionsCount": "{{count}} sessions",

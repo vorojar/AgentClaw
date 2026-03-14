@@ -356,6 +356,24 @@
   "fileDrop": {
     "dropHere": "拖放文件到此处"
   },
+  "setup": {
+    "welcomeTitle": "欢迎使用 AgentClaw",
+    "welcomeSubtitle": "让我们配置 LLM 提供商来开始使用，只需一分钟。",
+    "getStarted": "开始配置",
+    "skipSetup": "暂时跳过",
+    "providerTitle": "选择提供商",
+    "providerSubtitle": "选择你想使用的 LLM 提供商。",
+    "credentialsTitle": "输入凭证",
+    "credentialsSubtitle": "提供 API Key 以连接到提供商。",
+    "modelName": "模型名称",
+    "enterKeyFirst": "请先输入 API Key",
+    "validationFailed": "验证失败",
+    "validating": "验证中...",
+    "validateAndSave": "验证并保存",
+    "completeTitle": "配置完成！",
+    "completeSubtitle": "LLM 提供商已配置完毕。你可以随时在设置中修改。",
+    "startChatting": "开始对话"
+  },
   "project": {
     "notFound": "项目不存在",
     "sessionsCount": "{{count}} 个会话",

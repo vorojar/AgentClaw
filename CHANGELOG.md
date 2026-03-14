@@ -7,6 +7,9 @@
 - **配置 REST API**：`GET /api/config`（脱敏返回）、`PUT /api/config`（合并写入）、`POST /api/config/validate`（验证 API key 有效性）
 - **Settings 配置编辑**：Settings 页面 General tab 新增 API Key 编辑区，支持 Anthropic/OpenAI/Gemini 三家 provider 的密钥输入、验证和保存
 - **SQLite 数据库适配层**：`db-adapter.ts` 抽象层屏蔽 better-sqlite3 / bun:sqlite 差异，为 Bun 单文件桌面打包做准备
+- **Tauri v2 桌面壳**：`packages/desktop` — Rust 窗口管理、系统托盘（最小化到托盘）、sidecar 生命周期管理（自动启停 gateway 进程）
+- **Setup Wizard**：首次启动引导页面，4 步流程选择 LLM Provider → 输入 API Key → 验证 → 开始使用
+- **静态文件托管**：gateway 生产模式自动托管 web 前端，`SERVE_STATIC=false` 可关闭
 
 ## [1.3.12] - 2026-03-14
 

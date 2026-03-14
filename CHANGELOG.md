@@ -11,11 +11,16 @@
 - **Setup Wizard**：首次启动引导页面，4 步流程选择 LLM Provider → 输入 API Key → 验证 → 开始使用
 - **静态文件托管**：gateway 生产模式自动托管 web 前端，`SERVE_STATIC=false` 可关闭
 - **Bun 单文件编译**：`build-sidecar.ts` 脚本将 gateway 编译为平台原生可执行文件（130MB，含 Bun runtime + SQLite）
-- **桌面版 CI/CD**：GitHub Actions 三平台自动构建（Windows/macOS/Linux），push tag 触发，生成 .msi/.dmg/.AppImage 安装包
+- **桌面版 CI/CD**：GitHub Actions 三平台自动构建（Windows/macOS/Linux），push tag 触发，生成 .exe/.dmg/.deb 安装包
+- **配置引导弹层**：未配置 LLM API Key 时发消息自动弹出 SetupWizard（选 Provider → 填 Key → 验证），无需手动找设置页
 
 ### 修复
-- **Biome lint 全量修复**：自动修复 63 个文件的 lint 问题（未使用 import、模板字符串、a11y 等），CI lint 检查通过
-- **Linux 打包格式**：AppImage → deb（ubuntu-22.04 linuxdeploy FUSE 兼容问题）
+- **Tauri 启动 panic**：移除 `plugins.shell.sidecar` 无效字段，修复反序列化失败导致的静默崩溃
+- **NSIS 内嵌 WebView2**：安装包自动引导安装 WebView2 运行时，避免缺失时无提示启动失败
+- **静态文件 404**：移除 fastify-static `wildcard:false` 限制，修复 `/assets/` 子目录文件无法提供
+- **应用图标**：替换为 512x512 高清龙虾图标，修复托盘图标为空
+- **Biome lint 全量修复**：自动修复 63 个文件的 lint 问题
+- **Linux 打包格式**：AppImage → deb（linuxdeploy FUSE 兼容问题）
 
 ## [1.3.12] - 2026-03-14
 

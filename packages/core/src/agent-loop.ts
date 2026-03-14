@@ -536,6 +536,17 @@ export class SimpleAgentLoop implements AgentLoop {
         streamError = err instanceof Error ? err : new Error(String(err));
         console.error(`[agent-loop] LLM stream error: ${streamError.message}`);
         yield this.createEvent("error", { error: streamError.message });
+      } finally {
+        // 确保 LLM stream 资源释放，防止 abort/break 后 HTTP 连接悬挂
+        const s = stream as AsyncIterable<unknown> & {
+          abort?: () => void;
+          return?: () => Promise<unknown>;
+        };
+        if (typeof s.abort === "function") {
+          s.abort();
+        } else if (typeof s.return === "function") {
+          await s.return();
+        }
       }
 
       // Compute per-iteration delta

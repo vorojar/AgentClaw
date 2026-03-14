@@ -104,65 +104,69 @@ export class ClaudeProvider extends BaseLLMProvider {
     let cacheReadTokens = 0;
     let stopReason: string | null = null;
 
-    for await (const event of stream) {
-      const ev = event as unknown as Record<string, unknown>;
+    try {
+      for await (const event of stream) {
+        const ev = event as unknown as Record<string, unknown>;
 
-      switch (event.type) {
-        case "message_start": {
-          const usage = (ev.message as Record<string, unknown>)?.usage as
-            | Record<string, number>
-            | undefined;
-          if (usage) {
-            tokensIn = usage.input_tokens ?? 0;
-            tokensOut = usage.output_tokens ?? 0;
-            cacheCreationTokens = usage.cache_creation_input_tokens ?? 0;
-            cacheReadTokens = usage.cache_read_input_tokens ?? 0;
+        switch (event.type) {
+          case "message_start": {
+            const usage = (ev.message as Record<string, unknown>)?.usage as
+              | Record<string, number>
+              | undefined;
+            if (usage) {
+              tokensIn = usage.input_tokens ?? 0;
+              tokensOut = usage.output_tokens ?? 0;
+              cacheCreationTokens = usage.cache_creation_input_tokens ?? 0;
+              cacheReadTokens = usage.cache_read_input_tokens ?? 0;
+            }
+            break;
           }
-          break;
-        }
-        case "message_delta": {
-          const usage = ev.usage as Record<string, number> | undefined;
-          if (usage?.output_tokens) tokensOut = usage.output_tokens;
-          const delta = ev.delta as Record<string, string> | undefined;
-          if (delta?.stop_reason) stopReason = delta.stop_reason;
-          break;
-        }
-        case "content_block_start": {
-          const block = event.content_block;
-          if (block.type === "tool_use") {
+          case "message_delta": {
+            const usage = ev.usage as Record<string, number> | undefined;
+            if (usage?.output_tokens) tokensOut = usage.output_tokens;
+            const delta = ev.delta as Record<string, string> | undefined;
+            if (delta?.stop_reason) stopReason = delta.stop_reason;
+            break;
+          }
+          case "content_block_start": {
+            const block = event.content_block;
+            if (block.type === "tool_use") {
+              yield {
+                type: "tool_use_start",
+                toolUse: { id: block.id, name: block.name, input: "" },
+              };
+            }
+            break;
+          }
+          case "content_block_delta": {
+            const delta = event.delta;
+            if (delta.type === "text_delta") {
+              yield { type: "text", text: delta.text };
+            } else if (delta.type === "input_json_delta") {
+              yield {
+                type: "tool_use_delta",
+                toolUse: { id: "", name: "", input: delta.partial_json },
+              };
+            }
+            break;
+          }
+          case "message_stop":
             yield {
-              type: "tool_use_start",
-              toolUse: { id: block.id, name: block.name, input: "" },
+              type: "done",
+              usage: {
+                tokensIn,
+                tokensOut,
+                cacheCreationTokens: cacheCreationTokens || undefined,
+                cacheReadTokens: cacheReadTokens || undefined,
+              },
+              model,
+              stopReason: this.mapStopReason(stopReason),
             };
-          }
-          break;
+            break;
         }
-        case "content_block_delta": {
-          const delta = event.delta;
-          if (delta.type === "text_delta") {
-            yield { type: "text", text: delta.text };
-          } else if (delta.type === "input_json_delta") {
-            yield {
-              type: "tool_use_delta",
-              toolUse: { id: "", name: "", input: delta.partial_json },
-            };
-          }
-          break;
-        }
-        case "message_stop":
-          yield {
-            type: "done",
-            usage: {
-              tokensIn,
-              tokensOut,
-              cacheCreationTokens: cacheCreationTokens || undefined,
-              cacheReadTokens: cacheReadTokens || undefined,
-            },
-            model,
-            stopReason: this.mapStopReason(stopReason),
-          };
-          break;
       }
+    } finally {
+      stream.abort();
     }
   }
 

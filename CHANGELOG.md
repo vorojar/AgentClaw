@@ -23,6 +23,10 @@
 ### 安全
 - **WebSocket / CORS origin 校验**：新增 `ALLOWED_ORIGINS` 环境变量，限制可连接的来源域名；未配置时保持全放通（向后兼容）
 
+### 稳定性
+- **LLM 流式资源释放**：Claude provider 和 agent-loop 增加 `try/finally` 保护，用户中止对话时主动 `abort()` SDK stream，防止 HTTP 连接悬挂
+- **Context cache 清理接口**：新增 `clearConversationCache()` 方法，支持 session 关闭时释放动态上下文缓存和摘要缓存
+
 ### 移除
 - **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
 

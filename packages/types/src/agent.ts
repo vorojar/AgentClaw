@@ -89,6 +89,9 @@ export interface ContextManager {
     messages: Message[];
     skillMatch?: { name: string; confidence: number };
   }>;
+
+  /** Clear cached context for a conversation (call on session close) */
+  clearConversationCache?(conversationId: string): void;
 }
 
 /** Session — represents a user session (alias for SessionData) */

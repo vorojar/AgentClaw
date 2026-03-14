@@ -661,22 +661,20 @@ function SectionLabel({ label, text }: { label: string; text: string }) {
 
 /* ── ToolCallCard ─────────────────────────────────── */
 
-function toolCallLabel(name: string, input: string): string {
+function toolCallLabel(name: string, input: string): { name: string; summary?: string } {
   try {
     const obj = JSON.parse(input);
-    // Extract the most informative field for each tool
     const val =
       obj.command ?? obj.query ?? obj.url ?? obj.path ?? obj.pattern ??
       obj.name ?? obj.filename ?? obj.content ?? obj.skill_name;
     if (val !== undefined) {
       const s = String(val);
-      const summary = s.length > 80 ? s.slice(0, 80) + "…" : s;
-      return `${name}: ${summary}`;
+      return { name, summary: s.length > 80 ? s.slice(0, 80) + "…" : s };
     }
   } catch {
     /* not JSON */
   }
-  return name;
+  return { name };
 }
 
 /** Tools whose output is always human-readable markdown */
@@ -750,8 +748,9 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
             <IconCheck size={14} />
           )}
         </span>
-        <span className="tool-call-name" title={label}>
-          {label}
+        <span className="tool-call-name" title={label.summary ? `${label.name}: ${label.summary}` : label.name}>
+          {label.name}
+          {label.summary && <span className="tool-call-summary">: {label.summary}</span>}
         </span>
         {entry.durationMs !== undefined && (
           <span className="tool-call-duration">

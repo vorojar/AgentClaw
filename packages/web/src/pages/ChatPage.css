@@ -569,6 +569,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tool-call-summary {
+  font-weight: 400;
+  color: var(--text-muted);
+}
 
 .tool-progress-lines {
   padding: 6px 14px;

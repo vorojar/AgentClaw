@@ -1496,18 +1496,27 @@ export function ChatPage() {
       case "prompt": {
         const q = msg.question ?? "";
         setPendingPrompt(q);
-        // Show question as assistant message
-        setMessages((prev) => [
-          ...prev,
-          {
+        setActiveToolName(null);
+        // Clear thinking on previous assistant message + show question as new message
+        setMessages((prev) => {
+          const updated = [...prev];
+          // Clear thinking dots on the last assistant message
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].role === "assistant" && updated[i].thinking) {
+              updated[i] = { ...updated[i], thinking: false };
+              break;
+            }
+          }
+          updated.push({
             key: nextKey(),
             role: "assistant",
             content: q,
             createdAt: new Date().toISOString(),
             streaming: false,
             toolCalls: [],
-          },
-        ]);
+          });
+          return updated;
+        });
         break;
       }
       case "broadcast": {

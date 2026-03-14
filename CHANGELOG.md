@@ -24,6 +24,7 @@
 
 ### 修复
 - **web_fetch → agent-browser 自动降级提示**：JS 渲染页面静态抓取失败时，自动提示 LLM 切换到 agent-browser 技能获取完整内容
+- **ask_user 后 thinking 动画不消失**：收到 prompt 事件时清除前一条 assistant 消息的 thinking 状态和工具名，"..." 不再卡住
 - **send_file 自动归档到 session 目录**：LLM 用相对路径保存文件时，send_file 自动复制到 `data/tmp/{sessionId}/`，确保 `/files/` 路由可访问
 - **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale
 - **Handoff 消息缺少必填字段**：补全 `streaming` 和 `toolCalls`，消除潜在运行时崩溃

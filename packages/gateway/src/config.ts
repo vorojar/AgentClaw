@@ -12,6 +12,10 @@ export interface AppConfig {
   openaiBaseUrl?: string;
   geminiApiKey?: string;
   defaultModel?: string;
+  activeProvider?: string;
+  anthropicModel?: string;
+  openaiModel?: string;
+  geminiModel?: string;
   // Vision / Fast
   visionApiKey?: string;
   visionProvider?: string;
@@ -50,6 +54,10 @@ const ENV_MAP: Record<string, string> = {
   OPENAI_BASE_URL: "openaiBaseUrl",
   GEMINI_API_KEY: "geminiApiKey",
   DEFAULT_MODEL: "defaultModel",
+  ACTIVE_PROVIDER: "activeProvider",
+  ANTHROPIC_MODEL: "anthropicModel",
+  OPENAI_MODEL: "openaiModel",
+  GEMINI_MODEL: "geminiModel",
   VISION_API_KEY: "visionApiKey",
   VISION_PROVIDER: "visionProvider",
   VISION_MODEL: "visionModel",

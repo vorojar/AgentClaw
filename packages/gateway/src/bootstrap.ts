@@ -13,15 +13,11 @@ import {
   MCPManager,
 } from "@agentclaw/tools";
 import { initDatabase, SQLiteMemoryStore } from "@agentclaw/memory";
-import type {
-  LLMProvider,
-  Orchestrator,
-  AgentProfile,
-} from "@agentclaw/types";
+import type { LLMProvider, Orchestrator, AgentProfile } from "@agentclaw/types";
 import { mkdirSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
-import { platform, arch, homedir, } from "node:os";
+import { platform, arch, homedir } from "node:os";
 import { TaskScheduler } from "./scheduler.js";
 import {
   runHealthChecks,
@@ -63,30 +59,39 @@ export interface AppRuntimeConfig {
 }
 
 /**
- * Collect all configured providers in priority order.
- * The first provider uses DEFAULT_MODEL; backup providers use their own defaults.
+ * Get the effective model for a specific provider, falling back to defaultModel.
  */
+function getProviderModel(
+  cfg: AppConfig,
+  providerName: string,
+): string | undefined {
+  const perProvider: Record<string, string | undefined> = {
+    claude: cfg.anthropicModel,
+    openai: cfg.openaiModel,
+    gemini: cfg.geminiModel,
+  };
+  return perProvider[providerName] || cfg.defaultModel;
+}
+
 function collectProviders(cfg: AppConfig): {
   provider: LLMProvider;
   providerName: string;
   model?: string;
 } {
-  const defaultModel = cfg.defaultModel;
-
-  // Provider candidates in priority order: first configured wins the default model
-  const candidates: Array<{
+  // Provider candidates: activeProvider first, then others as failover
+  const allCandidates: Array<{
     name: string;
-    create: (isFirst: boolean) => LLMProvider;
+    create: () => LLMProvider;
   }> = [];
 
   const anthropicKey = cfg.anthropicApiKey;
   if (anthropicKey) {
-    candidates.push({
+    allCandidates.push({
       name: "claude",
-      create: (isFirst) =>
+      create: () =>
         new ClaudeProvider({
           apiKey: anthropicKey,
-          defaultModel: isFirst ? defaultModel : undefined,
+          defaultModel: getProviderModel(cfg, "claude"),
         }),
     });
   }
@@ -94,13 +99,13 @@ function collectProviders(cfg: AppConfig): {
   const openaiKey = cfg.openaiApiKey;
   if (openaiKey) {
     const baseURL = cfg.openaiBaseUrl;
-    candidates.push({
+    allCandidates.push({
       name: "openai",
-      create: (isFirst) =>
+      create: () =>
         new OpenAICompatibleProvider({
           apiKey: openaiKey,
           baseURL,
-          defaultModel: isFirst ? defaultModel : undefined,
+          defaultModel: getProviderModel(cfg, "openai"),
           providerName: "openai",
         }),
     });
@@ -108,23 +113,23 @@ function collectProviders(cfg: AppConfig): {
 
   const geminiKey = cfg.geminiApiKey;
   if (geminiKey) {
-    candidates.push({
+    allCandidates.push({
       name: "gemini",
-      create: (isFirst) =>
+      create: () =>
         new GeminiProvider({
           apiKey: geminiKey,
-          defaultModel: isFirst ? defaultModel : undefined,
+          defaultModel: getProviderModel(cfg, "gemini"),
         }),
     });
   }
 
   // Fallback: local Ollama when no cloud key is set
-  if (candidates.length === 0) {
+  if (allCandidates.length === 0) {
     const baseURL =
       cfg.ollamaBaseUrl ||
       process.env.LLM_BASE_URL ||
       "http://localhost:11434/v1";
-    const model = cfg.ollamaModel || defaultModel || "llama3";
+    const model = cfg.ollamaModel || cfg.defaultModel || "llama3";
     const localProvider = new OpenAICompatibleProvider({
       apiKey: "ollama",
       baseURL,
@@ -134,7 +139,16 @@ function collectProviders(cfg: AppConfig): {
     return { provider: localProvider, providerName: "local", model };
   }
 
-  const providers = candidates.map((c, i) => c.create(i === 0));
+  // Sort: activeProvider first, then others
+  const active = cfg.activeProvider;
+  const candidates = active
+    ? [
+        ...allCandidates.filter((c) => c.name === active),
+        ...allCandidates.filter((c) => c.name !== active),
+      ]
+    : allCandidates;
+
+  const providers = candidates.map((c) => c.create());
   const provider =
     providers.length > 1 ? new FailoverProvider(providers) : providers[0];
 
@@ -144,7 +158,9 @@ function collectProviders(cfg: AppConfig): {
     );
   }
 
-  return { provider, providerName: candidates[0].name, model: defaultModel };
+  const primaryName = candidates[0].name;
+  const model = getProviderModel(cfg, primaryName);
+  return { provider, providerName: primaryName, model };
 }
 
 /**

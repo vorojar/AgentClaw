@@ -375,6 +375,10 @@ export interface AppConfigInfo {
   openaiBaseUrl?: string;
   geminiApiKey?: string;
   defaultModel?: string;
+  activeProvider?: string;
+  anthropicModel?: string;
+  openaiModel?: string;
+  geminiModel?: string;
   // Vision / Fast
   visionApiKey?: string;
   visionProvider?: string;

@@ -385,6 +385,10 @@ export class SimpleOrchestrator implements Orchestrator {
     this.agentConfig.model = model;
   }
 
+  setProvider(provider: LLMProvider): void {
+    this.provider = provider;
+  }
+
   /** 更新系统提示词（用于健康检查等动态内容刷新） */
   updateSystemPrompt(prompt: string): void {
     this.systemPrompt = prompt;

@@ -76,8 +76,8 @@ const PROVIDER_DEFS = [
     id: "openai",
     label: "OpenAI Compatible",
     keyField: "openaiApiKey" as const,
+    modelField: "openaiModel" as const,
     hasBaseUrl: true,
-    hasModel: true,
     hint: "settings.configBaseUrlHint",
     placeholder: "sk-...",
     baseUrlPlaceholder: "https://api.openai.com/v1",
@@ -87,17 +87,19 @@ const PROVIDER_DEFS = [
     id: "anthropic",
     label: "Anthropic",
     keyField: "anthropicApiKey" as const,
+    modelField: "anthropicModel" as const,
     hasBaseUrl: false,
-    hasModel: false,
     placeholder: "sk-ant-...",
+    modelPlaceholder: "claude-sonnet-4-20250514",
   },
   {
     id: "gemini",
     label: "Google Gemini",
     keyField: "geminiApiKey" as const,
+    modelField: "geminiModel" as const,
     hasBaseUrl: false,
-    hasModel: false,
     placeholder: "AIza...",
+    modelPlaceholder: "gemini-2.0-flash",
   },
 ] as const;
 
@@ -111,23 +113,40 @@ function ConfigEditor({
 }) {
   const { t } = useTranslation();
 
-  // 每个 provider 的表单状态
+  // Per-provider form state
   const [keys, setKeys] = useState<Record<string, string>>({
-    anthropic: "", openai: "", gemini: "",
+    anthropic: "",
+    openai: "",
+    gemini: "",
   });
-  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(config.openaiBaseUrl || "");
-  const [defaultModel, setDefaultModel] = useState(config.defaultModel || config.model || "");
+  const [models, setModels] = useState<Record<string, string>>({
+    anthropic: config.anthropicModel || "",
+    openai: config.openaiModel || config.defaultModel || config.model || "",
+    gemini: config.geminiModel || "",
+  });
+  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(
+    config.openaiBaseUrl || "",
+  );
+  const [activeProvider, setActiveProvider] = useState(() => {
+    const raw = config.activeProvider || config.provider || "openai";
+    return raw === "claude" ? "anthropic" : raw;
+  });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [validating, setValidating] = useState<string | null>(null);
-  const [validateMsg, setValidateMsg] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const [validateMsg, setValidateMsg] = useState<
+    Record<string, { ok: boolean; text: string }>
+  >({});
 
   const setKey = (provider: string, value: string) =>
     setKeys((prev) => ({ ...prev, [provider]: value }));
+  const setModel = (provider: string, value: string) =>
+    setModels((prev) => ({ ...prev, [provider]: value }));
 
   /** 该 provider 是否已配置（脱敏值存在） */
-  const isConfigured = (def: typeof PROVIDER_DEFS[number]) =>
-    !!config[def.keyField] && config[def.keyField] !== t("settings.configNotSet");
+  const isConfigured = (def: (typeof PROVIDER_DEFS)[number]) =>
+    !!config[def.keyField] &&
+    config[def.keyField] !== t("settings.configNotSet");
 
   /** 排序：已配置排前面 */
   const sortedProviders = [...PROVIDER_DEFS].sort((a, b) => {
@@ -136,21 +155,49 @@ function ConfigEditor({
     return aConf - bConf;
   });
 
+  /** Map between frontend card id and backend provider name */
+  const toBackendName = (id: string) => (id === "anthropic" ? "claude" : id);
+  const toFrontendId = (name: string) =>
+    name === "claude" ? "anthropic" : name;
+
+  /** 是否有任何修改 */
+  const hasChanges = (() => {
+    for (const def of PROVIDER_DEFS) {
+      if (keys[def.id] && !isMaskedValue(keys[def.id])) return true;
+      if (models[def.id] !== (config[def.modelField] || "")) return true;
+    }
+    if (openaiBaseUrl !== (config.openaiBaseUrl || "")) return true;
+    const origActive = toFrontendId(
+      config.activeProvider || config.provider || "openai",
+    );
+    if (activeProvider !== origActive) return true;
+    return false;
+  })();
+
   const handleValidate = async (providerId: string) => {
     const apiKey = keys[providerId];
     if (!apiKey) {
-      setValidateMsg((prev) => ({ ...prev, [providerId]: { ok: false, text: t("settings.configEnterKey") } }));
+      setValidateMsg((prev) => ({
+        ...prev,
+        [providerId]: { ok: false, text: t("settings.configEnterKey") },
+      }));
       return;
     }
     setValidating(providerId);
     setValidateMsg((prev) => ({ ...prev, [providerId]: undefined as never }));
     try {
-      const params: { provider: string; apiKey: string; baseUrl?: string; model?: string } = {
-        provider: providerId === "anthropic" ? "anthropic" : providerId === "gemini" ? "gemini" : "openai",
+      const params: {
+        provider: string;
+        apiKey: string;
+        baseUrl?: string;
+        model?: string;
+      } = {
+        provider: toBackendName(providerId),
         apiKey,
       };
-      if (providerId === "openai" && openaiBaseUrl) params.baseUrl = openaiBaseUrl;
-      if (defaultModel) params.model = defaultModel;
+      if (providerId === "openai" && openaiBaseUrl)
+        params.baseUrl = openaiBaseUrl;
+      if (models[providerId]) params.model = models[providerId];
       const result = await validateApiKey(params);
       setValidateMsg((prev) => ({
         ...prev,
@@ -158,13 +205,17 @@ function ConfigEditor({
           ok: result.valid,
           text: result.valid
             ? t("settings.configKeyValid")
-            : t("settings.configKeyInvalid") + (result.error ? `: ${result.error}` : ""),
+            : t("settings.configKeyInvalid") +
+              (result.error ? `: ${result.error}` : ""),
         },
       }));
     } catch (err) {
       setValidateMsg((prev) => ({
         ...prev,
-        [providerId]: { ok: false, text: err instanceof Error ? err.message : String(err) },
+        [providerId]: {
+          ok: false,
+          text: err instanceof Error ? err.message : String(err),
+        },
       }));
     } finally {
       setValidating(null);
@@ -176,11 +227,25 @@ function ConfigEditor({
     setSaveMsg(null);
     try {
       const updates: Record<string, unknown> = {};
-      if (keys.anthropic && !isMaskedValue(keys.anthropic)) updates.anthropicApiKey = keys.anthropic;
-      if (keys.openai && !isMaskedValue(keys.openai)) updates.openaiApiKey = keys.openai;
-      if (keys.gemini && !isMaskedValue(keys.gemini)) updates.geminiApiKey = keys.gemini;
-      if (openaiBaseUrl !== (config.openaiBaseUrl || "")) updates.openaiBaseUrl = openaiBaseUrl || undefined;
-      if (defaultModel !== (config.defaultModel || config.model || "")) updates.defaultModel = defaultModel || undefined;
+      // Keys
+      if (keys.anthropic && !isMaskedValue(keys.anthropic))
+        updates.anthropicApiKey = keys.anthropic;
+      if (keys.openai && !isMaskedValue(keys.openai))
+        updates.openaiApiKey = keys.openai;
+      if (keys.gemini && !isMaskedValue(keys.gemini))
+        updates.geminiApiKey = keys.gemini;
+      // Base URL
+      if (openaiBaseUrl !== (config.openaiBaseUrl || ""))
+        updates.openaiBaseUrl = openaiBaseUrl || undefined;
+      // Per-provider models
+      for (const def of PROVIDER_DEFS) {
+        if (models[def.id] !== (config[def.modelField] || ""))
+          updates[def.modelField] = models[def.id] || undefined;
+      }
+      // Active provider
+      const origActive = config.activeProvider || config.provider || "openai";
+      if (activeProvider !== origActive)
+        updates.activeProvider = toBackendName(activeProvider);
 
       if (Object.keys(updates).length === 0) {
         setSaveMsg(t("settings.configNoChanges"));
@@ -192,7 +257,9 @@ function ConfigEditor({
       setKeys({ anthropic: "", openai: "", gemini: "" });
       onSaved();
     } catch (err) {
-      setSaveMsg(err instanceof Error ? err.message : t("settings.configSaveFailed"));
+      setSaveMsg(
+        err instanceof Error ? err.message : t("settings.configSaveFailed"),
+      );
     } finally {
       setSaving(false);
     }
@@ -204,17 +271,42 @@ function ConfigEditor({
       <div className="provider-cards">
         {sortedProviders.map((def) => {
           const configured = isConfigured(def);
+          const isActive =
+            toBackendName(activeProvider) === toBackendName(def.id);
           const msg = validateMsg[def.id];
           return (
-            <div key={def.id} className={`provider-card ${configured ? "configured" : ""}`}>
-              <div className="provider-card-header">
-                <span className="provider-card-name">{def.label}</span>
-                <span className={`provider-card-status ${configured ? "on" : ""}`}>
-                  {configured ? t("settings.providerConnected") : t("settings.providerNotSet")}
+            <div
+              key={def.id}
+              className={`provider-card${configured ? " configured" : ""}${isActive ? " active" : ""}`}
+            >
+              <div
+                className="provider-card-header"
+                onClick={() => {
+                  if (configured || keys[def.id]) {
+                    setActiveProvider(def.id);
+                  }
+                }}
+                style={{
+                  cursor: configured || keys[def.id] ? "pointer" : "default",
+                }}
+              >
+                <span className="provider-card-radio">
+                  <span
+                    className={`provider-radio${isActive ? " checked" : ""}`}
+                  />
+                  <span className="provider-card-name">{def.label}</span>
+                </span>
+                <span
+                  className={`provider-card-status ${configured ? "on" : ""}`}
+                >
+                  {configured
+                    ? t("settings.providerConnected")
+                    : t("settings.providerNotSet")}
                 </span>
               </div>
               <div className="provider-card-body">
-                <div className="config-key-row">
+                <div className="provider-card-field">
+                  <label className="provider-card-label">API Key</label>
                   <input
                     type="password"
                     className="config-input"
@@ -222,44 +314,61 @@ function ConfigEditor({
                     value={keys[def.id]}
                     onChange={(e) => setKey(def.id, e.target.value)}
                   />
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    disabled={validating === def.id || !keys[def.id]}
-                    onClick={() => handleValidate(def.id)}
-                  >
-                    {validating === def.id ? t("settings.configValidating") : t("settings.configValidate")}
-                  </button>
                 </div>
-                {msg && (
-                  <span className={`config-validate-msg ${msg.ok ? "success" : "error"}`}>
-                    {msg.text}
-                  </span>
+                {(keys[def.id] || msg) && (
+                  <div className="provider-card-aux">
+                    {keys[def.id] && (
+                      <span
+                        className={`config-validate-link${validating === def.id ? " disabled" : ""}`}
+                        onClick={() =>
+                          validating !== def.id && handleValidate(def.id)
+                        }
+                      >
+                        {validating === def.id
+                          ? t("settings.configValidating")
+                          : t("settings.configValidate")}
+                      </span>
+                    )}
+                    {msg && (
+                      <span
+                        className={`config-validate-msg ${msg.ok ? "success" : "error"}`}
+                      >
+                        {msg.text}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {def.hasBaseUrl && (
-                  <div className="provider-card-field">
-                    <label className="provider-card-label">Base URL</label>
-                    <input
-                      type="text"
-                      className="config-input"
-                      placeholder={def.baseUrlPlaceholder}
-                      value={openaiBaseUrl}
-                      onChange={(e) => setOpenaiBaseUrl(e.target.value)}
-                    />
-                    {def.hint && <span className="config-hint">{t(def.hint)}</span>}
-                  </div>
+                  <>
+                    <div className="provider-card-field">
+                      <label className="provider-card-label">Base URL</label>
+                      <input
+                        type="text"
+                        className="config-input"
+                        placeholder={def.baseUrlPlaceholder}
+                        value={openaiBaseUrl}
+                        onChange={(e) => setOpenaiBaseUrl(e.target.value)}
+                      />
+                    </div>
+                    {def.hint && (
+                      <div className="provider-card-aux">
+                        <span className="config-hint">{t(def.hint)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
-                {def.hasModel && (
-                  <div className="provider-card-field">
-                    <label className="provider-card-label">{t("settings.configDefaultModel")}</label>
-                    <input
-                      type="text"
-                      className="config-input"
-                      placeholder={def.modelPlaceholder}
-                      value={defaultModel}
-                      onChange={(e) => setDefaultModel(e.target.value)}
-                    />
-                  </div>
-                )}
+                <div className="provider-card-field">
+                  <label className="provider-card-label">
+                    {t("settings.model")}
+                  </label>
+                  <input
+                    type="text"
+                    className="config-input"
+                    placeholder={def.modelPlaceholder}
+                    value={models[def.id]}
+                    onChange={(e) => setModel(def.id, e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           );
@@ -267,11 +376,17 @@ function ConfigEditor({
       </div>
 
       <div className="settings-form-actions">
-        <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
+        <button
+          className="btn btn-primary"
+          disabled={!hasChanges || saving}
+          onClick={handleSave}
+        >
           {saving ? t("settings.configSaving") : t("settings.configSave")}
         </button>
         {saveMsg && (
-          <span className={`config-save-msg ${saveMsg === t("settings.configSaved") ? "success" : ""}`}>
+          <span
+            className={`config-save-msg ${saveMsg === t("settings.configSaved") ? "success" : ""}`}
+          >
             {saveMsg}
           </span>
         )}

@@ -11,6 +11,52 @@ import {
   OpenAICompatibleProvider,
   GeminiProvider,
 } from "@agentclaw/providers";
+import type { LLMProvider } from "@agentclaw/types";
+
+/** Rebuild the active provider from current config */
+function rebuildProvider(cfg: AppConfig): {
+  provider: LLMProvider;
+  name: string;
+  model?: string;
+} | null {
+  const active = cfg.activeProvider;
+  if (active === "claude" && cfg.anthropicApiKey) {
+    const model = cfg.anthropicModel || cfg.defaultModel;
+    return {
+      provider: new ClaudeProvider({
+        apiKey: cfg.anthropicApiKey,
+        defaultModel: model,
+      }),
+      name: "claude",
+      model,
+    };
+  }
+  if (active === "openai" && cfg.openaiApiKey) {
+    const model = cfg.openaiModel || cfg.defaultModel;
+    return {
+      provider: new OpenAICompatibleProvider({
+        apiKey: cfg.openaiApiKey,
+        baseURL: cfg.openaiBaseUrl,
+        defaultModel: model,
+        providerName: "openai",
+      }),
+      name: "openai",
+      model,
+    };
+  }
+  if (active === "gemini" && cfg.geminiApiKey) {
+    const model = cfg.geminiModel || cfg.defaultModel;
+    return {
+      provider: new GeminiProvider({
+        apiKey: cfg.geminiApiKey,
+        defaultModel: model,
+      }),
+      name: "gemini",
+      model,
+    };
+  }
+  return null;
+}
 
 export function registerConfigRoutes(
   app: FastifyInstance,
@@ -94,6 +140,24 @@ export function registerConfigRoutes(
       ) {
         ctx.config.model = (updates as any).model;
         (ctx.orchestrator as any).setModel((updates as any).model);
+      }
+
+      // 运行时切换 activeProvider — 重建 provider 实例
+      if (updates.activeProvider !== undefined) {
+        const cfg = loadConfig();
+        // Apply pending updates that haven't been saved yet
+        Object.assign(cfg, configUpdates);
+        const newProvider = rebuildProvider(cfg);
+        if (newProvider) {
+          ctx.config.provider = newProvider.name;
+          ctx.config.model = newProvider.model;
+          (ctx.orchestrator as any).setProvider(newProvider.provider);
+          if (newProvider.model) {
+            (ctx.orchestrator as any).setModel(newProvider.model);
+          }
+          // Also update the provider reference on ctx
+          (ctx as any).provider = newProvider.provider;
+        }
       }
 
       // 把配置保存到 config.json（去除 dailyBriefTime，它存在 DB 里）

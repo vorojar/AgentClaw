@@ -13,6 +13,7 @@
 - **Bun 单文件编译**：`build-sidecar.ts` 脚本将 gateway 编译为平台原生可执行文件（130MB，含 Bun runtime + SQLite）
 - **桌面版 CI/CD**：GitHub Actions 三平台自动构建（Windows/macOS/Linux），push tag 触发，生成 .exe/.dmg/.deb 安装包
 - **配置引导弹层**：未配置 LLM API Key 时发消息自动弹出 SetupWizard（选 Provider → 填 Key → 验证），无需手动找设置页
+- **Provider N 选 1 切换**：LLM 配置改为卡片式布局，每个 Provider 独立配置 API Key + 模型，radio 选中当前使用的 Provider；运行时切换 Provider 无需重启 gateway
 
 ### 修复
 - **Tauri 启动 panic**：移除 `plugins.shell.sidecar` 无效字段，修复反序列化失败导致的静默崩溃

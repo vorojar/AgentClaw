@@ -711,8 +711,12 @@ textarea:focus {
   background: var(--accent);
   color: var(--text-on-accent);
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-secondary {

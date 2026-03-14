@@ -210,6 +210,13 @@
     "title": "Memory",
     "searchPlaceholder": "Search memories...",
     "allTypes": "All Types",
+    "types": {
+      "identity": "Identity",
+      "fact": "Fact",
+      "preference": "Preference",
+      "entity": "Entity",
+      "episodic": "Episodic"
+    },
     "sortBy": "Sort by:",
     "importance": "Importance",
     "time": "Time",

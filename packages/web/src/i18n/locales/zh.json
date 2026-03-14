@@ -210,6 +210,13 @@
     "title": "记忆",
     "searchPlaceholder": "搜索记忆...",
     "allTypes": "全部类型",
+    "types": {
+      "identity": "身份",
+      "fact": "事实",
+      "preference": "偏好",
+      "entity": "实体",
+      "episodic": "经验"
+    },
     "sortBy": "排序：",
     "importance": "重要性",
     "time": "时间",

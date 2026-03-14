@@ -5,12 +5,21 @@ import { searchMemories, deleteMemory, type MemoryInfo } from "../api/client";
 import { formatDateTime } from "../utils/format";
 import "./MemoryPage.css";
 
-const MEMORY_TYPES = ["all", "fact", "preference", "entity", "episodic"];
+const MEMORY_TYPES = [
+  "all",
+  "identity",
+  "fact",
+  "preference",
+  "entity",
+  "episodic",
+];
 
 type SortMode = "importance" | "time";
 
 function typeBadgeClass(type: string): string {
   switch (type) {
+    case "identity":
+      return "badge badge-accent";
     case "fact":
       return "badge badge-info";
     case "preference":
@@ -126,7 +135,9 @@ export function MemoryPage() {
             >
               {MEMORY_TYPES.map((tp) => (
                 <option key={tp} value={tp}>
-                  {tp === "all" ? t("memory.allTypes") : tp}
+                  {tp === "all"
+                    ? t("memory.allTypes")
+                    : t(`memory.types.${tp}`, tp)}
                 </option>
               ))}
             </select>
@@ -168,7 +179,9 @@ export function MemoryPage() {
             <div key={mem.id} className="card memory-card">
               <div className="memory-card-top">
                 <div className="memory-card-left">
-                  <span className={typeBadgeClass(mem.type)}>{mem.type}</span>
+                  <span className={typeBadgeClass(mem.type)}>
+                    {t(`memory.types.${mem.type}`, mem.type)}
+                  </span>
                   <span
                     className="memory-importance"
                     title={`Importance: ${mem.importance}`}

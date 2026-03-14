@@ -766,6 +766,10 @@ textarea:focus {
   background: var(--accent-subtle-bg);
   color: var(--accent);
 }
+.badge-accent {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
 .badge-channel {
   background: var(--accent-subtle-bg);
   color: var(--accent);

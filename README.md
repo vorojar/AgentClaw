@@ -32,8 +32,9 @@ AgentClaw（指挥官）
 - **语言**: TypeScript monorepo (pnpm + Turborepo)
 - **LLM**: Claude + OpenAI 兼容 (DeepSeek/Kimi/Qwen/Doubao) + Gemini
 - **存储**: SQLite (better-sqlite3)
-- **网关**: Fastify HTTP + WebSocket + Telegram Bot + WhatsApp Bot + 钉钉 + 飞书 + QQ Bot
+- **网关**: Fastify HTTP + WebSocket + Telegram Bot + WhatsApp Bot + 钉钉 + 飞书 + QQ Bot + 企业微信
 - **前端**: React 19 + Vite (Light/Dark 主题)
+- **桌面**: Tauri v2 (Rust) + Bun sidecar，三平台安装包
 - **调度**: Cron 定时任务 + 心跳检查
 - **构建**: tsup (ESM) + Turborepo
 
@@ -49,7 +50,8 @@ agentclaw/
 │   ├── core/        — Agent Loop + Orchestrator + Planner + ContextManager + SkillRegistry + WorkflowRunner + Eval
 │   ├── gateway/     — Fastify HTTP/WS + Telegram/WhatsApp/DingTalk/Feishu/QQ Bot + 定时调度 + TaskManager
 │   ├── cli/         — 终端交互式对话
-│   └── web/         — React 19 + Vite 前端
+│   ├── web/         — React 19 + Vite 前端
+│   └── desktop/     — Tauri v2 桌面客户端 (Windows/macOS/Linux)
 ├── skills/          — 16 个技能定义 (SKILL.md)
 ├── docs/            — 架构文档 + 路线图
 └── data/            — 运行时数据 (部分 gitignored)
@@ -57,6 +59,16 @@ agentclaw/
 ```
 
 ## 快速开始
+
+### 桌面安装
+
+从 [Releases](https://github.com/vorojar/AgentClaw/releases) 下载对应平台安装包：
+
+- **Windows**: `.exe` (NSIS 安装包，内嵌 WebView2)
+- **macOS**: `.dmg`
+- **Linux**: `.deb`
+
+启动后通过 Setup Wizard 配置 LLM Provider 即可使用。
 
 ### Docker 部署（推荐）
 
@@ -265,7 +277,7 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 
 - **聊天** — WebSocket 流式输出、工具调用卡片（SubAgent 以 Mem 风格单卡片展示）、文件上传/拖拽、视频/音频播放器、多模态图片、消息重新生成、对话导出、Agent 选择
 - **任务** — Today/All Tasks/Decisions/Automations 四标签页，快速添加、决策卡片、每日简报时间配置、Task Runner 统计
-- **设置** — 二级菜单结构，整合：常规（用量统计 + 外观/主题/语言）、渠道、Agents、子代理、记忆、工具、技能、Traces、API 参考
+- **设置** — 二级菜单结构：LLM Provider N 选 1 卡片切换、用量统计、外观/主题/语言、渠道、Agents、子代理、记忆、工具、技能、Traces、API 参考
 
 ## 文档
 

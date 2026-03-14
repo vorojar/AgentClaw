@@ -15,6 +15,7 @@
 
 ### 修复
 - **Biome lint 全量修复**：自动修复 63 个文件的 lint 问题（未使用 import、模板字符串、a11y 等），CI lint 检查通过
+- **Linux 打包格式**：AppImage → deb（ubuntu-22.04 linuxdeploy FUSE 兼容问题）
 
 ## [1.3.12] - 2026-03-14
 

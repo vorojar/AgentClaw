@@ -5,7 +5,7 @@
  * 两者 API 高度相似但有细微差异，本模块提供统一抽象。
  */
 
-import { createRequire } from "module";
+import { createRequire } from "node:module";
 
 // Bun 运行时全局变量声明（仅用于运行时检测）
 declare const Bun: unknown;

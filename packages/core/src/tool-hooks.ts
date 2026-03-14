@@ -99,7 +99,7 @@ export class ToolHookManager {
 
     // shell: warn on non-zero exit code
     this.addToolHook("shell", {
-      after: async (call, result) => {
+      after: async (_call, result) => {
         const exitCode = result.metadata?.exitCode as number | undefined;
         if (exitCode !== undefined && exitCode !== 0) {
           return {

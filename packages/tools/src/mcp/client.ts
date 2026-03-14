@@ -355,7 +355,7 @@ export class MCPClient {
     if (!this.process?.stdin || this.process.stdin.destroyed) {
       throw new Error("Cannot write to MCP server: stdin is not available");
     }
-    this.process.stdin.write(JSON.stringify(message) + "\n");
+    this.process.stdin.write(`${JSON.stringify(message)}\n`);
   }
 
   /** Send a JSON-RPC request over HTTP and return the result. */

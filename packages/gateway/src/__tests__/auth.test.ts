@@ -8,7 +8,7 @@ const originalEnv = { ...process.env };
 /**
  * 创建一个最小 Fastify 实例，注册 auth hook，并添加测试路由
  */
-async function buildApp(): Promise<FastifyInstance> {
+async function _buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
   // 模拟 /health（在 auth 之前注册，与 server.ts 一致）

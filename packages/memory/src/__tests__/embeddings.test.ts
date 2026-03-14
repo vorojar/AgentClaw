@@ -96,7 +96,7 @@ describe("SimpleBagOfWords — 词袋嵌入", () => {
 
   it("CJK 字符应被分为单个 token", () => {
     const bow2 = new SimpleBagOfWords(512);
-    const vec = bow2.embed("你好世界");
+    const _vec = bow2.embed("你好世界");
     // 4 个中文字符应产生 4 个不同的 token
     expect(bow2.vocabSize).toBe(4);
   });

@@ -176,7 +176,7 @@ async function runClaudeCode(
       if (resultSummary) {
         parts.push(
           resultSummary.length > 500
-            ? resultSummary.slice(0, 500) + "..."
+            ? `${resultSummary.slice(0, 500)}...`
             : resultSummary,
         );
       }

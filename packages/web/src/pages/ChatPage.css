@@ -119,11 +119,11 @@
 }
 
 .header-dropdown-danger {
-  color: var(--error) !important;
+  color: var(--error);
 }
 
 .header-dropdown-danger:hover:not(:disabled) {
-  background: var(--error-subtle-bg) !important;
+  background: var(--error-subtle-bg);
 }
 
 .header-dropdown-sub {
@@ -758,8 +758,8 @@
 
 /* Thinking dots animation */
 .thinking-bubble {
-  padding: 10px 16px !important;
-  min-height: 0 !important;
+  padding: 10px 16px;
+  min-height: 0;
 }
 
 .thinking-indicator {
@@ -1701,7 +1701,7 @@
     display: none;
   }
   .preview-panel {
-    width: 100% !important;
+    width: 100%;
     min-width: 0;
     border-left: none;
     animation: none;

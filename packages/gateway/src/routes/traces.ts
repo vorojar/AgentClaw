@@ -58,7 +58,7 @@ export function registerTraceRoutes(
   }>("/api/task-runner-stats", async (req, reply) => {
     try {
       const since =
-        req.query.since || new Date().toISOString().slice(0, 10) + "T00:00:00";
+        req.query.since || `${new Date().toISOString().slice(0, 10)}T00:00:00`;
       const stats = await ctx.memoryStore.getBackgroundStats(since);
       return reply.send(stats);
     } catch (err: unknown) {

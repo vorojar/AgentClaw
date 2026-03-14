@@ -65,7 +65,7 @@ function extractJsonArray(raw: string): unknown[] | null {
  * Accepts loose shapes — each item needs at minimum a description or a string.
  */
 function buildSteps(items: unknown[]): PlanStep[] {
-  return items.map((item, index) => {
+  return items.map((item, _index) => {
     const obj =
       typeof item === "string"
         ? { description: item }

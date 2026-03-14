@@ -96,7 +96,7 @@ function cleanMarkdown(md: string): string {
 }
 
 /** Convert HTML to Markdown: Readability extracts article → turndown converts, fallback to full-page */
-function htmlToMarkdown(html: string, url?: string): string {
+function htmlToMarkdown(html: string, _url?: string): string {
   // Try Readability first for article extraction
   try {
     const { document } = parseHTML(html);
@@ -262,7 +262,7 @@ export const webFetchTool: Tool = {
         // Truncate content for LLM context (file has full content)
         const preview =
           content.length > 500
-            ? content.slice(0, 500) + "\n\n... [full content saved to file]"
+            ? `${content.slice(0, 500)}\n\n... [full content saved to file]`
             : content;
         return {
           content: `Saved to ${basename(saveAs)} (${content.length} chars).\n\nPreview:\n${preview}`,
@@ -279,7 +279,7 @@ export const webFetchTool: Tool = {
 
       // 内部硬上限：防止极端页面撑爆进程内存（溢出模式在 agent-loop 层处理 LLM 上下文）
       if (content.length > INTERNAL_MAX_LENGTH) {
-        content = content.slice(0, INTERNAL_MAX_LENGTH) + "\n\n... [truncated at internal safety limit]";
+        content = `${content.slice(0, INTERNAL_MAX_LENGTH)}\n\n... [truncated at internal safety limit]`;
       }
 
       return {

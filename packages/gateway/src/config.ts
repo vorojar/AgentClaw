@@ -2,8 +2,8 @@
  * 统一配置模块：支持从 config.json / 环境变量 / .env 读取配置。
  * 优先级：环境变量 > config.json > .env > 默认值
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { dirname, resolve } from "path";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 export interface AppConfig {
   // LLM
@@ -143,7 +143,7 @@ function setNested(
 /**
  * 从嵌套对象按点号路径获取值。
  */
-function getNested(obj: Record<string, unknown>, path: string): unknown {
+function _getNested(obj: Record<string, unknown>, path: string): unknown {
   const parts = path.split(".");
   let current: unknown = obj;
   for (const part of parts) {
@@ -238,7 +238,7 @@ export function saveConfig(
 export function maskApiKey(key: string | undefined): string {
   if (!key) return "";
   if (key.length <= 4) return "****";
-  return "****" + key.slice(-4);
+  return `****${key.slice(-4)}`;
 }
 
 /** 需要脱敏的字段列表 */

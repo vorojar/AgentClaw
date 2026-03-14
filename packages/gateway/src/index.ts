@@ -16,7 +16,6 @@ import { createServer } from "./server.js";
 import { HeartbeatManager } from "./heartbeat.js";
 import { getWsClients } from "./ws.js";
 import { ChannelManager } from "./channel-manager.js";
-import { runGws } from "./gws.js";
 import { collectResponse, errorMessage } from "./utils.js";
 import { TaskManager } from "@agentclaw/core";
 

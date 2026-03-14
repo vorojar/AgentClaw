@@ -13,7 +13,6 @@ import { createServer } from "node:http";
 import { URL } from "node:url";
 import { exec } from "node:child_process";
 import { platform } from "node:os";
-import * as readline from "node:readline";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
@@ -112,6 +111,6 @@ const server = createServer(async (req, res) => {
 server.listen(9876, () => {
   console.log("Opening browser for Google authorization...\n");
   console.log("If the browser doesn't open, visit this URL manually:");
-  console.log(authUrl + "\n");
+  console.log(`${authUrl}\n`);
   openBrowser(authUrl);
 });

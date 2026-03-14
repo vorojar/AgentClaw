@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, } from "node:fs";
 import { resolve as resolvePath, join } from "node:path";
 
 /** Strip markdown formatting for speech output */

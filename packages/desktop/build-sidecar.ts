@@ -8,8 +8,8 @@
  * 用法：bun run packages/desktop/build-sidecar.ts [--target=bun-windows-x64]
  */
 import { $ } from "bun";
-import { existsSync, mkdirSync, writeFileSync, rmSync } from "fs";
-import { resolve, join } from "path";
+import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { resolve, join } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const GATEWAY_ENTRY = resolve(ROOT, "packages/gateway/dist/index.js");

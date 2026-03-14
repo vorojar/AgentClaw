@@ -85,10 +85,10 @@ describe("initDatabase — 数据库初始化", () => {
 
 describe("SQLiteMemoryStore — 会话 CRUD", () => {
   let store: SQLiteMemoryStore;
-  let db: DbAdapter;
+  let _db: DbAdapter;
 
   beforeEach(() => {
-    ({ db, store } = createStore());
+    ({ _db, store } = createStore());
   });
 
   it("saveSession + getSessionById 应正确保存和读取", async () => {
@@ -244,10 +244,10 @@ describe("SQLiteMemoryStore — 对话轮次", () => {
 
 describe("SQLiteMemoryStore — 记忆 CRUD", () => {
   let store: SQLiteMemoryStore;
-  let db: DbAdapter;
+  let _db: DbAdapter;
 
   beforeEach(() => {
-    ({ db, store } = createStore());
+    ({ _db, store } = createStore());
   });
 
   it("add 应创建记忆并返回完整实体", async () => {
@@ -474,10 +474,10 @@ describe("SQLiteMemoryStore — FTS5 全文搜索", () => {
 
 describe("SQLiteMemoryStore — Token 日志", () => {
   let store: SQLiteMemoryStore;
-  let db: DbAdapter;
+  let _db: DbAdapter;
 
   beforeEach(() => {
-    ({ db, store } = createStore());
+    ({ _db, store } = createStore());
   });
 
   it("getTokenLogs 应返回 assistant 轮次的 token 信息", async () => {
@@ -560,10 +560,10 @@ describe("SQLiteMemoryStore — Token 日志", () => {
 
 describe("SQLiteMemoryStore — 使用统计", () => {
   let store: SQLiteMemoryStore;
-  let db: DbAdapter;
+  let _db: DbAdapter;
 
   beforeEach(() => {
-    ({ db, store } = createStore());
+    ({ _db, store } = createStore());
   });
 
   it("getUsageStats 应按模型聚合 token 使用量", async () => {

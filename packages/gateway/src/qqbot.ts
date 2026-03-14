@@ -233,7 +233,7 @@ export async function startQQBot(
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let lastSeq: number | null = null;
   let sessionId = "";
-  let resumeUrl = "";
+  const resumeUrl = "";
 
   // Restore chat targets from database
   try {

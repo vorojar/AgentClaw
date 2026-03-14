@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const headers: Record<string, string> = {};
         const storedKey = localStorage.getItem(STORAGE_KEY);
         if (storedKey) {
-          headers["Authorization"] = `Bearer ${storedKey}`;
+          headers.Authorization = `Bearer ${storedKey}`;
         }
         const res = await fetch("/api/config", { headers });
         if (res.status === 401) {

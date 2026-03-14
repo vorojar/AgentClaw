@@ -192,8 +192,8 @@ async function decodeSilk(inputPath: string): Promise<string> {
   const silkBuf = readFileSync(inputPath);
   const { data: pcmBuf } = await silk.decode(silkBuf, 24000);
   // Write raw PCM, then use ffmpeg to wrap as 16kHz WAV
-  const pcmPath = inputPath + ".asr.pcm";
-  const wavPath = inputPath + ".asr.wav";
+  const pcmPath = `${inputPath}.asr.pcm`;
+  const wavPath = `${inputPath}.asr.wav`;
   writeFileSync(pcmPath, pcmBuf);
   try {
     execFileSync(
@@ -227,7 +227,7 @@ async function decodeSilk(inputPath: string): Promise<string> {
 }
 
 function convertToWav(inputPath: string): string {
-  const wavPath = inputPath + ".asr.wav";
+  const wavPath = `${inputPath}.asr.wav`;
   execFileSync(
     "ffmpeg",
     ["-y", "-i", inputPath, "-ar", "16000", "-ac", "1", "-f", "wav", wavPath],

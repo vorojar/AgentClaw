@@ -164,14 +164,14 @@ export function registerConfigRoutes(
         }
 
         // 发送一个极简请求验证 key 有效性
-        let responseText = "";
+        let _responseText = "";
         for await (const chunk of llm.stream(
           [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
           [],
           { maxTokens: 10 },
         )) {
           if (chunk.type === "text") {
-            responseText += chunk.text;
+            _responseText += chunk.text;
           }
         }
 

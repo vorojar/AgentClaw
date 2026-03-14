@@ -12,7 +12,6 @@ import type {
   ToolResultContent,
   ToolExecutionContext,
   LLMProvider,
-  LLMStreamChunk,
   ContextManager,
   MemoryStore,
   ConversationTurn,
@@ -433,7 +432,7 @@ export class SimpleAgentLoop implements AgentLoop {
             return result;
           };
           if (typeof lastMsg.content === "string") {
-            lastMsg.content = rewrite(lastMsg.content) + "\n" + hintText;
+            lastMsg.content = `${rewrite(lastMsg.content)}\n${hintText}`;
           } else if (Array.isArray(lastMsg.content)) {
             for (const block of lastMsg.content as ContentBlock[]) {
               if (block.type === "text") {
@@ -618,7 +617,7 @@ export class SimpleAgentLoop implements AgentLoop {
                 : `[${f.filename}](${f.url})`;
             })
             .join("\n");
-          storedText = storedText ? storedText + "\n" + filesMd : filesMd;
+          storedText = storedText ? `${storedText}\n${filesMd}` : filesMd;
         }
       }
 
@@ -772,7 +771,7 @@ export class SimpleAgentLoop implements AgentLoop {
             if (result.isError && RETRYABLE_TOOLS.has(effectiveToolName)) {
               for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 if (this.aborted) break;
-                const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
+                const delay = RETRY_BASE_DELAY * 2 ** (attempt - 1);
                 console.log(
                   `[agent-loop] Retrying ${effectiveToolName} (attempt ${attempt}/${MAX_RETRIES}) after ${delay}ms...`,
                 );

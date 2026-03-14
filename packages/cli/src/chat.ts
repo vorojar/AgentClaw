@@ -1,7 +1,7 @@
 import * as readline from "node:readline";
 import * as path from "node:path";
 import { platform, arch, homedir } from "node:os";
-import type { LLMProvider, AgentEvent } from "@agentclaw/types";
+import type { LLMProvider, } from "@agentclaw/types";
 import {
   SimpleOrchestrator,
   SkillRegistryImpl,

@@ -1,4 +1,4 @@
-import { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { pipeline } from "node:stream/promises";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";

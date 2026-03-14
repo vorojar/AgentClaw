@@ -60,7 +60,7 @@ export function SkillsPage() {
       setSkills((prev) => prev.filter((s) => s.id !== skill.id));
     } catch (err) {
       setError(
-        "Delete failed: " + (err instanceof Error ? err.message : String(err)),
+        `Delete failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   };
@@ -76,7 +76,7 @@ export function SkillsPage() {
       setSkills(updated);
     } catch (err) {
       setError(
-        "Import failed: " + (err instanceof Error ? err.message : String(err)),
+        `Import failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setImporting(false);
@@ -94,7 +94,7 @@ export function SkillsPage() {
       setSkills(updated);
     } catch (err) {
       setError(
-        "Import failed: " + (err instanceof Error ? err.message : String(err)),
+        `Import failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setImporting(false);

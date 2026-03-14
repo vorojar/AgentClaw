@@ -86,7 +86,7 @@ export function useSessionWebSocket({
           // Don't clear isSending — agent loop is still running server-side.
           const retry = wsRetryRef.current;
           const baseDelay = Math.min(
-            1000 * Math.pow(2, Math.min(retry, 5)),
+            1000 * 2 ** Math.min(retry, 5),
             30000,
           );
           const jitter = Math.random() * 1000;
@@ -130,7 +130,7 @@ export function useSessionWebSocket({
       },
     );
     wsRef.current = conn;
-  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionId, resumingRef, streamingSessionRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Connect on session change
   useEffect(() => {

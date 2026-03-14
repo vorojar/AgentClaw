@@ -13,6 +13,9 @@
 - **Bun 单文件编译**：`build-sidecar.ts` 脚本将 gateway 编译为平台原生可执行文件（130MB，含 Bun runtime + SQLite）
 - **桌面版 CI/CD**：GitHub Actions 三平台自动构建（Windows/macOS/Linux），push tag 触发，生成 .msi/.dmg/.AppImage 安装包
 
+### 修复
+- **Biome lint 全量修复**：自动修复 63 个文件的 lint 问题（未使用 import、模板字符串、a11y 等），CI lint 检查通过
+
 ## [1.3.12] - 2026-03-14
 
 ### 新增

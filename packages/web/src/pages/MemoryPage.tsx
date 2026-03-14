@@ -67,7 +67,7 @@ export function MemoryPage() {
 
   useEffect(() => {
     fetchMemories(query, typeFilter);
-  }, [typeFilter, fetchMemories]);
+  }, [typeFilter, fetchMemories, query]);
 
   const handleQueryChange = (value: string) => {
     setQuery(value);

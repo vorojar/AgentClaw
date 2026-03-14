@@ -10,7 +10,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { useBackClose } from "../hooks/useBackClose";
 import { useNavigate } from "react-router-dom";
-import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -46,14 +45,12 @@ import {
   IconClock,
   IconChevronRight,
   IconX,
-  IconArrowLeft,
   IconExternalLink,
   IconDownload,
   IconMoreHorizontal,
   IconEdit,
   IconTrash,
   IconMic,
-  IconSkills,
   IconProjects,
   IconCode,
   IconEye,
@@ -339,7 +336,7 @@ function PreviewPanel({
     setNeedsDevServer(false);
     setViewMode("preview");
     setSourceContent("");
-  }, [href]);
+  }, []);
 
   // Fetch source content (for source view and copy)
   // For files with a separate downloadHref (e.g. md rendered via /preview/),
@@ -357,7 +354,7 @@ function PreviewPanel({
         }
       })
       .catch(() => {});
-  }, [sourceHref, isBinary, cacheBuster]);
+  }, [sourceHref, isBinary]);
 
   const handleCopy = useCallback(() => {
     if (!sourceContent) return;
@@ -669,7 +666,7 @@ function toolCallLabel(name: string, input: string): { name: string; summary?: s
       obj.name ?? obj.filename ?? obj.content ?? obj.skill_name;
     if (val !== undefined) {
       const s = String(val);
-      return { name, summary: s.length > 80 ? s.slice(0, 80) + "…" : s };
+      return { name, summary: s.length > 80 ? `${s.slice(0, 80)}…` : s };
     }
   } catch {
     /* not JSON */
@@ -1175,7 +1172,7 @@ export function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [scrollToBottom]);
 
   /* Load history */
   useEffect(() => {
@@ -1417,7 +1414,7 @@ export function ChatPage() {
               {
                 ...last,
                 content: last.content
-                  ? last.content + "\n" + fileContent
+                  ? `${last.content}\n${fileContent}`
                   : fileContent,
               },
             ];
@@ -1547,7 +1544,7 @@ export function ChatPage() {
       case "error": {
         if (msg.error?.includes("Session not found")) {
           createSession()
-            .then((ns) => {
+            .then((_ns) => {
               // session will be refreshed via context
             })
             .catch(() => {});
@@ -1575,7 +1572,8 @@ export function ChatPage() {
         break;
       }
     }
-  }, []);
+  }, [// Another channel (Telegram/WhatsApp) updated a session — refresh list
+        refreshSessions, resetStreamingLocal, setActiveToolName, startStreaming, stopStreaming]);
 
   /* WS connection lifecycle (extracted hook) */
   const {
@@ -1605,7 +1603,7 @@ export function ChatPage() {
       resetStreamingLocal();
       setPreviewFile(null);
     }
-  }, [activeSessionId]);
+  }, [activeSessionId, isSending, resetStreamingLocal]);
 
   /* Clear active tool on WS disconnect */
   useEffect(() => {
@@ -1702,15 +1700,15 @@ export function ChatPage() {
       }
     }
   }, [
-    inputValue,
-    isSending,
-    pendingFiles,
-    selectedSkill,
-    ensureSession,
-    activeSessionId,
-    connectWs,
-    setPendingSend,
-    startStreaming,
+    inputValue, 
+    isSending, 
+    pendingFiles, 
+    selectedSkill, 
+    ensureSession, 
+    activeSessionId, 
+    connectWs, 
+    setPendingSend, 
+    startStreaming, pendingPrompt, wsRef.current
   ]);
 
   const handleStop = useCallback(() => {
@@ -1724,7 +1722,7 @@ export function ChatPage() {
         return [...prev.slice(0, -1), { ...last, streaming: false }];
       return prev;
     });
-  }, []);
+  }, [resetStreamingLocal, wsRef.current]);
 
   const handleRegenerate = useCallback(() => {
     if (isSending || !wsRef.current || !lastUserText) return;
@@ -1736,7 +1734,7 @@ export function ChatPage() {
     sendTimestampRef.current = Date.now();
     startStreaming(activeSessionId);
     wsRef.current.send(lastUserText);
-  }, [isSending, lastUserText, activeSessionId, startStreaming]);
+  }, [isSending, lastUserText, activeSessionId, startStreaming, wsRef.current]);
 
   const handleEditSubmit = useCallback(
     async (msgKey: string) => {
@@ -1800,7 +1798,7 @@ export function ChatPage() {
       startStreaming(activeSessionId);
       wsRef.current!.send(text);
     },
-    [editMsgValue, isSending, activeSessionId, messages, refreshSessions, startStreaming],
+    [editMsgValue, isSending, activeSessionId, messages, refreshSessions, startStreaming, wsRef.current],
   );
 
   const handleFiles = useCallback((files: File[]) => {
@@ -1848,7 +1846,7 @@ export function ChatPage() {
       };
 
       recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((t) => { t.stop(); });
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
           recordingTimerRef.current = null;
@@ -1870,7 +1868,7 @@ export function ChatPage() {
       };
 
       recorder.onerror = () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((t) => { t.stop(); });
         setIsRecording(false);
         setRecordingTime(0);
       };
@@ -1924,7 +1922,7 @@ export function ChatPage() {
           interim += e.results[i][0].transcript;
         }
       }
-      setInputValue((base ? base + " " : "") + finals + interim);
+      setInputValue((base ? `${base} ` : "") + finals + interim);
     };
 
     rec.onend = () => {
@@ -2024,7 +2022,7 @@ export function ChatPage() {
       setInputValue(val);
       const ta = e.target;
       ta.style.height = "auto";
-      ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
+      ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
 
       // Slash command detection: only when input starts with "/"
       if (val.startsWith("/")) {

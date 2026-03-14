@@ -4,7 +4,6 @@ import * as Sentry from "@sentry/node";
 import type { AppContext } from "./bootstrap.js";
 import type {
   Message,
-  ContentBlock,
   ToolExecutionContext,
 } from "@agentclaw/types";
 import {

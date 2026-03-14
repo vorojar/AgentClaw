@@ -97,7 +97,7 @@ export async function startTelegramBot(
   ): Promise<void> {
     // Telegram limit: 1-4096 chars; show tail if overflowing
     if (text.length > 4096) {
-      text = "…" + text.slice(-(4096 - 1));
+      text = `…${text.slice(-(4096 - 1))}`;
     }
     try {
       await fetch(`${TG_API_BASE}/bot${token}/sendMessageDraft`, {
@@ -249,7 +249,7 @@ export async function startTelegramBot(
         const now = Date.now();
         if (!force && now - lastDraftTime < DRAFT_THROTTLE) return;
         const displayText = stripFileMarkdown(
-          (draftPrefix ? draftPrefix + "\n\n" : "") + accumulatedText,
+          (draftPrefix ? `${draftPrefix}\n\n` : "") + accumulatedText,
         ).trim();
         if (!displayText) return;
         lastDraftTime = now;

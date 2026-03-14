@@ -89,8 +89,8 @@ function ReactPreview({ code }: { code: string }) {
 
         const doc = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>*{margin:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;padding:16px;background:#fff;color:#1a1a1a}#__err{color:#e53e3e;font-family:monospace;font-size:13px;white-space:pre-wrap;padding:12px;background:#fff5f5;border-radius:4px}</style>
-<script crossorigin src="${REACT_CDN}/react@19/umd/react.production.min.js"><\/script>
-<script crossorigin src="${REACT_CDN}/react-dom@19/umd/react-dom.production.min.js"><\/script>
+<script crossorigin src="${REACT_CDN}/react@19/umd/react.production.min.js"></script>
+<script crossorigin src="${REACT_CDN}/react-dom@19/umd/react-dom.production.min.js"></script>
 </head><body><div id="root"></div><script>
 try{
 var {useState,useEffect,useRef,useMemo,useCallback,useReducer,useContext,createContext,Fragment}=React;
@@ -99,7 +99,7 @@ var C=window.__COMPONENT__;
 if(C){ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(C))}
 else{document.getElementById("root").innerHTML='<div id="__err">No component found. Use: export default function App() { ... }<\\/div>'}
 }catch(e){document.getElementById("root").innerHTML='<div id="__err">'+e.message+'<\\/div>'}
-<\/script></body></html>`;
+</script></body></html>`;
 
         if (!cancelled) {
           setHtml(doc);

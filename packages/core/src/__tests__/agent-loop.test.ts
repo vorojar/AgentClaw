@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SimpleAgentLoop } from "../agent-loop.js";
 import type {
   LLMProvider,
-  LLMRequest,
   LLMResponse,
   LLMStreamChunk,
   ModelInfo,
@@ -11,10 +10,8 @@ import type {
   Message,
   AgentEvent,
   Tool,
-  ToolDefinition,
   ToolExecutionContext,
   ToolResult,
-  ContentBlock,
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 

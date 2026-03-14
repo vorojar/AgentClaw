@@ -34,7 +34,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
   const apiKey = getStoredApiKey();
   if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
+    headers.Authorization = `Bearer ${apiKey}`;
   }
   const { headers: _dropHeaders, ...restOptions } = options ?? {};
   const res = await fetch(`${BASE}${path}`, {
@@ -319,7 +319,7 @@ export async function importSkillFromZip(
   const headers: Record<string, string> = {};
   const apiKey = getStoredApiKey();
   if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
+    headers.Authorization = `Bearer ${apiKey}`;
   }
   const res = await fetch(`${BASE}/skills/import/zip`, {
     method: "POST",
@@ -774,7 +774,7 @@ export async function uploadFile(
   const apiKey = getStoredApiKey();
   const headers: Record<string, string> = {};
   if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
+    headers.Authorization = `Bearer ${apiKey}`;
   }
   const res = await fetch("/api/upload", {
     method: "POST",

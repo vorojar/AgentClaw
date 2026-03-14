@@ -41,7 +41,7 @@ function findGitBash(): string | null {
     const gitRoot = gitPath
       .replace(/\\cmd\\git\.exe$/i, "")
       .replace(/\\bin\\git\.exe$/i, "");
-    const bashPath = gitRoot + "\\bin\\bash.exe";
+    const bashPath = `${gitRoot}\\bin\\bash.exe`;
     if (existsSync(bashPath)) {
       return bashPath;
     }
@@ -88,7 +88,7 @@ function detectShell(): {
       "-NoProfile",
       "-NonInteractive",
       "-Command",
-      "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + cmd,
+      `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${cmd}`,
     ],
     name: "powershell",
   };
@@ -104,7 +104,7 @@ const powershellConfig = {
     "-NoProfile",
     "-NonInteractive",
     "-Command",
-    "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + cmd,
+    `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${cmd}`,
   ],
   name: "powershell" as const,
 };
@@ -398,7 +398,7 @@ export const shellTool: Tool = {
     // ── Background mode: fire-and-forget, agent continues working ──
     if (background) {
       const bgId = `bg_${Date.now().toString(36)}`;
-      const shortCmd = command.length > 60 ? command.slice(0, 60) + "..." : command;
+      const shortCmd = command.length > 60 ? `${command.slice(0, 60)}...` : command;
       // Initialize queue if needed
       if (context && !context.backgroundQueue) context.backgroundQueue = [];
       // Fire and forget — push result to queue when done

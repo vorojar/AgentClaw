@@ -104,12 +104,12 @@ const PLATFORMS: Record<string, PlatformConfig> = {
  */
 async function execBrowserBatch(
   steps: Array<{ action: string; args?: Record<string, unknown> }>,
-  context?: ToolExecutionContext,
+  _context?: ToolExecutionContext,
 ): Promise<{ results: Array<{ step: number; action: string; ok: boolean; error?: string; [k: string]: unknown }> }> {
   const port = process.env.PORT || 3100;
   const apiKey = process.env.API_KEY || "";
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
   const res = await fetch(`http://localhost:${port}/api/browser/exec`, {
     method: "POST",

@@ -5,7 +5,6 @@ import {
   GeminiProvider,
   FailoverProvider,
   VolcanoEmbedding,
-  generateId,
 } from "@agentclaw/providers";
 import {
   ToolRegistryImpl,
@@ -17,15 +16,12 @@ import { initDatabase, SQLiteMemoryStore } from "@agentclaw/memory";
 import type {
   LLMProvider,
   Orchestrator,
-  SkillRegistry,
-  ToolRegistry,
-  MemoryStore,
   AgentProfile,
 } from "@agentclaw/types";
-import { mkdirSync, readFileSync, existsSync } from "fs";
-import { execFileSync } from "child_process";
-import { dirname, resolve } from "path";
-import { platform, arch, homedir, tmpdir } from "os";
+import { mkdirSync, readFileSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { platform, arch, homedir, } from "node:os";
 import { TaskScheduler } from "./scheduler.js";
 import {
   runHealthChecks,
@@ -367,9 +363,9 @@ export async function bootstrap(): Promise<AppContext> {
 
   // Load SOUL.md personality file (used as default agent soul)
   const soulPath = resolve(process.cwd(), "data", "SOUL.md");
-  let soul = "You are AgentClaw, a powerful AI assistant.";
+  let _soul = "You are AgentClaw, a powerful AI assistant.";
   if (existsSync(soulPath)) {
-    soul = readFileSync(soulPath, "utf-8").trim();
+    _soul = readFileSync(soulPath, "utf-8").trim();
     console.log(`[bootstrap] Soul loaded from ${soulPath}`);
   }
 

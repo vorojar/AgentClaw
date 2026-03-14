@@ -139,7 +139,7 @@ function TryPanel({ endpoint }: { endpoint: Endpoint }) {
     try {
       const apiKey = localStorage.getItem("agentclaw_api_key");
       const headers: Record<string, string> = {};
-      if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
       const res = await fetch(endpoint.path, { headers });
       const text = await res.text();
       try {

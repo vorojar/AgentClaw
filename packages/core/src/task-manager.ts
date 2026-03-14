@@ -305,7 +305,7 @@ export class TaskManager {
       .toISOString()
       .slice(0, 10);
     const completedYesterday = done.items.filter(
-      (t: any) => t.completed_at && t.completed_at.startsWith(yesterday),
+      (t: any) => t.completed_at?.startsWith(yesterday),
     );
 
     const lines: string[] = [

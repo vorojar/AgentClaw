@@ -99,7 +99,7 @@ export const subagentTool: Tool = {
                   : status === "completed"
                     ? "✓"
                     : "✗";
-              const line = result
+              const _line = result
                 ? `${statusEmoji} [${index + 1}/${total}] ${goal}\n${result}`
                 : `${statusEmoji} [${index + 1}/${total}] ${goal}`;
               context.notifyUser(

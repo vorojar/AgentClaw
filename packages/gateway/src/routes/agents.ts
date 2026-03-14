@@ -8,8 +8,8 @@ import {
   readdirSync,
   rmSync,
   existsSync,
-} from "fs";
-import { resolve } from "path";
+} from "node:fs";
+import { resolve } from "node:path";
 
 const AGENTS_DIR = resolve(process.cwd(), "data", "agents");
 
@@ -90,7 +90,7 @@ function writeAgentToFs(agent: AgentProfile): void {
   if (agent.sortOrder) config.sortOrder = agent.sortOrder;
   writeFileSync(
     resolve(dir, "config.json"),
-    JSON.stringify(config, null, 2) + "\n",
+    `${JSON.stringify(config, null, 2)}\n`,
     "utf-8",
   );
 }

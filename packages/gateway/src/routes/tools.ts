@@ -181,7 +181,7 @@ export function registerToolRoutes(
           },
         );
       }
-    } catch (err) {
+    } catch (_err) {
       rmSync(targetDir, { recursive: true, force: true });
       unlinkSync(tmpZip);
       return reply.status(500).send({ error: "Extraction failed" });

@@ -400,7 +400,7 @@ export class SimpleContextManager implements ContextManager {
     // Fallback: simple truncation
     const summary = `[Earlier conversation summary]\n${transcript}`;
     const result =
-      summary.length > 2000 ? summary.slice(0, 2000) + "\n..." : summary;
+      summary.length > 2000 ? `${summary.slice(0, 2000)}\n...` : summary;
     this.cacheSummary(cacheKey, result);
     return result;
   }
@@ -412,13 +412,13 @@ export class SimpleContextManager implements ContextManager {
       const label = turn.role === "user" ? "User" : "Assistant";
       const text =
         turn.content.length > 200
-          ? turn.content.slice(0, 200) + "..."
+          ? `${turn.content.slice(0, 200)}...`
           : turn.content;
       lines.push(`${label}: ${text}`);
     }
     const transcript = lines.join("\n");
     return transcript.length > 4000
-      ? transcript.slice(0, 4000) + "\n..."
+      ? `${transcript.slice(0, 4000)}\n...`
       : transcript;
   }
 

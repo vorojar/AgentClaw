@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -231,7 +231,8 @@ export function Layout() {
           </button>
           {projectsOpen && (
             <nav className="sidebar-projects-list">
-              <a
+              <button
+                type="button"
                 className="sidebar-projects-new"
                 onClick={() => {
                   setCreateModalOpen(true);
@@ -239,7 +240,7 @@ export function Layout() {
               >
                 <IconEdit size={14} />
                 {t("nav.newProject")}
-              </a>
+              </button>
               {projects.map((p) => (
                 <NavLink
                   key={p.id}

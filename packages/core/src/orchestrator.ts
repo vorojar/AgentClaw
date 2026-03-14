@@ -18,8 +18,8 @@ import { SimpleContextManager } from "./context-manager.js";
 import { MemoryExtractor } from "./memory-extractor.js";
 import { SimpleSubAgentManager } from "./subagent-manager.js";
 import { ToolHookManager } from "./tool-hooks.js";
-import { readdirSync, unlinkSync } from "fs";
-import { join } from "path";
+import { readdirSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 
 /** How many user turns between automatic memory extraction runs */
 const EXTRACT_EVERY_N_TURNS = 3;
@@ -395,53 +395,6 @@ export class SimpleOrchestrator implements Orchestrator {
     this.agents = new Map(agentList.map((a) => [a.id, a]));
   }
 
-  /**
-   * Spawn an independent sub-agent with its own conversation context.
-   * The sub-agent shares provider/tools but has isolated history.
-   * delegateTask is NOT passed to prevent infinite recursion.
-   */
-  private async runSubAgent(
-    task: string,
-    parentContext?: ToolExecutionContext,
-  ): Promise<string> {
-    const subConvId = generateId();
-    const subContext: ToolExecutionContext = {
-      sendFile: parentContext?.sendFile,
-      sentFiles: parentContext?.sentFiles,
-      promptUser: parentContext?.promptUser,
-      notifyUser: parentContext?.notifyUser,
-      saveMemory: parentContext?.saveMemory,
-      scheduler: this.scheduler,
-      skillRegistry: this.skillRegistry,
-      // No delegateTask — prevents recursion
-    };
-
-    const contextManager = new SimpleContextManager({
-      systemPrompt:
-        "You are a focused sub-agent. Complete the task concisely. No greetings, no explanations — just do it and report the result.",
-      memoryStore: this.memoryStore,
-      skillRegistry: this.skillRegistry,
-      provider: this.fastProvider ?? this.provider,
-    });
-
-    const loop = new SimpleAgentLoop({
-      provider: this.provider,
-      toolRegistry: this.toolRegistry,
-      contextManager,
-      memoryStore: this.memoryStore,
-      config: { ...this.agentConfig, maxIterations: 8 },
-    });
-
-    const message = await loop.run(task, subConvId, subContext);
-
-    // Extract text from response
-    if (typeof message.content === "string") return message.content;
-    return (message.content as Array<{ type: string; text?: string }>)
-      .filter((b) => b.type === "text" && b.text)
-      .map((b) => b.text!)
-      .join("\n");
-  }
-
   /** Remove *.py temp scripts from tmpDir (fire-and-forget) */
   private cleanupTmpScripts(): void {
     if (!this.tmpDir) return;
@@ -488,11 +441,11 @@ export class SimpleOrchestrator implements Orchestrator {
     // Resolve system prompt: inject agent's soul
     let systemPrompt = this.systemPrompt;
     const soul = agent?.soul ?? this.agents.get("default")?.soul ?? "";
-    if (systemPrompt && systemPrompt.includes("{{soul}}")) {
+    if (systemPrompt?.includes("{{soul}}")) {
       systemPrompt = systemPrompt.replace("{{soul}}", soul);
     } else if (soul && systemPrompt) {
       // No {{soul}} placeholder — prepend soul to system prompt
-      systemPrompt = soul + "\n\n" + systemPrompt;
+      systemPrompt = `${soul}\n\n${systemPrompt}`;
     }
 
     // Resolve platform hint for channel-specific formatting guidance
@@ -565,7 +518,7 @@ function isSimpleChat(input: string | ContentBlock[]): boolean {
           .join("");
   // Short messages without technical indicators
   if (text.length > 200) return false;
-  if (/[{}\[\]`]|https?:\/\/|data\/|\/[a-z]/i.test(text)) return false;
+  if (/[{}[\]`]|https?:\/\/|data\/|\/[a-z]/i.test(text)) return false;
   // Task-oriented keywords → use main model
   if (
     /帮我|请你|生成|创建|写[一个]|编写|修改|删除|分析|搜索|下载|打开|发送|制作|设计|翻译|总结|convert|create|write|generate|analyze|search|download|send|make|build/i.test(

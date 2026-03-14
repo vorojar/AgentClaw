@@ -9,8 +9,8 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
-      "!.claude/**",
-      "!skills/**",
+      "!.claude",
+      "!skills",
       "!**/*.min.js",
       "!**/*.min.css"
     ]

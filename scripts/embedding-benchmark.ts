@@ -95,7 +95,7 @@ interface EmbeddingMethod {
 // ── 评估函数 ──
 
 function evaluate(
-  method: string,
+  _method: string,
   memoryVectors: number[][],
   queryVectors: number[][],
 ): { recall3: number; mrr: number; details: string[] } {

@@ -13,7 +13,7 @@ import type {
 import { ToolRegistryImpl } from "@agentclaw/tools";
 import type { SkillRegistryImpl } from "./skills/registry.js";
 import { generateId } from "@agentclaw/providers";
-import { SimpleAgentLoop, IterationBudget } from "./agent-loop.js";
+import { SimpleAgentLoop, type IterationBudget } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 
 /** Tools that sub-agents must never have access to */

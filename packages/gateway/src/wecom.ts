@@ -60,7 +60,7 @@ const pendingPrompts = new Map<string, (answer: string) => void>();
 const UPLOAD_DIR = resolve(process.cwd(), "data", "uploads");
 
 /** WSClient instance (for broadcast) */
-let wsClient: WSClient | null = null;
+let _wsClient: WSClient | null = null;
 
 /** Chat keys we have seen (for broadcast via sendMessage) */
 const knownChats = new Map<string, { chatid: string; chattype: string }>();
@@ -403,7 +403,7 @@ export async function startWeComBot(
     maxReconnectAttempts: -1, // Infinite reconnect
   });
 
-  wsClient = client;
+  _wsClient = client;
 
   // Restore chat targets from database
   try {
@@ -468,7 +468,7 @@ export async function startWeComBot(
     stop: () => {
       console.log("[wecom] Channel stopping...");
       client.disconnect();
-      wsClient = null;
+      _wsClient = null;
       chatSessionMap.clear();
       pendingPrompts.clear();
       knownChats.clear();

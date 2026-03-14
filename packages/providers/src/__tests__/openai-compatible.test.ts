@@ -23,7 +23,6 @@ vi.mock("openai", () => {
         }),
       },
     };
-    constructor() {}
   }
   return { default: MockOpenAI };
 });

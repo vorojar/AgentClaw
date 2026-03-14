@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import type React from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { PageHeader } from "../components/PageHeader";
 import {
@@ -254,6 +255,7 @@ export function ChannelsPage() {
                     role="switch"
                     aria-checked={isToggleOn(ch)}
                     aria-disabled={isToggleDisabled(ch)}
+                    tabIndex={0}
                   >
                     <span className="channels-toggle-knob" />
                   </span>

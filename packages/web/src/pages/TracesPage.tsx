@@ -282,7 +282,7 @@ function ToolStep({ node }: { node: ToolNode }) {
           {!expanded && inputStr && (
             <span className="tl-preview">
               {inputStr.length > 100
-                ? inputStr.slice(0, 100) + "\u2026"
+                ? `${inputStr.slice(0, 100)}\u2026`
                 : inputStr}
             </span>
           )}

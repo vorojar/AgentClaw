@@ -7,7 +7,7 @@ import type { AppContext } from "../bootstrap.js";
 /**
  * 创建 mock AppContext，只包含测试需要的最小依赖
  */
-function createMockContext(overrides: Partial<AppContext> = {}): AppContext {
+function createMockContext(_overrides: Partial<AppContext> = {}): AppContext {
   return {
     provider: {} as any,
     orchestrator: {

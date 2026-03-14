@@ -6,9 +6,7 @@ import type {
   LLMStreamChunk,
   ModelInfo,
   MemoryStore,
-  Session,
   AgentEvent,
-  Message,
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 
@@ -252,7 +250,7 @@ describe("SimpleOrchestrator", () => {
       const session = await orchestrator.createSession();
 
       // 确认会话存在
-      let fetched = await orchestrator.getSession(session.id);
+      const fetched = await orchestrator.getSession(session.id);
       expect(fetched).toBeDefined();
 
       // 删除会话

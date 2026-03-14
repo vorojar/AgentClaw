@@ -827,7 +827,7 @@ textarea:focus {
   }
   /* Hide React backdrop while drag gesture's manual backdrop is active */
   [data-sidebar-drag] .sidebar-backdrop {
-    opacity: 0 !important;
+    opacity: 0;
     animation: none;
     pointer-events: none;
   }

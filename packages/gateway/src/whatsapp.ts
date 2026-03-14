@@ -446,9 +446,9 @@ export async function startWhatsAppBot(
           // Only respond in self-chat
           const jid = msg.key.remoteJid;
           if (!jid || !sock.user) continue;
-          const ownPN = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+          const ownPN = `${sock.user.id.split(":")[0]}@s.whatsapp.net`;
           const rawLid = (sock.user as { lid?: string }).lid;
-          const ownLID = rawLid ? rawLid.split(":")[0] + "@lid" : null;
+          const ownLID = rawLid ? `${rawLid.split(":")[0]}@lid` : null;
           if (jid !== ownPN && jid !== ownLID) continue;
 
           // Dedup

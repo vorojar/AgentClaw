@@ -94,7 +94,7 @@ export class HeartbeatManager {
 如果无事可做，只回复 "[无事可报]"。
 
 待办事项：
-${tasksSummary}${memoriesSummary ? "\n" + memoriesSummary : ""}`;
+${tasksSummary}${memoriesSummary ? `\n${memoriesSummary}` : ""}`;
 
     try {
       const session = await this.deps.orchestrator.createSession({

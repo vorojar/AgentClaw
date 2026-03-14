@@ -738,7 +738,7 @@ function ToolCallCard({ entry }: { entry: ToolCallEntry }) {
   return (
     <div className="tool-call-card">
       <div className="tool-call-header" onClick={handleToggle}>
-        <span className="tool-call-icon">
+        <span className={`tool-call-icon${entry.toolResult === undefined ? " spinning" : ""}`}>
           {entry.toolResult === undefined ? (
             <IconClock size={14} />
           ) : entry.isError ? (

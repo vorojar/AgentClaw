@@ -1,0 +1,5 @@
+
+# Bun 编译的 sidecar 二进制（不提交，CI 构建时生成）
+src-tauri/binaries/*.exe
+src-tauri/binaries/agentclaw-server-*
+.shims/

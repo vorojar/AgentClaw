@@ -1,6 +1,6 @@
 # 更新日志
 
-## [1.3.11] - 2026-03-14
+## [1.3.12] - 2026-03-14
 
 ### 新增
 - **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）
@@ -23,7 +23,7 @@
 - **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale
 - **Handoff 消息缺少必填字段**：补全 `streaming` 和 `toolCalls`，消除潜在运行时崩溃
 
-## [1.3.10] - 2026-03-13
+## [1.3.11] - 2026-03-13
 
 ### 新增
 - **Thinking 动画**：发送后即时显示轮播短语（Thinking/Pondering/Brewing… 等），工具调用期间持续显示
@@ -43,7 +43,7 @@
 ### 修复
 - **移动端返回键弹层竞争**：新增 `useBackClose` hook 统一管理 overlay 栈
 
-## [1.3.9.1] - 2026-03-12
+## [1.3.10] - 2026-03-12
 
 ### 新增
 - **Traces 渠道标记**：每条 trace 记录来源渠道，前端显示标签

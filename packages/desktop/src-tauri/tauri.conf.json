@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedriverclub/tauri/refs/heads/dev/crates/tauri-cli/schema.json",
   "productName": "AgentClaw",
-  "version": "0.1.0",
+  "version": "1.4.0",
   "identifier": "com.agentclaw.desktop",
   "build": {
     "devUrl": "http://localhost:3200",

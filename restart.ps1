@@ -1,8 +1,10 @@
 # AgentClaw Gateway 重启脚本
-# 用法: .\restart.ps1          — 构建 + 重启
-#       .\restart.ps1 -NoBuild — 跳过构建，直接重启
+# 用法: .\restart.ps1              — Node 构建 + 重启
+#       .\restart.ps1 -NoBuild     — 跳过构建，Node 重启
+#       .\restart.ps1 -Bun         — 构建 + Bun 重启
+#       .\restart.ps1 -Bun -NoBuild — 跳过构建，Bun 重启
 
-param([switch]$NoBuild)
+param([switch]$NoBuild, [switch]$Bun)
 
 $Port = 3100
 
@@ -35,8 +37,9 @@ if (-not $NoBuild) {
 }
 
 # 3. 后台启动 gateway
-Write-Host "[3/3] Starting gateway..." -ForegroundColor Green
-Start-Process -FilePath "node" -ArgumentList "packages/gateway/dist/index.js" -WindowStyle Hidden
+$runtime = if ($Bun) { "bun" } else { "node" }
+Write-Host "[3/3] Starting gateway ($runtime)..." -ForegroundColor Green
+Start-Process -FilePath $runtime -ArgumentList "packages/gateway/dist/index.js" -WindowStyle Hidden
 
 # 轮询等待启动（最多 10 秒）
 for ($i = 0; $i -lt 20; $i++) {

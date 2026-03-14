@@ -327,6 +327,8 @@
     "configDefaultModel": "Default Model",
     "configBaseUrlHint": "For DeepSeek, Kimi, Qwen and other OpenAI-compatible APIs",
     "configRestartHint": "API key changes take effect after restarting the gateway",
+    "providerConnected": "Connected",
+    "providerNotSet": "Not configured",
     "tabs": {
       "general": "General",
       "channels": "Channels",

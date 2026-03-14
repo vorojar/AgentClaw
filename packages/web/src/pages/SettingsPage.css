@@ -421,6 +421,82 @@
   color: var(--accent);
 }
 
+/* ── Provider cards ── */
+.provider-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.provider-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.provider-card.configured {
+  border-color: var(--accent-subtle-border, var(--accent));
+}
+
+.provider-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+
+.provider-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.provider-card-status {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.provider-card-status::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.provider-card-status.on {
+  color: var(--accent);
+}
+
+.provider-card-status.on::before {
+  background: var(--accent);
+}
+
+.provider-card-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.provider-card-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.provider-card-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
 /* ── Responsive: collapse settings menu on small screens ── */
 @media (max-width: 768px) {
   .settings-layout {

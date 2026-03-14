@@ -70,7 +70,38 @@ function isMaskedValue(value: string | undefined): boolean {
   return value.startsWith("****");
 }
 
-/* ── LLM 配置编辑区域 ── */
+/* ── Provider 定义 ── */
+const PROVIDER_DEFS = [
+  {
+    id: "openai",
+    label: "OpenAI Compatible",
+    keyField: "openaiApiKey" as const,
+    hasBaseUrl: true,
+    hasModel: true,
+    hint: "settings.configBaseUrlHint",
+    placeholder: "sk-...",
+    baseUrlPlaceholder: "https://api.openai.com/v1",
+    modelPlaceholder: "gpt-4o",
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    keyField: "anthropicApiKey" as const,
+    hasBaseUrl: false,
+    hasModel: false,
+    placeholder: "sk-ant-...",
+  },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    keyField: "geminiApiKey" as const,
+    hasBaseUrl: false,
+    hasModel: false,
+    placeholder: "AIza...",
+  },
+] as const;
+
+/* ── LLM 配置编辑区域 — 按 Provider 分卡片 ── */
 function ConfigEditor({
   config,
   onSaved,
@@ -79,249 +110,171 @@ function ConfigEditor({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
-  const [anthropicKey, setAnthropicKey] = useState("");
-  const [openaiKey, setOpenaiKey] = useState("");
-  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(
-    config.openaiBaseUrl || "",
-  );
-  const [geminiKey, setGeminiKey] = useState("");
-  const [defaultModel, setDefaultModel] = useState(
-    config.defaultModel || config.model || "",
-  );
+
+  // 每个 provider 的表单状态
+  const [keys, setKeys] = useState<Record<string, string>>({
+    anthropic: "", openai: "", gemini: "",
+  });
+  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(config.openaiBaseUrl || "");
+  const [defaultModel, setDefaultModel] = useState(config.defaultModel || config.model || "");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [validating, setValidating] = useState<string | null>(null);
-  const [validateMsg, setValidateMsg] = useState<Record<string, string>>({});
+  const [validateMsg, setValidateMsg] = useState<Record<string, { ok: boolean; text: string }>>({});
 
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveMsg(null);
-    try {
-      const updates: Record<string, unknown> = {};
-      // 只发送非空且非脱敏的值
-      if (anthropicKey && !isMaskedValue(anthropicKey)) {
-        updates.anthropicApiKey = anthropicKey;
-      }
-      if (openaiKey && !isMaskedValue(openaiKey)) {
-        updates.openaiApiKey = openaiKey;
-      }
-      if (openaiBaseUrl !== (config.openaiBaseUrl || "")) {
-        updates.openaiBaseUrl = openaiBaseUrl || undefined;
-      }
-      if (geminiKey && !isMaskedValue(geminiKey)) {
-        updates.geminiApiKey = geminiKey;
-      }
-      if (defaultModel !== (config.defaultModel || config.model || "")) {
-        updates.defaultModel = defaultModel || undefined;
-      }
+  const setKey = (provider: string, value: string) =>
+    setKeys((prev) => ({ ...prev, [provider]: value }));
 
-      if (Object.keys(updates).length === 0) {
-        setSaveMsg(t("settings.configNoChanges"));
-        setSaving(false);
-        return;
-      }
+  /** 该 provider 是否已配置（脱敏值存在） */
+  const isConfigured = (def: typeof PROVIDER_DEFS[number]) =>
+    !!config[def.keyField] && config[def.keyField] !== t("settings.configNotSet");
 
-      await updateAppConfig(updates as Partial<AppConfigInfo>);
-      setSaveMsg(t("settings.configSaved"));
-      // 清空密码输入框
-      setAnthropicKey("");
-      setOpenaiKey("");
-      setGeminiKey("");
-      onSaved();
-    } catch (err) {
-      setSaveMsg(
-        err instanceof Error ? err.message : t("settings.configSaveFailed"),
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+  /** 排序：已配置排前面 */
+  const sortedProviders = [...PROVIDER_DEFS].sort((a, b) => {
+    const aConf = isConfigured(a) ? 0 : 1;
+    const bConf = isConfigured(b) ? 0 : 1;
+    return aConf - bConf;
+  });
 
-  const handleValidate = async (provider: string) => {
-    let apiKey = "";
-    let baseUrl: string | undefined;
-    if (provider === "anthropic") {
-      apiKey = anthropicKey;
-    } else if (provider === "openai") {
-      apiKey = openaiKey;
-      baseUrl = openaiBaseUrl || undefined;
-    } else if (provider === "gemini") {
-      apiKey = geminiKey;
-    }
+  const handleValidate = async (providerId: string) => {
+    const apiKey = keys[providerId];
     if (!apiKey) {
-      setValidateMsg((prev) => ({
-        ...prev,
-        [provider]: t("settings.configEnterKey"),
-      }));
+      setValidateMsg((prev) => ({ ...prev, [providerId]: { ok: false, text: t("settings.configEnterKey") } }));
       return;
     }
-    setValidating(provider);
-    setValidateMsg((prev) => ({ ...prev, [provider]: "" }));
+    setValidating(providerId);
+    setValidateMsg((prev) => ({ ...prev, [providerId]: undefined as never }));
     try {
-      const result = await validateApiKey({
-        provider,
+      const params: { provider: string; apiKey: string; baseUrl?: string; model?: string } = {
+        provider: providerId === "anthropic" ? "anthropic" : providerId === "gemini" ? "gemini" : "openai",
         apiKey,
-        baseUrl,
-        model: defaultModel || undefined,
-      });
+      };
+      if (providerId === "openai" && openaiBaseUrl) params.baseUrl = openaiBaseUrl;
+      if (defaultModel) params.model = defaultModel;
+      const result = await validateApiKey(params);
       setValidateMsg((prev) => ({
         ...prev,
-        [provider]: result.valid
-          ? t("settings.configKeyValid")
-          : t("settings.configKeyInvalid") + (result.error ? `: ${result.error}` : ""),
+        [providerId]: {
+          ok: result.valid,
+          text: result.valid
+            ? t("settings.configKeyValid")
+            : t("settings.configKeyInvalid") + (result.error ? `: ${result.error}` : ""),
+        },
       }));
     } catch (err) {
       setValidateMsg((prev) => ({
         ...prev,
-        [provider]: err instanceof Error ? err.message : String(err),
+        [providerId]: { ok: false, text: err instanceof Error ? err.message : String(err) },
       }));
     } finally {
       setValidating(null);
     }
   };
 
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const updates: Record<string, unknown> = {};
+      if (keys.anthropic && !isMaskedValue(keys.anthropic)) updates.anthropicApiKey = keys.anthropic;
+      if (keys.openai && !isMaskedValue(keys.openai)) updates.openaiApiKey = keys.openai;
+      if (keys.gemini && !isMaskedValue(keys.gemini)) updates.geminiApiKey = keys.gemini;
+      if (openaiBaseUrl !== (config.openaiBaseUrl || "")) updates.openaiBaseUrl = openaiBaseUrl || undefined;
+      if (defaultModel !== (config.defaultModel || config.model || "")) updates.defaultModel = defaultModel || undefined;
+
+      if (Object.keys(updates).length === 0) {
+        setSaveMsg(t("settings.configNoChanges"));
+        setSaving(false);
+        return;
+      }
+      await updateAppConfig(updates as Partial<AppConfigInfo>);
+      setSaveMsg(t("settings.configSaved"));
+      setKeys({ anthropic: "", openai: "", gemini: "" });
+      onSaved();
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : t("settings.configSaveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section className="card settings-section">
       <h2 className="settings-section-title">{t("settings.configTitle")}</h2>
-      <div className="settings-form">
-        {/* Anthropic */}
-        <div className="settings-field">
-          <label className="settings-label">Anthropic API Key</label>
-          <div className="config-key-row">
-            <input
-              type="password"
-              className="config-input"
-              placeholder={config.anthropicApiKey || t("settings.configNotSet")}
-              value={anthropicKey}
-              onChange={(e) => setAnthropicKey(e.target.value)}
-            />
-            <button
-              className="btn btn-sm btn-secondary"
-              disabled={validating === "anthropic" || !anthropicKey}
-              onClick={() => handleValidate("anthropic")}
-            >
-              {validating === "anthropic"
-                ? t("settings.configValidating")
-                : t("settings.configValidate")}
-            </button>
-          </div>
-          {validateMsg.anthropic && (
-            <span
-              className={`config-validate-msg ${validateMsg.anthropic.includes(t("settings.configKeyValid")) ? "success" : "error"}`}
-            >
-              {validateMsg.anthropic}
-            </span>
-          )}
-        </div>
+      <div className="provider-cards">
+        {sortedProviders.map((def) => {
+          const configured = isConfigured(def);
+          const msg = validateMsg[def.id];
+          return (
+            <div key={def.id} className={`provider-card ${configured ? "configured" : ""}`}>
+              <div className="provider-card-header">
+                <span className="provider-card-name">{def.label}</span>
+                <span className={`provider-card-status ${configured ? "on" : ""}`}>
+                  {configured ? t("settings.providerConnected") : t("settings.providerNotSet")}
+                </span>
+              </div>
+              <div className="provider-card-body">
+                <div className="config-key-row">
+                  <input
+                    type="password"
+                    className="config-input"
+                    placeholder={config[def.keyField] || def.placeholder}
+                    value={keys[def.id]}
+                    onChange={(e) => setKey(def.id, e.target.value)}
+                  />
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    disabled={validating === def.id || !keys[def.id]}
+                    onClick={() => handleValidate(def.id)}
+                  >
+                    {validating === def.id ? t("settings.configValidating") : t("settings.configValidate")}
+                  </button>
+                </div>
+                {msg && (
+                  <span className={`config-validate-msg ${msg.ok ? "success" : "error"}`}>
+                    {msg.text}
+                  </span>
+                )}
+                {def.hasBaseUrl && (
+                  <div className="provider-card-field">
+                    <label className="provider-card-label">Base URL</label>
+                    <input
+                      type="text"
+                      className="config-input"
+                      placeholder={def.baseUrlPlaceholder}
+                      value={openaiBaseUrl}
+                      onChange={(e) => setOpenaiBaseUrl(e.target.value)}
+                    />
+                    {def.hint && <span className="config-hint">{t(def.hint)}</span>}
+                  </div>
+                )}
+                {def.hasModel && (
+                  <div className="provider-card-field">
+                    <label className="provider-card-label">{t("settings.configDefaultModel")}</label>
+                    <input
+                      type="text"
+                      className="config-input"
+                      placeholder={def.modelPlaceholder}
+                      value={defaultModel}
+                      onChange={(e) => setDefaultModel(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        {/* OpenAI */}
-        <div className="settings-field">
-          <label className="settings-label">OpenAI API Key</label>
-          <div className="config-key-row">
-            <input
-              type="password"
-              className="config-input"
-              placeholder={config.openaiApiKey || t("settings.configNotSet")}
-              value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-            />
-            <button
-              className="btn btn-sm btn-secondary"
-              disabled={validating === "openai" || !openaiKey}
-              onClick={() => handleValidate("openai")}
-            >
-              {validating === "openai"
-                ? t("settings.configValidating")
-                : t("settings.configValidate")}
-            </button>
-          </div>
-          {validateMsg.openai && (
-            <span
-              className={`config-validate-msg ${validateMsg.openai.includes(t("settings.configKeyValid")) ? "success" : "error"}`}
-            >
-              {validateMsg.openai}
-            </span>
-          )}
-        </div>
-
-        {/* OpenAI Base URL */}
-        <div className="settings-field">
-          <label className="settings-label">OpenAI Base URL</label>
-          <input
-            type="text"
-            className="config-input"
-            placeholder="https://api.openai.com/v1"
-            value={openaiBaseUrl}
-            onChange={(e) => setOpenaiBaseUrl(e.target.value)}
-          />
-          <span className="config-hint">
-            {t("settings.configBaseUrlHint")}
+      <div className="settings-form-actions">
+        <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
+          {saving ? t("settings.configSaving") : t("settings.configSave")}
+        </button>
+        {saveMsg && (
+          <span className={`config-save-msg ${saveMsg === t("settings.configSaved") ? "success" : ""}`}>
+            {saveMsg}
           </span>
-        </div>
-
-        {/* Gemini */}
-        <div className="settings-field">
-          <label className="settings-label">Gemini API Key</label>
-          <div className="config-key-row">
-            <input
-              type="password"
-              className="config-input"
-              placeholder={config.geminiApiKey || t("settings.configNotSet")}
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-            />
-            <button
-              className="btn btn-sm btn-secondary"
-              disabled={validating === "gemini" || !geminiKey}
-              onClick={() => handleValidate("gemini")}
-            >
-              {validating === "gemini"
-                ? t("settings.configValidating")
-                : t("settings.configValidate")}
-            </button>
-          </div>
-          {validateMsg.gemini && (
-            <span
-              className={`config-validate-msg ${validateMsg.gemini.includes(t("settings.configKeyValid")) ? "success" : "error"}`}
-            >
-              {validateMsg.gemini}
-            </span>
-          )}
-        </div>
-
-        {/* Default Model */}
-        <div className="settings-field">
-          <label className="settings-label">{t("settings.configDefaultModel")}</label>
-          <input
-            type="text"
-            className="config-input"
-            placeholder="e.g. claude-sonnet-4-20250514"
-            value={defaultModel}
-            onChange={(e) => setDefaultModel(e.target.value)}
-          />
-        </div>
-
-        {/* 保存按钮 */}
-        <div className="settings-form-actions">
-          <button
-            className="btn btn-primary"
-            disabled={saving}
-            onClick={handleSave}
-          >
-            {saving
-              ? t("settings.configSaving")
-              : t("settings.configSave")}
-          </button>
-          {saveMsg && (
-            <span
-              className={`config-save-msg ${saveMsg === t("settings.configSaved") ? "success" : ""}`}
-            >
-              {saveMsg}
-            </span>
-          )}
-        </div>
-
-        <span className="config-hint">{t("settings.configRestartHint")}</span>
+        )}
       </div>
     </section>
   );

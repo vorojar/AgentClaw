@@ -327,6 +327,8 @@
     "configDefaultModel": "默认模型",
     "configBaseUrlHint": "用于 DeepSeek、Kimi、Qwen 等 OpenAI 兼容 API",
     "configRestartHint": "API Key 变更需重启 Gateway 后生效",
+    "providerConnected": "已连接",
+    "providerNotSet": "未配置",
     "tabs": {
       "general": "常规",
       "channels": "渠道",

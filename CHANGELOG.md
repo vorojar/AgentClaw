@@ -3,56 +3,41 @@
 ## [1.4.0] - 2026-03-14
 
 ### 新增
-- **统一配置系统**：新增 `config.json` 配置文件支持，gateway 启动时合并 config.json + 环境变量 + .env（优先级：环境变量 > config.json > .env > 默认值），为桌面版 GUI 配置铺路
-- **配置 REST API**：`GET /api/config`（脱敏返回）、`PUT /api/config`（合并写入）、`POST /api/config/validate`（验证 API key 有效性）
-- **Settings 配置编辑**：Settings 页面 General tab 新增 API Key 编辑区，支持 Anthropic/OpenAI/Gemini 三家 provider 的密钥输入、验证和保存
-- **SQLite 数据库适配层**：`db-adapter.ts` 抽象层屏蔽 better-sqlite3 / bun:sqlite 差异，为 Bun 单文件桌面打包做准备
-- **Tauri v2 桌面壳**：`packages/desktop` — Rust 窗口管理、系统托盘（最小化到托盘）、sidecar 生命周期管理（自动启停 gateway 进程）
-- **Setup Wizard**：首次启动引导页面，4 步流程选择 LLM Provider → 输入 API Key → 验证 → 开始使用
-- **静态文件托管**：gateway 生产模式自动托管 web 前端，`SERVE_STATIC=false` 可关闭
-- **Bun 单文件编译**：`build-sidecar.ts` 脚本将 gateway 编译为平台原生可执行文件（130MB，含 Bun runtime + SQLite）
-- **桌面版 CI/CD**：GitHub Actions 三平台自动构建（Windows/macOS/Linux），push tag 触发，生成 .exe/.dmg/.deb 安装包
-- **配置引导弹层**：未配置 LLM API Key 时发消息自动弹出 SetupWizard（选 Provider → 填 Key → 验证），无需手动找设置页
-- **Provider N 选 1 切换**：LLM 配置改为卡片式布局，每个 Provider 独立配置 API Key + 模型，radio 选中当前使用的 Provider；运行时切换 Provider 无需重启 gateway
+- **Tauri v2 桌面客户端**：Rust 窗口 + 系统托盘 + Bun sidecar 自动启停，三平台 CI/CD（.exe/.dmg/.deb）
+- **统一配置系统**：`config.json` + 环境变量 + `.env` 三层合并，配置 REST API（读/写/验证）
+- **Setup Wizard**：首次启动 4 步引导，未配置时发消息自动弹出
+- **Provider N 选 1**：卡片式布局，每个 Provider 独立 API Key + 模型，radio 切换运行时生效
+- **静态文件托管**：gateway 生产模式自动托管 web 前端
 
 ### 修复
-- **Tauri 启动 panic**：移除 `plugins.shell.sidecar` 无效字段，修复反序列化失败导致的静默崩溃
-- **NSIS 内嵌 WebView2**：安装包自动引导安装 WebView2 运行时，避免缺失时无提示启动失败
-- **静态文件 404**：移除 fastify-static `wildcard:false` 限制，修复 `/assets/` 子目录文件无法提供
-- **应用图标**：替换为 512x512 高清龙虾图标，修复托盘图标为空
-- **Biome lint 全量修复**：自动修复 63 个文件的 lint 问题
-- **Linux 打包格式**：AppImage → deb（linuxdeploy FUSE 兼容问题）
+- Tauri 启动 panic（移除无效 `plugins.shell.sidecar` 字段）
+- NSIS 安装包内嵌 WebView2 引导
+- 静态文件 404（fastify-static wildcard 限制）
+- 应用图标替换为 512x512 高清龙虾
+- Linux 打包 AppImage → deb
 
 ## [1.3.12] - 2026-03-14
 
 ### 新增
-- **Chrome 146 CDP 直连**：agent-browser 自动探测用户 Chrome 的 Remote Debugging（端口 9222），一次授权后零扩展操控真实浏览器，拥有全部登录态；`close` 命令自动拦截防止误杀 Chrome
-- **agent-browser 集成**：引入 Vercel agent-browser（Rust 原生无头浏览器，7MB 安装 / 8MB 内存），140+ 命令覆盖导航、交互、截图、网络拦截、设备模拟，支持登录态持久化（state 文件 / session / profile / 从用户 Chrome 导入）
-- **agent-browser 自动登录态**：wrapper 脚本（`ab.mjs`）自动扫描 `data/browser-states/` 按域名匹配已保存的 cookies，`open` 时自动注入 `--state`，无需 LLM 手动指定
-- **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）
+- **Chrome 146 CDP 直连**：自动探测 Chrome Remote Debugging，零扩展操控真实浏览器
+- **agent-browser 集成**：Rust 原生无头浏览器，140+ 命令，自动按域名匹配登录态
+- **Prompt cache 命中率**：Traces 页面显示 cache 命中百分比
 
 ### 安全
-- **WebSocket / CORS origin 校验**：新增 `ALLOWED_ORIGINS` 环境变量，限制可连接的来源域名；未配置时保持全放通（向后兼容）
-
-### 稳定性
-- **LLM 流式资源释放**：Claude provider 和 agent-loop 增加 `try/finally` 保护，用户中止对话时主动 `abort()` SDK stream，防止 HTTP 连接悬挂
-- **Context cache 清理接口**：新增 `clearConversationCache()` 方法，支持 session 关闭时释放动态上下文缓存和摘要缓存
+- **WebSocket / CORS origin 校验**：`ALLOWED_ORIGINS` 环境变量
 
 ### 性能
-- **OpenAI 兼容 provider 支持 prompt cache**：提取 `usage.prompt_tokens_details.cached_tokens`，火山引擎 doubao 等模型的隐式缓存数据现可正确记录到 trace
-- **Subagent 返回精简**：子代理结果超过 2000 字符时自动截断（保留首尾各半），减少主 agent context 消耗
-- **Skill 目录全局缓存**：技能列表构建一次后跨所有会话复用，省去重复构建开销
-
-### 移除
-- **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
+- LLM 流式中止主动 `abort()` 释放连接
+- OpenAI 兼容 provider 支持 prompt cache 统计
+- Subagent 返回超 2000 字符自动截断
+- Skill 目录全局缓存
 
 ### 修复
-- **长期记忆丢失**：新增 `identity` 记忆类型专存用户身份信息（邮箱/年龄/职业等），始终注入系统提示词，不再依赖查询匹配；`remember` 工具明确约束不存新闻等临时信息；清理 49 条新闻垃圾记忆
-- **web_fetch → agent-browser 自动降级提示**：JS 渲染页面静态抓取失败时，自动提示 LLM 切换到 agent-browser 技能获取完整内容
-- **ask_user 后 thinking 动画不消失**：收到 prompt 事件时清除前一条 assistant 消息的 thinking 状态和工具名，"..." 不再卡住
-- **send_file 自动归档到 session 目录**：LLM 用相对路径保存文件时，send_file 自动复制到 `data/tmp/{sessionId}/`，确保 `/files/` 路由可访问
-- **regenerate/edit 流式状态丢失**：改用 `startStreaming()` 正确设置 streamingSessionRef，防止 WS 重连时误判 stale
-- **Handoff 消息缺少必填字段**：补全 `streaming` 和 `toolCalls`，消除潜在运行时崩溃
+- **长期记忆丢失**：新增 `identity` 记忆类型，始终注入系统提示词
+- web_fetch 失败自动提示切换 agent-browser
+- ask_user 后 thinking 动画不消失
+- send_file 自动归档到 session 目录
+- regenerate/edit 流式状态丢失
 
 ## [1.3.11] - 2026-03-13
 

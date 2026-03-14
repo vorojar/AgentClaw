@@ -6,6 +6,8 @@ import type {
   ToolUseContent,
   ToolResultContent,
   MemoryStore,
+  MemoryType,
+  MemorySearchResult,
   ConversationTurn,
   SkillRegistry,
   LLMProvider,
@@ -242,14 +244,49 @@ export class SimpleContextManager implements ContextManager {
             .join(" ");
 
     try {
-      const memories = await this.memoryStore.search({
-        query: searchQuery,
-        limit: 5,
+      // Always load identity memories (user personal info: email, name, age).
+      // These are always relevant regardless of query content.
+      const identityMemories = await this.memoryStore.search({
+        type: "identity" as MemoryType,
+        limit: 20,
+        bm25Weight: 0,
+        semanticWeight: 0,
+        recencyWeight: 0.1,
+        importanceWeight: 0.9,
       });
-      if (memories.length > 0) {
+      const prefMemories = await this.memoryStore.search({
+        type: "preference" as MemoryType,
+        limit: 5,
+        bm25Weight: 0,
+        semanticWeight: 0,
+        recencyWeight: 0.4,
+        importanceWeight: 0.6,
+      });
+
+      // Query-based search for contextually relevant memories (all types)
+      const queryMemories = await this.memoryStore.search({
+        query: searchQuery,
+        limit: 8,
+      });
+
+      // Merge and dedup by ID (identity first → preferences → query results)
+      const seen = new Set<string>();
+      const allMemories: MemorySearchResult[] = [];
+      for (const m of [
+        ...identityMemories,
+        ...prefMemories,
+        ...queryMemories,
+      ]) {
+        if (!seen.has(m.entry.id)) {
+          seen.add(m.entry.id);
+          allMemories.push(m);
+        }
+      }
+
+      if (allMemories.length > 0) {
         const lines: string[] = [];
         let totalChars = 0;
-        for (const m of memories) {
+        for (const m of allMemories) {
           const line = `- [${m.entry.type}] ${m.entry.content}`;
           if (totalChars + line.length > 2000) break;
           lines.push(line);

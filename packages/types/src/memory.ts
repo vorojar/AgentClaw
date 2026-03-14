@@ -1,7 +1,12 @@
 import type { MessageRole } from "./message.js";
 
 /** Memory entry types */
-export type MemoryType = "fact" | "preference" | "entity" | "episodic";
+export type MemoryType =
+  | "identity"
+  | "fact"
+  | "preference"
+  | "entity"
+  | "episodic";
 
 /** A single memory entry */
 export interface MemoryEntry {

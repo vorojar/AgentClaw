@@ -28,7 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_turns_conversation ON turns(conversation_id, crea
 
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,
-  type TEXT NOT NULL CHECK (type IN ('fact', 'preference', 'entity', 'episodic')),
+  type TEXT NOT NULL CHECK (type IN ('identity', 'fact', 'preference', 'entity', 'episodic')),
   content TEXT NOT NULL,
   source_turn_id TEXT REFERENCES turns(id),
   importance REAL NOT NULL DEFAULT 0.5,
@@ -243,6 +243,9 @@ export function initDatabase(dbPath: string): Database.Database {
     // Indexes may already exist
   }
 
+  // Migration: rebuild memories table if CHECK constraint doesn't include 'identity'
+  rebuildMemoriesTableIfNeeded(db);
+
   // Migration: populate FTS5 index from existing memories (one-time sync)
   const ftsCount = countRows(db, "memories_fts");
   const memCount = countRows(db, "memories");
@@ -253,6 +256,38 @@ export function initDatabase(dbPath: string): Database.Database {
   }
 
   return db;
+}
+
+/**
+ * Rebuild memories table if CHECK constraint doesn't include 'identity'.
+ * SQLite does not support ALTER CHECK, so we recreate the table.
+ */
+function rebuildMemoriesTableIfNeeded(db: Database.Database): void {
+  try {
+    db.exec(
+      "INSERT INTO memories (id, type, content, importance) VALUES ('__check_probe__', 'identity', '__probe__', 0)",
+    );
+    db.exec("DELETE FROM memories WHERE id = '__check_probe__'");
+  } catch {
+    // CHECK constraint failed → rebuild without CHECK on type
+    db.exec(`
+      CREATE TABLE memories_new (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        source_turn_id TEXT,
+        importance REAL NOT NULL DEFAULT 0.5,
+        embedding BLOB,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        accessed_at TEXT NOT NULL DEFAULT (datetime('now')),
+        access_count INTEGER NOT NULL DEFAULT 0,
+        metadata TEXT
+      );
+      INSERT INTO memories_new SELECT id, type, content, source_turn_id, importance, embedding, created_at, accessed_at, access_count, metadata FROM memories;
+      DROP TABLE memories;
+      ALTER TABLE memories_new RENAME TO memories;
+    `);
+  }
 }
 
 /**

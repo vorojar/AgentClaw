@@ -59,7 +59,11 @@ function scanMemoryContent(content: string): string | null {
 
 export const rememberTool: Tool = {
   name: "remember",
-  description: "Save information to long-term memory for future recall.",
+  description:
+    "Save information to long-term memory for future recall. " +
+    "Use type='identity' for user personal info (name, email, age, location, occupation). " +
+    "Do NOT store news headlines, trending topics, or transient external information — " +
+    "these are ephemeral and waste memory slots.",
   category: "builtin",
   parameters: {
     type: "object",
@@ -67,7 +71,13 @@ export const rememberTool: Tool = {
       content: { type: "string" },
       type: {
         type: "string",
-        enum: ["fact", "preference", "entity", "episodic"],
+        enum: ["identity", "fact", "preference", "entity", "episodic"],
+        description:
+          "identity: user personal info (email, name, age, location); " +
+          "fact: durable knowledge worth remembering long-term; " +
+          "preference: user likes/dislikes; " +
+          "entity: projects, tools, people the user cares about; " +
+          "episodic: lessons learned from past interactions",
         default: "fact",
       },
     },

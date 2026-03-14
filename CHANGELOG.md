@@ -23,6 +23,7 @@
 - **Google OAuth health check**：已迁移到 gws 管理认证，移除旧的 GOOGLE_REFRESH_TOKEN 刷新检查（消除每日误报）
 
 ### 修复
+- **长期记忆丢失**：新增 `identity` 记忆类型专存用户身份信息（邮箱/年龄/职业等），始终注入系统提示词，不再依赖查询匹配；`remember` 工具明确约束不存新闻等临时信息；清理 49 条新闻垃圾记忆
 - **web_fetch → agent-browser 自动降级提示**：JS 渲染页面静态抓取失败时，自动提示 LLM 切换到 agent-browser 技能获取完整内容
 - **ask_user 后 thinking 动画不消失**：收到 prompt 事件时清除前一条 assistant 消息的 thinking 状态和工具名，"..." 不再卡住
 - **send_file 自动归档到 session 目录**：LLM 用相对路径保存文件时，send_file 自动复制到 `data/tmp/{sessionId}/`，确保 `/files/` 路由可访问

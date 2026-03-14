@@ -214,9 +214,9 @@ export const webFetchTool: Tool = {
           if (pwContent !== null && pwContent.length >= 500) {
             content = pwContent;
             strategy = "playwright";
-          } else if (pwContent === null) {
+          } else if (pwContent === null || pwContent.length < 500) {
             content +=
-              "\n\n[注意] 提取内容极少（JS 渲染页面），且 Playwright 降级失败。若 Playwright 未安装，请执行：pip install playwright && python -m playwright install chromium --with-deps";
+              "\n\n[注意] 此页面需要 JS 渲染，静态抓取内容不完整。请改用 agent-browser 技能获取：use_skill('agent-browser')，然后用 agent-browser open + snapshot/get text 获取完整内容。";
           }
         }
 
@@ -228,7 +228,7 @@ export const webFetchTool: Tool = {
         ) {
           strategy = "login_wall";
           content +=
-            "\n\n[注意] 此页面需要登录态才能访问完整内容，建议使用 browser 技能（可利用用户的浏览器登录状态）。";
+            "\n\n[注意] 此页面需要登录态才能访问完整内容。建议使用 browser 技能（利用用户真实浏览器登录状态），或 agent-browser 技能（自动匹配已保存的登录态）。";
         }
       } else {
         // Plain text or other text formats

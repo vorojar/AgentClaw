@@ -3,3 +3,4 @@
 src-tauri/binaries/*.exe
 src-tauri/binaries/agentclaw-server-*
 .shims/
+src-tauri/target/

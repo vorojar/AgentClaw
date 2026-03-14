@@ -1,10 +1,12 @@
 ---
 name: agent-browser
-description: 无头浏览器自动化（无需用户浏览器），支持截图、表单填写、网页抓取、登录态持久化 | Headless browser automation (no user browser needed) for screenshots, forms, scraping, persistent auth
+description: 浏览器自动化：自动连接用户真实 Chrome（含全部登录态），无 Chrome 时回退无头模式。支持截图、表单、抓取 | Browser automation — auto-attaches to user's real Chrome (with all logins), falls back to headless
 ---
 
-Rust-native headless browser CLI. Use this for tasks that do NOT require the user's real browser session.
-For tasks needing the user's live browser (their logged-in tabs), use the `browser` skill instead.
+Rust-native browser CLI. **Auto-connects to user's Chrome** (via CDP on port 9222) when available — full login state, zero extensions. Falls back to headless mode when Chrome is not running.
+
+> The wrapper `ab.mjs` handles this automatically. Just run commands — it will connect to Chrome if possible.
+> **Never use `close`** — it would kill the user's Chrome. Use `tab close <id>` to close specific tabs.
 
 ## Quick Start
 

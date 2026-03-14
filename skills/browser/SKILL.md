@@ -1,6 +1,6 @@
 ---
 name: browser
-description: 操控用户真实浏览器（需 Chrome 扩展连接），用于需要用户当前登录态的场景（如社交媒体发帖）。无头自动化请用 agent-browser | Control user's real Chrome browser (requires extension). For headless automation use agent-browser skill instead
+description: "[旧版] 通过 Chrome 扩展操控浏览器。推荐改用 agent-browser 技能（自动连接 Chrome CDP，无需扩展） | [Legacy] Browser via extension. Prefer agent-browser skill (auto CDP, no extension needed)"
 ---
 
 Control the user's real browser (with their logins/cookies) via the AgentClaw Browser Bridge extension.

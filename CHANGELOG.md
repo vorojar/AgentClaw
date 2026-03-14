@@ -3,6 +3,7 @@
 ## [1.3.12] - 2026-03-14
 
 ### 新增
+- **Chrome 146 CDP 直连**：agent-browser 自动探测用户 Chrome 的 Remote Debugging（端口 9222），一次授权后零扩展操控真实浏览器，拥有全部登录态；`close` 命令自动拦截防止误杀 Chrome
 - **agent-browser 集成**：引入 Vercel agent-browser（Rust 原生无头浏览器，7MB 安装 / 8MB 内存），140+ 命令覆盖导航、交互、截图、网络拦截、设备模拟，支持登录态持久化（state 文件 / session / profile / 从用户 Chrome 导入）
 - **agent-browser 自动登录态**：wrapper 脚本（`ab.mjs`）自动扫描 `data/browser-states/` 按域名匹配已保存的 cookies，`open` 时自动注入 `--state`，无需 LLM 手动指定
 - **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）

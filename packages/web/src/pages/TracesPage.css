@@ -115,6 +115,17 @@
   font-weight: 500;
 }
 
+.trace-cache {
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.7;
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
 .trace-duration {
   font-size: 13px;
   color: var(--text-secondary);

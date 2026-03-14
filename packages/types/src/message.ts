@@ -48,6 +48,9 @@ export interface Message {
   /** Token usage */
   tokensIn?: number;
   tokensOut?: number;
+  /** Prompt cache tokens (Anthropic) */
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
   /** Total response duration in milliseconds */
   durationMs?: number;
   /** Number of tool calls executed */

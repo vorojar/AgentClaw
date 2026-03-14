@@ -66,6 +66,8 @@ export interface Trace {
   channel?: string;
   tokensIn: number;
   tokensOut: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
   durationMs: number;
   error?: string;
   createdAt: Date;
@@ -223,6 +225,8 @@ export interface ConversationTurn {
   model?: string;
   tokensIn?: number;
   tokensOut?: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
   durationMs?: number;
   toolCallCount?: number;
   traceId?: string;

@@ -17,6 +17,9 @@
 ### 重构
 - **ASR 去 Python 化**：迁移到 sherpa-onnx-node，连续语音延迟从 2-5s 降至 <50ms；SILK 解码改用 silk-wasm（支持 QQ/微信语音）；输出繁转简（opencc-js）
 
+### 改进
+- **Prompt cache 命中率监控**：Traces 页面显示每次 LLM 调用的 cache 命中百分比（hover 查看 read/creation token 数），全链路支持（Claude provider → agent-loop → SQLite → API → 前端）
+
 ### 安全
 - **WebSocket / CORS origin 校验**：新增 `ALLOWED_ORIGINS` 环境变量，限制可连接的来源域名；未配置时保持全放通（向后兼容）
 

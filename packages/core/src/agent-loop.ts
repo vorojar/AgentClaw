@@ -230,6 +230,8 @@ export class SimpleAgentLoop implements AgentLoop {
     // Accumulators across all LLM iterations
     let totalTokensIn = 0;
     let totalTokensOut = 0;
+    let totalCacheCreationTokens = 0;
+    let totalCacheReadTokens = 0;
     let totalToolCalls = 0;
     let prevTokensIn = 0;
     let prevTokensOut = 0;
@@ -514,6 +516,9 @@ export class SimpleAgentLoop implements AgentLoop {
               if (chunk.usage) {
                 totalTokensIn += chunk.usage.tokensIn;
                 totalTokensOut += chunk.usage.tokensOut;
+                totalCacheCreationTokens +=
+                  chunk.usage.cacheCreationTokens ?? 0;
+                totalCacheReadTokens += chunk.usage.cacheReadTokens ?? 0;
               }
               if (chunk.model) {
                 usedModel = chunk.model;
@@ -618,6 +623,8 @@ export class SimpleAgentLoop implements AgentLoop {
           model: usedModel,
           tokensIn: totalTokensIn,
           tokensOut: totalTokensOut,
+          cacheCreationTokens: totalCacheCreationTokens || undefined,
+          cacheReadTokens: totalCacheReadTokens || undefined,
           durationMs,
           toolCallCount: totalToolCalls,
           traceId: trace.id,
@@ -630,6 +637,8 @@ export class SimpleAgentLoop implements AgentLoop {
         trace.model = usedModel;
         trace.tokensIn = totalTokensIn;
         trace.tokensOut = totalTokensOut;
+        trace.cacheCreationTokens = totalCacheCreationTokens || undefined;
+        trace.cacheReadTokens = totalCacheReadTokens || undefined;
         trace.durationMs = durationMs;
         try {
           await this.memoryStore.addTrace(trace);
@@ -645,6 +654,8 @@ export class SimpleAgentLoop implements AgentLoop {
           model: usedModel,
           tokensIn: totalTokensIn,
           tokensOut: totalTokensOut,
+          cacheCreationTokens: totalCacheCreationTokens || undefined,
+          cacheReadTokens: totalCacheReadTokens || undefined,
           durationMs,
           toolCallCount: totalToolCalls,
         };
@@ -923,6 +934,8 @@ export class SimpleAgentLoop implements AgentLoop {
           model: usedModel,
           tokensIn: totalTokensIn,
           tokensOut: totalTokensOut,
+          cacheCreationTokens: totalCacheCreationTokens || undefined,
+          cacheReadTokens: totalCacheReadTokens || undefined,
           durationMs,
           toolCallCount: totalToolCalls,
           traceId: trace.id,
@@ -935,6 +948,8 @@ export class SimpleAgentLoop implements AgentLoop {
         trace.model = usedModel;
         trace.tokensIn = totalTokensIn;
         trace.tokensOut = totalTokensOut;
+        trace.cacheCreationTokens = totalCacheCreationTokens || undefined;
+        trace.cacheReadTokens = totalCacheReadTokens || undefined;
         trace.durationMs = durationMs;
         try {
           await this.memoryStore.addTrace(trace);
@@ -951,6 +966,8 @@ export class SimpleAgentLoop implements AgentLoop {
           model: usedModel,
           tokensIn: totalTokensIn,
           tokensOut: totalTokensOut,
+          cacheCreationTokens: totalCacheCreationTokens || undefined,
+          cacheReadTokens: totalCacheReadTokens || undefined,
           durationMs,
           toolCallCount: totalToolCalls,
         };
@@ -1008,6 +1025,8 @@ export class SimpleAgentLoop implements AgentLoop {
       model: usedModel,
       tokensIn: totalTokensIn,
       tokensOut: totalTokensOut,
+      cacheCreationTokens: totalCacheCreationTokens || undefined,
+      cacheReadTokens: totalCacheReadTokens || undefined,
       durationMs,
       toolCallCount: totalToolCalls,
       traceId: trace.id,
@@ -1024,6 +1043,8 @@ export class SimpleAgentLoop implements AgentLoop {
       model: usedModel,
       tokensIn: totalTokensIn,
       tokensOut: totalTokensOut,
+      cacheCreationTokens: totalCacheCreationTokens || undefined,
+      cacheReadTokens: totalCacheReadTokens || undefined,
       durationMs,
       toolCallCount: totalToolCalls,
     };

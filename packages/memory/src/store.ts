@@ -1120,8 +1120,8 @@ export class SQLiteMemoryStore implements MemoryStore {
   async addTrace(trace: Trace): Promise<void> {
     this.db
       .prepare(
-        `INSERT INTO traces (id, conversation_id, user_input, system_prompt, skill_match, steps, response, model, channel, tokens_in, tokens_out, duration_ms, error, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO traces (id, conversation_id, user_input, system_prompt, skill_match, steps, response, model, channel, tokens_in, tokens_out, cache_creation_tokens, cache_read_tokens, duration_ms, error, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         trace.id,
@@ -1135,6 +1135,8 @@ export class SQLiteMemoryStore implements MemoryStore {
         trace.channel ?? null,
         trace.tokensIn,
         trace.tokensOut,
+        trace.cacheCreationTokens ?? 0,
+        trace.cacheReadTokens ?? 0,
         trace.durationMs,
         trace.error ?? null,
         trace.createdAt.toISOString(),
@@ -1649,6 +1651,8 @@ interface TraceRow {
   channel: string | null;
   tokens_in: number;
   tokens_out: number;
+  cache_creation_tokens: number;
+  cache_read_tokens: number;
   duration_ms: number;
   error: string | null;
   created_at: string;
@@ -1673,6 +1677,8 @@ function rowToTrace(row: TraceRow): Trace {
     channel: row.channel ?? undefined,
     tokensIn: row.tokens_in,
     tokensOut: row.tokens_out,
+    cacheCreationTokens: row.cache_creation_tokens || undefined,
+    cacheReadTokens: row.cache_read_tokens || undefined,
     durationMs: row.duration_ms,
     error: row.error ?? undefined,
     createdAt: new Date(row.created_at),

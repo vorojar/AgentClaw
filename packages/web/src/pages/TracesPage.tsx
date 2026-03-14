@@ -404,6 +404,15 @@ function TraceCard({ trace, nested }: { trace: TraceInfo; nested?: boolean }) {
             {formatNumber(trace.tokensIn)}&uarr; {formatNumber(trace.tokensOut)}
             &darr;
           </span>
+          {(trace.cacheReadTokens ?? 0) > 0 && (
+            <span
+              className="trace-cache"
+              title={`Cache: ${formatNumber(trace.cacheReadTokens!)} read, ${formatNumber(trace.cacheCreationTokens ?? 0)} created`}
+            >
+              {Math.round((trace.cacheReadTokens! / trace.tokensIn) * 100)}%
+              cache
+            </span>
+          )}
           <span className="trace-duration">
             {formatDuration(trace.durationMs)}
           </span>

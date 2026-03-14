@@ -434,6 +434,8 @@ export interface TraceInfo {
   channel?: string;
   tokensIn: number;
   tokensOut: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
   durationMs: number;
   error?: string;
   createdAt: string;

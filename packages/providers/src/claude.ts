@@ -66,6 +66,10 @@ export class ClaudeProvider extends BaseLLMProvider {
 
     const contentBlocks = this.convertResponseContent(response.content);
     const { input_tokens: tokensIn, output_tokens: tokensOut } = response.usage;
+    const rawUsage = response.usage as unknown as Record<string, number>;
+    const cacheCreationTokens =
+      rawUsage.cache_creation_input_tokens || undefined;
+    const cacheReadTokens = rawUsage.cache_read_input_tokens || undefined;
 
     const message: Message = {
       id: generateId(),
@@ -75,6 +79,8 @@ export class ClaudeProvider extends BaseLLMProvider {
       model,
       tokensIn,
       tokensOut,
+      cacheCreationTokens,
+      cacheReadTokens,
     };
 
     return {
@@ -94,6 +100,8 @@ export class ClaudeProvider extends BaseLLMProvider {
 
     let tokensIn = 0;
     let tokensOut = 0;
+    let cacheCreationTokens = 0;
+    let cacheReadTokens = 0;
     let stopReason: string | null = null;
 
     for await (const event of stream) {
@@ -107,6 +115,8 @@ export class ClaudeProvider extends BaseLLMProvider {
           if (usage) {
             tokensIn = usage.input_tokens ?? 0;
             tokensOut = usage.output_tokens ?? 0;
+            cacheCreationTokens = usage.cache_creation_input_tokens ?? 0;
+            cacheReadTokens = usage.cache_read_input_tokens ?? 0;
           }
           break;
         }
@@ -142,7 +152,12 @@ export class ClaudeProvider extends BaseLLMProvider {
         case "message_stop":
           yield {
             type: "done",
-            usage: { tokensIn, tokensOut },
+            usage: {
+              tokensIn,
+              tokensOut,
+              cacheCreationTokens: cacheCreationTokens || undefined,
+              cacheReadTokens: cacheReadTokens || undefined,
+            },
             model,
             stopReason: this.mapStopReason(stopReason),
           };

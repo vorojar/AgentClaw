@@ -411,6 +411,8 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
           model?: string;
           tokensIn?: number;
           tokensOut?: number;
+          cacheCreationTokens?: number;
+          cacheReadTokens?: number;
           durationMs?: number;
           toolCallCount?: number;
         } = {};
@@ -466,6 +468,8 @@ export function registerWebSocket(app: FastifyInstance, ctx: AppContext): void {
                   model: data.message.model,
                   tokensIn: data.message.tokensIn,
                   tokensOut: data.message.tokensOut,
+                  cacheCreationTokens: data.message.cacheCreationTokens,
+                  cacheReadTokens: data.message.cacheReadTokens,
                   durationMs: data.message.durationMs,
                   toolCallCount: data.message.toolCallCount,
                 };

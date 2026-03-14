@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS traces (
   model TEXT,
   tokens_in INTEGER DEFAULT 0,
   tokens_out INTEGER DEFAULT 0,
+  cache_creation_tokens INTEGER DEFAULT 0,
+  cache_read_tokens INTEGER DEFAULT 0,
   duration_ms INTEGER DEFAULT 0,
   error TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -221,6 +223,14 @@ export function initDatabase(dbPath: string): Database.Database {
 
   // Traces: add channel column
   addColumnIfMissing(db, "traces", "channel", "TEXT");
+  // Traces: add prompt cache token columns
+  addColumnIfMissing(
+    db,
+    "traces",
+    "cache_creation_tokens",
+    "INTEGER DEFAULT 0",
+  );
+  addColumnIfMissing(db, "traces", "cache_read_tokens", "INTEGER DEFAULT 0");
 
   // Create indexes for migration-added columns (must run after addColumnIfMissing)
   try {

@@ -47,7 +47,12 @@ export interface LLMStreamChunk {
     input: string; // partial JSON
   };
   /** Token usage — present on "done" chunks when the provider supports it */
-  usage?: { tokensIn: number; tokensOut: number };
+  usage?: {
+    tokensIn: number;
+    tokensOut: number;
+    cacheCreationTokens?: number;
+    cacheReadTokens?: number;
+  };
   /** Model ID — present on "done" chunks */
   model?: string;
   /** Stop reason — present on "done" chunks */

@@ -10,6 +10,8 @@
 - **Tauri v2 桌面壳**：`packages/desktop` — Rust 窗口管理、系统托盘（最小化到托盘）、sidecar 生命周期管理（自动启停 gateway 进程）
 - **Setup Wizard**：首次启动引导页面，4 步流程选择 LLM Provider → 输入 API Key → 验证 → 开始使用
 - **静态文件托管**：gateway 生产模式自动托管 web 前端，`SERVE_STATIC=false` 可关闭
+- **Bun 单文件编译**：`build-sidecar.ts` 脚本将 gateway 编译为平台原生可执行文件（130MB，含 Bun runtime + SQLite）
+- **桌面版 CI/CD**：GitHub Actions 三平台自动构建（Windows/macOS/Linux），push tag 触发，生成 .msi/.dmg/.AppImage 安装包
 
 ## [1.3.12] - 2026-03-14
 

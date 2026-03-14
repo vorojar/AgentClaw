@@ -5,7 +5,7 @@
   "identifier": "com.agentclaw.desktop",
   "build": {
     "devUrl": "http://localhost:3200",
-    "frontendDist": "../web/dist"
+    "frontendDist": "../../web/dist"
   },
   "app": {
     "windows": [

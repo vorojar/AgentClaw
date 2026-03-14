@@ -1,0 +1,100 @@
+name: Desktop Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.0)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            bun-target: bun-windows-x64
+            rust-target: x86_64-pc-windows-msvc
+          - platform: macos-latest
+            bun-target: bun-darwin-arm64
+            rust-target: aarch64-apple-darwin
+          - platform: ubuntu-22.04
+            bun-target: bun-linux-x64
+            rust-target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── 工具链安装 ──
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      # Linux 专用依赖（Tauri 需要 GTK/WebKit）
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      # ── 构建 JS 包 ──
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build JS packages
+        run: pnpm build
+
+      # ── 构建 Sidecar ──
+
+      - name: Build sidecar
+        run: bun run packages/desktop/build-sidecar.ts --target=${{ matrix.bun-target }}
+
+      # ── 构建 Tauri 应用 ──
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: packages/desktop
+          tauriScript: pnpm tauri
+          tagName: ${{ github.ref_name || inputs.tag || 'dev' }}
+          releaseName: "AgentClaw ${{ github.ref_name || inputs.tag || 'dev' }}"
+          releaseBody: |
+            跨平台桌面版，双击打开即可使用。
+
+            **首次使用**：启动后按引导配置 LLM API Key。
+
+            | 平台 | 文件 |
+            |------|------|
+            | Windows | `.msi` 或 `.exe` (NSIS) |
+            | macOS | `.dmg` |
+            | Linux | `.AppImage` 或 `.deb` |
+          releaseDraft: true
+          prerelease: false
+          args: --target ${{ matrix.rust-target }}

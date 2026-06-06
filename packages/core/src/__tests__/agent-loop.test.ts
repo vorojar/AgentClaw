@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -4360,7 +4359,7 @@ describe("SimpleAgentLoop", () => {
                 `  What can we expect from AI in 2026? | The Current - YouTube — Artificial Intelligence exploded in 2025.\n` +
                 `  https://www.youtube.com/watch?v=3w093nkLqCg\n` +
                 `  White House releases AI policy framework — court rules update ${String(input.query)}\n` +
-                `  https://www.whitehouse.gov/briefing-room/statements-releases/2026/05/23/ai-policy-framework/\n` +
+                `  https://www.whitehouse.gov/briefing-room/statements-releases/2026/06/06/ai-policy-framework/\n` +
                 `  OpenAI releases agent update — product announcement ${String(input.query)}\n` +
                 `  https://openai.com/news/agent-update\n` +
                 `  Anthropic publishes AI safety update — research note ${String(input.query)}\n` +

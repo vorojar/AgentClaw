@@ -1,4 +1,5 @@
 import type { Tool } from "@agentclaw/types";
+import { bunTool } from "./bun.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file-read.js";
 import { fileWriteTool } from "./file-write.js";
@@ -25,6 +26,7 @@ import { observationReadTool } from "./observation-read.js";
 import { rssTopTool } from "./rss-top.js";
 
 // Re-exports consumed by @agentclaw/tools index.ts or other packages
+export { bunTool } from "./bun.js";
 export { shellTool, shellInfo } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
 export { fileWriteTool } from "./file-write.js";
@@ -61,6 +63,7 @@ export interface BuiltinToolsOptions {
 export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
   // Core tools — always loaded
   const tools: Tool[] = [
+    bunTool,
     shellTool,
     fileReadTool,
     fileWriteTool,

@@ -485,6 +485,12 @@ function wantsFileDelivery(inputText: string): boolean {
   );
 }
 
+function wantsMarkdownFile(inputText: string): boolean {
+  return /Markdown\s*文件|md\s*文件|\.md\b|转成\s*md|转为\s*md|转成\s*markdown|转为\s*markdown/i.test(
+    inputText,
+  );
+}
+
 function buildToolOffloadCanvas(infos: ToolOffloadInfo[]): string {
   const nodes = infos
     .slice(-8)
@@ -562,8 +568,14 @@ async function applyOverflow(
   if (existingObservation) {
     if (reusableObservation) {
       observationId = reusableObservation.id;
+      filePath = reusableObservation.rawPath;
+    } else {
+      const ts = Date.now();
+      const safeName = toolName.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const fileName = `overflow_${safeName}_${ts}.txt`;
+      filePath = join(getSessionTmpDir(), fileName).replace(/\\/g, "/");
+      writeFileSync(filePath, originalContent, "utf-8");
     }
-    filePath = existingObservation.rawPath;
   } else {
     // Save full content to file
     const ts = Date.now();
@@ -2969,18 +2981,32 @@ export class SimpleAgentLoop implements AgentLoop {
                 context?.sendFile &&
                 offloadInfo.rawPath !== "raw file unavailable"
               ) {
-                await context.sendFile(offloadInfo.rawPath);
-                const filename = basename(offloadInfo.rawPath);
+                let sendPath = offloadInfo.rawPath;
+                if (wantsMarkdownFile(inputTextForHeuristics)) {
+                  sendPath = offloadInfo.rawPath.replace(/\.txt$/i, ".md");
+                  if (sendPath === offloadInfo.rawPath) {
+                    sendPath = `${offloadInfo.rawPath}.md`;
+                  }
+                  copyFileSync(offloadInfo.rawPath, sendPath);
+                }
+                const filename = basename(sendPath);
+                await context.sendFile(
+                  sendPath,
+                  sendPath !== offloadInfo.rawPath ? filename : undefined,
+                );
                 result!.content = `Fetched and sent full text: ${filename} (${offloadInfo.rawChars} chars).`;
                 result!.autoComplete = true;
                 result!.metadata = {
                   ...(result!.metadata ?? {}),
                   fullTextSent: true,
                   sentFilename: filename,
+                  ...(sendPath !== offloadInfo.rawPath
+                    ? { sentPath: sendPath, markdownFilePath: sendPath }
+                    : {}),
                 };
                 result!.effect = {
                   kind: "send",
-                  target: offloadInfo.rawPath,
+                  target: sendPath,
                   reversible: false,
                   deliverable: true,
                   verified: true,

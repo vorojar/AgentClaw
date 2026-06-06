@@ -3027,6 +3027,116 @@ describe("SimpleAgentLoop", () => {
       );
     });
 
+    it("用户要求 md 文件时 web_fetch overflow 应自动发送 Markdown 副本", async () => {
+      const largeContent = `# 长文标题\n\n${"完整长文段落\n".repeat(1400)}tail`;
+      const testProvider = createMockProvider([
+        createToolCallChunks("tc-full-md", "web_fetch", {
+          url: "https://presence.feishu.cn/wiki/wikcnva5WrD0F3HDh6U6EdW91OL",
+          max_chars: 10000,
+        }),
+        finalChunks,
+      ]);
+      const fetchTool = createMockTool("web_fetch", { content: largeContent });
+      const sentFiles: Array<{ url: string; filename: string }> = [];
+      const sendFile = vi.fn(async (_path: string, filename?: string) => {
+        const sentName =
+          filename ?? _path.split(/[\\/]/).pop() ?? "download.md";
+        sentFiles.push({
+          url: `/files/conv-fulltext-md/${sentName}`,
+          filename: sentName,
+        });
+      });
+      const loop = new SimpleAgentLoop({
+        provider: testProvider,
+        toolRegistry: createMockToolRegistry([fetchTool]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 3 },
+      });
+
+      await collectEvents(
+        loop.runStream(
+          "https://presence.feishu.cn/wiki/wikcnva5WrD0F3HDh6U6EdW91OL 获取全文，转成md文件。",
+          "conv-fulltext-md",
+          {
+            sendFile,
+            sentFiles,
+          },
+        ),
+      );
+
+      expect(sendFile).toHaveBeenCalledTimes(1);
+      const sentPath = String(sendFile.mock.calls[0][0]).replace(/\\/g, "/");
+      expect(sentPath).toContain("/data/tmp/conv-fulltext-md/overflow_web_fetch_");
+      expect(sentPath).toMatch(/\.md$/);
+      expect(sendFile.mock.calls[0][1]).toMatch(/\.md$/);
+      expect(existsSync(sentPath)).toBe(true);
+      expect(readFileSync(sentPath, "utf-8")).toContain("完整长文段落");
+
+      const trace = (memoryStore.addTrace as ReturnType<typeof vi.fn>).mock
+        .calls[0][0];
+      expect(trace.effects).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "send",
+            deliverable: true,
+            target: expect.stringMatching(/\.md$/),
+          }),
+        ]),
+      );
+    });
+
+    it("跨会话命中相同 observation hash 时全文发送必须使用当前会话文件", async () => {
+      const largeContent = `${"同一篇全文\n".repeat(1400)}tail`;
+      const oldRawPath =
+        "D:/mycode/agentclaw/data/tmp/old-conv/overflow_web_fetch_old.txt";
+      (
+        memoryStore.findObservationByHash as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({
+        id: "obs-old",
+        traceId: "old-trace",
+        rawPath: oldRawPath,
+      });
+      const testProvider = createMockProvider([
+        createToolCallChunks("tc-full-current", "web_fetch", {
+          url: "https://presence.feishu.cn/wiki/wikcnva5WrD0F3HDh6U6EdW91OL",
+          max_chars: 10000,
+        }),
+        finalChunks,
+      ]);
+      const fetchTool = createMockTool("web_fetch", { content: largeContent });
+      const sendFile = vi.fn(async (_path: string, _filename?: string) => undefined);
+      const loop = new SimpleAgentLoop({
+        provider: testProvider,
+        toolRegistry: createMockToolRegistry([fetchTool]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 3 },
+      });
+
+      await collectEvents(
+        loop.runStream(
+          "https://presence.feishu.cn/wiki/wikcnva5WrD0F3HDh6U6EdW91OL 获取全文",
+          "conv-current-fulltext",
+          { sendFile },
+        ),
+      );
+
+      expect(sendFile).toHaveBeenCalledTimes(1);
+      const sentPath = String(sendFile.mock.calls[0][0]).replace(/\\/g, "/");
+      expect(sentPath).toContain(
+        "/data/tmp/conv-current-fulltext/overflow_web_fetch_",
+      );
+      expect(sentPath).not.toBe(oldRawPath);
+      expect(existsSync(sentPath)).toBe(true);
+      expect(readFileSync(sentPath, "utf-8")).toContain("同一篇全文");
+
+      const observationArg = (
+        memoryStore.addObservation as ReturnType<typeof vi.fn>
+      ).mock.calls[0][0] as Record<string, unknown>;
+      expect(String(observationArg.rawPath).replace(/\\/g, "/")).toBe(sentPath);
+    });
+
     it("用户要求发送文件时 web_fetch save_as 即使漏 auto_send 也应自动发送", async () => {
       const testProvider = createMockProvider([
         createToolCallChunks("tc-save", "web_fetch", {

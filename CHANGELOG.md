@@ -6,6 +6,7 @@
 - **Agent memory arXiv 论文草稿**：新增 `docs/papers/` 论文区和 `Memory as a Control System for Production AI Agents` arXiv 源包，包含 LaTeX 主稿、BibTeX、投稿 metadata 草稿和公开站点入口，把 Active Memory、分层记忆、telemetry、治理和 trace replay 整理成可投稿的工程论文。
 
 ### Fixed
+- **飞书 Wiki 全文 Markdown 交付**：`web_fetch` 对 Feishu/Lark 子域名跳过 Jina 目录页，使用 Playwright 抽取虚拟滚动正文；全文 overflow 在用户要求 Markdown 时自动发送 `.md`，并收窄登录墙关键词，避免正文里的“登录后可查看”误触发拦截。
 - **新闻简报防过度收口**：AI 新闻简报完成策略至少需要 3 个高置信候选才会接管最终合成，并解析新闻 URL 中的日期；最终答复出口也会过滤聚合站、社媒、低质量 SEO 站和过期链接，避免单一来源或过期新闻被包装成“今日简报”。
 - **恢复建议误报修正**：最终已成功响应或已发送可交付文件的 trace 不再因为中途工具限流/可恢复错误生成 branch recovery 建议，避免成功任务在 UI 上被误标成失败路径。
 - **任务路由边界收窄**：表格化完成策略只覆盖网站/SEO/安全/响应头等技术检查，不再把竞品和产品表格调研压成固定网站检查模板；“继续生成文件类产物”也不再被误判成纯文本追问。

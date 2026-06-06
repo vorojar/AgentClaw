@@ -6,6 +6,7 @@ import json
 import sys
 import io
 import os
+import re
 from urllib.parse import urlparse
 
 # Force UTF-8 stdout on Windows (avoid GBK encoding errors)
@@ -67,6 +68,155 @@ GENERIC_CLEANUP_JS = """
 """
 
 
+def is_feishu_doc_host(hostname: str) -> bool:
+    """Return True for Feishu/Lark document hosts that render doc bodies virtually."""
+    return (
+        hostname == "feishu.cn"
+        or hostname.endswith(".feishu.cn")
+        or hostname == "larksuite.com"
+        or hostname.endswith(".larksuite.com")
+    )
+
+
+def clean_feishu_text(text: str) -> str:
+    text = text.replace("\u200b", "")
+    text = text.replace("\ufeff", "")
+    lines = [line.strip() for line in text.splitlines()]
+    cleaned: list[str] = []
+    blank = False
+    for line in lines:
+        if not line:
+            if cleaned and not blank:
+                cleaned.append("")
+                blank = True
+            continue
+        cleaned.append(line)
+        blank = False
+    while cleaned and not cleaned[-1]:
+        cleaned.pop()
+    return "\n".join(cleaned)
+
+
+def merge_visible_text_chunks(chunks: list[str]) -> str:
+    """Merge virtual-scroll text snapshots while keeping first-seen order."""
+    merged: list[str] = []
+    seen: set[str] = set()
+    for chunk in chunks:
+        cleaned = clean_feishu_text(chunk)
+        if not cleaned:
+            continue
+        for line in cleaned.splitlines():
+            normalized = re.sub(r"\s+", " ", line).strip()
+            if not normalized:
+                if merged and merged[-1]:
+                    merged.append("")
+                continue
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            merged.append(line.strip())
+    while merged and not merged[-1]:
+        merged.pop()
+    return "\n".join(merged)
+
+
+def feishu_text_to_markdown(text: str) -> str:
+    lines = [line.strip() for line in clean_feishu_text(text).splitlines() if line.strip()]
+    if not lines:
+        return ""
+
+    markdown: list[str] = []
+    title = lines[0].lstrip("#").strip()
+    markdown.append(f"# {title}")
+    for line in lines[1:]:
+        if line == title:
+            continue
+        markdown.append("")
+        markdown.append(line)
+    return "\n".join(markdown).strip()
+
+
+def fetch_feishu_virtual_doc(page) -> str | None:
+    """Extract Feishu/Lark docs rendered through virtual scrolling.
+
+    The regular full-page HTML path often sees only the wiki shell or table of
+    contents. The article body is mounted in #innerdocbody and changes as the
+    scroll container advances, so collect snapshots across the document.
+    """
+    try:
+        page.wait_for_selector("#innerdocbody", timeout=30000)
+        page.wait_for_function(
+            """() => {
+                const el = document.querySelector('#innerdocbody');
+                return el && (el.innerText || '').replace(/\u200b/g, '').trim().length > 300;
+            }""",
+            timeout=30000,
+        )
+    except Exception:
+        return None
+
+    chunks: list[str] = []
+    stable_bottom_count = 0
+    last_top = -1
+    for _ in range(60):
+        try:
+            text = page.evaluate(
+                "document.querySelector('#innerdocbody')?.innerText || ''"
+            )
+        except Exception:
+            text = ""
+        if text:
+            chunks.append(text)
+
+        metrics = page.evaluate(
+            """() => {
+                const scroller =
+                    document.querySelector('.etherpad-container-wrapper') ||
+                    document.querySelector('[data-testid="doc-scroll-container"]') ||
+                    document.scrollingElement;
+                if (!scroller) return { top: 0, height: 0, client: 0 };
+                return {
+                    top: scroller.scrollTop,
+                    height: scroller.scrollHeight,
+                    client: scroller.clientHeight
+                };
+            }"""
+        )
+        top = int(metrics.get("top") or 0)
+        height = int(metrics.get("height") or 0)
+        client = int(metrics.get("client") or 0)
+        if height > 0 and client > 0 and top + client >= height - 8:
+            stable_bottom_count += 1
+            if stable_bottom_count >= 2:
+                break
+        else:
+            stable_bottom_count = 0
+
+        if top == last_top and height > 0:
+            stable_bottom_count += 1
+            if stable_bottom_count >= 3:
+                break
+        last_top = top
+
+        page.evaluate(
+            """() => {
+                const scroller =
+                    document.querySelector('.etherpad-container-wrapper') ||
+                    document.querySelector('[data-testid="doc-scroll-container"]') ||
+                    document.scrollingElement;
+                if (!scroller) return;
+                const delta = Math.max(480, Math.floor(scroller.clientHeight * 0.8));
+                scroller.scrollBy(0, delta);
+            }"""
+        )
+        page.wait_for_timeout(650)
+
+    merged = merge_visible_text_chunks(chunks)
+    if len(merged) < 1000:
+        return None
+    return feishu_text_to_markdown(merged)
+
+
 def fetch(url: str, scroll: bool = False, raw: bool = False) -> str:
     from playwright.sync_api import sync_playwright
 
@@ -103,6 +253,12 @@ def fetch(url: str, scroll: bool = False, raw: bool = False) -> str:
         if raw:
             content = page.content()
         else:
+            if is_feishu_doc_host(hostname):
+                content = fetch_feishu_virtual_doc(page)
+                if content:
+                    browser.close()
+                    return content
+
             # Layer 1: Generic cleanup (all sites)
             page.evaluate(GENERIC_CLEANUP_JS)
 

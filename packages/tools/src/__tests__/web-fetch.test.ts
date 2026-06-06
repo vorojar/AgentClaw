@@ -3,6 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ToolExecutionContext } from "@agentclaw/types";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const childProcessMock = vi.hoisted(() => ({
+  execFile: vi.fn(),
+}));
+
+vi.mock("node:child_process", () => ({
+  execFile: childProcessMock.execFile,
+}));
+
 import { webFetchTool } from "../builtin/web-fetch.js";
 
 function response(
@@ -29,6 +38,7 @@ describe("web_fetch", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    childProcessMock.execFile.mockReset();
   });
 
   it("抓取微信公众号文章时应跳过 Jina 并保存本机直连提取的正文", async () => {
@@ -231,5 +241,64 @@ describe("web_fetch", () => {
     expect(result.content).toContain("需要验证或登录态");
     expect(sendFile).not.toHaveBeenCalled();
     await expect(readFile(join(workDir, "bad-x.md"), "utf-8")).rejects.toThrow();
+  });
+
+  it("抓取飞书文档时应跳过 Jina 并使用 Playwright 虚拟正文", async () => {
+    const url = "https://presence.feishu.cn/wiki/wikcnva5WrD0F3HDh6U6EdW91OL";
+    const nativeShell = `
+      <html>
+        <body>
+          <main>
+            <h1>👋十年创业者 万字长文分享 我是怎么招人的</h1>
+            <p>rangeDom</p>
+          </main>
+          ${"<script>window.__app = true</script>".repeat(200)}
+        </body>
+      </html>
+    `;
+    const playwrightText = `
+      # 👋十年创业者 万字长文分享 我是怎么招人的
+
+      S级人才 心里有火，眼里有光，找方向、带队伍、闯出一片天。
+
+      不用告诉他干啥，他来告诉你该干啥。
+
+      群名片（登录后可查看）
+
+      怎么样能变成和我一样人见人爱，人见人帮的吸贵人体质呢？
+    `.repeat(8);
+    childProcessMock.execFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, { stdout: playwrightText, stderr: "" });
+      return {} as never;
+    });
+    const fetchMock = vi.fn(async (fetchUrl: string | URL | Request) => {
+      const requested = String(fetchUrl);
+      if (requested.startsWith("https://r.jina.ai/")) {
+        return response("rangeDom\n目录\n不用告诉他干啥", "text/markdown; charset=utf-8");
+      }
+      return response(nativeShell);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { workDir, sendFile, context } = await makeContext();
+    const result = await webFetchTool.execute(
+      { url, save_as: "feishu.md", auto_send: true },
+      context,
+    );
+
+    expect(result.isError).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([requested]) =>
+        String(requested).startsWith("https://r.jina.ai/"),
+      ),
+    ).toBe(false);
+    expect(result.metadata?.strategy).toBe("playwright");
+    expect(sendFile).toHaveBeenCalledWith(join(workDir, "feishu.md"), "feishu.md");
+
+    const saved = await readFile(join(workDir, "feishu.md"), "utf-8");
+    expect(saved).toContain("不用告诉他干啥");
+    expect(saved).toContain("群名片（登录后可查看）");
+    expect(saved).toContain("怎么样能变成和我一样人见人爱");
+    expect(saved).not.toContain("rangeDom");
   });
 });

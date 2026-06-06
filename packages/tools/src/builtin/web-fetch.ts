@@ -34,10 +34,11 @@ function loadSiteConfig(): SiteConfig {
       "weibo.com", "m.weibo.com", "bilibili.com", "www.bilibili.com",
       "douyin.com", "www.douyin.com", "xiaohongshu.com", "www.xiaohongshu.com",
       "threads.net", "www.threads.net", "reddit.com", "www.reddit.com",
+      "feishu.cn", "www.feishu.cn", "larksuite.com", "www.larksuite.com",
       "chatgpt.com", "chat.openai.com",
     ],
     loginWallKeywords: [
-      "安全验证", "请登录", "登录后", "请先登录",
+      "安全验证", "请登录", "请先登录",
       "当前环境异常", "完成验证后即可继续访问", "requiring CAPTCHA",
       "login required", "sign in to", "please log in", "access denied",
     ],
@@ -79,6 +80,15 @@ const LOGIN_WALL_KEYWORDS = siteConfig.loginWallKeywords;
 /** 微信公众号文章直连能拿到正文，Jina Reader 经常只返回微信验证页 */
 function isWeixinArticleHost(hostname: string): boolean {
   return hostname === "mp.weixin.qq.com";
+}
+
+function isFeishuDocHost(hostname: string): boolean {
+  return (
+    hostname === "feishu.cn" ||
+    hostname.endsWith(".feishu.cn") ||
+    hostname === "larksuite.com" ||
+    hostname.endsWith(".larksuite.com")
+  );
 }
 
 function normalizeXArticleUrl(url: URL): string | null {
@@ -373,7 +383,8 @@ export const webFetchTool: Tool = {
 
         // 优先 Jina Reader（Markdown 质量更高），但微信公众号直连正文更可靠，且 Jina
         // 对微信常返回“环境异常/验证码”页面，不能把它当成功内容。
-        if (isWeixinArticleHost(parsedUrl.hostname)) {
+        const isFeishuDoc = isFeishuDocHost(parsedUrl.hostname);
+        if (isWeixinArticleHost(parsedUrl.hostname) || isFeishuDoc) {
           content = nativeContent;
         } else {
           const jina = await tryJinaReader(url);
@@ -383,7 +394,7 @@ export const webFetchTool: Tool = {
 
         // SPA 自动回退：已知 SPA 域名直接走 Playwright；其他站点内容极少时也降级
         // Jina 已成功且内容充足时跳过 Playwright
-        const isSPADomain = SPA_DOMAINS.has(parsedUrl.hostname);
+        const isSPADomain = SPA_DOMAINS.has(parsedUrl.hostname) || isFeishuDoc;
         if (strategy !== "jina" && (isSPADomain || (content.length < 1500 && body.length > 2000))) {
           // 直接带 --scroll 抓取，避免两次 Playwright 启动开销
           const pwContent = await tryPlaywrightFetch(url, true);
@@ -545,10 +556,7 @@ async function tryPlaywrightFetch(
   url: string,
   scroll = false,
 ): Promise<string | null> {
-  const scriptPath = resolve(
-    process.cwd(),
-    "skills/web-fetch/scripts/fetch.py",
-  );
+  const scriptPath = resolveWebFetchScriptPath();
   if (!existsSync(scriptPath)) {
     return null;
   }
@@ -568,6 +576,21 @@ async function tryPlaywrightFetch(
     return result;
   } catch {
     return null;
+  }
+}
+
+function resolveWebFetchScriptPath(): string {
+  let current = resolve(process.cwd());
+  while (true) {
+    const candidate = resolve(current, "skills/web-fetch/scripts/fetch.py");
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+    const parent = resolve(current, "..");
+    if (parent === current) {
+      return candidate;
+    }
+    current = parent;
   }
 }
 

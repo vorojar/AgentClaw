@@ -7,9 +7,6 @@
  *   DELETE /api/sessions/:id          — Close session
  *   POST   /api/sessions/:id/chat     — Send message (returns full response)
  *   GET    /api/sessions/:id/history  — Get conversation history
- *   GET    /api/sessions/:id/recovery-suggestions — List branch recovery points
- *   POST   /api/sessions/:id/recover-branch — Replace failed turn with a new branch
- *   POST   /api/sessions/:id/auto-recover-branch — Retry failed turn with failed tools denied
  *   GET    /api/memories              — Search memories
  *   GET    /api/tools                 — List tools
  *   GET    /api/skills                — List skills
@@ -354,39 +351,6 @@ export interface ChatMessage {
   toolResults?: string;
 }
 
-export type BranchRecoveryReason = "tool_error" | "loop_error" | "llm_error";
-
-export interface BranchRecoverySuggestion {
-  traceId: string;
-  conversationId: string;
-  fromTurnId: string;
-  reason: BranchRecoveryReason;
-  message: string;
-  failedToolNames?: string[];
-  createdAt: string;
-}
-
-interface ConversationTreeTurn {
-  id: string;
-  parentId: string | null;
-  branchId: string;
-  role: ChatMessage["role"];
-  content: string;
-  createdAt: string;
-}
-
-interface ConversationTreeInfo {
-  conversationId: string;
-  activeLeafId: string | null;
-  turns: ConversationTreeTurn[];
-}
-
-interface RecoverBranchResult {
-  message: ChatMessage;
-  tree?: ConversationTreeInfo;
-  deniedTools?: string[];
-}
-
 export function getHistory(
   sessionId: string,
   limit?: number,
@@ -403,33 +367,6 @@ export function deleteTurnsFrom(
     `/sessions/${sessionId}/turns?from=${encodeURIComponent(fromCreatedAt)}`,
     { method: "DELETE" },
   );
-}
-
-export function getRecoverySuggestions(
-  sessionId: string,
-): Promise<BranchRecoverySuggestion[]> {
-  return request(`/sessions/${sessionId}/recovery-suggestions`);
-}
-
-export function recoverBranch(
-  sessionId: string,
-  fromTurnId: string,
-  content: string,
-): Promise<RecoverBranchResult> {
-  return request(`/sessions/${sessionId}/recover-branch`, {
-    method: "POST",
-    body: JSON.stringify({ fromTurnId, content }),
-  });
-}
-
-export function autoRecoverBranch(
-  sessionId: string,
-  fromTurnId: string,
-): Promise<RecoverBranchResult> {
-  return request(`/sessions/${sessionId}/auto-recover-branch`, {
-    method: "POST",
-    body: JSON.stringify({ fromTurnId }),
-  });
 }
 
 // ── Memory ──────────────────────────────────────────

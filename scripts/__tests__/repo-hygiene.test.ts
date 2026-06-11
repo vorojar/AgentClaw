@@ -53,4 +53,22 @@ describe("repository hygiene", () => {
       existsSync(join(ROOT, "packages/tools/assets/web-fetch/sites.json")),
     ).toBe(true);
   });
+
+  it("does not expose branch recovery controls in the chat frontend", () => {
+    const frontend = [
+      "packages/web/src/pages/ChatPage.tsx",
+      "packages/web/src/pages/ChatPage.css",
+      "packages/web/src/api/client.ts",
+      "packages/web/src/i18n/locales/zh.json",
+      "packages/web/src/i18n/locales/en.json",
+    ]
+      .map(read)
+      .join("\n");
+
+    expect(frontend).not.toContain("recovery-panel");
+    expect(frontend).not.toContain("getRecoverySuggestions");
+    expect(frontend).not.toContain("recoverBranch");
+    expect(frontend).not.toContain("autoRecoverBranch");
+    expect(frontend).not.toContain("recoveryTitle");
+  });
 });

@@ -19,12 +19,8 @@ import {
   type WSMessage,
   type SkillInfo,
   type AgentInfo,
-  type BranchRecoverySuggestion,
   getHistory,
   deleteTurnsFrom,
-  getRecoverySuggestions,
-  recoverBranch,
-  autoRecoverBranch,
   createSession,
   uploadFile,
   renameSession,
@@ -68,7 +64,6 @@ import {
   IconCode,
   IconEye,
   IconCopy,
-  IconPlay,
 } from "../components/Icons";
 import { formatDuration, formatTimeOnly } from "../utils/format";
 import {
@@ -1378,13 +1373,6 @@ export function ChatPage() {
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const agentMenuRef = useRef<HTMLDivElement>(null);
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
-  const [recoverySuggestions, setRecoverySuggestions] = useState<
-    BranchRecoverySuggestion[]
-  >([]);
-  const [recoveryDrafts, setRecoveryDrafts] = useState<Record<string, string>>(
-    {},
-  );
-  const [recoveringTurnId, setRecoveringTurnId] = useState<string | null>(null);
   const [todoItems, setTodoItems] = useState<
     Array<{ text: string; done: boolean }>
   >([]);
@@ -1460,28 +1448,6 @@ export function ChatPage() {
     });
   }, []);
 
-  const loadRecoverySuggestions = useCallback(async () => {
-    if (!activeSessionId) {
-      setRecoverySuggestions([]);
-      setRecoveryDrafts({});
-      return;
-    }
-    const suggestions = await getRecoverySuggestions(activeSessionId);
-    setRecoverySuggestions(suggestions);
-    setRecoveryDrafts((prev) => {
-      const next: Record<string, string> = {};
-      for (const suggestion of suggestions) {
-        next[suggestion.fromTurnId] =
-          prev[suggestion.fromTurnId] ??
-          t("chat.recoveryDraft", {
-            tools:
-              suggestion.failedToolNames?.join(", ") || t("chat.unknownTool"),
-          });
-      }
-      return next;
-    });
-  }, [activeSessionId, t]);
-
   useEffect(() => {
     scrollToBottom();
   }, [scrollToBottom]);
@@ -1494,8 +1460,6 @@ export function ChatPage() {
       setLoadingHistory(false);
       // 新建会话时清空 todo
       setTodoItems([]);
-      setRecoverySuggestions([]);
-      setRecoveryDrafts({});
       return;
     }
     // Skip loading empty history for sessions just created by ensureSession
@@ -1538,7 +1502,6 @@ export function ChatPage() {
         } else {
           setMessages(historyMessages);
         }
-        loadRecoverySuggestions().catch(() => {});
       } catch (err) {
         console.error("Failed to load history:", err);
         if (!cancelled) setMessages([]);
@@ -1561,7 +1524,7 @@ export function ChatPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, loadRecoverySuggestions]);
+  }, [activeSessionId]);
 
   useEffect(() => {
     return () => {
@@ -1831,7 +1794,6 @@ export function ChatPage() {
           });
           stopStreaming();
           refreshSessions();
-          loadRecoverySuggestions().catch(() => {});
           break;
         }
         case "prompt": {
@@ -1919,7 +1881,6 @@ export function ChatPage() {
       }
     },
     [
-      loadRecoverySuggestions,
       refreshSessions,
       resetStreamingLocal,
       setActiveToolName,
@@ -2117,84 +2078,6 @@ export function ChatPage() {
     startStreaming(activeSessionId);
     wsRef.current.send(lastUserText);
   }, [isSending, lastUserText, activeSessionId, startStreaming]);
-
-  const refreshHistoryAfterRecovery = useCallback(async () => {
-    if (!activeSessionId) return;
-    const history = await getHistory(activeSessionId);
-    setMessages(historyToDisplayMessages(history));
-    await loadRecoverySuggestions();
-    refreshSessions();
-  }, [activeSessionId, loadRecoverySuggestions, refreshSessions]);
-
-  const handleAutoRecover = useCallback(
-    async (suggestion: BranchRecoverySuggestion) => {
-      if (!activeSessionId || isSending) return;
-      setRecoveringTurnId(suggestion.fromTurnId);
-      startStreaming(activeSessionId);
-      try {
-        await autoRecoverBranch(activeSessionId, suggestion.fromTurnId);
-        await refreshHistoryAfterRecovery();
-      } catch (err) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            key: nextKey(),
-            role: "system",
-            content: err instanceof Error ? err.message : String(err),
-            streaming: false,
-            toolCalls: [],
-          },
-        ]);
-      } finally {
-        setRecoveringTurnId(null);
-        stopStreaming();
-      }
-    },
-    [
-      activeSessionId,
-      isSending,
-      refreshHistoryAfterRecovery,
-      startStreaming,
-      stopStreaming,
-    ],
-  );
-
-  const handleManualRecover = useCallback(
-    async (suggestion: BranchRecoverySuggestion) => {
-      if (!activeSessionId || isSending) return;
-      const content = recoveryDrafts[suggestion.fromTurnId]?.trim();
-      if (!content) return;
-      setRecoveringTurnId(suggestion.fromTurnId);
-      startStreaming(activeSessionId);
-      try {
-        await recoverBranch(activeSessionId, suggestion.fromTurnId, content);
-        setLastUserText(content);
-        await refreshHistoryAfterRecovery();
-      } catch (err) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            key: nextKey(),
-            role: "system",
-            content: err instanceof Error ? err.message : String(err),
-            streaming: false,
-            toolCalls: [],
-          },
-        ]);
-      } finally {
-        setRecoveringTurnId(null);
-        stopStreaming();
-      }
-    },
-    [
-      activeSessionId,
-      isSending,
-      recoveryDrafts,
-      refreshHistoryAfterRecovery,
-      startStreaming,
-      stopStreaming,
-    ],
-  );
 
   const handleEditSubmit = useCallback(
     async (msgKey: string) => {
@@ -2718,7 +2601,6 @@ export function ChatPage() {
     messages.length > 0 &&
     messages[messages.length - 1].role === "assistant" &&
     !messages[messages.length - 1].streaming;
-  const activeRecoverySuggestion = recoverySuggestions[0];
 
   return (
     <PreviewContext.Provider value={setPreviewFile}>
@@ -2878,67 +2760,6 @@ export function ChatPage() {
             <div className="tool-status-bar">
               <span className="tool-status-spinner" />
               <span>{t("chat.runningTool", { tool: activeToolName })}</span>
-            </div>
-          )}
-
-          {activeRecoverySuggestion && (
-            <div className="recovery-panel">
-              <div className="recovery-panel-main">
-                <div className="recovery-panel-heading">
-                  <span className="recovery-panel-icon">
-                    <IconRefresh size={15} />
-                  </span>
-                  <span>{t("chat.recoveryTitle")}</span>
-                  {activeRecoverySuggestion.failedToolNames?.length ? (
-                    <span className="recovery-panel-tools">
-                      {activeRecoverySuggestion.failedToolNames.join(", ")}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="recovery-panel-message">
-                  {activeRecoverySuggestion.message}
-                </div>
-                <textarea
-                  className="recovery-panel-input"
-                  value={
-                    recoveryDrafts[activeRecoverySuggestion.fromTurnId] ?? ""
-                  }
-                  onChange={(e) =>
-                    setRecoveryDrafts((prev) => ({
-                      ...prev,
-                      [activeRecoverySuggestion.fromTurnId]: e.target.value,
-                    }))
-                  }
-                  disabled={isSending}
-                  rows={2}
-                  aria-label={t("chat.recoveryInput")}
-                />
-              </div>
-              <div className="recovery-panel-actions">
-                <button
-                  className="recovery-panel-primary"
-                  onClick={() => handleAutoRecover(activeRecoverySuggestion)}
-                  disabled={isSending || !!recoveringTurnId}
-                  title={t("chat.recoveryAutoHint")}
-                >
-                  <IconPlay size={14} />
-                  {recoveringTurnId === activeRecoverySuggestion.fromTurnId
-                    ? t("chat.recovering")
-                    : t("chat.autoRecover")}
-                </button>
-                <button
-                  className="recovery-panel-secondary"
-                  onClick={() => handleManualRecover(activeRecoverySuggestion)}
-                  disabled={
-                    isSending ||
-                    !!recoveringTurnId ||
-                    !recoveryDrafts[activeRecoverySuggestion.fromTurnId]?.trim()
-                  }
-                >
-                  <IconEdit size={14} />
-                  {t("chat.recoverWithDraft")}
-                </button>
-              </div>
             </div>
           )}
 

@@ -10,6 +10,7 @@
 ### Changed
 - **冗余事实源收口**：`CLAUDE.md`/`restart.ps1` 降为 Agent Flow 入口包装，README、系统提示词、golden case 和书稿当前事实不再暴露已移除工具名或本机路径；`web_fetch` 运行时资产迁移到 `packages/tools/assets/web-fetch/`，技能目录不再承载工具运行文件。
 - **配置 API 去旧字段扩散**：`/api/config` 返回值不再输出 `anthropicApiKey`/`openaiApiKey`/`defaultModel`/`searxngUrl` 等旧字段，前端首次配置检查只认 `providers[]`。
+- **失败恢复前端降噪**：Chat 页面不再展示“可恢复失败路径”面板、自动恢复按钮和草稿恢复输入；后端 recovery API 保留给调试和内部流程使用。
 
 ### Removed
 - **过期计划和本地产物**：删除 `SHORTCOMINGS-PLAN.md`、`desktop-plan.md`、`task.md` 三个一次性计划文档，并清理已忽略的旧技能备份和桌面构建产物目录。

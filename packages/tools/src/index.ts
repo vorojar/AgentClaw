@@ -34,4 +34,9 @@ export {
   type EmbedFn as RagEmbedFn,
 } from "./builtin/file-rag-tool.js";
 export { setSearchEngines } from "./builtin/web-search.js";
+export {
+  buildIgnoreCheck,
+  buildIgnoreCheckSync,
+  loadIgnorePatterns,
+} from "./ignore.js";
 export { MCPClient, MCPManager } from "./mcp/index.js";

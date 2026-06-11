@@ -67,6 +67,40 @@ function rebuildProvider(cfg: AppConfig): {
   };
 }
 
+const LEGACY_CONFIG_RESPONSE_FIELDS = new Set([
+  "anthropicApiKey",
+  "openaiApiKey",
+  "openaiBaseUrl",
+  "geminiApiKey",
+  "defaultModel",
+  "anthropicModel",
+  "openaiModel",
+  "geminiModel",
+  "searxngUrl",
+]);
+
+function buildPublicConfigResponse(
+  cfg: AppConfig,
+  ctx: AppContext,
+  dailyBriefTime: string,
+  dailyBriefEnabled: boolean,
+): Record<string, unknown> {
+  const masked = maskConfig(cfg);
+  for (const field of LEGACY_CONFIG_RESPONSE_FIELDS) {
+    delete masked[field];
+  }
+
+  return {
+    ...masked,
+    provider: ctx.config.provider,
+    model: ctx.config.model,
+    databasePath: ctx.config.databasePath,
+    skillsDir: ctx.config.skillsDir,
+    dailyBriefTime,
+    dailyBriefEnabled,
+  };
+}
+
 export function registerConfigRoutes(
   app: FastifyInstance,
   ctx: AppContext,
@@ -106,17 +140,14 @@ export function registerConfigRoutes(
       const dailyBriefEnabled =
         (ctx.memoryStore as any).getSetting?.("daily_brief_enabled") !==
         "false";
-      const masked = maskConfig(cfg);
-      return reply.send({
-        ...masked,
-        // 保留旧字段兼容性
-        provider: ctx.config.provider,
-        model: ctx.config.model,
-        databasePath: ctx.config.databasePath,
-        skillsDir: ctx.config.skillsDir,
-        dailyBriefTime,
-        dailyBriefEnabled,
-      });
+      return reply.send(
+        buildPublicConfigResponse(
+          cfg,
+          ctx,
+          dailyBriefTime,
+          dailyBriefEnabled,
+        ),
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       return reply.status(500).send({ error: message });
@@ -164,15 +195,9 @@ export function registerConfigRoutes(
       const {
         dailyBriefTime: _dbt,
         dailyBriefEnabled: _dbe,
-        model: legacyModel,
+        model: requestedModel,
         ...configUpdates
       } = updates;
-      if (
-        legacyModel !== undefined &&
-        configUpdates.defaultModel === undefined
-      ) {
-        configUpdates.defaultModel = legacyModel;
-      }
 
       // 保护脱敏 apiKey：如果前端提交的 apiKey 是 "****" 格式，用 config.json 中的原值替换
       if (configUpdates.providers && Array.isArray(configUpdates.providers)) {
@@ -216,19 +241,7 @@ export function registerConfigRoutes(
       (ctx as any).appConfig = cfg;
 
       // 3. 判断是否需要热重建 provider
-      const providerFields = [
-        "providers",
-        "activeProvider",
-        "openaiModel",
-        "openaiBaseUrl",
-        "openaiApiKey",
-        "anthropicModel",
-        "anthropicApiKey",
-        "geminiModel",
-        "geminiApiKey",
-        "defaultModel",
-        "disableThinking",
-      ];
+      const providerFields = ["providers", "activeProvider", "disableThinking"];
       if (providerFields.some((f) => f in configUpdates)) {
         const newProvider = rebuildProvider(cfg);
         if (newProvider) {
@@ -239,14 +252,11 @@ export function registerConfigRoutes(
             (ctx.orchestrator as any).setModel(newProvider.model);
           }
           (ctx as any).provider = newProvider.provider;
-        } else if (configUpdates.defaultModel !== undefined) {
-          ctx.config.model = configUpdates.defaultModel as string;
-          (ctx.orchestrator as any).setModel(configUpdates.defaultModel);
         }
-      } else if (configUpdates.defaultModel !== undefined) {
-        // 仅改了 defaultModel 但没改 provider 相关字段
-        ctx.config.model = configUpdates.defaultModel as string;
-        (ctx.orchestrator as any).setModel(configUpdates.defaultModel);
+      }
+      if (requestedModel !== undefined) {
+        ctx.config.model = requestedModel;
+        (ctx.orchestrator as any).setModel(requestedModel);
       }
 
       // 4. 渠道配置变更时热重启渠道
@@ -277,16 +287,14 @@ export function registerConfigRoutes(
       const dailyBriefEnabled =
         (ctx.memoryStore as any).getSetting?.("daily_brief_enabled") !==
         "false";
-      const masked = maskConfig(cfg);
-      return reply.send({
-        ...masked,
-        provider: ctx.config.provider,
-        model: ctx.config.model,
-        databasePath: ctx.config.databasePath,
-        skillsDir: ctx.config.skillsDir,
-        dailyBriefTime,
-        dailyBriefEnabled,
-      });
+      return reply.send(
+        buildPublicConfigResponse(
+          cfg,
+          ctx,
+          dailyBriefTime,
+          dailyBriefEnabled,
+        ),
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       return reply.status(500).send({ error: message });

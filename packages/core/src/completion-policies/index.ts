@@ -25,8 +25,3 @@ export function evaluateCompletionPolicies(
 
 export { currentLocalDateString, extractFallbackLines } from "./common.js";
 export { buildSynthesisFallbackResponse } from "./synthesis-fallback.js";
-export type {
-  CompletionArtifact,
-  CompletionPolicyDecision,
-  CompletionPolicyInput,
-} from "./types.js";

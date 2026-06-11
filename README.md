@@ -29,8 +29,8 @@ AgentClaw Hive（Agent 托管平台）
   │
   ├── LLM 提供商 (Claude, OpenAI, Gemini, DeepSeek, Kimi, Qwen, Doubao...)
   ├── 智能路由 (自动故障切换, Fast Provider 路由)
-  ├── 核心工具 (shell, file_read/write/edit, glob, grep, ask_user, web_fetch, web_search, context_search, compact)
-  ├── 条件工具 (send_file, schedule, remember, use_skill, sandbox, subagent...)
+  ├── 核心工具 (bun, bash, file_read/write/edit, glob, grep, ask_user, web_fetch, web_search, rss_top)
+  ├── 条件工具 (send_file, schedule, remember/recall, use_skill, sandbox, subagent...)
   ├── 记忆 (对话历史 + 长期记忆 + 自动压缩 + namespace 隔离)
   ├── 技能 x12 (gws-calendar/gmail/drive/sheets/tasks, pdf, docx, xlsx, pptx, bilingual-subtitle...)
   ├── 子代理 (并行任务派发与汇总)
@@ -234,7 +234,8 @@ POST /api/v1/agents/:id/sessions/:sid/chat # 会话内对话
 
 | 类型 | 工具 | 说明 |
 |------|------|------|
-| 核心 | `bash` | 执行 shell 命令（沙箱保护） |
+| 核心 | `bun` | 执行有边界的 JavaScript/TypeScript 片段 |
+| 核心 | `bash` | 执行命令（沙箱保护） |
 | 核心 | `file_read` | 读取文件内容 |
 | 核心 | `file_write` | 写入文件（自动创建目录） |
 | 核心 | `file_edit` | 精确字符串替换编辑文件 |
@@ -243,18 +244,16 @@ POST /api/v1/agents/:id/sessions/:sid/chat # 会话内对话
 | 核心 | `ask_user` | 向用户提问 |
 | 核心 | `web_fetch` | 抓取网页内容（Readability 正文提取 + SPA 自动降级 Playwright） |
 | 核心 | `web_search` | 搜索互联网（在 Settings 中配置 Serper / Querit / Custom / SearXNG） |
-| 核心 | `context_search` | 搜索当前会话上下文 |
-| 核心 | `compact` | 主动压缩上下文（LLM 管理 token 预算） |
-| 条件 | `execute_code` | 沙箱执行 JS/Python 脚本（Programmatic Tool Calling） |
+| 核心 | `rss_top` | 多个 Reddit/RSS 源 TopN 提取 |
 | 条件 | `send_file` | 发送文件给用户 |
 | 条件 | `schedule` | 创建定时任务 |
 | 条件 | `update_todo` | 实时进度追踪 |
 | 条件 | `remember` | 保存长期记忆 |
+| 条件 | `recall` | 搜索长期记忆 |
 | 条件 | `use_skill` | 调用技能 |
 | 条件 | `sandbox` | Docker 容器内安全执行命令 |
 | 条件 | `subagent` | 子代理编排（spawn/result/kill/list） |
 | 条件 | `browser_cdp` | 浏览器 CDP 自动化（默认关闭，需安装 Chrome/Chromium 并设置 `AGENTCLAW_ENABLE_BROWSER_CDP=true`） |
-| 条件 | `social_post` | 一键发帖到 X/小红书/即刻 |
 | 条件 | `handoff` | 将对话交接给更合适的专家 Agent |
 | 条件 | `claude_code` | 委托 Claude Code CLI 执行编码任务 |
 
@@ -373,7 +372,7 @@ sudo ufw allow 3100
 <details>
 <summary><b>Q: 长对话后响应变慢？</b></summary>
 
-这是上下文压缩触发的正常行为。系统会在 token 超限时自动压缩旧消息。主动压缩：让 agent 调用 `compact` 工具，或在 Web UI 中点击压缩按钮。压缩后 tool_result 保留关键信息（错误行/状态/JSON 字段），80-95% token 节省。
+这是上下文压缩触发的正常行为。系统会在 token 超限时自动压缩旧消息；Web UI 里也可以手动触发压缩。压缩后 tool_result 保留关键信息（错误行/状态/JSON 字段），80-95% token 节省。
 
 </details>
 

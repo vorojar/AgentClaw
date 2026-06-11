@@ -1,4 +1,5 @@
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
+import { loadIgnorePatterns } from "../ignore.js";
 
 export const globTool: Tool = {
   name: "glob",
@@ -40,13 +41,23 @@ export const globTool: Tool = {
     );
 
     try {
+      // Merge .agentclawignore patterns
+      const extraIgnores = context?.workDir
+        ? await loadIgnorePatterns(context.workDir)
+        : [];
+
       // Dynamic import to avoid top-level ESM issues
       const fg = await import("fast-glob");
       const files = await fg.default(pattern, {
         cwd,
         onlyFiles: true,
         dot: false,
-        ignore: ["**/node_modules/**", "**/dist/**", "**/.git/**"],
+        ignore: [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/.git/**",
+          ...extraIgnores,
+        ],
         followSymbolicLinks: false,
       });
 

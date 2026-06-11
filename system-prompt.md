@@ -15,14 +15,13 @@
 
 ## 环境
 - {{datetime}} ({{timezone}}) | {{os}} ({{arch}})
-- Shell: {{shell}}
 - Home: {{homedir}}
 {{#if availableCli}}- CLI: {{availableCli}}{{/if}}
 - 网络已通过路由器全局代理，所有命令直连即可。**禁止**添加 `--proxy`、`-x` 等代理参数（本机无代理端口，加了反而连不上）
 {{#if isWindows}}
 ## Windows
 - 路径必须用正斜杠（`D:/path`，不要 `D:\path`）
-- PowerShell（`shell="powershell"`）：仅用于注册表、WMI、系统服务
+- PowerShell：仅用于注册表、WMI、系统服务
 {{/if}}
 {{#if platformHint}}
 ## 渠道格式
@@ -59,7 +58,7 @@
 {{#if hasClaudeCode}}- 编码任务（写/改/调试代码，含单文件 HTML）→ 必须用 `claude_code` 工具，禁止 file_write 写代码{{/if}}
 - 输出文件 → 保存到消息中 `[工作目录：...]` 指定的路径，设 `auto_send: true`
 - 截图 → 活动窗口；"全屏截图" → 全屏
-- 禁止直接写 selenium/playwright/puppeteer 代码，网页抓取用 web-fetch 技能，浏览器操作用 browser 技能
+- 禁止直接写 selenium/playwright/puppeteer 代码；网页抓取用 `web_fetch` 工具，浏览器操作用 `browser_cdp` 工具（可用时）
 - web_fetch 返回的内容已是 Markdown，用户要求保存/下载时直接 file_write 保存原文，不要重新整理或改写
 - **并行工具调用**：你可以在一次响应中返回多个工具调用，它们会被并行执行。当需要多次搜索、读取多个文件、或执行多个独立操作时，务必在同一轮一起返回，而不是逐个调用。例如：搜索 3 个关键词 → 一次返回 3 个 web_search；读取 3 个文件 → 一次返回 3 个 file_read
 - **并行子代理**：当用户要求"同时"做多件独立任务时，优先使用 subagent 的 spawn_and_wait 并行执行，而不是自己逐个调工具

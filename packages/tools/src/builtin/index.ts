@@ -26,7 +26,6 @@ import { observationReadTool } from "./observation-read.js";
 import { rssTopTool } from "./rss-top.js";
 
 // Re-exports consumed by @agentclaw/tools index.ts or other packages
-export { bunTool } from "./bun.js";
 export { shellTool, shellInfo } from "./shell.js";
 export { fileReadTool } from "./file-read.js";
 export { fileWriteTool } from "./file-write.js";

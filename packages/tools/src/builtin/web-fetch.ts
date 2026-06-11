@@ -19,7 +19,10 @@ interface SiteConfig {
 }
 
 function loadSiteConfig(): SiteConfig {
-  const configPath = resolve(process.cwd(), "skills/web-fetch/sites.json");
+  const configPath = resolve(
+    process.cwd(),
+    "packages/tools/assets/web-fetch/sites.json",
+  );
   try {
     if (existsSync(configPath)) {
       return JSON.parse(readFileSync(configPath, "utf-8"));
@@ -582,7 +585,10 @@ async function tryPlaywrightFetch(
 function resolveWebFetchScriptPath(): string {
   let current = resolve(process.cwd());
   while (true) {
-    const candidate = resolve(current, "skills/web-fetch/scripts/fetch.py");
+    const candidate = resolve(
+      current,
+      "packages/tools/assets/web-fetch/scripts/fetch.py",
+    );
     if (existsSync(candidate)) {
       return candidate;
     }

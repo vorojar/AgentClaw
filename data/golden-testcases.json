@@ -4,7 +4,7 @@
     "description": "Simple greeting should not use any tools",
     "userInput": "你好",
     "expectedTools": [],
-    "forbiddenTools": ["web_search", "web_fetch", "shell", "file_read"],
+    "forbiddenTools": ["web_search", "web_fetch", "bash", "file_read"],
     "maxDurationMs": 15000
   },
   {
@@ -14,7 +14,7 @@
     "expectedTools": [
       { "name": "web_search" }
     ],
-    "forbiddenTools": ["shell", "file_write"]
+    "forbiddenTools": ["bash", "file_write"]
   },
   {
     "id": "search-then-fetch",
@@ -60,10 +60,10 @@
   },
   {
     "id": "code-execution",
-    "description": "Data processing tasks should use execute_code",
+    "description": "Data processing tasks should use bun",
     "userInput": "计算",
     "expectedTools": [
-      { "name": "execute_code" }
+      { "name": "bun" }
     ],
     "forbiddenTools": []
   },
@@ -92,16 +92,16 @@
     ]
   },
   {
-    "id": "shell-command",
-    "description": "System operation requests should use shell",
+    "id": "bash-command",
+    "description": "System operation requests should use bash",
     "userInput": "运行命令",
     "expectedTools": [
-      { "name": "shell" }
+      { "name": "bash" }
     ]
   },
   {
     "id": "glob-search",
-    "description": "File search should use glob, not shell find",
+    "description": "File search should use glob, not bash find",
     "userInput": "找到所有",
     "expectedTools": [
       { "name": "glob" }
@@ -113,7 +113,7 @@
     "description": "Casual conversation should not trigger tools",
     "userInput": "谢谢",
     "expectedTools": [],
-    "forbiddenTools": ["web_search", "web_fetch", "shell", "file_read", "remember"]
+    "forbiddenTools": ["web_search", "web_fetch", "bash", "file_read", "remember"]
   },
   {
     "id": "email-via-skill",
@@ -133,7 +133,7 @@
   },
   {
     "id": "grep-content-search",
-    "description": "Content search should use grep, not shell grep",
+    "description": "Content search should use grep, not bash grep",
     "userInput": "搜索代码中",
     "expectedTools": [
       { "name": "grep" }
@@ -145,14 +145,6 @@
     "userInput": "帮我处理那个",
     "expectedTools": [
       { "name": "ask_user" }
-    ]
-  },
-  {
-    "id": "social-post",
-    "description": "Social media posting should use social_post tool",
-    "userInput": "发一条推文",
-    "expectedTools": [
-      { "name": "social_post" }
     ]
   },
   {

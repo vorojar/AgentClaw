@@ -136,7 +136,7 @@ interface Tool {
 
 | 纯工具（可并行） | 不纯工具（必须串行） |
 |-----------------|-------------------|
-| glob, grep, file_read, web_search, web_fetch, context_search | shell, file_write, file_edit, send_file, schedule, remember, update_db, subagent |
+| glob, grep, file_read, web_search, web_fetch, recall | bash, bun, file_write, file_edit, send_file, schedule, remember, update_db, subagent |
 
 超过一半的工具是纯的。这意味着在大多数情况下，LLM 一次回复中的多个工具调用都可以并行执行。
 

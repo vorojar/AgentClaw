@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, basename } from "node:path";
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
+import { loadIgnorePatterns } from "../ignore.js";
 
 export const grepTool: Tool = {
   name: "grep",
@@ -146,6 +147,11 @@ export const grepTool: Tool = {
         };
       }
 
+      // Merge .agentclawignore patterns
+      const extraIgnores = context?.workDir
+        ? await loadIgnorePatterns(context.workDir)
+        : [];
+
       const fg = await import("fast-glob");
       const files = await fg.default(filePattern, {
         cwd: searchPath,
@@ -153,6 +159,7 @@ export const grepTool: Tool = {
         dot: false,
         ignore: [
           ...ignorePatterns,
+          ...extraIgnores,
           "**/*.png",
           "**/*.jpg",
           "**/*.png",

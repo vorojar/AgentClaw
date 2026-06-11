@@ -1993,20 +1993,10 @@ export function ChatPage() {
     if (!configCheckedRef.current) {
       try {
         const cfg = await getConfig();
-        const hasLegacyKey = !!(
-          cfg.anthropicApiKey ||
-          cfg.openaiApiKey ||
-          cfg.geminiApiKey
-        );
-        const configRecord = cfg as unknown as Record<string, unknown>;
         const hasProvider =
-          Array.isArray(configRecord.providers) &&
-          (configRecord.providers as Array<{ apiKey?: string }>).some(
-            (p) => p.apiKey,
-          );
-        const hasKey = hasLegacyKey || hasProvider;
-        configCheckedRef.current = hasKey;
-        if (!hasKey) {
+          Array.isArray(cfg.providers) && cfg.providers.some((p) => p.apiKey);
+        configCheckedRef.current = hasProvider;
+        if (!hasProvider) {
           navigate("/settings/model?setup=1");
           return;
         }

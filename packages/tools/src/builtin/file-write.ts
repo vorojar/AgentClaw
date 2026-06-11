@@ -21,6 +21,17 @@ export const fileWriteTool: Tool = {
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
     const filePath = resolveFilePath(input.path as string, context?.workDir);
+
+    // Check .agentclawignore
+    if (context?.ignoreCheck?.(filePath)) {
+      const basename =
+        filePath.replace(/\\/g, "/").split("/").pop() || filePath;
+      return {
+        content: `Access denied: ${basename} matches .agentclawignore — cannot write to ignored paths.`,
+        isError: true,
+      };
+    }
+
     const raw = input.content;
     if (raw == null) {
       return {

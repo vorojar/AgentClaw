@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { Tool, ToolResult } from "@agentclaw/types";
+import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
 import { resolveFilePath } from "./resolve-path.js";
 
 const OVERFLOW_PREVIEW_CHARS = 1_500;
@@ -51,12 +51,25 @@ export const fileReadTool: Tool = {
     required: ["path"],
   },
 
-  async execute(input: Record<string, unknown>): Promise<ToolResult> {
+  async execute(
+    input: Record<string, unknown>,
+    context?: ToolExecutionContext,
+  ): Promise<ToolResult> {
     const filePath = resolveFilePath(input.path as string);
 
-    // Block reading sensitive files
+    // Check .agentclawignore + hardcoded blocked patterns
+    if (context?.ignoreCheck?.(filePath)) {
+      const basename =
+        filePath.replace(/\\/g, "/").split("/").pop() || filePath;
+      return {
+        content: `Access denied: ${basename} matches .agentclawignore or is a sensitive file.`,
+        isError: true,
+      };
+    }
+
+    // Fallback: hardcoded blocked patterns (when no context.ignoreCheck)
     const BLOCKED_PATTERNS = [
-      /\.env(\.[a-z]+)?$/i, // .env, .env.local, .env.production, .env.staging, etc.
+      /\.env(\.[a-z]+)?$/i,
       /credentials\.json$/i,
       /secrets?\.json$/i,
       /\.pem$/i,
@@ -69,10 +82,13 @@ export const fileReadTool: Tool = {
     const normalizedPath = filePath.replace(/\\/g, "/");
     const basename = normalizedPath.split("/").pop() || "";
     if (
-      BLOCKED_PATTERNS.some(
+      !context?.ignoreCheck &&
+      (BLOCKED_PATTERNS.some(
         (p) => p.test(basename) || p.test(normalizedPath),
       ) ||
-      BLOCKED_PATH_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix))
+        BLOCKED_PATH_PREFIXES.some((prefix) =>
+          normalizedPath.startsWith(prefix),
+        ))
     ) {
       return {
         content: `Access denied: ${basename} is a sensitive file and cannot be read.`,

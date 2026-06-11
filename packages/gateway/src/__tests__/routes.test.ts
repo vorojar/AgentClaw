@@ -640,6 +640,15 @@ describe("Config 路由", () => {
       expect(body.model).toBe("mock-model");
       expect(body.databasePath).toBe(":memory:");
       expect(body.skillsDir).toBe("./skills");
+      expect(body).not.toHaveProperty("anthropicApiKey");
+      expect(body).not.toHaveProperty("openaiApiKey");
+      expect(body).not.toHaveProperty("openaiBaseUrl");
+      expect(body).not.toHaveProperty("geminiApiKey");
+      expect(body).not.toHaveProperty("defaultModel");
+      expect(body).not.toHaveProperty("anthropicModel");
+      expect(body).not.toHaveProperty("openaiModel");
+      expect(body).not.toHaveProperty("geminiModel");
+      expect(body).not.toHaveProperty("searxngUrl");
     });
   });
 

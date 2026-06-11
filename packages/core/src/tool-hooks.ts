@@ -7,6 +7,11 @@ import type {
 } from "@agentclaw/types";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  evaluateRisk,
+  formatGuardianWarning,
+  type GuardianVerdict,
+} from "./guardian.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -82,8 +87,33 @@ export class ToolHookManager {
     return current;
   }
 
-  /** Register preset hooks (Biome lint on file_write, bash exit code warning) */
+  /** Register preset hooks (Guardian security audit, Biome lint on file_write, bash exit code warning) */
   registerPresetHooks(): void {
+    // Guardian: global before hook — block high-risk tool calls
+    this.addGlobalHook({
+      before: async (call) => {
+        const verdict = evaluateRisk(call.name, call.input);
+        if (!verdict.allow) {
+          // Block the call — return null to abort execution
+          return null;
+        }
+        return call;
+      },
+    });
+
+    // Guardian: global after hook — append warnings for medium-risk calls
+    this.addGlobalHook({
+      after: async (call, result) => {
+        if (result.isError) return result;
+        const verdict = evaluateRisk(call.name, call.input);
+        const warning = formatGuardianWarning(verdict);
+        if (warning) {
+          return { ...result, content: `${result.content}${warning}` };
+        }
+        return result;
+      },
+    });
+
     // file_write: auto-run Biome lint on .ts/.js files
     this.addToolHook("file_write", {
       after: async (call, result) => {
@@ -143,6 +173,69 @@ export class ToolHookManager {
           return {
             ...result,
             content: `${result.content}\n⚠️ [hook] Python syntax error:\n${stderr.slice(0, 500)}`,
+          };
+        }
+      },
+    });
+
+    // file_edit: auto-run Biome lint on .ts/.js files
+    this.addToolHook("file_edit", {
+      after: async (call, result) => {
+        const filePath = call.input.path as string | undefined;
+        if (!filePath || result.isError) return result;
+        if (!/\.(ts|js|tsx|jsx)$/i.test(filePath)) return result;
+        try {
+          await execFileAsync("npx", ["biome", "check", "--write", filePath], {
+            timeout: 15000,
+          });
+          return {
+            ...result,
+            content: `${result.content}\n[hook] Biome lint applied to ${filePath}`,
+          };
+        } catch {
+          return result;
+        }
+      },
+    });
+
+    // file_edit: validate JSON syntax (read file after edit)
+    this.addToolHook("file_edit", {
+      after: async (call, result) => {
+        const filePath = call.input.path as string | undefined;
+        if (!filePath || result.isError) return result;
+        if (!/\.json$/i.test(filePath)) return result;
+        try {
+          const { readFile } = await import("node:fs/promises");
+          const content = await readFile(filePath, "utf-8");
+          JSON.parse(content);
+          return result;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            ...result,
+            content: `${result.content}\n⚠️ [hook] JSON syntax error after edit: ${msg}`,
+          };
+        }
+      },
+    });
+
+    // file_edit: validate Python syntax via py_compile
+    this.addToolHook("file_edit", {
+      after: async (call, result) => {
+        const filePath = call.input.path as string | undefined;
+        if (!filePath || result.isError) return result;
+        if (!/\.py$/i.test(filePath)) return result;
+        try {
+          const pythonBin = process.platform === "win32" ? "python" : "python3";
+          await execFileAsync(pythonBin, ["-m", "py_compile", filePath], {
+            timeout: 10000,
+          });
+          return result;
+        } catch (err: unknown) {
+          const stderr = (err as { stderr?: string }).stderr || String(err);
+          return {
+            ...result,
+            content: `${result.content}\n⚠️ [hook] Python syntax error after edit:\n${stderr.slice(0, 500)}`,
           };
         }
       },

@@ -1,3 +1,5 @@
+import { WECHAT_PUBLISH_SCRIPT } from "./wechat-publish-contract.js";
+
 export type TaskToolProfile = {
   kind:
     | "default"
@@ -63,7 +65,7 @@ export function buildTaskToolProfile(
         bash: 5,
       },
       webResearchToolLimit: 8,
-      hint: "[任务工具边界]当前是微信公众号发布任务：可少量 web_search/web_fetch 补事实，但交付目标是写出 Markdown 并通过 wechat-publish 统一 CLI 发布。研究预算耗尽后禁止继续搜索，必须继续用 file_write 写 Markdown、use_skill 加载 wechat-publish、bash 调用 wechat_publish.py inspect/publish 完成交付；不要只输出阶段性总结。硬边界：没有可发布 Markdown 前不要用 bash；file_write 只写 .md 文章；bash 只允许执行 `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py capabilities|inspect|publish ... --json`，禁止 preview/convert/help、手写 HTML/Node 转换或查找其他 skill 路径。所有 wechat_publish.py 命令必须从仓库根目录执行，inspect/publish/capabilities 都必须带 --json。如果用户说发布/发送到公众号，写完 Markdown 后必须 inspect，inspect 通过后必须直接 publish 创建草稿，不要停在 preview 或询问是否继续。默认不要传 --theme，publish 子命令不能传 --draft；publish 优先带 --out-dir，漏写时 CLI 会使用 Markdown 同目录的 wechat-output。",
+      hint: `[任务工具边界]当前是微信公众号发布任务：可少量 web_search/web_fetch 补事实，但交付目标是写出 Markdown 并通过 wechat-publish 统一 CLI 发布。研究预算耗尽后禁止继续搜索，必须继续用 file_write 写 Markdown、use_skill 加载 wechat-publish、bash 调用 wechat_publish.py inspect/publish 完成交付；不要只输出阶段性总结。硬边界：没有可发布 Markdown 前不要用 bash；file_write 只写 .md 文章；bash 只允许执行 \`cd "<PROJECT_ROOT>" && python ${WECHAT_PUBLISH_SCRIPT} capabilities|inspect|publish ... --json\`，禁止 preview/convert/help、手写 HTML/Node 转换或查找其他 skill 路径。所有 wechat_publish.py 命令必须从仓库根目录执行，inspect/publish/capabilities 都必须带 --json。如果用户说发布/发送到公众号，写完 Markdown 后必须 inspect，inspect 通过后必须直接 publish 创建草稿，不要停在 preview 或询问是否继续。默认不要传 --theme，publish 子命令不能传 --draft；publish 优先带 --out-dir，漏写时 CLI 会使用 Markdown 同目录的 wechat-output。`,
     };
   }
 

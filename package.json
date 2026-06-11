@@ -16,7 +16,7 @@
     "clean": "turbo clean",
     "lint": "turbo lint",
     "knip": "knip",
-    "test": "turbo test && vitest run scripts/__tests__/live-agent-eval.test.ts scripts/__tests__/wechat-publish-regression.test.ts",
+    "test": "turbo test && vitest run scripts/__tests__/live-agent-eval.test.ts scripts/__tests__/wechat-publish-regression.test.ts scripts/__tests__/repo-hygiene.test.ts",
     "test:watch": "vitest",
     "format": "biome format --write .",
     "lint:biome": "biome lint .",

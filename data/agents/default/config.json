@@ -2,32 +2,5 @@
   "name": "AgentClaw",
   "description": "Default all-purpose assistant",
   "avatar": "",
-  "knowledgeSources": [
-    {
-      "id": "ks_file_cd396a3832e2205b",
-      "type": "file",
-      "name": "test",
-      "description": "Search the document \"test.txt\" for relevant information",
-      "config": {
-        "filename": "test.txt",
-        "storedPath": "cd396a3832e2205b.txt",
-        "fileSize": 9192,
-        "chunkCount": 28
-      },
-      "enabled": true
-    },
-    {
-      "id": "ks_file_2a87e35665f5efdb",
-      "type": "file",
-      "name": "___",
-      "description": "Search the document \"�±�.pdf\" for relevant information",
-      "config": {
-        "filename": "�±�.pdf",
-        "storedPath": "2a87e35665f5efdb.pdf",
-        "fileSize": 2192,
-        "chunkCount": 6
-      },
-      "enabled": true
-    }
-  ]
+  "knowledgeSources": []
 }

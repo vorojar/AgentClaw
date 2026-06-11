@@ -174,6 +174,8 @@ export interface ToolExecutionContext {
   conversationBranchId?: string;
   /** Per-session working directory (absolute path, forward slashes) */
   workDir?: string;
+  /** Compiled ignore rules from .agentclawignore — used by file tools to block sensitive paths */
+  ignoreCheck?: (relativePath: string) => boolean;
   /** Tool execution hooks (before/after) */
   toolHooks?: ToolHooks;
   /** Tool access policy (allow/deny lists) */

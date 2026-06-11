@@ -253,7 +253,7 @@ AgentClaw 的 shell 沙箱是一个基于正则表达式（Regular Expression）
 
 子代理的安全设计基于一个原则：**子代理是不可信的执行环境。**
 
-AgentClaw 维护一个硬编码的黑名单，列出子代理永远不能使用的 7 个工具：
+AgentClaw 维护一个硬编码的黑名单，列出子代理永远不能使用的 5 个工具：
 
 | 被禁工具 | 为什么 |
 |---------|--------|
@@ -262,8 +262,6 @@ AgentClaw 维护一个硬编码的黑名单，列出子代理永远不能使用�
 | `remember` | 防止通过子任务污染长期记忆 |
 | `schedule` | 防止创建持久化的定时任务 |
 | `send_file` | 防止不受控地向用户发送文件 |
-| `social_post` | 防止在社交媒体上产生副作用 |
-| `execute_code` | 防止在子代理上下文中执行任意代码 |
 
 但光过滤工具名还不够。我们还做了**回调封印（Callback Sealing）**：传给子代理的执行上下文（ToolExecutionContext）里，`sendFile` 和 `saveMemory` 这两个回调函数被设为 `undefined`。即使某个工具绕过了名字过滤，它需要的回调函数也不存在——它调不了。
 

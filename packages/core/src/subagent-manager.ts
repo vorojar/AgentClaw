@@ -23,7 +23,6 @@ const SUBAGENT_BLOCKED_TOOLS = new Set([
   "remember", // 防止污染共享长期记忆
   "schedule", // 防止创建定时任务等副作用
   "send_file", // 防止跨渠道副作用
-  "social_post", // 防止社交平台副作用
 ]);
 
 interface SubAgentEntry {

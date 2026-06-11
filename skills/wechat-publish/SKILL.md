@@ -8,15 +8,15 @@ description: Markdown 转微信公众号排版并发布草稿。Use this wheneve
 将 Markdown 转成微信公众号兼容 HTML，可预览或创建草稿箱草稿。所有常规操作只走统一入口：
 
 ```bash
-cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py capabilities --json
-cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py inspect {INPUT_MD} --json
-cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py publish {INPUT_MD} --title "封面标题" --subtitle "封面副标题" --scheme dark --author "爬爬虾" --out-dir {WORKDIR} --json
+cd "<PROJECT_ROOT>" && python skills/wechat-publish/scripts/wechat_publish.py capabilities --json
+cd "<PROJECT_ROOT>" && python skills/wechat-publish/scripts/wechat_publish.py inspect {INPUT_MD} --json
+cd "<PROJECT_ROOT>" && python skills/wechat-publish/scripts/wechat_publish.py publish {INPUT_MD} --title "封面标题" --subtitle "封面副标题" --scheme dark --author "爬爬虾" --out-dir {WORKDIR} --json
 ```
 
 离线验收或调试时使用 `--dry-run`，不会创建真实草稿：
 
 ```bash
-cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py publish {INPUT_MD} --title "封面标题" --subtitle "封面副标题" --out-dir {WORKDIR} --dry-run --json
+cd "<PROJECT_ROOT>" && python skills/wechat-publish/scripts/wechat_publish.py publish {INPUT_MD} --title "封面标题" --subtitle "封面副标题" --out-dir {WORKDIR} --dry-run --json
 ```
 
 ## 执行规则
@@ -29,7 +29,7 @@ cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py
 - 用户明确要求发布到公众号草稿箱时才用 `publish`。成功后只根据 JSON 中的 `data.draft_media_id`、`data.artifacts.manifest_json` 和 `data.theme_selection.resolved` 汇报结果；`manifest_json` 是本次执行的审计清单。
 - stdout 是唯一机器契约：`success/code/message/data`。不要解析旧脚本的行文本输出。
 - 参数名必须写完整，尤其是 `--out-dir`；CLI 不接受 `--out` 这类缩写。
-- 所有 `wechat_publish.py` 命令都必须从仓库根目录执行：先 `cd D:/mycode/agentclaw && ...`。不要在 `C:/Users/voroj`、`Downloads` 或临时目录里直接运行相对路径 `skills/wechat-publish/...`。
+- 所有 `wechat_publish.py` 命令都必须从仓库根目录执行：先 `cd "<PROJECT_ROOT>" && ...`。不要在用户 home、Downloads 或临时目录里直接运行相对路径 `skills/wechat-publish/...`。
 - 默认不要传 `--theme`。不传时 CLI 会使用 `auto`，根据正文把读书笔记、书摘、阅读心得、书评和书籍提炼选为 `minimal`，把 AgentClaw/产品/品牌/发布复盘选为 `sage`，把技术教程/API/CLI/部署类文章选为 `tech-modern`。只有用户明确指定某个主题时才传 `--theme`。
 - `--draft` 只属于 `inspect` 子命令的特殊草稿就绪检查，常规发布不需要；`publish` 子命令没有 `--draft`。发布时优先写 `--out-dir {WORKDIR}`；如果漏写，CLI 会默认输出到 Markdown 同目录的 `wechat-output`。
 - 发布或 dry-run 成功后，最终回复必须包含 `code`、`data.draft_media_id`、`data.artifacts.manifest_json` 和 `data.theme_selection.resolved`，不要只发送封面图。
@@ -49,7 +49,7 @@ cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py
 只有用户要求“预览、查看效果、不要发布”时才运行：
 
 ```bash
-cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py preview {INPUT_MD} --out-dir {WORKDIR} --json
+cd "<PROJECT_ROOT>" && python skills/wechat-publish/scripts/wechat_publish.py preview {INPUT_MD} --out-dir {WORKDIR} --json
 ```
 
 ## 常用参数

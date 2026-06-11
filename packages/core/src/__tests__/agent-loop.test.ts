@@ -26,6 +26,13 @@ import type {
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
 
+const TEST_PROJECT_ROOT = process.cwd().replace(/\\/g, "/");
+const WECHAT_PUBLISH_SCRIPT = "skills/wechat-publish/scripts/wechat_publish.py";
+
+function wechatPublishCommand(args: string): string {
+  return `cd "${TEST_PROJECT_ROOT}" && python ${WECHAT_PUBLISH_SCRIPT} ${args}`;
+}
+
 // ── Mock 工厂：创建假 LLMProvider ──
 
 function createMockProvider(
@@ -2251,8 +2258,9 @@ describe("SimpleAgentLoop", () => {
     it("公众号发布任务应跳过 preview 子命令并引导直接 publish", async () => {
       const testProvider = createMockProvider([
         createToolCallChunks("tc-preview", "bash", {
-          command:
-            "cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py preview article.md --out-dir out --json",
+          command: wechatPublishCommand(
+            "preview article.md --out-dir out --json",
+          ),
         }),
         finalChunks,
       ]);
@@ -2285,8 +2293,7 @@ describe("SimpleAgentLoop", () => {
     it("公众号发布任务应跳过未带 --json 的统一 CLI 命令", async () => {
       const testProvider = createMockProvider([
         createToolCallChunks("tc-inspect-no-json", "bash", {
-          command:
-            "cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py inspect article.md",
+          command: wechatPublishCommand("inspect article.md"),
         }),
         finalChunks,
       ]);
@@ -2317,8 +2324,7 @@ describe("SimpleAgentLoop", () => {
     it("公众号发布任务应跳过 publish --draft 并引导移除参数", async () => {
       const testProvider = createMockProvider([
         createToolCallChunks("tc-publish-draft", "bash", {
-          command:
-            "cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py publish article.md --draft --json",
+          command: wechatPublishCommand("publish article.md --draft --json"),
         }),
         finalChunks,
       ]);
@@ -2379,8 +2385,7 @@ describe("SimpleAgentLoop", () => {
           const currentCall = callIndex++;
           if (currentCall === 0) {
             for (const chunk of createToolCallChunks("tc-inspect", "bash", {
-              command:
-                "cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py inspect article.md --json",
+              command: wechatPublishCommand("inspect article.md --json"),
             })) {
               yield chunk;
             }
@@ -2472,8 +2477,9 @@ describe("SimpleAgentLoop", () => {
           const currentCall = callIndex++;
           if (currentCall === 0) {
             for (const chunk of createToolCallChunks("tc-inspect", "bash", {
-              command:
-                'cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py inspect "C:/Users/voroj/article.md" --json',
+              command: wechatPublishCommand(
+                'inspect "C:/Users/voroj/article.md" --json',
+              ),
             })) {
               yield chunk;
             }
@@ -2481,8 +2487,9 @@ describe("SimpleAgentLoop", () => {
           }
           if (currentCall === 1) {
             for (const chunk of createToolCallChunks("tc-publish", "bash", {
-              command:
-                "cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py publish --out-dir out --dry-run --json",
+              command: wechatPublishCommand(
+                "publish --out-dir out --dry-run --json",
+              ),
             })) {
               yield chunk;
             }

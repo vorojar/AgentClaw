@@ -366,7 +366,7 @@ export interface BranchRecoverySuggestion {
   createdAt: string;
 }
 
-export interface ConversationTreeTurn {
+interface ConversationTreeTurn {
   id: string;
   parentId: string | null;
   branchId: string;
@@ -375,13 +375,13 @@ export interface ConversationTreeTurn {
   createdAt: string;
 }
 
-export interface ConversationTreeInfo {
+interface ConversationTreeInfo {
   conversationId: string;
   activeLeafId: string | null;
   turns: ConversationTreeTurn[];
 }
 
-export interface RecoverBranchResult {
+interface RecoverBranchResult {
   message: ChatMessage;
   tree?: ConversationTreeInfo;
   deniedTools?: string[];
@@ -749,15 +749,6 @@ export interface AppConfigInfo {
   // 多 Provider 实例
   providers?: ProviderInstance[];
   activeProvider?: string;
-  // LLM keys（旧格式，兼容）
-  anthropicApiKey?: string;
-  openaiApiKey?: string;
-  openaiBaseUrl?: string;
-  geminiApiKey?: string;
-  defaultModel?: string;
-  anthropicModel?: string;
-  openaiModel?: string;
-  geminiModel?: string;
   // Vision / Fast
   visionApiKey?: string;
   visionProvider?: string;
@@ -791,7 +782,6 @@ export interface AppConfigInfo {
   ollamaBaseUrl?: string;
   ollamaModel?: string;
   volcanoEmbeddingKey?: string;
-  searxngUrl?: string;
 }
 
 /** 搜索引擎配置 */

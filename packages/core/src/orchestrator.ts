@@ -15,6 +15,7 @@ import {
   type ToolRegistryImpl,
   createKnowledgeSourceTools,
   createFileRagTools,
+  buildIgnoreCheckSync,
 } from "@agentclaw/tools";
 import type { SkillRegistryImpl } from "./skills/registry.js";
 import { generateId } from "@agentclaw/providers";
@@ -284,9 +285,12 @@ export class SimpleOrchestrator implements Orchestrator {
       (session.metadata?.memoryNamespace as string) ||
       (session.metadata?.agentId as string) ||
       "default";
+    // Load .agentclawignore from project root (synchronous, one-time)
+    const ignoreCheck = buildIgnoreCheckSync(process.cwd());
     const mergedContext: ToolExecutionContext = {
       ...context,
       memoryNamespace,
+      ignoreCheck,
       saveMemory: async (
         content: string,
         type?: MemoryType,

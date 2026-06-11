@@ -1,5 +1,19 @@
 # 更新日志
 
+## [1.5.41] - 2026-06-08
+
+### Added
+- **`.agentclawignore` 敏感文件排除**：新增 `.agentclawignore` 文件支持（`.gitignore` 语法），`file_read`/`file_write`/`file_edit`/`glob`/`grep` 五个文件工具统一拦截被忽略路径，硬编码敏感模式（`.env`/`.pem`/`id_rsa` 等）始终生效无需配置。
+- **`file_edit` 自动 lint**：`file_edit` 工具新增 Biome lint、JSON 语法校验、Python `py_compile` 三项 after hooks，与 `file_write` 行为一致；同时补全 `effect` 字段用于 trace 追踪。
+- **Guardian 安全审计层**：新增全局 before/after hooks，规则引擎自动拦截高风险操作（`rm -rf`/`git reset --hard`/写入 `.ssh` 等），中风险操作（`curl`/`npm install`/编辑 `package.json` 等）追加警告，零 LLM 调用成本。
+
+### Changed
+- **冗余事实源收口**：`CLAUDE.md`/`restart.ps1` 降为 Agent Flow 入口包装，README、系统提示词、golden case 和书稿当前事实不再暴露已移除工具名或本机路径；`web_fetch` 运行时资产迁移到 `packages/tools/assets/web-fetch/`，技能目录不再承载工具运行文件。
+- **配置 API 去旧字段扩散**：`/api/config` 返回值不再输出 `anthropicApiKey`/`openaiApiKey`/`defaultModel`/`searxngUrl` 等旧字段，前端首次配置检查只认 `providers[]`。
+
+### Removed
+- **过期计划和本地产物**：删除 `SHORTCOMINGS-PLAN.md`、`desktop-plan.md`、`task.md` 三个一次性计划文档，并清理已忽略的旧技能备份和桌面构建产物目录。
+
 ## [1.5.40] - 2026-05-25
 
 ### Added

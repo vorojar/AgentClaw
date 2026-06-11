@@ -65,7 +65,7 @@ function isUnifiedCliCall(call: ToolCallRecord): boolean {
 function isRepoRootAnchoredCliCall(call: ToolCallRecord): boolean {
   const text = inputText(call.input);
   if (!text.includes("wechat_publish.py")) return true;
-  return text.includes("D:/mycode/agentclaw");
+  return text.includes(process.cwd().replace(/\\/g, "/"));
 }
 
 function isPublishCall(call: ToolCallRecord): boolean {
@@ -218,7 +218,7 @@ async function main(): Promise<void> {
 
   const prompt = [
     "请使用 wechat-publish skill 对下面的 Markdown 做微信公众号草稿 dry-run 验收。",
-    "要求：必须先调用 use_skill 加载 wechat-publish；必须使用统一入口 wechat_publish.py；所有 CLI 命令必须从仓库根目录执行，即使用 `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py ...`；必须加 --dry-run --json；输出目录参数必须写完整 --out-dir，不能写 --out；不要传 --theme，本用例要验证默认 auto 能自动选择主题；不要创建真实草稿；不要手写 token/curl；不要调用旧脚本。",
+    `要求：必须先调用 use_skill 加载 wechat-publish；必须使用统一入口 wechat_publish.py；所有 CLI 命令必须从仓库根目录执行，即使用 \`cd "${process.cwd().replace(/\\/g, "/")}" && python skills/wechat-publish/scripts/wechat_publish.py ...\`；必须加 --dry-run --json；输出目录参数必须写完整 --out-dir，不能写 --out；不要传 --theme，本用例要验证默认 auto 能自动选择主题；不要创建真实草稿；不要手写 token/curl；不要调用旧脚本。`,
     `Markdown 文件：${slashPath(article)}`,
     `输出目录：${slashPath(outDir)}`,
     "完成后用一句中文说明 dry-run 是否成功，以及自动选择的主题。",

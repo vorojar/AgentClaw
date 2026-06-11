@@ -52,6 +52,12 @@ import {
   type TaskToolProfile,
 } from "./ability/task-router.js";
 import {
+  buildWechatPublishCommand,
+  isAnchoredWechatPublishCommand,
+  projectRootForWechatPublish,
+  WECHAT_PUBLISH_SCRIPT,
+} from "./ability/wechat-publish-contract.js";
+import {
   hardenPdfBashInput,
   isPdfExtractionTask,
   recoverPdfTextFromSessionPdf,
@@ -1269,6 +1275,7 @@ export class SimpleAgentLoop implements AgentLoop {
     // Tools that need to write files should call ensureSessionTmpDir() or
     // mkdirSync(context.workDir) before writing — most already do.
     if (context) context.workDir = sessionTmpDir;
+    const wechatPublishRoot = projectRootForWechatPublish();
 
     // ── Collect all user files into session dir ──
     // 1. Images: save base64 to session dir, record path for DB storage
@@ -1400,7 +1407,9 @@ export class SimpleAgentLoop implements AgentLoop {
       },
     );
     if (taskToolProfile.hint) {
-      runtimeHints.push(taskToolProfile.hint);
+      runtimeHints.push(
+        taskToolProfile.hint.replace("<PROJECT_ROOT>", wechatPublishRoot),
+      );
     }
     let sufficientWeatherFactHint: string | null = null;
     // runtimeHints.join("\n") is computed dynamically each iteration (runtimeHints grows via push)
@@ -1774,13 +1783,21 @@ export class SimpleAgentLoop implements AgentLoop {
               ? `"${wechatPublishMarkdownPath}"`
               : "{INPUT_MD}";
             const nextCommand = wechatPublishReadyToPublish
-              ? `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py publish ${markdownPath} --json`
-              : `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py inspect ${markdownPath} --json`;
+              ? buildWechatPublishCommand(
+                  "publish",
+                  markdownPath,
+                  wechatPublishRoot,
+                )
+              : buildWechatPublishCommand(
+                  "inspect",
+                  markdownPath,
+                  wechatPublishRoot,
+                );
             return {
               ...tool,
               description:
                 `WeChat publish task only. Run the next anchored CLI command with --json. ` +
-                `Do not run cat/type/node/python snippets, preview, convert, help, or any other shell command. ` +
+                `Do not run cat/type/node/python snippets, preview, convert, help, or any other command. ` +
                 `Next command shape: ${nextCommand}`,
             };
           });
@@ -2477,9 +2494,10 @@ export class SimpleAgentLoop implements AgentLoop {
                   command,
                 };
               }
-              const isAnchoredWechatCli =
-                command.includes("D:/mycode/agentclaw") &&
-                command.includes("wechat_publish.py");
+              const isAnchoredWechatCli = isAnchoredWechatPublishCommand(
+                command,
+                wechatPublishRoot,
+              );
               if (!wechatPublishHasMarkdown) {
                 result = {
                   content:
@@ -2490,7 +2508,7 @@ export class SimpleAgentLoop implements AgentLoop {
               } else if (!isAnchoredWechatCli) {
                 result = {
                   content:
-                    "Blocked for wechat_publish tasks: bash may only run the anchored unified CLI, e.g. `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py inspect|publish ...`. Write the article with file_write as Markdown; do not hand-roll HTML/Node conversion or search for alternate skill paths.",
+                    `Blocked for wechat_publish tasks: bash may only run the anchored unified CLI, e.g. \`cd "${wechatPublishRoot}" && python ${WECHAT_PUBLISH_SCRIPT} inspect|publish ... --json\`. Write the article with file_write as Markdown; do not hand-roll HTML/Node conversion or search for alternate skill paths.`,
                   isError: !wechatPublishMarkdownCreatedInRun,
                 };
                 blockedByPolicy = true;
@@ -2501,7 +2519,7 @@ export class SimpleAgentLoop implements AgentLoop {
               ) {
                 result = {
                   content:
-                    "Skipped for wechat_publish tasks: only capabilities, inspect, and publish subcommands are allowed. Do not run preview/convert/help; continue with `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py publish ...`.",
+                    `Skipped for wechat_publish tasks: only capabilities, inspect, and publish subcommands are allowed. Do not run preview/convert/help; continue with \`cd "${wechatPublishRoot}" && python ${WECHAT_PUBLISH_SCRIPT} publish ... --json\`.`,
                   isError: false,
                 };
                 blockedByPolicy = true;
@@ -2518,7 +2536,7 @@ export class SimpleAgentLoop implements AgentLoop {
               ) {
                 result = {
                   content:
-                    "Skipped for wechat_publish tasks: inspect already passed. The only allowed next command is `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py publish ...`.",
+                    `Skipped for wechat_publish tasks: inspect already passed. The only allowed next command is \`cd "${wechatPublishRoot}" && python ${WECHAT_PUBLISH_SCRIPT} publish ... --json\`.`,
                   isError: false,
                 };
                 blockedByPolicy = true;
@@ -2788,7 +2806,7 @@ export class SimpleAgentLoop implements AgentLoop {
                 result = {
                   content:
                     `You already made ${WEB_RESEARCH_TOOL_LIMIT} web_search/web_fetch call(s). ` +
-                    "Stop researching now. Continue the WeChat publishing task with non-research tools: write the Markdown article, load wechat-publish if needed, run `cd D:/mycode/agentclaw && python skills/wechat-publish/scripts/wechat_publish.py inspect ...`, then run publish with --out-dir. Do not stop at preview or output only a research summary.",
+                    `Stop researching now. Continue the WeChat publishing task with non-research tools: write the Markdown article, load wechat-publish if needed, run \`cd "${wechatPublishRoot}" && python ${WECHAT_PUBLISH_SCRIPT} inspect ... --json\`, then run publish with --out-dir. Do not stop at preview or output only a research summary.`,
                   isError: true,
                 };
                 runtimeHints.push(

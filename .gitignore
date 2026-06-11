@@ -51,6 +51,7 @@ __pycache__/
 .ruff_cache/
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*

@@ -36,6 +36,17 @@ export const fileEditTool: Tool = {
     context?: ToolExecutionContext,
   ): Promise<ToolResult> {
     const filePath = resolveFilePath(input.path as string, context?.workDir);
+
+    // Check .agentclawignore
+    if (context?.ignoreCheck?.(filePath)) {
+      const basename =
+        filePath.replace(/\\/g, "/").split("/").pop() || filePath;
+      return {
+        content: `Access denied: ${basename} matches .agentclawignore — cannot edit ignored paths.`,
+        isError: true,
+      };
+    }
+
     const oldStr = input.old_string as string;
     const newStr = input.new_string as string;
     const replaceAll = input.replace_all === "true";
@@ -102,6 +113,12 @@ export const fileEditTool: Tool = {
         content: `Edited ${filePath}: replaced ${replacedCount} occurrence${replacedCount > 1 ? "s" : ""}.`,
         isError: false,
         metadata: { path: filePath, replacedCount },
+        effect: {
+          kind: "write",
+          target: filePath,
+          reversible: true,
+          verified: true,
+        },
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

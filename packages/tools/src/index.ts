@@ -35,6 +35,12 @@ export {
 } from "./builtin/file-rag-tool.js";
 export { setSearchEngines } from "./builtin/web-search.js";
 export {
+  cleanMarkdown,
+  htmlFragmentToMarkdown,
+  htmlToMarkdown,
+  type HtmlToMarkdownOptions,
+} from "./html-to-markdown.js";
+export {
   buildIgnoreCheck,
   buildIgnoreCheckSync,
   loadIgnorePatterns,

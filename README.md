@@ -29,10 +29,10 @@ AgentClaw Hive（Agent 托管平台）
   │
   ├── LLM 提供商 (Claude, OpenAI, Gemini, DeepSeek, Kimi, Qwen, Doubao...)
   ├── 智能路由 (自动故障切换, Fast Provider 路由)
-  ├── 核心工具 (bun, bash, file_read/write/edit, glob, grep, ask_user, web_fetch, web_search, rss_top)
-  ├── 条件工具 (send_file, schedule, remember/recall, use_skill, sandbox, subagent...)
+  ├── 核心工具 (bun, bash, file_read/write/edit, glob, grep, ask_user, web_fetch, web_search)
+  ├── 条件/专用工具 (send_file, schedule, remember/recall, use_skill, rss_top, sandbox, subagent...)
   ├── 记忆 (对话历史 + 长期记忆 + 自动压缩 + namespace 隔离)
-  ├── 技能 x12 (gws-calendar/gmail/drive/sheets/tasks, pdf, docx, xlsx, pptx, bilingual-subtitle...)
+  ├── 技能 x14 (gws-calendar/gmail/drive/sheets/tasks, pdf, docx, xlsx, pptx, wechat-publish...)
   ├── 子代理 (并行任务派发与汇总)
   ├── 工具钩子 (before/after 拦截 + allow/deny 策略)
   └── MCP 集成 (外部工具服务器)
@@ -63,7 +63,7 @@ agentclaw/
 │   ├── cli/         — 终端交互式对话
 │   ├── web/         — React 19 + Vite 前端
 │   └── desktop/     — Tauri v2 桌面客户端 (Windows/macOS/Linux)
-├── skills/          — 12 个技能定义 (SKILL.md)
+├── skills/          — 14 个技能定义 (SKILL.md)
 ├── docs/            — 架构文档 + 路线图 + 技术文章系列
 └── data/            — 运行时数据 (部分 gitignored)
     └── agents/      — Agent 人格配置 (config.json + SOUL.md)
@@ -244,7 +244,7 @@ POST /api/v1/agents/:id/sessions/:sid/chat # 会话内对话
 | 核心 | `ask_user` | 向用户提问 |
 | 核心 | `web_fetch` | 抓取网页内容（Readability 正文提取 + SPA 自动降级 Playwright） |
 | 核心 | `web_search` | 搜索互联网（在 Settings 中配置 Serper / Querit / Custom / SearXNG） |
-| 核心 | `rss_top` | 多个 Reddit/RSS 源 TopN 提取 |
+| 专用 | `rss_top` | Reddit/RSS 日报工作流的多源 TopN 提取（gateway 显式启用） |
 | 条件 | `send_file` | 发送文件给用户 |
 | 条件 | `schedule` | 创建定时任务 |
 | 条件 | `update_todo` | 实时进度追踪 |
@@ -259,7 +259,7 @@ POST /api/v1/agents/:id/sessions/:sid/chat # 会话内对话
 
 ## 技能系统
 
-LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在 Web UI 中启用/禁用单个技能，以及从 GitHub 或 zip 导入社区技能。12 个内置技能：
+LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在 Web UI 中启用/禁用单个技能，以及从 GitHub 或 zip 导入社区技能。14 个内置技能：
 
 | 技能 | 说明 |
 |------|------|
@@ -274,6 +274,7 @@ LLM 自主判断是否需要技能，通过 `use_skill` 工具调用。支持在
 | `gws-tasks` | Google Tasks 待办管理（通过 gws CLI） |
 | `pdf` | PDF 提取文字/表格、合并拆分、创建 |
 | `pptx` | 创建/编辑 PowerPoint 演示文稿 |
+| `wechat-publish` | 生成并发布微信公众号草稿 |
 | `xlsx` | 创建/编辑/分析 Excel 表格 |
 | `yt-dlp` | 下载视频/音频 (YouTube/Bilibili/Twitter) |
 

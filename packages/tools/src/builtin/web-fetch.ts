@@ -1,11 +1,14 @@
 import type { Tool, ToolResult, ToolExecutionContext } from "@agentclaw/types";
-import TurndownService from "turndown";
-import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
+import {
+  cleanMarkdown,
+  htmlFragmentToMarkdown,
+  htmlToMarkdown,
+} from "../html-to-markdown.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -152,24 +155,8 @@ const BROWSER_HEADERS: Record<string, string> = {
   "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
 };
 
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-});
-
 /** Lines commonly found in SPA page chrome (navigation, login prompts, etc.) */
 const NOISE_PATTERNS = siteConfig.noisePatterns.map((p) => new RegExp(p, "i"));
-
-/** Remove common SPA navigation noise from markdown output */
-function cleanMarkdown(md: string): string {
-  return md
-    .split("\n")
-    .filter((line) => !NOISE_PATTERNS.some((p) => p.test(line.trim())))
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
 
 function readPromptMaxChars(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -229,32 +216,6 @@ function compactFetchedContent(
   };
 }
 
-/** Convert HTML to Markdown: Readability extracts article → turndown converts, fallback to full-page */
-function htmlToMarkdown(html: string, _url?: string): string {
-  // Try Readability first for article extraction
-  try {
-    const { document } = parseHTML(html);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const reader = new Readability(document as any, { charThreshold: 100 });
-    const article = reader.parse();
-    if (article?.content && (article.textContent?.length ?? 0) > 200) {
-      const title = article.title ? `# ${article.title}\n\n` : "";
-      const md = turndown.turndown(article.content);
-      return cleanMarkdown(title + md);
-    }
-  } catch {
-    // Readability failed, fall through to full-page conversion
-  }
-
-  // Fallback: full-page turndown with basic noise removal
-  html = html.replace(/<script[\s\S]*?<\/script>/gi, "");
-  html = html.replace(/<style[\s\S]*?<\/style>/gi, "");
-  html = html.replace(/<nav[\s\S]*?<\/nav>/gi, "");
-
-  const md = turndown.turndown(html);
-  return cleanMarkdown(md);
-}
-
 function weixinArticleHtmlToMarkdown(html: string): string | null {
   try {
     const { document } = parseHTML(html);
@@ -271,7 +232,9 @@ function weixinArticleHtmlToMarkdown(html: string): string | null {
         "",
     );
     const title = titleText ? `# ${titleText}\n\n` : "";
-    return cleanMarkdown(title + turndown.turndown(contentEl.innerHTML));
+    return cleanMarkdown(title + htmlFragmentToMarkdown(contentEl.innerHTML), {
+      noisePatterns: NOISE_PATTERNS,
+    });
   } catch {
     return null;
   }
@@ -381,8 +344,9 @@ export const webFetchTool: Tool = {
         }
       } else if (contentType.includes("text/html")) {
         const nativeContent = isWeixinArticleHost(parsedUrl.hostname)
-          ? (weixinArticleHtmlToMarkdown(body) ?? htmlToMarkdown(body))
-          : htmlToMarkdown(body);
+          ? (weixinArticleHtmlToMarkdown(body) ??
+            htmlToMarkdown(body, { noisePatterns: NOISE_PATTERNS }))
+          : htmlToMarkdown(body, { noisePatterns: NOISE_PATTERNS });
 
         // 优先 Jina Reader（Markdown 质量更高），但微信公众号直连正文更可靠，且 Jina
         // 对微信常返回“环境异常/验证码”页面，不能把它当成功内容。

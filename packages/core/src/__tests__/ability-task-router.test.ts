@@ -89,6 +89,26 @@ describe("ability task router", () => {
     expect(profile.allowedTools?.size).toBeGreaterThan(0);
   });
 
+  it("Reddit/RSS 日报边界只由 task router 暴露专用工具", () => {
+    const profile = buildTaskToolProfile(
+      "抓取 r/LocalLLaMA 和 r/MachineLearning 的 RSS，生成日报并发给我。",
+      false,
+      false,
+    );
+
+    expect(profile.kind).toBe("reddit_rss");
+    expect(profile.allowedTools).toEqual(
+      new Set(["rss_top", "file_write", "send_file"]),
+    );
+    expect(profile.toolTotalLimits).toEqual({
+      rss_top: 1,
+      file_write: 2,
+      send_file: 2,
+    });
+    expect(profile.webResearchToolLimit).toBe(0);
+    expect(profile.hint).toContain("只能用 rss_top");
+  });
+
   it("按任务 profile 过滤工具定义", () => {
     const profile = buildTaskToolProfile("继续第 3 项。", false, false);
     const filtered = filterToolDefinitionsForTask(

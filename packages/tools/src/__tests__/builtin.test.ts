@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createBuiltinTools } from "../builtin/index.js";
 
 describe("createBuiltinTools — 内置工具创建", () => {
-  /** 11 个核心工具的名称（始终加载） */
+  /** 10 个核心工具的名称（始终加载） */
   const CORE_TOOL_NAMES = [
     "bun",
     "bash", // shellTool
@@ -14,11 +14,10 @@ describe("createBuiltinTools — 内置工具创建", () => {
     "ask_user",
     "web_fetch",
     "web_search",
-    "rss_top",
   ];
 
   describe("默认加载（无参数）", () => {
-    it("应创建 11 个核心工具", () => {
+    it("应创建 10 个核心工具", () => {
       const tools = createBuiltinTools();
 
       expect(tools).toHaveLength(CORE_TOOL_NAMES.length);
@@ -31,6 +30,7 @@ describe("createBuiltinTools — 内置工具创建", () => {
       for (const name of CORE_TOOL_NAMES) {
         expect(names).toContain(name);
       }
+      expect(names).not.toContain("rss_top");
     });
   });
 
@@ -84,15 +84,24 @@ describe("createBuiltinTools — 内置工具创建", () => {
       expect(names).toContain("claude_code");
     });
 
+    it("rss=true 时才加载 rss_top", () => {
+      const tools = createBuiltinTools({ rss: true });
+      const names = tools.map((t) => t.name);
+
+      expect(tools.length).toBe(CORE_TOOL_NAMES.length + 1);
+      expect(names).toContain("rss_top");
+    });
+
     it("全部启用应加载所有工具", () => {
       const tools = createBuiltinTools({
         gateway: true,
         memory: true,
         skills: true,
         claudeCode: true,
+        rss: true,
       });
 
-      // 11 核心 + 6 gateway + 2 memory + 3 skills + 1 claudeCode = 23
+      // 10 核心 + 6 gateway + 2 memory + 3 skills + 1 claudeCode + 1 rss = 23
       expect(tools).toHaveLength(23);
     });
 
@@ -147,6 +156,7 @@ describe("createBuiltinTools — 内置工具创建", () => {
         memory: true,
         skills: true,
         claudeCode: true,
+        rss: true,
       });
 
       for (const tool of tools) {
@@ -167,6 +177,7 @@ describe("createBuiltinTools — 内置工具创建", () => {
         memory: true,
         skills: true,
         claudeCode: true,
+        rss: true,
       });
 
       for (const tool of tools) {
@@ -182,6 +193,7 @@ describe("createBuiltinTools — 内置工具创建", () => {
         memory: true,
         skills: true,
         claudeCode: true,
+        rss: true,
       });
 
       const names = tools.map((t) => t.name);

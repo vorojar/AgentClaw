@@ -255,6 +255,7 @@ export async function bootstrap(): Promise<AppContext> {
     skills: true, // 启用 use_skill
     claudeCode: true, // 启用 claude_code（Claude Code CLI）
     observationRead: true, // 启用 Observation Store 定向读取
+    rss: true, // Reddit/RSS 日报任务需要 rss_top，但不属于默认核心工具
   });
   for (const tool of builtinTools) {
     toolRegistry.register(tool);

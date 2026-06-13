@@ -1392,11 +1392,6 @@ export class SimpleAgentLoop implements AgentLoop {
         `[news-task] Today is ${currentLocalDateString()}. Finish in about 3 LLM turns. Use parallel web_search first, then web_fetch only for missing key facts, then final answer. Prefer primary/trusted sources only: official company blogs, regulator/government/university sources, Reuters, AP, Bloomberg, FT, The Verge, TechCrunch, MIT Technology Review, Stanford HAI. Explicitly reject Reddit, YouTube, Yahoo Finance, SEO aggregators, random blogs, and unsourced claims. Recent news only: if the item is not from today or the last 7 days, include it only when it is clearly still developing and mark the exact date. Output no more than 5 high-confidence items. Do not fetch raw pages when snippets already contain enough facts.`,
       );
     }
-    if (/reddit|rss|subreddit|子版块|日报/i.test(inputTextForHeuristics)) {
-      runtimeHints.push(
-        "[RSS任务约束]多个 Reddit/RSS 源的 TopN 提取必须优先用 rss_top 一次完成。不要逐个 web_fetch 每个 RSS；需要发送日报时，rss_top 可配合 save_as/auto_send 或之后用 file_write/send_file。",
-      );
-    }
     const taskToolProfile = buildTaskToolProfile(
       inputTextForHeuristics,
       isNewsBriefTask,

@@ -56,6 +56,8 @@ export interface BuiltinToolsOptions {
   browserCdp?: boolean;
   /** Enable observation_read tool (requires observation callbacks) */
   observationRead?: boolean;
+  /** Enable rss_top tool for Reddit/RSS report workflows */
+  rss?: boolean;
 }
 
 /** Create built-in tools with tiered loading */
@@ -72,7 +74,6 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
     askUserTool,
     webFetchTool,
     webSearchTool,
-    rssTopTool,
   ];
 
   // Conditional tools — loaded based on configuration
@@ -100,6 +101,9 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
   }
   if (options?.observationRead) {
     tools.push(observationReadTool);
+  }
+  if (options?.rss) {
+    tools.push(rssTopTool);
   }
 
   return tools;

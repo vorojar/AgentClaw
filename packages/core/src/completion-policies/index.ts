@@ -23,5 +23,5 @@ export function evaluateCompletionPolicies(
   return null;
 }
 
-export { currentLocalDateString, extractFallbackLines } from "./common.js";
+export { extractFallbackLines } from "./common.js";
 export { buildSynthesisFallbackResponse } from "./synthesis-fallback.js";

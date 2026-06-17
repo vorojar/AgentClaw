@@ -117,4 +117,26 @@ describe("SimpleSubAgentManager", () => {
 
     expect(dangerousTool.execute).not.toHaveBeenCalled();
   });
+
+  it("子代理运行不应消耗父级有效 loop 预算", async () => {
+    const probeTool: Tool = {
+      name: "probe_tool",
+      description: "runs inside child agent",
+      category: "builtin",
+      parameters: { type: "object", properties: {} },
+      execute: vi.fn().mockResolvedValue({ content: "ran" }),
+    };
+    const parentBudget = new IterationBudget(5);
+    const manager = new SimpleSubAgentManager({
+      provider: createProvider(),
+      toolRegistry: createToolRegistry(probeTool),
+      memoryStore: createMemoryStore(),
+      iterationBudget: parentBudget,
+      agentConfig: { maxIterations: 5 },
+    });
+
+    await manager.spawnAndWait(["do child work"], { concurrency: 1 });
+
+    expect(parentBudget.remaining).toBe(5);
+  });
 });

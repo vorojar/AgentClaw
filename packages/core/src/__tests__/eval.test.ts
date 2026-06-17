@@ -652,6 +652,62 @@ describe("evaluateTraceQuality", () => {
     expect(result.metrics.webResearchToolCalls).toBe(7);
     expect(result.metrics.overflowFileReadCalls).toBe(3);
   });
+
+  it("fails when a file-delivery completion contract is not satisfied", () => {
+    const result = evaluateTraceQuality(
+      makeTrace({
+        userInput: "生成报告并发给我",
+        steps: [
+          {
+            type: "completion_contract",
+            requiresFileDelivery: true,
+            requiredEffects: ["send_file"],
+            satisfied: false,
+          },
+          { type: "llm_call", iteration: 1, tokensIn: 100, tokensOut: 50 },
+        ],
+        response: "报告已经生成。",
+      }),
+    );
+
+    expect(result.passed).toBe(false);
+    expect(
+      result.checks.find((c) => c.name === "completion_contract")?.status,
+    ).toBe("fail");
+  });
+
+  it("passes a file-delivery completion contract when send effect exists", () => {
+    const result = evaluateTraceQuality(
+      makeTrace({
+        userInput: "生成报告并发给我",
+        steps: [
+          {
+            type: "completion_contract",
+            requiresFileDelivery: true,
+            requiredEffects: ["send_file"],
+            satisfied: true,
+          },
+          {
+            type: "tool_result",
+            name: "send_file",
+            content: "sent",
+            isError: false,
+            effect: {
+              kind: "send",
+              target: "/files/report.md",
+              verified: true,
+              metadata: { filename: "report.md" },
+            },
+          },
+        ],
+        response: "[report.md](/files/report.md)",
+      }),
+    );
+
+    expect(
+      result.checks.find((c) => c.name === "completion_contract")?.status,
+    ).toBe("pass");
+  });
 });
 
 describe("evaluateBatch", () => {

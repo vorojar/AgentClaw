@@ -13,7 +13,7 @@ import type {
 import { ToolRegistryImpl } from "@agentclaw/tools";
 import type { SkillRegistryImpl } from "./skills/registry.js";
 import { generateId } from "@agentclaw/providers";
-import { SimpleAgentLoop, type IterationBudget } from "./agent-loop.js";
+import { IterationBudget, SimpleAgentLoop } from "./agent-loop.js";
 import { SimpleContextManager } from "./context-manager.js";
 
 /** Tools that sub-agents must never have access to */
@@ -119,7 +119,9 @@ export class SimpleSubAgentManager implements SubAgentManager {
         maxIterations,
         model: options?.model ?? this.agentConfig?.model,
       },
-      iterationBudget: this.iterationBudget,
+      iterationBudget: new IterationBudget(
+        this.iterationBudget?.exhausted ? 0 : maxIterations,
+      ),
     });
 
     return {

@@ -56,7 +56,13 @@ export interface MemorySearchResult {
 
 /** A single step in a trace */
 export interface TraceStep {
-  type: "llm_call" | "tool_call" | "tool_result";
+  type:
+    | "llm_call"
+    | "tool_call"
+    | "tool_result"
+    | "runtime_config"
+    | "budget_event"
+    | "completion_contract";
   [key: string]: unknown;
 }
 

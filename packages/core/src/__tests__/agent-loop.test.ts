@@ -195,6 +195,28 @@ function createMockTool(
   };
 }
 
+function createTopLevelToolCallChunks(
+  id: string,
+  name: string,
+  input: Record<string, unknown> = {},
+): LLMStreamChunk[] {
+  return [
+    {
+      type: "tool_use_start",
+      toolUse: { id, name, input: "" },
+    },
+    {
+      type: "tool_use_delta",
+      toolUse: { id, name: "", input: JSON.stringify(input) },
+    },
+    {
+      type: "done",
+      usage: { tokensIn: 10, tokensOut: 5 },
+      model: "mock-model",
+    },
+  ];
+}
+
 describe("SimpleAgentLoop", () => {
   let provider: LLMProvider;
   let toolRegistry: ToolRegistryImpl;
@@ -265,6 +287,127 @@ describe("SimpleAgentLoop", () => {
       expect(loop.config.model).toBe("custom-model");
       // 未覆盖的字段保持默认值
       expect(loop.config.systemPrompt).toBe("");
+    });
+  });
+
+  describe("长任务预算与完成契约", () => {
+    it("trace 应记录本轮有效运行时预算和任务画像", async () => {
+      const loop = new SimpleAgentLoop({
+        provider,
+        toolRegistry,
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 4, maxLlmCalls: 6 },
+      });
+
+      await collectEvents(
+        loop.runStream("今天 AI 新闻简报", "conv-runtime-config"),
+      );
+
+      const trace = (memoryStore.addTrace as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Trace;
+      expect(trace.steps[0]).toEqual(
+        expect.objectContaining({
+          type: "runtime_config",
+          maxIterations: 4,
+          maxLlmCalls: 6,
+          taskProfileKind: "news_brief",
+          webResearchToolLimit: 6,
+        }),
+      );
+    });
+
+    it("格式错误 rollback 不能绕过真实 LLM 调用预算", async () => {
+      const testProvider = createMockProvider([
+        createTopLevelToolCallChunks("tc-1", "missing_tool", {}),
+        createTopLevelToolCallChunks("tc-2", "missing_tool", {}),
+        [{ type: "text", text: "不应到达第三次模型调用" }],
+      ]);
+      const loop = new SimpleAgentLoop({
+        provider: testProvider,
+        toolRegistry: createMockToolRegistry([]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 5, maxLlmCalls: 2 },
+      });
+
+      const events = await collectEvents(
+        loop.runStream("继续尝试直到成功", "conv-real-llm-budget"),
+      );
+
+      expect(testProvider.stream).toHaveBeenCalledTimes(2);
+      const completeEvent = events.find((e) => e.type === "response_complete");
+      expect(completeEvent).toBeDefined();
+      const trace = (memoryStore.addTrace as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Trace;
+      expect(trace.error).toBe("max_llm_calls_reached");
+      expect(
+        trace.steps.filter((step) => step.type === "budget_event"),
+      ).toContainEqual(
+        expect.objectContaining({
+          reason: "max_llm_calls_reached",
+          maxLlmCalls: 2,
+          actualLlmCalls: 2,
+        }),
+      );
+    });
+
+    it("要求文件交付的任务没有发送文件时不得被标记为正常完成", async () => {
+      const loop = new SimpleAgentLoop({
+        provider,
+        toolRegistry,
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 2 },
+      });
+
+      await collectEvents(
+        loop.runStream("生成一份 Markdown 文件并发给我", "conv-contract"),
+      );
+
+      const trace = (memoryStore.addTrace as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Trace;
+      expect(trace.steps).toContainEqual(
+        expect.objectContaining({
+          type: "completion_contract",
+          requiresFileDelivery: true,
+        }),
+      );
+      expect(trace.error).toBe("completion_contract_unsatisfied");
+      expect(trace.response).toContain("没有发送文件");
+    });
+
+    it("连续工具全失败应记录明确停止原因且不再追加总结调用", async () => {
+      const testProvider = createMockProvider([
+        createTopLevelToolCallChunks("tc-1", "flaky_tool", { input: "1" }),
+        createTopLevelToolCallChunks("tc-2", "flaky_tool", { input: "2" }),
+        createTopLevelToolCallChunks("tc-3", "flaky_tool", { input: "3" }),
+        [{ type: "text", text: "不应到达第四次模型调用" }],
+      ]);
+      const loop = new SimpleAgentLoop({
+        provider: testProvider,
+        toolRegistry: createMockToolRegistry([
+          createMockTool("flaky_tool", {
+            content: "temporary upstream failure",
+            isError: true,
+          }),
+        ]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 8, maxLlmCalls: 8 },
+      });
+
+      const events = await collectEvents(
+        loop.runStream("调用工具直到成功", "conv-all-tool-errors"),
+      );
+
+      expect(testProvider.stream).toHaveBeenCalledTimes(3);
+      const completeEvent = events.find((e) => e.type === "response_complete");
+      expect(completeEvent).toBeDefined();
+      const trace = (memoryStore.addTrace as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Trace;
+      expect(trace.error).toBe("all_tool_calls_failed");
+      expect(trace.response).toContain("连续工具调用失败");
     });
   });
 
@@ -4407,6 +4550,12 @@ describe("SimpleAgentLoop", () => {
     });
 
     it("AI 新闻简报应在搜索结果足够时过滤低质来源并避免撞 web_fetch 限流", async () => {
+      const now = new Date();
+      const currentDatePath = [
+        String(now.getFullYear()).padStart(4, "0"),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+      ].join("/");
       const makeToolCallChunks = (
         id: string,
         name: string,
@@ -4476,7 +4625,7 @@ describe("SimpleAgentLoop", () => {
                 `  What can we expect from AI in 2026? | The Current - YouTube — Artificial Intelligence exploded in 2025.\n` +
                 `  https://www.youtube.com/watch?v=3w093nkLqCg\n` +
                 `  White House releases AI policy framework — court rules update ${String(input.query)}\n` +
-                `  https://www.whitehouse.gov/briefing-room/statements-releases/2026/06/06/ai-policy-framework/\n` +
+                `  https://www.whitehouse.gov/briefing-room/statements-releases/${currentDatePath}/ai-policy-framework/\n` +
                 `  OpenAI releases agent update — product announcement ${String(input.query)}\n` +
                 `  https://openai.com/news/agent-update\n` +
                 `  Anthropic publishes AI safety update — research note ${String(input.query)}\n` +

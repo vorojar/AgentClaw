@@ -469,6 +469,13 @@ export function evaluateTraceQuality(
   let rawChars = 0;
   let promptChars = 0;
   const observationsCreated = new Set<string>();
+  const completionContracts = steps.filter(
+    (step) => step.type === "completion_contract",
+  );
+  const hasVerifiedSendEffect = steps.some((step) => {
+    if (step.type !== "tool_result" || !isRecord(step.effect)) return false;
+    return step.effect.kind === "send" && step.effect.verified !== false;
+  });
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
@@ -596,6 +603,18 @@ export function evaluateTraceQuality(
     observationFullReads,
     options.maxObservationFullReads,
   );
+
+  for (const contract of completionContracts) {
+    if (contract.requiresFileDelivery !== true) continue;
+    const satisfied = contract.satisfied === true || hasVerifiedSendEffect;
+    checks.push({
+      name: "completion_contract",
+      status: satisfied ? "pass" : "fail",
+      message: satisfied
+        ? "File-delivery completion contract satisfied"
+        : "File-delivery completion contract was not satisfied",
+    });
+  }
 
   if (options.minCacheReadRate !== undefined) {
     const passed = cacheReadRate >= options.minCacheReadRate;

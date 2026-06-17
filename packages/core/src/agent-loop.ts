@@ -103,6 +103,7 @@ export class IterationBudget {
 
 const DEFAULT_CONFIG: AgentConfig = {
   maxIterations: 15,
+  maxLlmCalls: 30,
   systemPrompt: "",
   streaming: false,
   temperature: 0.5,
@@ -1357,6 +1358,11 @@ export class SimpleAgentLoop implements AgentLoop {
         pptxVerifierPath: resolveBundledPptxVerifierPath().replace(/\\/g, "/"),
       },
     );
+    const requiresFileDelivery =
+      wantsFileDelivery(inputTextForHeuristics) &&
+      /文件|Markdown|md\s*文件|\.md\b|报告|全文|完整|发送|发我|发给我|send|deliver/i.test(
+        inputTextForHeuristics,
+      );
     if (taskToolProfile.hint) {
       runtimeHints.push(
         taskToolProfile.hint.replace("<PROJECT_ROOT>", wechatPublishRoot),
@@ -1425,9 +1431,34 @@ export class SimpleAgentLoop implements AgentLoop {
     // Global tool call counter — absolute safety net against any loop pattern
     let globalCallCount = 0;
     const MAX_TOTAL_TOOL_CALLS = 40; // no single user message needs 40+ tool calls
+    const maxLlmCalls = this._config.maxLlmCalls ?? 30;
 
     const MAX_CONSECUTIVE_ROLLBACKS = 3;
     let consecutiveRollbacks = 0;
+    let realLlmCalls = 0;
+
+    trace.steps.push({
+      type: "runtime_config",
+      maxIterations: this._config.maxIterations,
+      maxLlmCalls,
+      maxTotalToolCalls: MAX_TOTAL_TOOL_CALLS,
+      taskProfileKind: taskToolProfile.kind,
+      toolTotalLimits: taskToolProfile.toolTotalLimits,
+      webResearchToolLimit: taskToolProfile.webResearchToolLimit,
+      sharedIterationBudget: this.iterationBudget
+        ? {
+            max: this.iterationBudget.max,
+            remaining: this.iterationBudget.remaining,
+          }
+        : undefined,
+    } as TraceStep);
+
+    trace.steps.push({
+      type: "completion_contract",
+      requiresFileDelivery,
+      requiredEffects: requiresFileDelivery ? ["send_file"] : [],
+      satisfied: !requiresFileDelivery,
+    } as TraceStep);
 
     // Skill injection is handled entirely by use_skill tool — no auto-injection.
     // This keeps the system prompt lean; LLM decides which skill to load.
@@ -1596,6 +1627,20 @@ export class SimpleAgentLoop implements AgentLoop {
         if (this.iterationBudget?.exhausted) {
           yield this.createEvent("thinking", {
             text: "Iteration budget exhausted.",
+          });
+          break;
+        }
+        if (realLlmCalls >= maxLlmCalls) {
+          forcedStopReason = "max_llm_calls_reached";
+          trace.steps.push({
+            type: "budget_event",
+            reason: forcedStopReason,
+            maxLlmCalls,
+            actualLlmCalls: realLlmCalls,
+            iterations,
+          } as TraceStep);
+          yield this.createEvent("thinking", {
+            text: "Real LLM call budget exhausted.",
           });
           break;
         }
@@ -1797,6 +1842,7 @@ export class SimpleAgentLoop implements AgentLoop {
           }
         }
 
+        realLlmCalls++;
         const stream = this.provider.stream({
           messages: safeMessages,
           systemPrompt: safeSystemPrompt,
@@ -1966,7 +2012,20 @@ export class SimpleAgentLoop implements AgentLoop {
           toolCalls.push(call);
         }
 
-        if (forceSynthesisOnly && toolCalls.length > 0) {
+        if (realLlmCalls >= maxLlmCalls && toolCalls.length > 0) {
+          forcedStopReason = "max_llm_calls_reached";
+          trace.steps.push({
+            type: "budget_event",
+            reason: forcedStopReason,
+            maxLlmCalls,
+            actualLlmCalls: realLlmCalls,
+            iterations,
+          } as TraceStep);
+          toolCalls.length = 0;
+          fullText =
+            `已达到真实 LLM 调用上限（${realLlmCalls}/${maxLlmCalls}）。` +
+            "系统已停止继续调用模型，避免 rollback 或格式错误导致长任务空转。请基于已完成的工具结果继续，或拆分任务后重试。";
+        } else if (forceSynthesisOnly && toolCalls.length > 0) {
           toolCalls.length = 0;
           const completedArtifact =
             taskToolProfile.kind === "news_brief"
@@ -2198,6 +2257,27 @@ export class SimpleAgentLoop implements AgentLoop {
         if (toolCalls.length === 0) {
           if (isPptxGenerationTask || pptxSkillLoaded) {
             storedText = pptxOnlySentFileMarkdown(allSentFiles) ?? storedText;
+          }
+          const sendEffectSatisfied = trace.steps.some((step) => {
+            const effect = step.effect as ToolEffect | undefined;
+            return (
+              step.type === "tool_result" &&
+              effect?.kind === "send" &&
+              effect.verified !== false
+            );
+          });
+          const fileDeliverySatisfied =
+            !requiresFileDelivery || allSentFiles.length > 0 || sendEffectSatisfied;
+          const contractStep = trace.steps.find(
+            (step) => step.type === "completion_contract",
+          ) as (TraceStep & { satisfied?: boolean }) | undefined;
+          if (contractStep) {
+            contractStep.satisfied = fileDeliverySatisfied;
+          }
+          if (!fileDeliverySatisfied) {
+            forcedStopReason = "completion_contract_unsatisfied";
+            storedText =
+              "任务未完成：用户要求生成并发送文件，但本轮没有发送文件。请重新执行时先创建目标文件，再调用 send_file 完成交付。";
           }
           const durationMs = Date.now() - startTime;
 
@@ -3712,6 +3792,14 @@ export class SimpleAgentLoop implements AgentLoop {
             console.log(
               `[agent-loop] ${consecutiveErrors} consecutive all-error iterations, stopping early.`,
             );
+            forcedStopReason = "all_tool_calls_failed";
+            trace.steps.push({
+              type: "budget_event",
+              reason: forcedStopReason,
+              consecutiveErrors,
+              actualLlmCalls: realLlmCalls,
+              iterations,
+            } as TraceStep);
             break;
           }
         } else {
@@ -3754,6 +3842,14 @@ export class SimpleAgentLoop implements AgentLoop {
       let fallbackContent = "";
       if (lastStreamErrorMessage) {
         fallbackContent = `模型调用失败：${lastStreamErrorMessage}`;
+      } else if (forcedStopReason === "max_llm_calls_reached") {
+        fallbackContent =
+          `已达到真实 LLM 调用上限（${realLlmCalls}/${maxLlmCalls}）。` +
+          "系统已停止继续调用模型，避免 rollback 或格式错误导致长任务空转。请基于已完成的工具结果继续，或拆分任务后重试。";
+      } else if (forcedStopReason === "all_tool_calls_failed") {
+        fallbackContent =
+          `连续工具调用失败 ${MAX_CONSECUTIVE_ERRORS} 轮，系统已停止继续尝试。` +
+          "本轮没有获得足够可靠的工具结果，无法完成需要外部事实或副作用的任务；请检查对应工具/网络/上游服务后重试，或改用已有材料继续。";
       } else if (!wasAborted) {
         // Try to generate a structured failure summary
         try {
@@ -3805,7 +3901,7 @@ export class SimpleAgentLoop implements AgentLoop {
         ? "user_aborted"
         : lastStreamErrorMessage
           ? "llm_stream_error"
-          : "max_iterations_reached";
+          : (forcedStopReason ?? "max_iterations_reached");
       try {
         await persistTrace();
       } catch (e) {

@@ -35,6 +35,8 @@ export type AgentEventListener = (event: AgentEvent) => void;
 export interface AgentConfig {
   /** Maximum iterations per turn (prevent infinite loops) */
   maxIterations: number;
+  /** Maximum real LLM calls per turn, including rollback retries */
+  maxLlmCalls?: number;
   /** Default system prompt */
   systemPrompt: string;
   /** Whether to stream responses */

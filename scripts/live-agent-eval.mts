@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { bootstrap } from "../packages/gateway/src/bootstrap.js";
 
@@ -42,7 +42,34 @@ const cases: EvalCase[] = [
   },
 ];
 
-const selectedCaseNames = new Set(process.argv.slice(2));
+const selectedArgs: string[] = [];
+let resume = false;
+let outPathArg: string | undefined;
+for (let i = 0; i < process.argv.slice(2).length; i++) {
+  const arg = process.argv.slice(2)[i];
+  if (arg === "--resume") {
+    resume = true;
+  } else if (arg === "--out" && process.argv.slice(2)[i + 1]) {
+    outPathArg = process.argv.slice(2)[++i];
+  } else {
+    selectedArgs.push(arg);
+  }
+}
+
+const outDir = resolve("data", "eval-reports");
+mkdirSync(outDir, { recursive: true });
+const outPath = outPathArg
+  ? resolve(outPathArg)
+  : join(outDir, `live-agent-eval-${Date.now()}.json`);
+
+type EvalResult = Record<string, unknown> & { name: string };
+const results: EvalResult[] =
+  resume && existsSync(outPath)
+    ? (JSON.parse(readFileSync(outPath, "utf-8")) as EvalResult[])
+    : [];
+const completedCaseNames = new Set(results.map((result) => result.name));
+
+const selectedCaseNames = new Set(selectedArgs);
 const casesToRun =
   selectedCaseNames.size > 0
     ? cases.filter((item) => selectedCaseNames.has(item.name))
@@ -125,9 +152,11 @@ function scoreCase(
 
 async function main() {
   const ctx = await bootstrap();
-  const results = [];
 
   for (const item of casesToRun) {
+    if (resume && completedCaseNames.has(item.name)) {
+      continue;
+    }
     const session = await ctx.orchestrator.createSession({
       agentId: "default",
       channel: "eval",
@@ -206,12 +235,11 @@ async function main() {
         stepCount: trace.steps.length,
       })),
     });
+    completedCaseNames.add(item.name);
+    writeFileSync(outPath, JSON.stringify(results, null, 2), "utf-8");
   }
 
   ctx.scheduler?.stopAll?.();
-  const outDir = resolve("data", "eval-reports");
-  mkdirSync(outDir, { recursive: true });
-  const outPath = join(outDir, `live-agent-eval-${Date.now()}.json`);
   writeFileSync(outPath, JSON.stringify(results, null, 2), "utf-8");
   console.log(JSON.stringify({ outPath, results }, null, 2));
 }

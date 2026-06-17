@@ -4,6 +4,7 @@ import {
   escapeRegExp,
   firstMatch,
 } from "./common.js";
+import { isEvidenceTableAnalysisIntent } from "../ability/evidence-table-intent.js";
 import type {
   CompletionPolicy,
   CompletionPolicyDecision,
@@ -216,12 +217,7 @@ export function buildEvidenceTableFallbackResponse(
 }
 
 function isEvidenceTableRequest(inputText: string): boolean {
-  return (
-    /表格|table/i.test(inputText) &&
-    /检查|审计|分析|评估|诊断|体检|对比|调研|audit|check|analy[sz]e|review|compare|research/i.test(
-      inputText,
-    )
-  );
+  return isEvidenceTableAnalysisIntent(inputText);
 }
 
 function hasEnoughEvidenceForTableCompletion(

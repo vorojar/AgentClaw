@@ -66,6 +66,20 @@ describe("ability task router", () => {
     expect(securityProfile.hint).toContain("表格化检查");
   });
 
+  it("SEO 检测表格任务应进入 evidence_table_analysis，而不是 default", () => {
+    const profile = buildTaskToolProfile(
+      "对www.ehafo.com，进行一轮全面、专业的顶级专家级的seo检测，表格方式输出",
+      false,
+      false,
+    );
+
+    expect(profile.kind).toBe("evidence_table_analysis");
+    expect(profile.allowedTools).toEqual(
+      new Set(["web_fetch", "web_search", "bash"]),
+    );
+    expect(profile.webResearchToolLimit).toBe(5);
+  });
+
   it("竞品和产品表格调研不应落入网站技术检查模板", () => {
     const profile = buildTaskToolProfile(
       "用表格分析 OpenAI 和 Anthropic 的产品定位、价格和生态差异。",

@@ -295,6 +295,28 @@ describe("completion policies", () => {
     expect(decision?.artifacts).toEqual([]);
   });
 
+  it("SEO 检测表格证据足够时由证据表策略生成 Markdown 表格", () => {
+    const decision = evaluateCompletionPolicies({
+      ...baseInput(),
+      taskKind: "evidence_table_analysis",
+      inputText:
+        "对www.ehafo.com，进行一轮全面、专业的顶级专家级的seo检测，表格方式输出",
+      successfulWebSearchCalls: 0,
+      successfulWebFetchCalls: 2,
+      currentResultContents: [
+        'URL Source: https://www.ehafo.com\n# 易哈佛医学考试题库 | 医护考试备考平台\n<meta name="description" content="医学考试题库 医护考试备考">\n## 热门医学考试备考入口\nviewport',
+        "URL Source: https://www.ehafo.com/robots.txt\nUser-agent: *\nAllow: /\nSitemap: https://www.ehafo.com/sitemap.xml",
+      ],
+    });
+
+    expect(decision?.policyName).toBe("evidence_table_ready");
+    expect(decision?.text).toContain(
+      "| 检查项 | 当前发现 | 判断 | 建议 | 证据 |",
+    );
+    expect(decision?.text).toContain("Meta description");
+    expect(decision?.text).toContain("robots.txt");
+  });
+
   it("默认任务不触发任何特化完成策略", () => {
     expect(evaluateCompletionPolicies(baseInput())).toBeNull();
   });

@@ -4233,6 +4233,88 @@ describe("SimpleAgentLoop", () => {
       expect(provider.stream).toHaveBeenCalledTimes(1);
     });
 
+    it("SEO 检测表格任务拿到证据后应直接生成表格，不进入伪工具 XML 轮次", async () => {
+      const makeToolCallChunks = (
+        id: string,
+        name: string,
+        input: Record<string, unknown>,
+      ): LLMStreamChunk[] => [
+        { type: "tool_use_start", toolUse: { id, name, input: "" } },
+        {
+          type: "tool_use_delta",
+          toolUse: { id, name: "", input: JSON.stringify(input) },
+        },
+      ];
+      const firstRoundChunks: LLMStreamChunk[] = [
+        ...makeToolCallChunks("tc-home", "web_fetch", {
+          url: "https://www.ehafo.com",
+        }),
+        ...makeToolCallChunks("tc-robots", "web_fetch", {
+          url: "https://www.ehafo.com/robots.txt",
+        }),
+        {
+          type: "done",
+          usage: { tokensIn: 100, tokensOut: 40 },
+          model: "mock-model",
+          stopReason: "tool_use",
+        },
+      ];
+      const invalidChunks: LLMStreamChunk[] = [
+        {
+          type: "text",
+          text: "<tool_call>\n<function=bash>\n<parameter=command>curl -sI https://www.ehafo.com</parameter>\n</function>\n</tool_call>",
+        },
+        {
+          type: "done",
+          usage: { tokensIn: 100, tokensOut: 40 },
+          model: "mock-model",
+          stopReason: "end_turn",
+        },
+      ];
+      const provider = createMockProvider([firstRoundChunks, invalidChunks]);
+      const webFetchExecute = vi.fn(async (input: Record<string, unknown>) => {
+        const url = String(input.url);
+        return {
+          content: url.endsWith("/robots.txt")
+            ? "URL Source: https://www.ehafo.com/robots.txt\nUser-agent: *\nAllow: /\nSitemap: https://www.ehafo.com/sitemap.xml"
+            : "URL Source: https://www.ehafo.com\n# 易哈佛医学考试题库 | 医护考试备考平台\n<meta name=\"description\" content=\"医学考试题库 医护考试备考\">\n## 热门医学考试备考入口\nviewport",
+        };
+      });
+      const loop = new SimpleAgentLoop({
+        provider,
+        toolRegistry: createMockToolRegistry([
+          {
+            ...createMockTool("web_fetch"),
+            execute: webFetchExecute,
+          },
+          createMockTool("web_search"),
+          createMockTool("bash"),
+        ]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 5 },
+      });
+
+      const events = await collectEvents(
+        loop.runStream(
+          "对www.ehafo.com，进行一轮全面、专业的顶级专家级的seo检测，表格方式输出",
+          "conv-seo-detect-table-direct",
+        ),
+      );
+
+      const completeEvent = events.find((event) => event.type === "response_complete");
+      expect(completeEvent).toBeDefined();
+      const message = (completeEvent!.data as { message: Message }).message;
+      const responseText = String(message.content);
+      expect(responseText).toContain("| 检查项 | 当前发现 | 判断 | 建议 | 证据 |");
+      expect(responseText).toContain("Meta description");
+      expect(responseText).not.toContain("<tool_call>");
+      expect(provider.stream).toHaveBeenCalledTimes(1);
+      expect(memoryStore.addTrace).toHaveBeenCalledWith(
+        expect.not.objectContaining({ error: "invalid_tool_markup_final" }),
+      );
+    });
+
     it("新闻简报已写出文件后遇到禁用工具和伪工具标记应按成功成果收束", async () => {
       const makeToolCallChunks = (
         id: string,

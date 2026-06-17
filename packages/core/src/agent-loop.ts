@@ -123,6 +123,19 @@ const RETRY_BASE_DELAY = 2000; // ms
 const INVALID_TOOL_MARKUP_RE =
   /<\/?tool_call\b|<function=|<\/function>|<parameter=/i;
 const RESPONSE_STREAM_GUARD_CHARS = 64;
+const MAX_PARALLEL_PURE_TOOL_CALLS = 4;
+const MAX_PARALLEL_WEB_RESEARCH_TOOL_CALLS = 2;
+const WEB_RESEARCH_TOOL_NAMES = new Set(["web_search", "web_fetch"]);
+
+function isWebResearchToolName(name: string): boolean {
+  return WEB_RESEARCH_TOOL_NAMES.has(name);
+}
+
+function getPureToolConcurrencyLimit(calls: Array<{ name: string }>): number {
+  return calls.some((call) => isWebResearchToolName(call.name))
+    ? MAX_PARALLEL_WEB_RESEARCH_TOOL_CALLS
+    : MAX_PARALLEL_PURE_TOOL_CALLS;
+}
 
 function normalizeComparablePath(filePath: string, baseDir?: string): string {
   const trimmed = filePath.trim().replace(/\\/g, "/");
@@ -3253,12 +3266,24 @@ export class SimpleAgentLoop implements AgentLoop {
           // Execute: parallel for pure batches (>1), sequential otherwise
           let execResults: ToolExecResult[];
           if (batch.parallel && batch.calls.length > 1) {
+            const concurrencyLimit = getPureToolConcurrencyLimit(batch.calls);
             console.log(
-              `[agent-loop] Executing ${batch.calls.length} pure tools in parallel: ${batch.calls.map((t) => t.name).join(", ")}`,
+              `[agent-loop] Executing ${batch.calls.length} pure tools with concurrency ${Math.min(batch.calls.length, concurrencyLimit)}: ${batch.calls.map((t) => t.name).join(", ")}`,
             );
-            execResults = await Promise.all(
-              batch.calls.map((tc) => executeOne(tc)),
-            );
+            if (batch.calls.length > concurrencyLimit) {
+              trace.steps.push({
+                type: "budget_event",
+                reason: "parallel_tool_concurrency_capped",
+                requested: batch.calls.length,
+                limit: concurrencyLimit,
+                tools: batch.calls.map((tc) => tc.name),
+              } as TraceStep);
+            }
+            execResults = [];
+            for (let i = 0; i < batch.calls.length; i += concurrencyLimit) {
+              const slice = batch.calls.slice(i, i + concurrencyLimit);
+              execResults.push(...(await Promise.all(slice.map(executeOne))));
+            }
           } else {
             execResults = [await executeOne(batch.calls[0])];
           }

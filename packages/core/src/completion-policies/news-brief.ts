@@ -1,4 +1,8 @@
-import { currentLocalDateString, extractFallbackLines } from "./common.js";
+import {
+  currentLocalDateString,
+  escapeMarkdownTableCell,
+  extractFallbackLines,
+} from "./common.js";
 import type {
   CompletionPolicy,
   CompletionPolicyDecision,
@@ -17,12 +21,17 @@ export const newsBriefCompletionPolicy: CompletionPolicy = {
       ],
       input.now,
     );
+    const outputContract = readNewsOutputContract(input.inputText);
+    const requiredCandidates = Math.max(
+      MIN_SEARCH_ONLY_CANDIDATES,
+      outputContract.minItems,
+    );
     if (
       input.taskKind !== "news_brief" ||
       input.successfulWebSearchCalls < 3 ||
       (input.successfulWebFetchCalls < 2 &&
-        candidates.length < MIN_SEARCH_ONLY_CANDIDATES) ||
-      candidates.length < MIN_SEARCH_ONLY_CANDIDATES
+        candidates.length < requiredCandidates) ||
+      candidates.length < requiredCandidates
     ) {
       return null;
     }
@@ -32,6 +41,7 @@ export const newsBriefCompletionPolicy: CompletionPolicy = {
       input.currentResultContents,
       "新闻简报已获取足够搜索和网页证据",
       input.now,
+      outputContract,
     );
     return text
       ? {
@@ -89,6 +99,7 @@ function buildNewsBriefCompletionResponse(
   currentResultContents: string[],
   reason: string,
   now?: Date,
+  outputContract: NewsOutputContract = DEFAULT_NEWS_OUTPUT_CONTRACT,
 ): string | null {
   const lines = [
     ...fallbackSnippets,
@@ -99,6 +110,16 @@ function buildNewsBriefCompletionResponse(
   const sources = candidates.map((item) => item.url);
 
   if (candidates.length === 0 && sources.length === 0) return null;
+
+  if (outputContract.wantsTable) {
+    return buildNewsTableCompletionResponse(
+      candidates,
+      sources,
+      reason,
+      now,
+      outputContract,
+    );
+  }
 
   const briefItems =
     candidates.length > 0
@@ -134,6 +155,96 @@ function buildNewsBriefCompletionResponse(
     "",
     `说明：${reason}；系统已停止继续调用工具以避免空转。`,
   ].join("\n");
+}
+
+type NewsOutputContract = {
+  wantsTable: boolean;
+  minItems: number;
+};
+
+const DEFAULT_NEWS_OUTPUT_CONTRACT: NewsOutputContract = {
+  wantsTable: false,
+  minItems: MIN_SEARCH_ONLY_CANDIDATES,
+};
+
+function readNewsOutputContract(inputText: string): NewsOutputContract {
+  const wantsTable = /表格|对比表|Markdown\s*table|table/i.test(inputText);
+  const minItemsMatch =
+    inputText.match(/至少\s*(\d+)\s*条/i) ??
+    inputText.match(/(\d+)\s*条/i);
+  const requestedItems = minItemsMatch ? Number(minItemsMatch[1]) : undefined;
+  const minItems = Number.isFinite(requestedItems)
+    ? Math.max(MIN_SEARCH_ONLY_CANDIDATES, requestedItems!)
+    : wantsTable
+      ? 5
+      : MIN_SEARCH_ONLY_CANDIDATES;
+  return { wantsTable, minItems };
+}
+
+function buildNewsTableCompletionResponse(
+  candidates: NewsCandidate[],
+  sources: string[],
+  reason: string,
+  now: Date | undefined,
+  outputContract: NewsOutputContract,
+): string {
+  const rows = candidates.slice(0, outputContract.minItems).map((item) => [
+    inferCandidateDate(item, now),
+    inferSourceName(item.url),
+    item.title,
+    item.summary ||
+      "来自可信来源的近期 AI 事件，已纳入本轮高置信对比。",
+    `[来源](${item.url})`,
+  ]);
+  const table = [
+    "| 日期 | 来源 | 标题 | 为什么重要 | 来源链接 |",
+    "| --- | --- | --- | --- | --- |",
+    ...rows.map((row) => `| ${row.map(escapeMarkdownTableCell).join(" | ")} |`),
+  ].join("\n");
+  const sourceList =
+    sources.length > 0
+      ? sources
+          .slice(0, Math.max(outputContract.minItems, 6))
+          .map((url) => `- ${url}`)
+          .join("\n")
+      : "- 已获取的工具结果中未提取到明确 URL。";
+
+  return [
+    `今日 AI 新闻对比表（${currentLocalDateString(now)}）`,
+    "",
+    table,
+    "",
+    "来源链接：",
+    sourceList,
+    "",
+    `说明：${reason}；已按用户要求输出 Markdown 表格，并避免继续空转。`,
+  ].join("\n");
+}
+
+function inferCandidateDate(item: NewsCandidate, now?: Date): string {
+  const text = `${item.title} ${item.summary} ${item.url}`;
+  const urlDate = text.match(/\b(20\d{2})[/-](\d{1,2})[/-](\d{1,2})\b/);
+  if (urlDate) {
+    return `${urlDate[1]}-${urlDate[2].padStart(2, "0")}-${urlDate[3].padStart(2, "0")}`;
+  }
+  const monthDate = text.match(
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(20\d{2})\b/i,
+  );
+  if (monthDate) {
+    const month = MONTH_INDEX[monthDate[1].toLowerCase().slice(0, 3)];
+    if (month !== undefined) {
+      return `${monthDate[3]}-${String(month + 1).padStart(2, "0")}-${monthDate[2].padStart(2, "0")}`;
+    }
+  }
+  return currentLocalDateString(now);
+}
+
+function inferSourceName(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "可信来源";
+  }
 }
 
 function buildInsufficientTrustedNewsResponse(
@@ -239,7 +350,7 @@ function extractNewsCandidates(lines: string[], now?: Date): NewsCandidate[] {
     });
   }
 
-  return candidates.slice(0, 6);
+  return candidates.slice(0, 20);
 }
 
 function isUsableNewsTitle(title: string): boolean {

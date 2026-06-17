@@ -409,6 +409,60 @@ describe("SimpleAgentLoop", () => {
       expect(trace.error).toBe("all_tool_calls_failed");
       expect(trace.response).toContain("连续工具调用失败");
     });
+
+    it("同一轮多个 web research 纯工具应限制并发宽度，避免上游限流雪崩", async () => {
+      const firstRoundChunks: LLMStreamChunk[] = [];
+      for (let i = 0; i < 5; i++) {
+        firstRoundChunks.push({
+          type: "tool_use_start",
+          toolUse: { id: `tc-search-${i}`, name: "web_search", input: "" },
+        });
+        firstRoundChunks.push({
+          type: "tool_use_delta",
+          toolUse: {
+            id: `tc-search-${i}`,
+            name: "",
+            input: JSON.stringify({ query: `AI news shard ${i}` }),
+          },
+        });
+      }
+      firstRoundChunks.push({
+        type: "done",
+        usage: { tokensIn: 10, tokensOut: 5 },
+        model: "mock-model",
+      });
+
+      let active = 0;
+      let maxActive = 0;
+      const searchTool: Tool = {
+        ...createMockTool("web_search"),
+        pure: true,
+        execute: vi.fn(async () => {
+          active++;
+          maxActive = Math.max(maxActive, active);
+          await new Promise((resolve) => setTimeout(resolve, 15));
+          active--;
+          return { content: "ok" };
+        }),
+      };
+      const loop = new SimpleAgentLoop({
+        provider: createMockProvider([
+          firstRoundChunks,
+          [{ type: "text", text: "done" }],
+        ]),
+        toolRegistry: createMockToolRegistry([searchTool]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 3 },
+      });
+
+      await collectEvents(
+        loop.runStream("parallel web research probe", "conv-web-parallel-cap"),
+      );
+
+      expect(searchTool.execute).toHaveBeenCalledTimes(5);
+      expect(maxActive).toBeLessThanOrEqual(2);
+    });
   });
 
   // ── 简单文本回复测试 ──

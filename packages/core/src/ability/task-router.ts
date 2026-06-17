@@ -69,7 +69,7 @@ export function buildTaskToolProfile(
     };
   }
 
-  if (/reddit|rss|subreddit|子版块/i.test(inputText)) {
+  if (isRedditRssTask(inputText)) {
     return {
       kind: "reddit_rss",
       allowedTools: new Set(["rss_top", "file_write", "send_file"]),
@@ -195,6 +195,34 @@ function isAutomationScheduleTask(inputText: string): boolean {
   return /自动化|定时|提醒|每天|每周|明天.*(?:提醒|上午|早上)|schedule|automation|reminder/i.test(
     inputText,
   );
+}
+
+function isRedditRssTask(inputText: string): boolean {
+  const text = inputText.trim();
+  const negativeMention =
+    /(?:不要|不使用|禁止|排除|避免|不用|别用|not use|avoid|exclude)[^。；;,\n]{0,40}(?:reddit|rss|feed|subreddit|聚合站)/i.test(
+      text,
+    );
+  const explicitFeedTarget =
+    /\brss\b|\bfeed\b|订阅源|subreddit|子版块|\br\/[A-Za-z0-9_]+/i.test(
+      text,
+    );
+  const positiveRedditTask =
+    /(?:抓取|获取|读取|订阅|汇总|生成|日报|热门|top|fetch|read|summari[sz]e|monitor)[^。；;\n]{0,50}reddit|reddit[^。；;\n]{0,50}(?:日报|汇总|热门|top|fetch|read|summari[sz]e|monitor)/i.test(
+      text,
+    );
+  const positiveFeedTask =
+    /(?:抓取|获取|读取|订阅|汇总|生成|日报|热门|top|fetch|read|summari[sz]e|monitor)/i.test(
+      text,
+    );
+
+  if (negativeMention && !positiveRedditTask && !explicitFeedTarget) {
+    return false;
+  }
+  if (negativeMention && !positiveRedditTask && !/\brss\b|\bfeed\b|订阅源|\br\//i.test(text)) {
+    return false;
+  }
+  return positiveRedditTask || (explicitFeedTarget && positiveFeedTask);
 }
 
 function isEvidenceTableAnalysisTask(inputText: string): boolean {

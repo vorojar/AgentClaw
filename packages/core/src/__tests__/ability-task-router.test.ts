@@ -109,6 +109,20 @@ describe("ability task router", () => {
     expect(profile.hint).toContain("只能用 rss_top");
   });
 
+  it("负向排除 Reddit 时不得误判为 Reddit/RSS 日报任务", () => {
+    const profile = buildTaskToolProfile(
+      "请真实搜索并抓取最近7天 AI 领域的高可信新闻，输出 Markdown 对比表；不要用 Reddit/YouTube/SEO 聚合站。",
+      true,
+      true,
+    );
+
+    expect(profile.kind).toBe("news_brief");
+    expect(profile.allowedTools).toEqual(
+      new Set(["web_search", "web_fetch", "file_write", "send_file"]),
+    );
+    expect(profile.allowedTools).not.toContain("rss_top");
+  });
+
   it("按任务 profile 过滤工具定义", () => {
     const profile = buildTaskToolProfile("继续第 3 项。", false, false);
     const filtered = filterToolDefinitionsForTask(

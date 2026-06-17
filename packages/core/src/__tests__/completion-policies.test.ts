@@ -63,6 +63,55 @@ describe("completion policies", () => {
     expect(decision).toBeNull();
   });
 
+  it("AI 新闻要求至少 8 条表格时不足数量不得提前收束", () => {
+    const decision = evaluateCompletionPolicies({
+      ...baseInput(),
+      taskKind: "news_brief",
+      inputText: "搜索最近 AI 新闻，输出 Markdown 对比表，至少 8 条。",
+      successfulWebSearchCalls: 3,
+      successfulWebFetchCalls: 0,
+      fallbackSnippets: [
+        "OpenAI ships agent update — May 21, 2026",
+        "https://openai.com/news/agent-update",
+        "Anthropic publishes safety update — May 21, 2026",
+        "https://www.anthropic.com/news/safety-update",
+        "TechCrunch reports AI funding round — May 21, 2026",
+        "https://techcrunch.com/2026/05/21/ai-funding-round/",
+        "The Verge covers AI data center dispute — May 21, 2026",
+        "https://www.theverge.com/ai-artificial-intelligence/data-center",
+        "Reuters reports AI policy change — May 21, 2026",
+        "https://www.reuters.com/technology/artificial-intelligence/ai-policy-2026-05-21/",
+      ],
+    });
+
+    expect(decision).toBeNull();
+  });
+
+  it("AI 新闻要求表格且候选足够时应按 Markdown 表格收束", () => {
+    const snippets = [
+      ["OpenAI ships agent update — May 21, 2026", "https://openai.com/news/agent-update"],
+      ["Anthropic publishes safety update — May 21, 2026", "https://www.anthropic.com/news/safety-update"],
+      ["TechCrunch reports AI funding round — May 21, 2026", "https://techcrunch.com/2026/05/21/ai-funding-round/"],
+      ["The Verge covers AI data center dispute — May 21, 2026", "https://www.theverge.com/ai-artificial-intelligence/data-center"],
+      ["Reuters reports AI policy change — May 21, 2026", "https://www.reuters.com/technology/artificial-intelligence/ai-policy-2026-05-21/"],
+      ["MIT Technology Review profiles robot model — May 21, 2026", "https://www.technologyreview.com/2026/05/21/robot-model/"],
+      ["Google DeepMind releases model research — May 21, 2026", "https://deepmind.google/discover/blog/model-research/"],
+      ["Nvidia announces AI data center systems — May 21, 2026", "https://www.nvidia.com/en-us/data-center/news-ai-systems/"],
+    ].flat();
+    const decision = evaluateCompletionPolicies({
+      ...baseInput(),
+      taskKind: "news_brief",
+      inputText: "搜索最近 AI 新闻，输出 Markdown 对比表，至少 8 条。",
+      successfulWebSearchCalls: 3,
+      successfulWebFetchCalls: 0,
+      fallbackSnippets: snippets,
+    });
+
+    expect(decision?.policyName).toBe("news_brief_ready");
+    expect(decision?.text).toContain("| 日期 | 来源 | 标题 | 为什么重要 | 来源链接 |");
+    expect(decision?.text?.split("\n").filter((line) => /^\| .*https?:\/\//.test(line))).toHaveLength(8);
+  });
+
   it("AI 新闻候选 URL 日期早于 7 天时不应被当作今日简报证据", () => {
     const decision = evaluateCompletionPolicies({
       ...baseInput(),

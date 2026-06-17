@@ -13,7 +13,7 @@ export const newsBriefCompletionPolicy: CompletionPolicy = {
     const candidates = extractNewsCandidates(
       [
         ...input.fallbackSnippets,
-        ...input.currentResultContents.flatMap(extractFallbackLines),
+        ...expandNewsEvidenceLines(input.currentResultContents),
       ],
       input.now,
     );
@@ -55,14 +55,16 @@ export function ensureNewsBriefFinalQuality(
     response.split(/\r?\n/),
     now,
   );
+  const responseContainsFailedEvidence = containsFailedEvidence(response);
   if (
-    responseUrls.length >= MIN_SEARCH_ONLY_CANDIDATES ||
-    responseCandidates.length >= MIN_SEARCH_ONLY_CANDIDATES
+    !responseContainsFailedEvidence &&
+    (responseUrls.length >= MIN_SEARCH_ONLY_CANDIDATES ||
+      responseCandidates.length >= MIN_SEARCH_ONLY_CANDIDATES)
   ) {
     return response;
   }
 
-  const evidenceLines = evidenceContents.flatMap(extractFallbackLines);
+  const evidenceLines = expandNewsEvidenceLines(evidenceContents);
   const evidenceCandidates = extractNewsCandidates(
     [...response.split(/\r?\n/), ...evidenceLines],
     now,
@@ -90,7 +92,7 @@ function buildNewsBriefCompletionResponse(
 ): string | null {
   const lines = [
     ...fallbackSnippets,
-    ...currentResultContents.flatMap(extractFallbackLines),
+    ...expandNewsEvidenceLines(currentResultContents),
   ];
   const unique = [...new Set(lines)];
   const candidates = extractNewsCandidates(unique, now);
@@ -176,15 +178,36 @@ const LOW_QUALITY_TITLE_RE =
 const BOILERPLATE_RE =
   /^(?:results\[|hint:|\[content compacted\]|Title:|URL Source:|Published Time:|Markdown Content:|Check out other fresh news|When your AI startup)/i;
 
+function expandNewsEvidenceLines(contents: string[]): string[] {
+  const lines: string[] = [];
+  for (const content of contents) {
+    lines.push(...extractFallbackLines(content));
+    lines.push(
+      ...content
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 200),
+    );
+  }
+  return lines;
+}
+
 function extractNewsCandidates(lines: string[], now?: Date): NewsCandidate[] {
   const candidates: NewsCandidate[] = [];
   const seen = new Set<string>();
+  let currentSourceUrl: string | undefined;
   const cleanLines = lines
     .map((line) => line.trim().replace(/^[-*]\s*/, ""))
     .filter(Boolean);
 
   for (let i = 0; i < cleanLines.length; i++) {
     const line = cleanLines[i];
+    if (containsFailedEvidence(line)) continue;
+    const sourceUrl = line.match(/^URL Source:\s*(https?:\/\/\S+)/i)?.[1];
+    if (sourceUrl && isTrustedNewsSource(sourceUrl)) {
+      currentSourceUrl = sourceUrl.replace(/[.,;:]+$/g, "");
+    }
     if (BOILERPLATE_RE.test(line)) continue;
     const urlInLine = line.match(/https?:\/\/[^\s)>\]]+/)?.[0];
     let url = urlInLine;
@@ -193,17 +216,22 @@ function extractNewsCandidates(lines: string[], now?: Date): NewsCandidate[] {
         .slice(i + 1, i + 3)
         .find((candidate) => /^https?:\/\//i.test(candidate));
     }
+    if (!url && currentSourceUrl && isUsableNewsTitle(line)) {
+      url = currentSourceUrl;
+    }
     if (!url || LOW_QUALITY_SOURCE_RE.test(url)) continue;
     if (!isTrustedNewsSource(url)) continue;
 
     const withoutUrl = line.replace(url, "").trim();
     const parsed = splitTitleAndSummary(withoutUrl);
     if (!parsed.title) continue;
+    if (!isUsableNewsTitle(parsed.title)) continue;
     if (LOW_QUALITY_TITLE_RE.test(parsed.title)) continue;
     const normalizedUrl = url.replace(/[.,;:]+$/g, "");
     if (!isRecentEnoughForNews(line, normalizedUrl, now)) continue;
-    if (seen.has(normalizedUrl)) continue;
-    seen.add(normalizedUrl);
+    const seenKey = `${normalizedUrl}::${parsed.title.toLowerCase()}`;
+    if (seen.has(seenKey)) continue;
+    seen.add(seenKey);
     candidates.push({
       title: parsed.title,
       summary: parsed.summary,
@@ -212,6 +240,30 @@ function extractNewsCandidates(lines: string[], now?: Date): NewsCandidate[] {
   }
 
   return candidates.slice(0, 6);
+}
+
+function isUsableNewsTitle(title: string): boolean {
+  const cleaned = title.replace(/\s+/g, " ").trim();
+  if (cleaned.length < 12) return false;
+  if (/^来源[:：]?$/i.test(cleaned)) return false;
+  if (containsFailedEvidence(cleaned)) return false;
+  if (/more a part of our lives than ever before|some might call it hype/i.test(cleaned)) {
+    return false;
+  }
+  if (/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s\W]+$/u.test(cleaned)) {
+    return false;
+  }
+  if (/^Artificial Intelligence$/i.test(cleaned)) return false;
+  if (/^URL Source:/i.test(cleaned)) return false;
+  return /AI|A\.I\.|artificial intelligence|OpenAI|Anthropic|Google|Microsoft|Meta|Nvidia|xAI|Grok|model|robot|data center|generative|Siri|Adobe|Fortnite|Musk|智能|模型|人工智能/i.test(
+    cleaned,
+  );
+}
+
+function containsFailedEvidence(text: string): boolean {
+  return /Failed to fetch|Request timed out|0 results for|You have called .*limit|工具调用失败|抓取失败/i.test(
+    text,
+  );
 }
 
 function extractTrustedRecentUrls(text: string, now?: Date): string[] {

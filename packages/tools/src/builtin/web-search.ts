@@ -30,6 +30,35 @@ function readMaxResults(value: unknown): number {
   return Math.max(1, Math.min(HARD_MAX_RESULTS, Math.floor(value)));
 }
 
+function isZeroResultContent(content: string): boolean {
+  return /^0 results for /i.test(content.trim());
+}
+
+function buildQueryVariants(query: string): string[] {
+  const variants = [query.trim()];
+  const withoutSite = query
+    .replace(/\bsite:([^\s]+)/gi, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (withoutSite && withoutSite !== variants[0]) {
+    variants.push(withoutSite);
+  }
+
+  const withoutExactDate = withoutSite
+    .replace(/\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b/g, "")
+    .replace(
+      /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2}\b/gi,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  if (withoutExactDate && !variants.includes(withoutExactDate)) {
+    variants.push(withoutExactDate);
+  }
+
+  return variants;
+}
+
 interface SearchResult {
   title: string;
   url: string;
@@ -282,15 +311,33 @@ export const webSearchTool: Tool = {
       return { content: "Error: empty search query", isError: true };
     }
 
+    const queryVariants = buildQueryVariants(query);
+    const attemptedQueries: string[] = [];
+    const zeroResultMessages: string[] = [];
+
     // Try enabled engines in order (priority = array order)
     const enabled = searchEngines.filter((e) => e.enabled);
-    for (const engine of enabled) {
-      const result = await executeEngine(engine, query, maxResults);
-      if (result) {
+    for (const queryVariant of queryVariants) {
+      for (const engine of enabled) {
+        if (!attemptedQueries.includes(queryVariant)) {
+          attemptedQueries.push(queryVariant);
+        }
+        const result = await executeEngine(engine, queryVariant, maxResults);
+        if (!result) continue;
+        if (isZeroResultContent(result)) {
+          zeroResultMessages.push(result);
+          continue;
+        }
         return {
           content: result,
           isError: false,
-          metadata: { query, maxResults, engine: engine.id },
+          metadata: {
+            query,
+            effectiveQuery: queryVariant,
+            attemptedQueries,
+            maxResults,
+            engine: engine.id,
+          },
         };
       }
     }
@@ -304,9 +351,11 @@ export const webSearchTool: Tool = {
     }
 
     return {
-      content: `0 results for "${query}" across ${enabled.length} search engine(s). Try different keywords.`,
-      isError: false,
-      metadata: { query, maxResults },
+      content:
+        zeroResultMessages.at(-1) ??
+        `0 results for "${query}" across ${enabled.length} search engine(s). Try different keywords.`,
+      isError: true,
+      metadata: { query, attemptedQueries, maxResults, zeroResults: true },
     };
   },
 };

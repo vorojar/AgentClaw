@@ -495,7 +495,88 @@ export const webFetchTool: Tool = {
         },
       };
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
+      const isAbortError = err instanceof Error && err.name === "AbortError";
+      if (err instanceof Error) {
+        const jina = await tryJinaReader(url);
+        if (jina && !isBlockedContent(jina)) {
+          const recoveredFrom = isAbortError
+            ? "native_timeout"
+            : "native_fetch_error";
+          if (saveAs) {
+            const workDir =
+              context?.workDir ??
+              join(resolve(process.cwd(), "data", "tmp"), `fetch_${Date.now()}`);
+            mkdirSync(workDir, { recursive: true });
+            const filePath = join(workDir, basename(saveAs));
+            writeFileSync(filePath, jina, "utf-8");
+            if (autoSend && context?.sendFile) {
+              try {
+                await context.sendFile(filePath, basename(saveAs));
+                return {
+                  content: `Fetched and sent: ${basename(saveAs)} (${jina.length} chars from ${url})`,
+                  isError: false,
+                  autoComplete: true,
+                  metadata: {
+                    url: requestedUrl,
+                    ...(normalizedUrl ? { normalizedUrl } : {}),
+                    strategy: "jina",
+                    recoveredFrom,
+                    filePath,
+                    saved: true,
+                    sent: true,
+                  },
+                  effect: {
+                    kind: "send",
+                    target: filePath,
+                    reversible: false,
+                    deliverable: true,
+                    verified: true,
+                  },
+                };
+              } catch {
+                // sendFile failed, fall through to saved-only response
+              }
+            }
+            return {
+              content: `Saved to ${basename(saveAs)} (${jina.length} chars).`,
+              isError: false,
+              metadata: {
+                url: requestedUrl,
+                ...(normalizedUrl ? { normalizedUrl } : {}),
+                strategy: "jina",
+                recoveredFrom,
+                filePath,
+                saved: true,
+                originalLength: jina.length,
+              },
+              effect: {
+                kind: "write",
+                target: filePath,
+                reversible: true,
+                verified: true,
+              },
+            };
+          }
+
+          const promptContent = compactFetchedContent(jina, url, promptMaxChars);
+          return {
+            content:
+              `${promptContent.content}\n\n` +
+              "hint: native fetch timed out, but Jina Reader returned usable content. If this content contains the requested facts, synthesize the final answer now with this URL as source.",
+            isError: false,
+            metadata: {
+              url: requestedUrl,
+              ...(normalizedUrl ? { normalizedUrl } : {}),
+              strategy: "jina",
+              recoveredFrom,
+              originalLength: jina.length,
+              returnedLength: promptContent.content.length,
+              compacted: promptContent.compacted,
+            },
+          };
+        }
+      }
+      if (isAbortError) {
         return {
           content: `Request timed out after ${FETCH_TIMEOUT}ms for ${url}`,
           isError: true,

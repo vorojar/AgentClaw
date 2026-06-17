@@ -221,4 +221,80 @@ describe("trace efficiency tool behavior", () => {
     expect(result.content).not.toContain("Result 6");
     expect(result.metadata).toMatchObject({ maxResults: 5 });
   });
+
+  it("retries a broader query before returning a zero-result web_search failure", async () => {
+    setSearchEngines([
+      {
+        id: "local",
+        type: "searxng",
+        enabled: true,
+        url: "https://search.example",
+      },
+    ]);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (url: string | URL | Request) => {
+        const requested = String(url);
+        if (requested.includes("site%3Atechcrunch.com")) {
+          return {
+            ok: true,
+            json: async () => ({ results: [] }),
+            headers: new Headers({ "content-type": "application/json" }),
+          } as Response;
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            results: [
+              {
+                title: "TechCrunch AI News",
+                url: "https://techcrunch.com/category/artificial-intelligence/",
+                content: "AI coverage and latest startup news.",
+              },
+            ],
+          }),
+          headers: new Headers({ "content-type": "application/json" }),
+        } as Response;
+      },
+    );
+
+    const result = await webSearchTool.execute({
+      query: "site:techcrunch.com AI artificial intelligence 2026",
+    });
+
+    expect(result.isError).toBe(false);
+    expect(result.content).toContain("TechCrunch AI News");
+    expect(result.metadata).toMatchObject({
+      query: "site:techcrunch.com AI artificial intelligence 2026",
+      effectiveQuery: "techcrunch.com AI artificial intelligence 2026",
+      attemptedQueries: [
+        "site:techcrunch.com AI artificial intelligence 2026",
+        "techcrunch.com AI artificial intelligence 2026",
+      ],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("marks web_search zero results as an error when all query variants are empty", async () => {
+    setSearchEngines([
+      {
+        id: "local",
+        type: "searxng",
+        enabled: true,
+        url: "https://search.example",
+      },
+    ]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [] }),
+      headers: new Headers({ "content-type": "application/json" }),
+    } as Response);
+
+    const result = await webSearchTool.execute({
+      query: "nonexistent exact query 2026-06-17",
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain("0 results");
+    expect(result.metadata).toMatchObject({ zeroResults: true });
+  });
 });

@@ -127,6 +127,66 @@ describe("web_fetch", () => {
     await expect(readFile(join(workDir, "blocked.md"), "utf-8")).rejects.toThrow();
   });
 
+  it("本机直连超时时应尝试 Jina Reader fallback", async () => {
+    const url = "https://www.theverge.com/ai-artificial-intelligence";
+    const abortError = new Error("The operation was aborted");
+    abortError.name = "AbortError";
+    const jinaMarkdown = `
+      Title: Artificial Intelligence | The Verge
+      URL Source: ${url}
+
+      The Justice Department argues xAI's data center is necessary for national security.
+      Anthropic and the US government are once again at odds over a model release.
+    `;
+    const fetchMock = vi.fn(async (fetchUrl: string | URL | Request) => {
+      const requested = String(fetchUrl);
+      if (requested.startsWith("https://r.jina.ai/")) {
+        return response(jinaMarkdown, "text/markdown; charset=utf-8");
+      }
+      throw abortError;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await webFetchTool.execute({ url, max_chars: 4000 });
+
+    expect(result.isError).toBe(false);
+    expect(result.content).toContain("The Justice Department argues");
+    expect(result.metadata).toMatchObject({
+      url,
+      strategy: "jina",
+      recoveredFrom: "native_timeout",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("本机直连 fetch failed 时也应尝试 Jina Reader fallback", async () => {
+    const url = "https://techcrunch.com/category/artificial-intelligence/";
+    const jinaMarkdown = `
+      Title: AI News & Artificial Intelligence | TechCrunch
+      URL Source: ${url}
+
+      TechCrunch covers artificial intelligence startup funding and model releases.
+    `;
+    const fetchMock = vi.fn(async (fetchUrl: string | URL | Request) => {
+      const requested = String(fetchUrl);
+      if (requested.startsWith("https://r.jina.ai/")) {
+        return response(jinaMarkdown, "text/markdown; charset=utf-8");
+      }
+      throw new TypeError("fetch failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await webFetchTool.execute({ url, max_chars: 4000 });
+
+    expect(result.isError).toBe(false);
+    expect(result.content).toContain("TechCrunch covers artificial intelligence");
+    expect(result.metadata).toMatchObject({
+      url,
+      strategy: "jina",
+      recoveredFrom: "native_fetch_error",
+    });
+  });
+
   it("Jina 返回验证页但本机直连正常时应回退保存本机正文", async () => {
     const url = "https://example.com/article";
     const nativeHtml = `

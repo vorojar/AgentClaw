@@ -107,6 +107,63 @@ describe("completion policies", () => {
     expect(checked).not.toContain("buildfastwithai.com");
   });
 
+  it("AI 新闻最终答复标题缺失时应从可信抓取页面正文重建", () => {
+    const checked = ensureNewsBriefFinalQuality(
+      [
+        "今日 AI 简报（2026-06-17）",
+        "",
+        "- 🔗",
+        "  来源：https://www.theverge.com/ai-artificial-intelligence",
+      ].join("\n"),
+      [
+        [
+          "URL Source: https://www.theverge.com/ai-artificial-intelligence",
+          "",
+          "# Artificial Intelligence",
+          "The Justice Department argues that xAI’s Mississippi data center should be allowed to pollute the air because it is critical for military operations.",
+          "Today’s Vergecast: The Mythos mess and your AI questions, answered.",
+          "Anthropic and the US government are once again at odds over the Claude Fable 5 model.",
+          "Disney is using Adobe AI for theme park Imagineering.",
+        ].join("\n"),
+      ],
+      new Date("2026-06-17T08:00:00+08:00"),
+    );
+
+    expect(checked).toContain("今日 AI 简报（2026-06-17）");
+    expect(checked).toContain("xAI’s Mississippi data center");
+    expect(checked).toContain("Today’s Vergecast");
+    expect(checked).toContain("Disney is using Adobe AI");
+    expect(checked).not.toContain("- 🔗");
+    expect(checked).not.toContain("more a part of our lives than ever before");
+  });
+
+  it("AI 新闻最终答复混入 fetch 失败项时应从工具证据重建", () => {
+    const checked = ensureNewsBriefFinalQuality(
+      [
+        "今日 AI 简报（2026-06-17）",
+        "",
+        "- Failed to fetch fetch failed",
+        "  来源：https://techcrunch.com/category/artificial-intelligence/",
+        "- AI News & Artificial Intelligence | TechCrunch：Read the latest on artificial intelligence.",
+        "  来源：https://techcrunch.com/category/artificial-intelligence/",
+      ].join("\n"),
+      [
+        [
+          "URL Source: https://techcrunch.com/category/artificial-intelligence/",
+          "AI News & Artificial Intelligence | TechCrunch",
+          "The AI layoff wave is becoming a powder keg - TechCrunch",
+          "TechCrunch reports on AI startup funding and model releases.",
+          "OpenAI and Anthropic competition remains a central AI industry story.",
+        ].join("\n"),
+      ],
+      new Date("2026-06-17T08:00:00+08:00"),
+    );
+
+    expect(checked).not.toContain("Failed to fetch");
+    expect(checked).toContain("The AI layoff wave");
+    expect(checked).toContain("OpenAI and Anthropic");
+  });
+
   it("Reddit RSS 失败且没有 save_as 时返回写入并发送 Markdown 的交付意图", () => {
     const rssContent =
       "## r/technology\n- 抓取失败：HTTP 403 Blocked\n- https://www.reddit.com/r/technology/.rss";

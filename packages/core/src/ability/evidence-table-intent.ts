@@ -11,3 +11,12 @@ export function isEvidenceTableAnalysisIntent(inputText: string): boolean {
 
   return wantsTable && hasAnalysisVerb && hasResearchableTarget;
 }
+
+export function isDeepEvidenceTableAuditIntent(inputText: string): boolean {
+  return (
+    isEvidenceTableAnalysisIntent(inputText) &&
+    /全面|详细|详尽|完整|深度|深入|专家级|顶级|comprehensive|detailed|exhaustive|expert/i.test(
+      inputText,
+    )
+  );
+}

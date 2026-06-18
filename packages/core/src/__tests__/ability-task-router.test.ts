@@ -68,7 +68,7 @@ describe("ability task router", () => {
 
   it("SEO 检测表格任务应进入 evidence_table_analysis，而不是 default", () => {
     const profile = buildTaskToolProfile(
-      "对www.ehafo.com，进行一轮全面、专业的顶级专家级的seo检测，表格方式输出",
+      "对www.ehafo.com进行seo检测，表格方式输出",
       false,
       false,
     );
@@ -78,6 +78,23 @@ describe("ability task router", () => {
       new Set(["web_fetch", "web_search", "bash"]),
     );
     expect(profile.webResearchToolLimit).toBe(5);
+  });
+
+  it("全面详细的专家级 SEO 检测应使用更深的证据预算并压低 bash", () => {
+    const profile = buildTaskToolProfile(
+      "对www.ehafo.com，进行一轮全面、专业、详细的顶级专家级的seo检测，表格方式输出",
+      false,
+      false,
+    );
+
+    expect(profile.kind).toBe("evidence_table_analysis");
+    expect(profile.toolTotalLimits).toMatchObject({
+      web_fetch: 8,
+      web_search: 4,
+      bash: 2,
+    });
+    expect(profile.webResearchToolLimit).toBe(10);
+    expect(profile.hint).toContain("全面/详细");
   });
 
   it("竞品和产品表格调研不应落入网站技术检查模板", () => {

@@ -425,6 +425,7 @@ async function runClaudeCLI(
   cwd: string | undefined,
   timeout: number,
   context?: ToolExecutionContext,
+  maxResultChars = 500,
 ): Promise<ToolResult> {
   const outputDir = (context?.workDir ?? DEFAULT_OUTPUT_DIR).replace(
     /\\/g,
@@ -601,8 +602,8 @@ async function runClaudeCLI(
         parts.push(`Files changed: ${filesChanged.join(", ")}`);
       if (resultSummary)
         parts.push(
-          resultSummary.length > 500
-            ? `${resultSummary.slice(0, 500)}...`
+          maxResultChars > 0 && resultSummary.length > maxResultChars
+            ? `${resultSummary.slice(0, maxResultChars)}...`
             : resultSummary,
         );
       resolve({
@@ -817,6 +818,12 @@ export const claudeCodeTool: Tool = {
         description: `Timeout in ms. Default ${DEFAULT_TIMEOUT / 1000}s.`,
         default: DEFAULT_TIMEOUT,
       },
+      max_result_chars: {
+        type: "number",
+        description:
+          "Maximum final text chars returned from Claude Code CLI. Default 500; use a larger value when the caller needs the full report inline.",
+        default: 500,
+      },
     },
     required: ["prompt"],
   },
@@ -828,6 +835,7 @@ export const claudeCodeTool: Tool = {
     const prompt = input.prompt as string;
     const cwd = input.cwd as string | undefined;
     let timeout = (input.timeout as number) ?? DEFAULT_TIMEOUT;
+    const maxResultChars = (input.max_result_chars as number | undefined) ?? 500;
     if (timeout > 0 && timeout < 1000) timeout *= 1000;
 
     const claudeAvailable = !!findClaudeCliJs() || !!findExecutable("claude");
@@ -856,7 +864,13 @@ export const claudeCodeTool: Tool = {
     }
 
     if (claudeAvailable) {
-      const result = await runClaudeCLI(prompt, cwd, timeout, context);
+      const result = await runClaudeCLI(
+        prompt,
+        cwd,
+        timeout,
+        context,
+        maxResultChars,
+      );
       if (!result.isError) {
         return result;
       }

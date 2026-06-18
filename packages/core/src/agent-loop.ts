@@ -52,6 +52,10 @@ import {
   type TaskToolProfile,
 } from "./ability/task-router.js";
 import {
+  isDeepEvidenceTableAuditIntent,
+  isEvidenceTableAnalysisIntent,
+} from "./ability/evidence-table-intent.js";
+import {
   buildTaskRuntimeHints,
   classifyRuntimeTask,
 } from "./ability/task-runtime-hints.js";
@@ -122,6 +126,85 @@ const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 2000; // ms
 const INVALID_TOOL_MARKUP_RE =
   /<\/?tool_call\b|<function=|<\/function>|<parameter=/i;
+
+function buildTaskRoutingTextFromHistory(
+  currentInputText: string,
+  history: ConversationTurn[],
+): string {
+  const current = currentInputText.trim();
+  const hasExplicitResearchTarget =
+    /https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}|\bseo\b|搜索引擎优化|robots|sitemap|收录|响应头|headers?/i.test(
+      current,
+    );
+  const asksForMoreAuditDepth =
+    /不够全面|够不够全面|是不是不够|是否不够|更全面|再全面|补充|完善|遗漏|漏了|还缺|太少|详细|深入|深度|专家/i.test(
+      current,
+    );
+
+  if (!asksForMoreAuditDepth || hasExplicitResearchTarget) {
+    return currentInputText;
+  }
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    const turn = history[i];
+    if (turn.role !== "user" || typeof turn.content !== "string") continue;
+    if (isEvidenceTableAnalysisIntent(turn.content)) {
+      return `${turn.content}\n追问：${currentInputText}`;
+    }
+  }
+
+  return currentInputText;
+}
+
+function isSuccessfulEvidenceTableSynthesis(text: string): boolean {
+  return (
+    text.includes("基于已成功获取的工具证据") &&
+    text.includes("| 检查项 | 当前发现 | 判断 | 建议 | 证据 |")
+  );
+}
+
+function shouldDelegateDeepEvidenceAudit(inputText: string): boolean {
+  return (
+    isDeepEvidenceTableAuditIntent(inputText) &&
+    /\bseo\b|搜索引擎优化|收录|sitemap|robots/i.test(inputText)
+  );
+}
+
+function buildDeepEvidenceAuditDelegatePrompt(inputText: string): string {
+  return [
+    inputText,
+    "",
+    "请作为顶级 SEO 审计专家完成任务。要求：",
+    "- 只输出中文 Markdown 报告，不修改任何文件。",
+    "- 如果你生成 Markdown 文件，最终回答也必须完整输出该 Markdown 内容，不要只给摘要或文件路径。",
+    "- 必须用 Markdown 表格输出，覆盖技术可抓取性、robots/sitemap、标题与 meta、H1-H3、内容与关键词、结构化数据、移动端与性能、索引/收录线索、站内结构、外部可见性、E-E-A-T、风险与优先级。",
+    "- 可以使用网页抓取、搜索和只读命令获取证据；不要创建、修改或保存项目文件。",
+    "- 每条判断尽量给出证据 URL 或可复核线索；证据不足时明确写“需补查”，不要编造。",
+  ].join("\n");
+}
+
+function resolveDelegateMarkdownResponse(
+  delegateContent: string,
+  sessionTmpDir: string,
+): string {
+  const normalizedSessionDir = sessionTmpDir.replace(/\\/g, "/");
+  const markdownPaths = [
+    ...delegateContent.matchAll(/[A-Z]:[\\/][^\r\n`*?"<>|]+?\.md\b/gi),
+  ]
+    .map((match) => match[0].replace(/\\/g, "/").trim())
+    .filter((path) => path.startsWith(normalizedSessionDir));
+
+  let bestContent = "";
+  for (const path of [...new Set(markdownPaths)]) {
+    if (!existsSync(path)) continue;
+    const content = readFileSync(path, "utf-8");
+    if (content.length > bestContent.length) bestContent = content;
+  }
+
+  return bestContent.trim().length > delegateContent.trim().length
+    ? bestContent
+    : delegateContent;
+}
 const RESPONSE_STREAM_GUARD_CHARS = 64;
 const MAX_PARALLEL_PURE_TOOL_CALLS = 4;
 const MAX_PARALLEL_WEB_RESEARCH_TOOL_CALLS = 2;
@@ -1340,7 +1423,7 @@ export class SimpleAgentLoop implements AgentLoop {
     ];
     const activeToolOffloads: ToolOffloadInfo[] = [];
     let offloadCanvasHintIndex: number | null = null;
-    const inputTextForHeuristics =
+    const rawInputTextForHeuristics =
       typeof input === "string"
         ? (context?.originalUserText ?? input)
         : input
@@ -1350,6 +1433,11 @@ export class SimpleAgentLoop implements AgentLoop {
                 : "",
             )
             .join("\n");
+    const routingHistory = await this.memoryStore.getHistory(convId, 40);
+    const inputTextForHeuristics = buildTaskRoutingTextFromHistory(
+      rawInputTextForHeuristics,
+      routingHistory,
+    );
     const runtimeTask = classifyRuntimeTask(inputTextForHeuristics);
     const {
       isNewsBriefTask,
@@ -1472,6 +1560,95 @@ export class SimpleAgentLoop implements AgentLoop {
       requiredEffects: requiresFileDelivery ? ["send_file"] : [],
       satisfied: !requiresFileDelivery,
     } as TraceStep);
+
+    const shouldDelegateToClaudeCode =
+      shouldDelegateDeepEvidenceAudit(inputTextForHeuristics) &&
+      Boolean(this.toolRegistry.get("claude_code"));
+    if (shouldDelegateToClaudeCode) {
+      const delegateInput = {
+        prompt: buildDeepEvidenceAuditDelegatePrompt(inputTextForHeuristics),
+        cwd: ensureSessionTmpDir(),
+        timeout: 600_000,
+        max_result_chars: 100_000,
+      };
+      trace.steps.push({
+        type: "tool_call",
+        name: "claude_code",
+        input: delegateInput,
+        intent: "Delegate deep SEO evidence-table audit to Claude Code",
+      } as TraceStep);
+      const delegateStartedAt = Date.now();
+      const delegateResult = await this.toolRegistry.execute(
+        "claude_code",
+        delegateInput,
+        context,
+      );
+      trace.steps.push({
+        type: "tool_result",
+        name: "claude_code",
+        content: delegateResult.content,
+        isError: delegateResult.isError,
+        metadata: delegateResult.metadata,
+        durationMs: Date.now() - delegateStartedAt,
+      } as TraceStep);
+      if (!delegateResult.isError && delegateResult.content.trim()) {
+        const delegateResponseText = resolveDelegateMarkdownResponse(
+          delegateResult.content,
+          sessionTmpDir,
+        );
+        const durationMs = Date.now() - startTime;
+        const assistantTurn: ConversationTurn = {
+          id: generateId(),
+          conversationId: convId,
+          role: "assistant",
+          content: delegateResponseText,
+          model: "claude_code",
+          tokensIn: 0,
+          tokensOut: 0,
+          durationMs,
+          toolCallCount: 1,
+          traceId: trace.id,
+          createdAt: new Date(),
+        };
+        await this.memoryStore.addTurn(convId, assistantTurn);
+
+        trace.response = delegateResponseText;
+        trace.model = "claude_code";
+        trace.tokensIn = 0;
+        trace.tokensOut = 0;
+        trace.durationMs = durationMs;
+        try {
+          await persistTrace();
+        } catch (e) {
+          console.error("[agent-loop] Failed to persist trace:", e);
+        }
+
+        const message: Message = {
+          id: generateId(),
+          role: "assistant",
+          content: delegateResponseText,
+          createdAt: new Date(),
+          model: "claude_code",
+          tokensIn: 0,
+          tokensOut: 0,
+          durationMs,
+          toolCallCount: 1,
+        };
+        yield this.createEvent("response_chunk", {
+          text: delegateResponseText,
+        });
+        this.setState("idle");
+        yield this.createEvent("response_complete", {
+          message,
+          agentId: context?.agentId,
+        });
+        return;
+      }
+
+      runtimeHints.push(
+        `[深度审计委托失败]claude_code 未能完成：${delegateResult.content.slice(0, 500)}。继续使用主模型和网页工具完成，不要再调用 claude_code。`,
+      );
+    }
 
     // Skill injection is handled entirely by use_skill tool — no auto-injection.
     // This keeps the system prompt lean; LLM decides which skill to load.
@@ -2167,7 +2344,6 @@ export class SimpleAgentLoop implements AgentLoop {
               continue;
             }
             if (invalidFinalMarkupRetries >= 2) {
-              forcedStopReason = "invalid_tool_markup_final";
               fullText = buildSynthesisFallbackResponse(
                 inputTextForHeuristics,
                 messages,
@@ -2175,6 +2351,9 @@ export class SimpleAgentLoop implements AgentLoop {
                 fallbackSnippets,
                 "模型输出了不可执行的工具标记",
               );
+              forcedStopReason = isSuccessfulEvidenceTableSynthesis(fullText)
+                ? undefined
+                : "invalid_tool_markup_final";
               storedText = fullText;
             } else {
               forceSynthesisOnly = true;
@@ -3535,7 +3714,12 @@ export class SimpleAgentLoop implements AgentLoop {
 
         const factHint = buildToolFactHint(allExecResults);
         for (const result of allExecResults) {
-          if (!result.result.isError) {
+          const isEvidenceBearingError =
+            result.result.isError &&
+            /URL Source:|https?:\/\/|HTTP \d{3}|HTTP\/|404|Not Found|timed out|timeout/i.test(
+              result.result.content,
+            );
+          if (!result.result.isError || isEvidenceBearingError) {
             fallbackSnippets.push(
               ...extractFallbackLines(result.result.content),
             );

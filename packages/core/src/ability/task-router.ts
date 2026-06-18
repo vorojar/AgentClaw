@@ -1,5 +1,8 @@
 import { WECHAT_PUBLISH_SCRIPT } from "./wechat-publish-contract.js";
-import { isEvidenceTableAnalysisIntent } from "./evidence-table-intent.js";
+import {
+  isDeepEvidenceTableAuditIntent,
+  isEvidenceTableAnalysisIntent,
+} from "./evidence-table-intent.js";
 
 export type TaskToolProfile = {
   kind:
@@ -81,16 +84,19 @@ export function buildTaskToolProfile(
   }
 
   if (isEvidenceTableAnalysisTask(inputText)) {
+    const isDeepAudit = isDeepEvidenceTableAuditIntent(inputText);
     return {
       kind: "evidence_table_analysis",
       allowedTools: new Set(["web_fetch", "web_search", "bash"]),
       toolTotalLimits: {
-        web_fetch: 4,
-        web_search: 2,
-        bash: 6,
+        web_fetch: isDeepAudit ? 8 : 4,
+        web_search: isDeepAudit ? 4 : 2,
+        bash: isDeepAudit ? 2 : 6,
       },
-      webResearchToolLimit: 5,
-      hint: "[任务工具边界]当前是表格化检查/分析任务：先用少量 web_fetch/web_search/bash 获取目标、公开页面、搜索结果或响应头等证据；拿到可支撑表格的事实后必须直接输出 Markdown 表格，不要继续深挖或循环抓取。",
+      webResearchToolLimit: isDeepAudit ? 10 : 5,
+      hint: isDeepAudit
+        ? "[任务工具边界]当前是全面/详细表格化检查任务：优先用 web_fetch/web_search 覆盖首页、robots、sitemap、关键子页面和公开搜索线索；bash 只用于少量响应头验证。证据覆盖主要维度后输出 Markdown 表格，不要写伪 XML 工具标记。"
+        : "[任务工具边界]当前是表格化检查/分析任务：先用少量 web_fetch/web_search/bash 获取目标、公开页面、搜索结果或响应头等证据；拿到可支撑表格的事实后必须直接输出 Markdown 表格，不要继续深挖或循环抓取。",
     };
   }
 

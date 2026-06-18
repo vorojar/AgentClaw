@@ -299,8 +299,7 @@ describe("completion policies", () => {
     const decision = evaluateCompletionPolicies({
       ...baseInput(),
       taskKind: "evidence_table_analysis",
-      inputText:
-        "对www.ehafo.com，进行一轮全面、专业的顶级专家级的seo检测，表格方式输出",
+      inputText: "对www.ehafo.com进行seo检测，表格方式输出",
       successfulWebSearchCalls: 0,
       successfulWebFetchCalls: 2,
       currentResultContents: [
@@ -315,6 +314,25 @@ describe("completion policies", () => {
     );
     expect(decision?.text).toContain("Meta description");
     expect(decision?.text).toContain("robots.txt");
+  });
+
+  it("全面详细的专家级 SEO 检测不应被最小证据策略提前收束", () => {
+    const decision = evaluateCompletionPolicies({
+      ...baseInput(),
+      taskKind: "evidence_table_analysis",
+      inputText:
+        "对www.ehafo.com，进行一轮全面、专业、详细的顶级专家级的seo检测，表格方式输出",
+      successfulWebSearchCalls: 2,
+      successfulWebFetchCalls: 3,
+      currentResultContents: [
+        "URL Source: https://www.ehafo.com\n# 易哈佛医学考试题库 | 医护考试备考平台\n## 热门医学考试备考入口",
+        "URL Source: https://www.ehafo.com/robots.txt\nUser-agent: *\nAllow: /\nSitemap: https://www.ehafo.com/sitemap.xml",
+        "URL Source: https://www.ehafo.com/sitemap.xml\n<urlset><loc>https://www.ehafo.com/exam/nurse/</loc></urlset>",
+        "results[5]{title,url}: 易哈佛医学考试题库 — https://www.ehafo.com/",
+      ],
+    });
+
+    expect(decision).toBeNull();
   });
 
   it("默认任务不触发任何特化完成策略", () => {

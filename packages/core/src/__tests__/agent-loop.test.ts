@@ -241,7 +241,12 @@ describe("SimpleAgentLoop", () => {
   });
 
   afterEach(() => {
-    for (const conversationId of ["conv-obs", "conv-dedupe"]) {
+    for (const conversationId of [
+      "conv-obs",
+      "conv-dedupe",
+      "conv-seo-deep-delegate",
+      "conv-seo-deep-delegate-file",
+    ]) {
       const generated = resolve(process.cwd(), "data", "tmp", conversationId);
       if (existsSync(generated)) {
         rmSync(generated, { recursive: true, force: true });
@@ -4297,7 +4302,7 @@ describe("SimpleAgentLoop", () => {
 
       const events = await collectEvents(
         loop.runStream(
-          "对www.ehafo.com，进行一轮全面、专业的顶级专家级的seo检测，表格方式输出",
+          "对www.ehafo.com进行seo检测，表格方式输出",
           "conv-seo-detect-table-direct",
         ),
       );
@@ -4313,6 +4318,218 @@ describe("SimpleAgentLoop", () => {
       expect(memoryStore.addTrace).toHaveBeenCalledWith(
         expect.not.objectContaining({ error: "invalid_tool_markup_final" }),
       );
+    });
+
+    it("深度 SEO 追问应继承上一轮任务画像并在伪工具 XML 后合成表格", async () => {
+      const makeToolCallChunks = (
+        id: string,
+        name: string,
+        input: Record<string, unknown>,
+      ): LLMStreamChunk[] => [
+        { type: "tool_use_start", toolUse: { id, name, input: "" } },
+        {
+          type: "tool_use_delta",
+          toolUse: { id, name: "", input: JSON.stringify(input) },
+        },
+      ];
+      const firstRoundChunks: LLMStreamChunk[] = [
+        ...makeToolCallChunks("tc-home", "web_fetch", {
+          url: "https://www.ehafo.com",
+        }),
+        ...makeToolCallChunks("tc-robots", "web_fetch", {
+          url: "https://www.ehafo.com/robots.txt",
+        }),
+        {
+          type: "done",
+          usage: { tokensIn: 100, tokensOut: 40 },
+          model: "mock-model",
+          stopReason: "tool_use",
+        },
+      ];
+      const invalidChunks: LLMStreamChunk[] = [
+        {
+          type: "text",
+          text: "<tool_call>\n<function=bash>\n<parameter=command>curl -sI https://www.ehafo.com</parameter>\n</function>\n</tool_call>",
+        },
+        {
+          type: "done",
+          usage: { tokensIn: 100, tokensOut: 40 },
+          model: "mock-model",
+          stopReason: "end_turn",
+        },
+      ];
+      const provider = createMockProvider([
+        firstRoundChunks,
+        invalidChunks,
+        invalidChunks,
+      ]);
+      const longToolHistory = Array.from({ length: 18 }, (_, index) => ({
+        id: `prev-tool-${index}`,
+        conversationId: "conv-seo-depth-followup",
+        role: "tool" as const,
+        content: `previous tool result ${index}`,
+        createdAt: new Date(`2026-06-18T00:${String(index + 2).padStart(2, "0")}:00Z`),
+      }));
+      const memoryStoreWithHistory = {
+        ...memoryStore,
+        getHistory: vi.fn().mockResolvedValue([
+          {
+            id: "prev-user",
+            conversationId: "conv-seo-depth-followup",
+            role: "user",
+            content:
+              "对www.ehafo.com，进行一轮全面、专业、详细的顶级专家级的seo检测，表格方式输出",
+            createdAt: new Date("2026-06-18T00:00:00Z"),
+          },
+          {
+            id: "prev-assistant",
+            conversationId: "conv-seo-depth-followup",
+            role: "assistant",
+            content:
+              "基于已成功获取的工具证据，先给出可复核的表格结论：\n| 检查项 | 当前发现 | 判断 | 建议 | 证据 |\n| --- | --- | --- | --- | --- |\n| 页面标题 | 易哈佛医学考试题库 | 已发现 | 继续扩展 | https://www.ehafo.com/ |",
+            createdAt: new Date("2026-06-18T00:01:00Z"),
+          },
+          ...longToolHistory,
+        ] as ConversationTurn[]),
+      } as MemoryStore;
+      const loop = new SimpleAgentLoop({
+        provider,
+        toolRegistry: createMockToolRegistry([
+          {
+            ...createMockTool("web_fetch"),
+            execute: vi.fn(async (input: Record<string, unknown>) => {
+              const url = String(input.url);
+              return {
+                content: url.endsWith("/robots.txt")
+                  ? "URL Source: https://www.ehafo.com/robots.txt\nUser-agent: *\nAllow: /\nSitemap: https://www.ehafo.com/sitemap.xml"
+                  : "URL Source: https://www.ehafo.com\n# 易哈佛医学考试题库 | 医护考试备考平台\n<meta name=\"description\" content=\"医学考试题库 医护考试备考\">\n## 热门医学考试备考入口\nviewport",
+              };
+            }),
+          },
+          createMockTool("web_search"),
+          createMockTool("bash"),
+        ]),
+        contextManager,
+        memoryStore: memoryStoreWithHistory,
+        config: { maxIterations: 4 },
+      });
+
+      const events = await collectEvents(
+        loop.runStream("是不是不够全面？", "conv-seo-depth-followup"),
+      );
+
+      const streamedText = events
+        .filter((event) => event.type === "response_chunk")
+        .map((event) => (event.data as { text: string }).text)
+        .join("");
+      expect(streamedText).toContain(
+        "| 检查项 | 当前发现 | 判断 | 建议 | 证据 |",
+      );
+      expect(streamedText).not.toContain("<tool_call>");
+      expect(memoryStoreWithHistory.addTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          steps: expect.arrayContaining([
+            expect.objectContaining({
+              type: "runtime_config",
+              taskProfileKind: "evidence_table_analysis",
+            }),
+          ]),
+        }),
+      );
+      expect(memoryStoreWithHistory.addTrace).toHaveBeenCalledWith(
+        expect.not.objectContaining({ error: "invalid_tool_markup_final" }),
+      );
+    });
+
+    it("全面详细 SEO 审计应优先委托 claude_code 以获得深度报告", async () => {
+      const claudeCodeTool = createMockTool("claude_code", {
+        content:
+          "# www.ehafo.com SEO 检测报告\n\n| 维度 | 发现 | 判断 | 建议 | 证据 |\n| --- | --- | --- | --- | --- |\n| 技术可抓取性 | HTTPS 可访问 | 通过 | 继续监控 | https://www.ehafo.com |\n| 结构化数据 | 发现 JSON-LD | 良好 | 补 BreadcrumbList | https://www.ehafo.com |\n| E-E-A-T | 有主体与资质线索 | 良好 | 补作者/审核人 | https://www.ehafo.com |",
+      });
+      const provider = createMockProvider([
+        [
+          { type: "text", text: "主模型不应被调用" },
+          {
+            type: "done",
+            usage: { tokensIn: 10, tokensOut: 5 },
+            model: "mock-model",
+          },
+        ],
+      ]);
+      const loop = new SimpleAgentLoop({
+        provider,
+        toolRegistry: createMockToolRegistry([claudeCodeTool]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 4 },
+      });
+
+      const events = await collectEvents(
+        loop.runStream(
+          "对www.ehafo.com，进行一轮全面、专业、详细的顶级专家级的seo检测，表格方式输出",
+          "conv-seo-deep-delegate",
+        ),
+      );
+
+      const completeEvent = events.find((event) => event.type === "response_complete");
+      expect(completeEvent).toBeDefined();
+      const message = (completeEvent!.data as { message: Message }).message;
+      expect(String(message.content)).toContain("结构化数据");
+      expect(String(message.content)).toContain("E-E-A-T");
+      expect(claudeCodeTool.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: expect.stringContaining("顶级 SEO 审计专家"),
+        }),
+        undefined,
+      );
+      expect(provider.stream).not.toHaveBeenCalled();
+      expect(memoryStore.addTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: "claude_code",
+        }),
+      );
+      const savedTrace = (memoryStore.addTrace as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as Trace;
+      expect(savedTrace.error).toBeUndefined();
+    });
+
+    it("claude_code 生成 Markdown 报告文件时应返回文件正文而不是摘要", async () => {
+      const fullReport =
+        "# www.ehafo.com 全面 SEO 审计报告\n\n| 检测项 | 状态 | 证据 / 说明 |\n| --- | --- | --- |\n| 技术可抓取性 | 通过 | HTTPS 可访问 |\n| 结构化数据 | 缺失 | 需补 BreadcrumbList |\n| E-E-A-T | 需补强 | 医疗教育类内容需作者/审核人 |";
+      const claudeCodeTool: Tool = {
+        ...createMockTool("claude_code"),
+        execute: vi.fn(async (input: Record<string, unknown>) => {
+          const cwd = String(input.cwd);
+          mkdirSync(cwd, { recursive: true });
+          const reportPath = `${cwd}/seo-audit-ehafo.md`;
+          writeFileSync(reportPath, fullReport, "utf-8");
+          return {
+            content: `Claude Code completed.\nFiles changed: ${reportPath}\n报告已保存。`,
+            isError: false,
+          };
+        }),
+      };
+      const provider = createMockProvider();
+      const loop = new SimpleAgentLoop({
+        provider,
+        toolRegistry: createMockToolRegistry([claudeCodeTool]),
+        contextManager,
+        memoryStore,
+        config: { maxIterations: 4 },
+      });
+
+      const events = await collectEvents(
+        loop.runStream(
+          "对www.ehafo.com，进行一轮全面、专业、详细的顶级专家级的seo检测，表格方式输出",
+          "conv-seo-deep-delegate-file",
+        ),
+      );
+
+      const completeEvent = events.find((event) => event.type === "response_complete");
+      const message = (completeEvent!.data as { message: Message }).message;
+      expect(String(message.content)).toBe(fullReport);
+      expect(String(message.content)).not.toContain("Files changed:");
+      expect(provider.stream).not.toHaveBeenCalled();
     });
 
     it("新闻简报已写出文件后遇到禁用工具和伪工具标记应按成功成果收束", async () => {

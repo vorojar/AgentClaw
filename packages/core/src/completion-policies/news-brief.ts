@@ -21,7 +21,14 @@ export const newsBriefCompletionPolicy: CompletionPolicy = {
       ],
       input.now,
     );
-    const outputContract = readNewsOutputContract(input.inputText);
+    const outputContract = {
+      ...readNewsOutputContract(input.inputText),
+      requireExplicitRecencyEvidence: input.successfulWebFetchCalls === 0,
+    };
+    const completionReadyCandidates = selectCandidatesForOutputContract(
+      candidates,
+      outputContract,
+    );
     const requiredCandidates = Math.max(
       MIN_SEARCH_ONLY_CANDIDATES,
       outputContract.minItems,
@@ -30,8 +37,8 @@ export const newsBriefCompletionPolicy: CompletionPolicy = {
       input.taskKind !== "news_brief" ||
       input.successfulWebSearchCalls < 3 ||
       (input.successfulWebFetchCalls < 2 &&
-        candidates.length < requiredCandidates) ||
-      candidates.length < requiredCandidates
+        completionReadyCandidates.length < requiredCandidates) ||
+      completionReadyCandidates.length < requiredCandidates
     ) {
       return null;
     }
@@ -39,7 +46,7 @@ export const newsBriefCompletionPolicy: CompletionPolicy = {
     const text = buildNewsBriefCompletionResponse(
       input.fallbackSnippets,
       input.currentResultContents,
-      "新闻简报已获取足够搜索和网页证据",
+      "新闻简报已获取足够近期可信来源",
       input.now,
       outputContract,
     );
@@ -106,10 +113,18 @@ function buildNewsBriefCompletionResponse(
     ...expandNewsEvidenceLines(currentResultContents),
   ];
   const unique = [...new Set(lines)];
-  const candidates = extractNewsCandidates(unique, now);
+  const candidates = selectCandidatesForOutputContract(
+    extractNewsCandidates(unique, now),
+    outputContract,
+  );
   const sources = candidates.map((item) => item.url);
 
-  if (candidates.length === 0 && sources.length === 0) return null;
+  if (
+    candidates.length < outputContract.minItems ||
+    (candidates.length === 0 && sources.length === 0)
+  ) {
+    return null;
+  }
 
   if (outputContract.wantsTable) {
     return buildNewsTableCompletionResponse(
@@ -148,23 +163,25 @@ function buildNewsBriefCompletionResponse(
     "",
     briefItems,
     "",
-    `今日洞察：${confidenceNote}继续抓取的边际收益低于空转风险；本次优先基于已获取事实给出简报。`,
+    `今日洞察：${confidenceNote}本次基于可核验来源整理简报。`,
     "",
     "来源链接：",
     sourceList,
     "",
-    `说明：${reason}；系统已停止继续调用工具以避免空转。`,
+    `说明：${reason}；已基于可核验来源完成本轮简报。`,
   ].join("\n");
 }
 
 type NewsOutputContract = {
   wantsTable: boolean;
   minItems: number;
+  requireExplicitRecencyEvidence: boolean;
 };
 
 const DEFAULT_NEWS_OUTPUT_CONTRACT: NewsOutputContract = {
   wantsTable: false,
   minItems: MIN_SEARCH_ONLY_CANDIDATES,
+  requireExplicitRecencyEvidence: false,
 };
 
 function readNewsOutputContract(inputText: string): NewsOutputContract {
@@ -178,7 +195,7 @@ function readNewsOutputContract(inputText: string): NewsOutputContract {
     : wantsTable
       ? 5
       : MIN_SEARCH_ONLY_CANDIDATES;
-  return { wantsTable, minItems };
+  return { wantsTable, minItems, requireExplicitRecencyEvidence: false };
 }
 
 function buildNewsTableCompletionResponse(
@@ -217,8 +234,39 @@ function buildNewsTableCompletionResponse(
     "来源链接：",
     sourceList,
     "",
-    `说明：${reason}；已按用户要求输出 Markdown 表格，并避免继续空转。`,
+    `说明：${reason}；已按用户要求输出 Markdown 表格。`,
   ].join("\n");
+}
+
+function selectCandidatesForOutputContract(
+  candidates: NewsCandidate[],
+  outputContract: NewsOutputContract,
+): NewsCandidate[] {
+  const filtered = outputContract.requireExplicitRecencyEvidence
+    ? candidates.filter(
+        (candidate) =>
+          candidate.hasExplicitRecencyEvidence &&
+          !isEvergreenOrIndexCandidate(candidate),
+      )
+    : candidates;
+  const seenUrls = new Set<string>();
+  const selected: NewsCandidate[] = [];
+  for (const candidate of filtered) {
+    const key = candidate.url.toLowerCase().replace(/\/+$/, "");
+    if (outputContract.requireExplicitRecencyEvidence && seenUrls.has(key)) {
+      continue;
+    }
+    seenUrls.add(key);
+    selected.push(candidate);
+  }
+  return selected;
+}
+
+function isEvergreenOrIndexCandidate(candidate: NewsCandidate): boolean {
+  const text = `${candidate.title} ${candidate.summary} ${candidate.url}`;
+  return /\b(?:AI Index Report|annual report|category|regulatory-framework|policies\/regulatory-framework|latest AI news we announced|news highlights|daily AI news|roundup)\b/i.test(
+    text,
+  );
 }
 
 function inferCandidateDate(item: NewsCandidate, now?: Date): string {
@@ -251,9 +299,13 @@ function buildInsufficientTrustedNewsResponse(
   candidates: NewsCandidate[],
   now?: Date,
 ): string {
+  const retainedCandidates = selectCandidatesForOutputContract(candidates, {
+    ...DEFAULT_NEWS_OUTPUT_CONTRACT,
+    requireExplicitRecencyEvidence: true,
+  });
   const candidateLines =
-    candidates.length > 0
-      ? candidates
+    retainedCandidates.length > 0
+      ? retainedCandidates
           .slice(0, MIN_SEARCH_ONLY_CANDIDATES)
           .map((item) => {
             const detail = item.summary ? `：${item.summary}` : "";
@@ -278,6 +330,7 @@ type NewsCandidate = {
   title: string;
   summary: string;
   url: string;
+  hasExplicitRecencyEvidence: boolean;
 };
 
 const LOW_QUALITY_SOURCE_RE =
@@ -339,7 +392,8 @@ function extractNewsCandidates(lines: string[], now?: Date): NewsCandidate[] {
     if (!isUsableNewsTitle(parsed.title)) continue;
     if (LOW_QUALITY_TITLE_RE.test(parsed.title)) continue;
     const normalizedUrl = url.replace(/[.,;:]+$/g, "");
-    if (!isRecentEnoughForNews(line, normalizedUrl, now)) continue;
+    const recency = getNewsRecency(line, normalizedUrl, now);
+    if (!recency.isRecent) continue;
     const seenKey = `${normalizedUrl}::${parsed.title.toLowerCase()}`;
     if (seen.has(seenKey)) continue;
     seen.add(seenKey);
@@ -347,6 +401,7 @@ function extractNewsCandidates(lines: string[], now?: Date): NewsCandidate[] {
       title: parsed.title,
       summary: parsed.summary,
       url: normalizedUrl,
+      hasExplicitRecencyEvidence: recency.hasExplicitDate,
     });
   }
 
@@ -465,14 +520,22 @@ function isRecentEnoughForNews(
   url: string,
   now = new Date(),
 ): boolean {
+  return getNewsRecency(line, url, now).isRecent;
+}
+
+function getNewsRecency(
+  line: string,
+  url: string,
+  now = new Date(),
+): { isRecent: boolean; hasExplicitDate: boolean } {
   const parsedFromText = parseNewsDate(line, now);
   const parsed = parsedFromText ? parsedFromText : parseNewsDateFromUrl(url);
-  if (!parsed) return true;
+  if (!parsed) return { isRecent: true, hasExplicitDate: false };
   const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const ageDays = Math.floor(
     (nowDate.getTime() - parsed.getTime()) / (24 * 60 * 60 * 1000),
   );
-  return ageDays >= 0 && ageDays <= 7;
+  return { isRecent: ageDays >= 0 && ageDays <= 7, hasExplicitDate: true };
 }
 
 function parseNewsDateFromUrl(url: string): Date | null {
@@ -505,6 +568,15 @@ function parseNewsDateFromUrl(url: string): Date | null {
 }
 
 function parseNewsDate(line: string, now: Date): Date | null {
+  const iso = line.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  if (iso) {
+    return new Date(
+      Number(iso[1]),
+      Number(iso[2]) - 1,
+      Number(iso[3]),
+    );
+  }
+
   const numeric = line.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
   if (numeric) {
     return new Date(

@@ -44,6 +44,7 @@ describe("completion policies", () => {
     expect(decision?.policyName).toBe("news_brief_ready");
     expect(decision?.text).toContain("今日 AI 简报（2026-05-21）");
     expect(decision?.text).toContain("来源链接");
+    expect(decision?.text).not.toContain("避免空转");
     expect(decision?.artifacts).toEqual([]);
   });
 
@@ -58,6 +59,50 @@ describe("completion policies", () => {
         "Microsoft Research shares what's next in AI — May 21, 2026",
         "https://www.microsoft.com/en-us/research/articles/whats-next-in-ai/",
       ],
+    });
+
+    expect(decision).toBeNull();
+  });
+
+  it("AI 新闻只有搜索摘要且混入无日期报告页时不应按足够证据收束", () => {
+    const decision = evaluateCompletionPolicies({
+      ...baseInput(),
+      taskKind: "news_brief",
+      inputText: "在外网搜索今日AI界新闻生成简报",
+      successfulWebSearchCalls: 3,
+      successfulWebFetchCalls: 0,
+      currentResultContents: [
+        [
+          "results[5]{title,url}:",
+          "  6/19/2026 | Daily AI News from GAI Insights - YouTube — Welcome to today's edition of Daily AI News by GAI Insights!",
+          "  https://www.youtube.com/watch?v=YCW0fNEu-fo",
+          "  Promoting Advanced Artificial Intelligence Innovation and Security — My Administration has unleashed tremendous technological growth and economic investment in AI",
+          "  https://www.whitehouse.gov/presidential-actions/2026/06/promoting-advanced-artificial-intelligence-innovation-and-security/",
+          "  AI News Today - June 6, 2026: 16 Biggest Stories — By Friday, June 6, 2026, the AI industry has delivered a new federal AI bill",
+          "  https://www.buildfastwithai.com/blogs/ai-news-today-june-6-2026",
+        ].join("\n"),
+        [
+          "Direct answer: [6/16/2026] SpaceX buys AI startup Cursor for $60B – SpaceX announced it will acquire the AI coding startup Cursor for $60 billion.",
+          "",
+          "results[5]{title,url}:",
+          "  Promoting Advanced Artificial Intelligence Innovation and Security — June 2, 2026. Related. Fact Sheet: President Donald J. Trump Promotes Advanced Artificial Intelligence Innovation",
+          "  https://www.whitehouse.gov/presidential-actions/2026/06/promoting-advanced-artificial-intelligence-innovation-and-security/",
+          "  The 2026 AI Index Report | Stanford HAI — U.S. private AI investment reached $285.9 billion in 2025",
+          "  https://hai.stanford.edu/ai-index/2026-ai-index-report",
+          "  AI Act | Shaping Europe's digital future - European Union — The AI Act entered into force on 1 August 2024",
+          "  https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai",
+        ].join("\n"),
+        [
+          "results[5]{title,url}:",
+          "  Anthropic disables top-tier AI models after US order limiting foreign access — The company received the export control directive",
+          "  https://www.reuters.com/technology/us-blocks-foreign-access-anthropics-most-advanced-ai-models-axios-reports-2026-06-13/",
+          "  Europe agrees landmark AI regulation deal | Reuters — With the political agreement, the EU moves toward becoming the first major world power to enact laws governing AI.",
+          "  https://www.reuters.com/technology/stalled-eu-ai-act-talks-set-resume-2023-12-08/",
+          "  EU Commission keeps contact with Anthropic over decision to disable models in EU. By Reuters. June 16, 20263:35 AM PDT",
+          "  https://www.reuters.com/technology/eu-commission-keeps-contact-with-anthropic-over-decision-disable-models-eu-2026-06-16/",
+        ].join("\n"),
+      ],
+      now: new Date("2026-06-19T08:00:00+08:00"),
     });
 
     expect(decision).toBeNull();
@@ -154,6 +199,28 @@ describe("completion policies", () => {
     expect(checked).toContain("不硬凑 3 条");
     expect(checked).not.toContain("Anthropic 传闻完成巨额融资");
     expect(checked).not.toContain("buildfastwithai.com");
+  });
+
+  it("AI 新闻可信来源不足时不应保留年度报告页作为今日新闻候选", () => {
+    const checked = ensureNewsBriefFinalQuality(
+      [
+        "今日 AI 简报",
+        "- The 2026 AI Index Report | Stanford HAI：U.S. private AI investment reached $285.9 billion in 2025",
+        "  来源：https://hai.stanford.edu/ai-index/2026-ai-index-report",
+        "- Anthropic disables top-tier AI models after US order limiting foreign access",
+        "  来源：https://www.reuters.com/technology/us-blocks-foreign-access-anthropics-most-advanced-ai-models-axios-reports-2026-06-13/",
+      ].join("\n"),
+      [
+        "The 2026 AI Index Report | Stanford HAI — U.S. private AI investment reached $285.9 billion in 2025\nhttps://hai.stanford.edu/ai-index/2026-ai-index-report",
+        "Anthropic disables top-tier AI models after US order limiting foreign access — The company received the export control directive\nhttps://www.reuters.com/technology/us-blocks-foreign-access-anthropics-most-advanced-ai-models-axios-reports-2026-06-13/",
+      ],
+      new Date("2026-06-19T08:00:00+08:00"),
+    );
+
+    expect(checked).toContain("可信来源不足");
+    expect(checked).toContain("Anthropic disables");
+    expect(checked).not.toContain("AI Index Report");
+    expect(checked).not.toContain("hai.stanford.edu/ai-index");
   });
 
   it("AI 新闻最终答复标题缺失时应从可信抓取页面正文重建", () => {

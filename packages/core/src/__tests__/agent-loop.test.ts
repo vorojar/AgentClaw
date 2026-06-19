@@ -4135,6 +4135,13 @@ describe("SimpleAgentLoop", () => {
     });
 
     it("新闻简报拿到足够来源后应直接生成简报，不进入伪工具 XML 轮次", async () => {
+      const now = new Date();
+      const currentDatePath = [
+        String(now.getFullYear()).padStart(4, "0"),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+      ].join("/");
+      const currentDateIso = currentDatePath.replace(/\//g, "-");
       const makeToolCallChunks = (
         id: string,
         name: string,
@@ -4148,13 +4155,13 @@ describe("SimpleAgentLoop", () => {
       ];
       const firstRoundChunks: LLMStreamChunk[] = [
         ...makeToolCallChunks("tc-search-1", "web_search", {
-          query: "AI news today May 21 2026",
+          query: `AI news today ${currentDateIso}`,
         }),
         ...makeToolCallChunks("tc-search-2", "web_search", {
-          query: "OpenAI Google DeepMind Anthropic news this week 2026",
+          query: `OpenAI Google DeepMind Anthropic news this week ${currentDateIso}`,
         }),
         ...makeToolCallChunks("tc-search-3", "web_search", {
-          query: "AI regulation policy May 2026",
+          query: `AI regulation policy ${currentDateIso}`,
         }),
         {
           type: "done",
@@ -4203,7 +4210,7 @@ describe("SimpleAgentLoop", () => {
           {
             ...createMockTool("web_search"),
             execute: vi.fn(async (input: Record<string, unknown>) => ({
-              content: `results[3]{title,url}:\n  Nvidia data center revenue jumps on AI demand — ${String(input.query)}\n  https://www.theverge.com/ai-artificial-intelligence\n  White House releases AI policy framework — regulation update\n  https://www.whitehouse.gov/ai-policy\n  Anthropic publishes AI safety update — research update\n  https://www.anthropic.com/news/ai-safety-update`,
+              content: `results[3]{title,url}:\n  Nvidia data center revenue jumps on AI demand — ${String(input.query)}\n  https://www.theverge.com/${currentDatePath}/nvidia-data-center-ai-demand\n  White House releases AI policy framework — regulation update ${currentDateIso}\n  https://www.whitehouse.gov/briefing-room/statements-releases/${currentDatePath}/ai-policy-framework/\n  Anthropic publishes AI safety update — research update ${currentDateIso}\n  https://www.anthropic.com/news/${currentDatePath}/ai-safety-update`,
             })),
           },
           {
@@ -4909,6 +4916,7 @@ describe("SimpleAgentLoop", () => {
         String(now.getMonth() + 1).padStart(2, "0"),
         String(now.getDate()).padStart(2, "0"),
       ].join("/");
+      const currentDateIso = currentDatePath.replace(/\//g, "-");
       const makeToolCallChunks = (
         id: string,
         name: string,
@@ -4922,15 +4930,15 @@ describe("SimpleAgentLoop", () => {
       ];
       const firstRoundChunks: LLMStreamChunk[] = [
         ...makeToolCallChunks("tc-search-1", "web_search", {
-          query: "AI artificial intelligence news today 2026-05-23",
+          query: `AI artificial intelligence news today ${currentDateIso}`,
           max_results: 8,
         }),
         ...makeToolCallChunks("tc-search-2", "web_search", {
-          query: "AI model release announcement May 2026",
+          query: `AI model release announcement ${currentDateIso}`,
           max_results: 8,
         }),
         ...makeToolCallChunks("tc-search-3", "web_search", {
-          query: "AI industry funding regulation news this week May 2026",
+          query: `AI industry funding regulation news this week ${currentDateIso}`,
           max_results: 8,
         }),
         {

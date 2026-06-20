@@ -24,6 +24,7 @@ import { webFetchTool } from "./web-fetch.js";
 import { webSearchTool } from "./web-search.js";
 import { observationReadTool } from "./observation-read.js";
 import { rssTopTool } from "./rss-top.js";
+import { sessionSearchTool } from "./session-search.js";
 
 // Re-exports consumed by @agentclaw/tools index.ts or other packages
 export { shellTool, shellInfo } from "./shell.js";
@@ -41,6 +42,7 @@ export { skillManageTool } from "./skill-manage.js";
 export { skillCuratorTool } from "./skill-curator.js";
 export { observationReadTool } from "./observation-read.js";
 export { rssTopTool } from "./rss-top.js";
+export { sessionSearchTool } from "./session-search.js";
 
 /** Options for configuring which conditional tools to include */
 export interface BuiltinToolsOptions {
@@ -85,6 +87,7 @@ export function createBuiltinTools(options?: BuiltinToolsOptions): Tool[] {
       sandboxTool,
       subagentTool,
       handoffTool,
+      sessionSearchTool,
     );
   }
   if (options?.browserCdp) {

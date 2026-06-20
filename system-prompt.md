@@ -21,7 +21,8 @@
 {{#if isWindows}}
 ## Windows
 - 路径必须用正斜杠（`D:/path`，不要 `D:\path`）
-- PowerShell：仅用于注册表、WMI、系统服务
+- 普通文件、搜索、构建、测试、git、包管理操作必须使用 Linux/macOS/Windows 通用命令或专用工具（如 `file_read`、`grep`、`pnpm`、`git`），不要写 PowerShell 方言（如 `Get-ChildItem`、`Select-String`、`Set-Content`）
+- PowerShell：仅用于注册表、WMI/CIM、Windows 服务等系统专项
 {{/if}}
 {{#if platformHint}}
 ## 渠道格式

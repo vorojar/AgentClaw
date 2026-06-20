@@ -194,6 +194,36 @@ function detectFilePaths(text: string): string[] {
   });
 }
 
+const POWERSHELL_DIALECT_RE =
+  /(?:^|\s)(?:Get-ChildItem|Get-Content|Set-Content|Add-Content|New-Item|Remove-Item|Copy-Item|Move-Item|Select-String|Where-Object|ForEach-Object|Out-String|Start-Process)\b|\$env:|\b-LiteralPath\b/i;
+
+const WINDOWS_SYSTEM_POWERSHELL_RE =
+  /\b(?:Get-ItemProperty|Get-CimInstance|Get-WmiObject|Get-Service|Set-Service|Restart-Service|Start-Service|Stop-Service)\b|\b(?:HKLM:|HKCU:|HKCR:|HKU:)|\b(?:reg|sc|netsh)\.exe\b/i;
+
+function stripPowerShellWrapper(command: string): string {
+  return command
+    .replace(/^\s*(?:pwsh|powershell)(?:\.exe)?\s+/i, "")
+    .replace(/^(?:-[A-Za-z]+\s+)*/i, "")
+    .replace(/^-Command\s+/i, "")
+    .replace(/^["']|["']$/g, "")
+    .trim();
+}
+
+function validateCrossPlatformShell(command: string): string | null {
+  const cmd = command.trim();
+  const isWrappedPowerShell = /^\s*(?:pwsh|powershell)(?:\.exe)?\b/i.test(cmd);
+  const body = isWrappedPowerShell ? stripPowerShellWrapper(cmd) : cmd;
+
+  if (!isWrappedPowerShell && !POWERSHELL_DIALECT_RE.test(body)) return null;
+  if (WINDOWS_SYSTEM_POWERSHELL_RE.test(body)) return null;
+
+  return [
+    "跨平台 shell 策略拦截：普通文件、搜索、构建和项目操作必须使用 Linux/macOS/Windows 通用命令或专用工具。",
+    "建议：列目录用 `ls`，搜索用 `grep`/`rg`，读文件用 `file_read`，写文件用 `file_write`/`file_edit`，构建测试直接用 `pnpm`/`npm`/`git` 等通用 CLI。",
+    "PowerShell 仅用于注册表、WMI/CIM、Windows 服务等系统专项操作。",
+  ].join("\n");
+}
+
 /**
  * Shell sandbox — block irreversibly destructive commands.
  * Returns an error message if blocked, or null if allowed.
@@ -203,6 +233,8 @@ function validateCommand(command: string): string | null {
   if (process.env.SHELL_SANDBOX === "false") return null;
 
   const cmd = command.trim();
+  const crossPlatformError = validateCrossPlatformShell(cmd);
+  if (crossPlatformError) return crossPlatformError;
 
   // Dangerous patterns: each entry is [regex, description]
   const BLOCKED: [RegExp, string][] = [
@@ -257,7 +289,10 @@ function validateCommand(command: string): string | null {
  * Progress line detection patterns.
  * Each pattern extracts a human-readable summary from long-running commands.
  */
-const PROGRESS_PATTERNS: { test: RegExp; extract: (line: string) => string | null }[] = [
+const PROGRESS_PATTERNS: {
+  test: RegExp;
+  extract: (line: string) => string | null;
+}[] = [
   // yt-dlp: [download]  45.3% of 150.00MiB at 12.5MiB/s ETA 00:08
   {
     test: /\[download\]\s+[\d.]+%/,
@@ -349,7 +384,12 @@ function runShell(
       const timer = setTimeout(() => {
         timedOut = true;
         if (process.platform === "win32" && child.pid) {
-          execFile("taskkill", ["/F", "/T", "/PID", String(child.pid)], { windowsHide: true }, () => {});
+          execFile(
+            "taskkill",
+            ["/F", "/T", "/PID", String(child.pid)],
+            { windowsHide: true },
+            () => {},
+          );
         } else {
           child.kill();
         }
@@ -382,15 +422,27 @@ function runShell(
       child.on("close", (code, signal) => {
         clearTimeout(timer);
         if (aborted) {
-          resolve({ content: "Command aborted by user.", isError: true, metadata: { exitCode: null, aborted: true } });
+          resolve({
+            content: "Command aborted by user.",
+            isError: true,
+            metadata: { exitCode: null, aborted: true },
+          });
           return;
         }
-        const stdoutStr = stdoutChunks.length ? decodeOutput(Buffer.concat(stdoutChunks)) : "";
-        const stderrStr = stderrChunks.length ? decodeOutput(Buffer.concat(stderrChunks)) : "";
+        const stdoutStr = stdoutChunks.length
+          ? decodeOutput(Buffer.concat(stdoutChunks))
+          : "";
+        const stderrStr = stderrChunks.length
+          ? decodeOutput(Buffer.concat(stderrChunks))
+          : "";
         const output = [stdoutStr, stderrStr].filter(Boolean).join("\n");
 
         if (timedOut) {
-          resolve({ content: `Command timed out after ${timeout}ms\n${output}`, isError: true, metadata: { exitCode: null, timedOut: true } });
+          resolve({
+            content: `Command timed out after ${timeout}ms\n${output}`,
+            isError: true,
+            metadata: { exitCode: null, timedOut: true },
+          });
           return;
         }
 
@@ -404,7 +456,11 @@ function runShell(
 
       child.on("error", (err) => {
         clearTimeout(timer);
-        resolve({ content: err.message, isError: true, metadata: { exitCode: 1 } });
+        resolve({
+          content: err.message,
+          isError: true,
+          metadata: { exitCode: 1 },
+        });
       });
 
       // Abort signal
@@ -413,7 +469,12 @@ function runShell(
           aborted = true;
           clearTimeout(timer);
           if (process.platform === "win32" && child.pid) {
-            execFile("taskkill", ["/F", "/T", "/PID", String(child.pid)], { windowsHide: true }, () => {});
+            execFile(
+              "taskkill",
+              ["/F", "/T", "/PID", String(child.pid)],
+              { windowsHide: true },
+              () => {},
+            );
           } else {
             child.kill();
           }
@@ -422,7 +483,9 @@ function runShell(
           killChild();
         } else {
           abortSignal.addEventListener("abort", killChild, { once: true });
-          child.on("close", () => abortSignal.removeEventListener("abort", killChild));
+          child.on("close", () =>
+            abortSignal.removeEventListener("abort", killChild),
+          );
         }
       }
     });
@@ -561,7 +624,9 @@ export const shellTool: Tool = {
       timeout *= 1000;
     }
     // Normalize: LLMs send boolean, "true", "True", "false", "False" etc.
-    const autoSend = input.auto_send === true || String(input.auto_send).toLowerCase() === "true";
+    const autoSend =
+      input.auto_send === true ||
+      String(input.auto_send).toLowerCase() === "true";
     const background = input.background as boolean | undefined;
 
     // Shell sandbox: block destructive commands
@@ -607,7 +672,8 @@ export const shellTool: Tool = {
     // ── Background mode: fire-and-forget, agent continues working ──
     if (background) {
       const bgId = `bg_${Date.now().toString(36)}`;
-      const shortCmd = command.length > 60 ? `${command.slice(0, 60)}...` : command;
+      const shortCmd =
+        command.length > 60 ? `${command.slice(0, 60)}...` : command;
       const startedAt = new Date();
       let pid: number | undefined;
       // Initialize queue if needed
@@ -657,9 +723,9 @@ export const shellTool: Tool = {
             error: r.isError ? r.content : null,
             completedAt: new Date(),
           });
-          context?.notifyUser?.(
-            `Background task ${bgId} ${status}: ${shortCmd}`,
-          ).catch(() => {});
+          context
+            ?.notifyUser?.(`Background task ${bgId} ${status}: ${shortCmd}`)
+            .catch(() => {});
         },
         (err) => {
           const content = `Background task failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -677,9 +743,9 @@ export const shellTool: Tool = {
             error: content,
             completedAt: new Date(),
           });
-          context?.notifyUser?.(
-            `Background task ${bgId} failed: ${shortCmd}`,
-          ).catch(() => {});
+          context
+            ?.notifyUser?.(`Background task ${bgId} failed: ${shortCmd}`)
+            .catch(() => {});
         },
       );
       return {
@@ -698,11 +764,21 @@ export const shellTool: Tool = {
 
     // Enable streaming progress for long-running commands (yt-dlp, ffmpeg, etc.)
     const progressFn =
-      context?.notifyUser && /\b(yt-dlp|youtube-dl|ffmpeg|ffprobe)\b/.test(effectiveCommand)
-        ? (msg: string) => { context.notifyUser!(msg).catch(() => {}); }
+      context?.notifyUser &&
+      /\b(yt-dlp|youtube-dl|ffmpeg|ffprobe)\b/.test(effectiveCommand)
+        ? (msg: string) => {
+            context.notifyUser!(msg).catch(() => {});
+          }
         : undefined;
 
-    const result = await runShell(effectiveCommand, timeout, effectiveShell, context?.abortSignal, extraEnv, progressFn);
+    const result = await runShell(
+      effectiveCommand,
+      timeout,
+      effectiveShell,
+      context?.abortSignal,
+      extraEnv,
+      progressFn,
+    );
 
     const MAX_CONTENT = 12_000;
     if (result.content.length > MAX_CONTENT) {

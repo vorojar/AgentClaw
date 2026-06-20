@@ -19,6 +19,7 @@ export {
   skillCuratorTool,
   observationReadTool,
   rssTopTool,
+  sessionSearchTool,
 } from "./builtin/index.js";
 export type { BuiltinToolsOptions } from "./builtin/index.js";
 export {

@@ -17,18 +17,20 @@ import { shellTool } from "../builtin/shell.js";
 
 // Mock child_process 以防万一有命令通过验证时不会真正执行
 vi.mock("node:child_process", () => ({
-  execFile: vi.fn((_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
-    const child = {
-      pid: 9999,
-      on: vi.fn(),
-      kill: vi.fn(),
-    };
-    // 模拟立即成功返回
-    if (cb) {
-      setTimeout(() => cb(null, Buffer.from("mocked"), Buffer.from("")), 0);
-    }
-    return child;
-  }),
+  execFile: vi.fn(
+    (_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
+      const child = {
+        pid: 9999,
+        on: vi.fn(),
+        kill: vi.fn(),
+      };
+      // 模拟立即成功返回
+      if (cb) {
+        setTimeout(() => cb(null, Buffer.from("mocked"), Buffer.from("")), 0);
+      }
+      return child;
+    },
+  ),
   execFileSync: vi.fn(() => ""),
 }));
 
@@ -175,7 +177,7 @@ describe("Shell 沙箱验证 (validateCommand)", () => {
   describe("写入 System32 拦截", () => {
     it("应拦截写入 C:\\Windows\\System32", async () => {
       await expectBlocked(
-        'echo malware > C:\\Windows\\System32\\evil.exe',
+        "echo malware > C:\\Windows\\System32\\evil.exe",
         "写入 System32",
       );
     });
@@ -211,24 +213,54 @@ describe("Shell 沙箱验证 (validateCommand)", () => {
     });
   });
 
+  describe("跨平台 shell 策略", () => {
+    it("应拦截普通任务中的 PowerShell 方言，要求改用通用命令", async () => {
+      const result = await execCommand("Get-ChildItem -Force");
+
+      expect(result.isError).toBe(true);
+      expect(result.content).toContain("跨平台");
+      expect(result.content).toContain("ls");
+    });
+
+    it("应拦截 powershell -Command 包装的普通文件操作", async () => {
+      const result = await execCommand(
+        'powershell -NoProfile -Command "Get-Content package.json"',
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content).toContain("跨平台");
+      expect(result.content).toContain("file_read");
+    });
+
+    it("应允许注册表读取等 Windows 专项 PowerShell 场景", async () => {
+      await expectAllowed(
+        'powershell -NoProfile -Command "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion"',
+      );
+    });
+  });
+
   describe("命令退出码语义", () => {
     it("非 0 退出即使有 stdout 也应标记为错误", async () => {
-      vi.mocked(execFile).mockImplementationOnce(
-        ((_cmd: string, _args: unknown, _opts: unknown, cb: Function) => {
-          const child = {
-            pid: 9999,
-            on: vi.fn(),
-            kill: vi.fn(),
-          };
-          const error = new Error("Command failed") as Error & { code: number };
-          error.code = 1;
-          setTimeout(
-            () => cb(error, Buffer.from("partial stdout"), Buffer.from("bad stderr")),
-            0,
-          );
-          return child as never;
-        }) as never,
-      );
+      vi.mocked(execFile).mockImplementationOnce(((
+        _cmd: string,
+        _args: unknown,
+        _opts: unknown,
+        cb: Function,
+      ) => {
+        const child = {
+          pid: 9999,
+          on: vi.fn(),
+          kill: vi.fn(),
+        };
+        const error = new Error("Command failed") as Error & { code: number };
+        error.code = 1;
+        setTimeout(
+          () =>
+            cb(error, Buffer.from("partial stdout"), Buffer.from("bad stderr")),
+          0,
+        );
+        return child as never;
+      }) as never);
 
       const result = await execCommand("echo partial && exit 1");
 
@@ -289,7 +321,9 @@ describe("Shell 沙箱验证 (validateCommand)", () => {
         );
       });
       expect(notifyUser).toHaveBeenCalledWith(
-        expect.stringContaining(`Background task ${result.metadata?.backgroundId} completed`),
+        expect.stringContaining(
+          `Background task ${result.metadata?.backgroundId} completed`,
+        ),
       );
       expect(backgroundQueue).toHaveLength(1);
     });

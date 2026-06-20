@@ -2,6 +2,7 @@ import type {
   Orchestrator,
   Session,
   Message,
+  ConversationTurn,
   ContentBlock,
   AgentEvent,
   ToolExecutionContext,
@@ -73,6 +74,171 @@ function resolveRuntimePromptVars(prompt?: string): string | undefined {
   return prompt
     .replace(/\{\{datetime\}\}/g, datetime)
     .replace(/\{\{timezone\}\}/g, timezone);
+}
+
+type SessionSearchFn = NonNullable<ToolExecutionContext["sessionSearch"]>;
+type SessionSearchResult = Awaited<ReturnType<SessionSearchFn>>;
+
+function turnToSessionSearchMessage(
+  turn: ConversationTurn,
+  anchor = false,
+): {
+  id: string;
+  role: string;
+  content: string;
+  createdAt: string;
+  anchor?: boolean;
+} {
+  return {
+    id: turn.id,
+    role: turn.role,
+    content:
+      typeof turn.content === "string"
+        ? turn.content
+        : JSON.stringify(turn.content),
+    createdAt:
+      turn.createdAt instanceof Date
+        ? turn.createdAt.toISOString()
+        : String(turn.createdAt),
+    ...(anchor ? { anchor: true } : {}),
+  };
+}
+
+function textIncludesQuery(text: string, query: string): boolean {
+  return text.toLowerCase().includes(query.toLowerCase());
+}
+
+function compactSnippet(text: string, query: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const lower = normalized.toLowerCase();
+  const idx = lower.indexOf(query.toLowerCase());
+  if (idx < 0) return normalized.slice(0, 240);
+  const start = Math.max(0, idx - 80);
+  const end = Math.min(normalized.length, idx + query.length + 160);
+  return `${start > 0 ? "…" : ""}${normalized.slice(start, end)}${end < normalized.length ? "…" : ""}`;
+}
+
+async function searchSessions(
+  memoryStore: MemoryStore,
+  input: Parameters<SessionSearchFn>[0],
+): Promise<SessionSearchResult> {
+  const limit = Math.min(Math.max(input.limit ?? 5, 1), 20);
+  const window = Math.min(Math.max(input.window ?? 5, 1), 30);
+
+  if (input.sessionId) {
+    const session = await memoryStore.getSessionById(input.sessionId);
+    if (!session) return { mode: input.aroundTurnId ? "scroll" : "read" };
+    const turns = await memoryStore.getHistory(session.conversationId);
+    const updatedAt =
+      session.lastActiveAt instanceof Date
+        ? session.lastActiveAt.toISOString()
+        : String(session.lastActiveAt);
+
+    if (input.aroundTurnId) {
+      const anchorIndex = turns.findIndex(
+        (turn) => turn.id === input.aroundTurnId,
+      );
+      if (anchorIndex < 0) {
+        return {
+          mode: "scroll",
+          session: {
+            sessionId: session.id,
+            conversationId: session.conversationId,
+            title: session.title,
+            updatedAt,
+            messagesBefore: turns.length,
+            messagesAfter: 0,
+            messages: [],
+          },
+        };
+      }
+      const start = Math.max(0, anchorIndex - window);
+      const end = Math.min(turns.length, anchorIndex + window + 1);
+      return {
+        mode: "scroll",
+        session: {
+          sessionId: session.id,
+          conversationId: session.conversationId,
+          title: session.title,
+          updatedAt,
+          messagesBefore: start,
+          messagesAfter: turns.length - end,
+          messages: turns
+            .slice(start, end)
+            .map((turn) =>
+              turnToSessionSearchMessage(turn, turn.id === input.aroundTurnId),
+            ),
+        },
+      };
+    }
+
+    const messages =
+      turns.length > 30 ? [...turns.slice(0, 20), ...turns.slice(-10)] : turns;
+    return {
+      mode: "read",
+      session: {
+        sessionId: session.id,
+        conversationId: session.conversationId,
+        title: session.title,
+        updatedAt,
+        messagesBefore: 0,
+        messagesAfter: Math.max(0, turns.length - messages.length),
+        messages: messages.map((turn) => turnToSessionSearchMessage(turn)),
+      },
+    };
+  }
+
+  const query = input.query?.trim();
+  if (!query) return { mode: "discovery", results: [] };
+
+  const sessions = (await memoryStore.listSessions()).slice(0, 200);
+  const results: NonNullable<SessionSearchResult["results"]> = [];
+  for (const session of sessions) {
+    const turns = await memoryStore.getHistory(session.conversationId);
+    const matchIndex = turns.findIndex((turn) =>
+      textIncludesQuery(
+        typeof turn.content === "string"
+          ? turn.content
+          : JSON.stringify(turn.content),
+        query,
+      ),
+    );
+    if (matchIndex < 0) continue;
+
+    const start = Math.max(0, matchIndex - 5);
+    const end = Math.min(turns.length, matchIndex + 6);
+    const matchTurn = turns[matchIndex];
+    const matchText =
+      typeof matchTurn.content === "string"
+        ? matchTurn.content
+        : JSON.stringify(matchTurn.content);
+    results.push({
+      sessionId: session.id,
+      conversationId: session.conversationId,
+      title: session.title,
+      updatedAt:
+        session.lastActiveAt instanceof Date
+          ? session.lastActiveAt.toISOString()
+          : String(session.lastActiveAt),
+      snippet: compactSnippet(matchText, query),
+      matchTurnId: matchTurn.id,
+      messagesBefore: start,
+      messagesAfter: turns.length - end,
+      bookendStart: turns
+        .slice(0, 3)
+        .map((turn) => turnToSessionSearchMessage(turn)),
+      messages: turns
+        .slice(start, end)
+        .map((turn) =>
+          turnToSessionSearchMessage(turn, turn.id === matchTurn.id),
+        ),
+      bookendEnd: turns
+        .slice(-3)
+        .map((turn) => turnToSessionSearchMessage(turn)),
+    });
+    if (results.length >= limit) break;
+  }
+  return { mode: "discovery", results };
 }
 
 export class SimpleOrchestrator implements Orchestrator {
@@ -341,6 +507,7 @@ export class SimpleOrchestrator implements Orchestrator {
         ? (query: string, limit?: number) =>
             memoryStore.searchHistory!(session.conversationId, query, limit)
         : undefined,
+      sessionSearch: (input) => searchSessions(memoryStore, input),
       scheduler: this.scheduler,
       skillRegistry: this.skillRegistry,
       skillsDir: this.skillsDir,

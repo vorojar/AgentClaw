@@ -10,8 +10,13 @@ import type {
   ModelInfo,
   MemoryStore,
   AgentEvent,
+  ConversationTurn,
+  Tool,
+  ToolExecutionContext,
+  ToolResult,
 } from "@agentclaw/types";
 import type { ToolRegistryImpl } from "@agentclaw/tools";
+import { sessionSearchTool } from "@agentclaw/tools";
 
 // ── Mock 工厂 ──
 
@@ -25,16 +30,15 @@ describe("memory extraction trigger policy", () => {
     expect(shouldRunMemoryExtraction(4, base, base)).toBe(true);
     expect(shouldRunMemoryExtraction(8, base, base)).toBe(true);
     expect(
-      shouldRunMemoryExtraction(
-        5,
-        new Date("2026-05-15T09:49:59.000Z"),
-        base,
-      ),
+      shouldRunMemoryExtraction(5, new Date("2026-05-15T09:49:59.000Z"), base),
     ).toBe(true);
   });
 });
 
-function createMockProvider(): LLMProvider {
+function createMockProvider(
+  streamChunks: LLMStreamChunk[][] = [],
+): LLMProvider {
+  let streamIndex = 0;
   return {
     name: "mock-provider",
     models: [
@@ -61,6 +65,12 @@ function createMockProvider(): LLMProvider {
       stopReason: "end_turn",
     } as LLMResponse),
     stream: vi.fn(function* () {
+      const chunks = streamChunks[streamIndex];
+      streamIndex++;
+      if (chunks) {
+        for (const chunk of chunks) yield chunk;
+        return;
+      }
       yield { type: "text", text: "hello" } as LLMStreamChunk;
       yield {
         type: "done",
@@ -71,14 +81,35 @@ function createMockProvider(): LLMProvider {
   };
 }
 
-function createMockToolRegistry(): ToolRegistryImpl {
+function createMockToolRegistry(tools: Tool[] = []): ToolRegistryImpl {
+  const toolMap = new Map<string, Tool>();
+  for (const tool of tools) toolMap.set(tool.name, tool);
+
   return {
-    register: vi.fn(),
-    unregister: vi.fn(),
-    get: vi.fn(),
-    list: vi.fn().mockReturnValue([]),
-    definitions: vi.fn().mockReturnValue([]),
-    execute: vi.fn().mockResolvedValue({ content: "ok" }),
+    register: vi.fn((tool: Tool) => toolMap.set(tool.name, tool)),
+    unregister: vi.fn((name: string) => toolMap.delete(name)),
+    get: vi.fn((name: string) => toolMap.get(name)),
+    list: vi.fn(() => Array.from(toolMap.values())),
+    definitions: vi.fn(() =>
+      Array.from(toolMap.values()).map(({ name, description, parameters }) => ({
+        name,
+        description,
+        parameters,
+      })),
+    ),
+    execute: vi.fn(
+      async (
+        name: string,
+        input: Record<string, unknown>,
+        context?: ToolExecutionContext,
+      ): Promise<ToolResult> => {
+        const tool = toolMap.get(name);
+        if (!tool) {
+          return { content: `Tool "${name}" not found`, isError: true };
+        }
+        return tool.execute(input, context);
+      },
+    ),
   } as unknown as ToolRegistryImpl;
 }
 
@@ -94,6 +125,7 @@ function createMockMemoryStore(): MemoryStore {
       metadata?: Record<string, unknown>;
     }
   >();
+  const turnsByConversation = new Map<string, ConversationTurn[]>();
 
   return {
     add: vi.fn().mockResolvedValue({
@@ -110,8 +142,15 @@ function createMockMemoryStore(): MemoryStore {
     update: vi.fn().mockResolvedValue({}),
     findSimilar: vi.fn().mockResolvedValue(null),
     delete: vi.fn().mockResolvedValue(undefined),
-    addTurn: vi.fn().mockResolvedValue(undefined),
-    getHistory: vi.fn().mockResolvedValue([]),
+    addTurn: vi.fn(async (conversationId: string, turn: ConversationTurn) => {
+      const turns = turnsByConversation.get(conversationId) ?? [];
+      turns.push(turn);
+      turnsByConversation.set(conversationId, turns);
+    }),
+    getHistory: vi.fn(async (conversationId: string, limit?: number) => {
+      const turns = turnsByConversation.get(conversationId) ?? [];
+      return limit ? turns.slice(-limit) : turns;
+    }),
     saveSession: vi.fn(
       async (session: {
         id: string;
@@ -137,6 +176,28 @@ function createMockMemoryStore(): MemoryStore {
     getTrace: vi.fn().mockResolvedValue(null),
     getTraces: vi.fn().mockResolvedValue({ items: [], total: 0 }),
   } as unknown as MemoryStore;
+}
+
+function createToolCallChunks(
+  id: string,
+  name: string,
+  input: Record<string, unknown>,
+): LLMStreamChunk[] {
+  return [
+    {
+      type: "tool_use_start",
+      toolUse: { id, name, input: "" },
+    } as LLMStreamChunk,
+    {
+      type: "tool_use_delta",
+      toolUse: { id, name: "", input: JSON.stringify(input) },
+    } as LLMStreamChunk,
+    {
+      type: "done",
+      usage: { tokensIn: 10, tokensOut: 5 },
+      model: "mock-model",
+    } as LLMStreamChunk,
+  ];
 }
 
 // ── 辅助函数 ──
@@ -363,6 +424,54 @@ describe("SimpleOrchestrator", () => {
       );
 
       expect(isolatedMemoryStore.getTraces).not.toHaveBeenCalled();
+    });
+
+    it("session_search 工具应能检索旧会话历史", async () => {
+      const oldSession = await orchestrator.createSession({
+        title: "Auth 调试",
+      });
+      await orchestrator.updateSession(oldSession.id, { title: "Auth 调试" });
+      await memoryStore.addTurn(oldSession.conversationId, {
+        id: "old-user",
+        conversationId: oldSession.conversationId,
+        role: "user",
+        content: "refresh token 在 401 后没有轮换",
+        createdAt: new Date("2026-06-20T00:00:00.000Z"),
+      });
+
+      const searchProvider = createMockProvider([
+        createToolCallChunks("tc-session", "session_search", {
+          query: "refresh token",
+          limit: 1,
+        }),
+        [
+          { type: "text", text: "找到了旧会话。" } as LLMStreamChunk,
+          {
+            type: "done",
+            usage: { tokensIn: 10, tokensOut: 5 },
+            model: "mock-model",
+          } as LLMStreamChunk,
+        ],
+      ]);
+      const searchOrchestrator = new SimpleOrchestrator({
+        provider: searchProvider,
+        toolRegistry: createMockToolRegistry([sessionSearchTool]),
+        memoryStore,
+        systemPrompt: "测试",
+      });
+      const session = await searchOrchestrator.createSession();
+
+      const events = await collectEvents(
+        searchOrchestrator.processInputStream(session.id, "找之前的认证问题"),
+      );
+
+      const toolResult = events.find((event) => event.type === "tool_result");
+      expect(toolResult).toBeDefined();
+      const result = (toolResult!.data as { result: { content: string } })
+        .result;
+      expect(result.content).toContain("Auth 调试");
+      expect(result.content).toContain("refresh token 在 401 后没有轮换");
+      expect(result.content).toContain("old-user anchor");
     });
   });
 

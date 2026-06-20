@@ -191,6 +191,60 @@ export interface ToolExecutionContext {
     query: string,
     limit?: number,
   ) => Promise<Array<{ role: string; content: string; createdAt: string }>>;
+  /** Search or read prior conversation sessions for cross-session recovery */
+  sessionSearch?: (input: {
+    query?: string;
+    sessionId?: string;
+    aroundTurnId?: string;
+    limit?: number;
+    window?: number;
+  }) => Promise<{
+    mode: "discovery" | "read" | "scroll";
+    results?: Array<{
+      sessionId: string;
+      conversationId: string;
+      title?: string;
+      updatedAt: string;
+      snippet?: string;
+      matchTurnId?: string;
+      messagesBefore?: number;
+      messagesAfter?: number;
+      bookendStart: Array<{
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+      }>;
+      messages: Array<{
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+        anchor?: boolean;
+      }>;
+      bookendEnd: Array<{
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+      }>;
+    }>;
+    session?: {
+      sessionId: string;
+      conversationId: string;
+      title?: string;
+      updatedAt: string;
+      messagesBefore?: number;
+      messagesAfter?: number;
+      messages: Array<{
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+        anchor?: boolean;
+      }>;
+    };
+  }>;
   /** Source channel (web, telegram, dingtalk, etc.) — propagated to traces */
   channel?: string;
   /** 当前 trace ID，用于审计关联 */

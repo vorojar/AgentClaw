@@ -39,12 +39,13 @@ describe("createBuiltinTools — 内置工具创建", () => {
       const tools = createBuiltinTools({ gateway: true });
       const names = tools.map((t) => t.name);
 
-      expect(tools.length).toBe(CORE_TOOL_NAMES.length + 6);
+      expect(tools.length).toBe(CORE_TOOL_NAMES.length + 7);
       expect(names).toContain("send_file");
       expect(names).toContain("schedule");
       expect(names).toContain("update_todo");
       expect(names).toContain("sandbox");
       expect(names).toContain("subagent");
+      expect(names).toContain("session_search");
       expect(names).not.toContain("browser_cdp");
       expect(names).not.toContain("execute_code");
     });
@@ -53,7 +54,7 @@ describe("createBuiltinTools — 内置工具创建", () => {
       const tools = createBuiltinTools({ gateway: true, browserCdp: true });
       const names = tools.map((t) => t.name);
 
-      expect(tools.length).toBe(CORE_TOOL_NAMES.length + 7);
+      expect(tools.length).toBe(CORE_TOOL_NAMES.length + 8);
       expect(names).toContain("browser_cdp");
     });
 
@@ -101,8 +102,8 @@ describe("createBuiltinTools — 内置工具创建", () => {
         rss: true,
       });
 
-      // 10 核心 + 6 gateway + 2 memory + 3 skills + 1 claudeCode + 1 rss = 23
-      expect(tools).toHaveLength(23);
+      // 10 核心 + 7 gateway + 2 memory + 3 skills + 1 claudeCode + 1 rss = 24
+      expect(tools).toHaveLength(24);
     });
 
     it("空 options 应只加载核心工具", () => {
@@ -145,6 +146,102 @@ describe("createBuiltinTools — 内置工具创建", () => {
           confidence: 1,
         },
       );
+    });
+  });
+
+  describe("session_search", () => {
+    it("应通过 sessionSearch callback 支持历史会话 discovery", async () => {
+      const sessionSearch = createBuiltinTools({ gateway: true }).find(
+        (tool) => tool.name === "session_search",
+      )!;
+      const callback = vi.fn().mockResolvedValue({
+        mode: "discovery",
+        results: [
+          {
+            sessionId: "s1",
+            conversationId: "c1",
+            title: "Auth refactor",
+            updatedAt: "2026-06-20T00:00:00.000Z",
+            snippet: "fixed auth token refresh",
+            matchTurnId: "t2",
+            messagesBefore: 1,
+            messagesAfter: 2,
+            bookendStart: [
+              {
+                id: "t1",
+                role: "user",
+                content: "fix auth",
+                createdAt: "2026-06-20T00:00:00.000Z",
+              },
+            ],
+            messages: [
+              {
+                id: "t2",
+                role: "assistant",
+                content: "refresh token bug",
+                createdAt: "2026-06-20T00:01:00.000Z",
+                anchor: true,
+              },
+            ],
+            bookendEnd: [],
+          },
+        ],
+      });
+
+      const result = await sessionSearch.execute(
+        { query: "auth token", limit: 3 },
+        { sessionSearch: callback } as never,
+      );
+
+      expect(result.isError).toBe(false);
+      expect(callback).toHaveBeenCalledWith({
+        query: "auth token",
+        limit: 3,
+      });
+      expect(result.content).toContain("Auth refactor");
+      expect(result.content).toContain("fixed auth token refresh");
+      expect(result.content).toContain("anchor");
+    });
+
+    it("应支持按 session_id 读取会话，并支持 around_turn_id 滚动窗口", async () => {
+      const sessionSearch = createBuiltinTools({ gateway: true }).find(
+        (tool) => tool.name === "session_search",
+      )!;
+      const callback = vi.fn().mockResolvedValue({
+        mode: "scroll",
+        session: {
+          sessionId: "s1",
+          conversationId: "c1",
+          title: "Long task",
+          updatedAt: "2026-06-20T00:10:00.000Z",
+          messagesBefore: 4,
+          messagesAfter: 6,
+          messages: [
+            {
+              id: "t7",
+              role: "user",
+              content: "continue from here",
+              createdAt: "2026-06-20T00:07:00.000Z",
+              anchor: true,
+            },
+          ],
+        },
+      });
+
+      const result = await sessionSearch.execute(
+        { session_id: "s1", around_turn_id: "t7", window: 5 },
+        { sessionSearch: callback } as never,
+      );
+
+      expect(result.isError).toBe(false);
+      expect(callback).toHaveBeenCalledWith({
+        sessionId: "s1",
+        aroundTurnId: "t7",
+        window: 5,
+      });
+      expect(result.content).toContain("Long task");
+      expect(result.content).toContain("messages_before=4");
+      expect(result.content).toContain("continue from here");
     });
   });
 

@@ -1,5 +1,13 @@
 # 更新日志
 
+## Unreleased
+
+### Added
+- **`session_search` 会话检索工具**：新增 gateway 侧一等工具，支持按 query 发现历史会话、按 `session_id` 读取会话、按 `around_turn_id` 滚动窗口，并在 Orchestrator 中复用现有 session/history 存储返回 bookends 与命中窗口。
+
+### Changed
+- **Shell 跨平台优先策略**：普通文件、搜索、构建和项目操作不再接受 PowerShell 方言，要求使用通用 CLI 或专用文件工具；PowerShell 保留给注册表、WMI/CIM、Windows 服务等系统专项场景。
+
 ## [1.5.41] - 2026-06-08
 
 ### Added

@@ -17,12 +17,18 @@ AgentClaw 是一个指挥官级别的个人 AI 助理，同时也是一个 **Age
 
 ## 📖 新书推荐
 
+<p align="center">
+  <a href="https://weread.qq.com/book-detail?type=1&senderVid=7701559&v=fff327a0813abb7d8g019f2a">
+    <img src="docs/public/book-cover.png" width="300" alt="《从零到一造 Agent：普通人也可以做出智能体》封面" />
+  </a>
+</p>
+
 《[从零到一造 Agent：普通人也可以做出智能体](https://weread.qq.com/book-detail?type=1&senderVid=7701559&v=fff327a0813abb7d8g019f2a)》已在微信读书上架 —— 以 AgentClaw 为贯穿案例，从零讲透 Agent 工程：循环、工具、记忆、错误、安全与交付。源码在仓库里，路线图在书里。
 
 <p align="center">
   <img src="docs/public/weread-book-qr.png" width="160" alt="微信扫码在微信读书阅读" />
   <br />
-  <sub>微信扫码，在微信读书阅读 · 仓库内试读：<a href="docs/book">docs/book</a></sub>
+  <sub>微信扫码，在微信读书阅读（支持试读）</sub>
 </p>
 
 ## 架构

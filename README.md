@@ -15,6 +15,16 @@ AgentClaw 是一个指挥官级别的个人 AI 助理，同时也是一个 **Age
 
 **Hive 模式**下，任何人都可以创建、配置、发布独立 Agent，获得即用的 API 端点——定义 Soul，选择 Tools，导入知识，拿到 Key，上线。每个 Agent 拥有独立的记忆空间、工具白名单、技能黑名单、知识库和 API Key。
 
+## 📖 新书推荐
+
+《[从零到一造 Agent：普通人也可以做出智能体](https://weread.qq.com/book-detail?type=1&senderVid=7701559&v=fff327a0813abb7d8g019f2a)》已在微信读书上架 —— 以 AgentClaw 为贯穿案例，从零讲透 Agent 工程：循环、工具、记忆、错误、安全与交付。源码在仓库里，路线图在书里。
+
+<p align="center">
+  <img src="docs/public/weread-book-qr.png" width="160" alt="微信扫码在微信读书阅读" />
+  <br />
+  <sub>微信扫码，在微信读书阅读 · 仓库内试读：<a href="docs/book">docs/book</a></sub>
+</p>
+
 ## 架构
 
 ```

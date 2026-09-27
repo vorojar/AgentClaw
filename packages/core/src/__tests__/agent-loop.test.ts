@@ -4291,6 +4291,18 @@ describe("SimpleAgentLoop", () => {
     });
 
     it("AI 新闻简报应在搜索结果足够时过滤低质来源并避免撞 web_fetch 限流", async () => {
+      // Mock 数据的新闻日期锚定到今天：isRecentEnoughForNews 只保留 7 天内的来源，
+      // 写死 2026-05 的日期会随时间推移变成"过期来源"被过滤，导致用例变红。
+      const briefNow = new Date();
+      const briefYYYY = briefNow.getFullYear();
+      const briefMM = String(briefNow.getMonth() + 1).padStart(2, "0");
+      const briefDD = String(briefNow.getDate()).padStart(2, "0");
+      const briefMonthName = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+      ][briefNow.getMonth()];
+      const briefTodayDash = `${briefYYYY}-${briefMM}-${briefDD}`;
+      const briefTodaySlash = `${briefYYYY}/${briefMM}/${briefDD}`;
       const makeToolCallChunks = (
         id: string,
         name: string,
@@ -4304,15 +4316,15 @@ describe("SimpleAgentLoop", () => {
       ];
       const firstRoundChunks: LLMStreamChunk[] = [
         ...makeToolCallChunks("tc-search-1", "web_search", {
-          query: "AI artificial intelligence news today 2026-05-23",
+          query: `AI artificial intelligence news today ${briefTodayDash}`,
           max_results: 8,
         }),
         ...makeToolCallChunks("tc-search-2", "web_search", {
-          query: "AI model release announcement May 2026",
+          query: `AI model release announcement ${briefMonthName} ${briefYYYY}`,
           max_results: 8,
         }),
         ...makeToolCallChunks("tc-search-3", "web_search", {
-          query: "AI industry funding regulation news this week May 2026",
+          query: `AI industry funding regulation news this week ${briefMonthName} ${briefYYYY}`,
           max_results: 8,
         }),
         {
@@ -4336,7 +4348,7 @@ describe("SimpleAgentLoop", () => {
           url: "https://www.transparencycoalition.ai/news/ai-legislative-update-may8-2026",
         }),
         ...makeToolCallChunks("tc-search-4", "web_search", {
-          query: "AI news May 23 2026 latest",
+          query: `AI news ${briefMonthName} ${briefYYYY} latest`,
         }),
         {
           type: "done",
@@ -4360,7 +4372,7 @@ describe("SimpleAgentLoop", () => {
                 `  What can we expect from AI in 2026? | The Current - YouTube — Artificial Intelligence exploded in 2025.\n` +
                 `  https://www.youtube.com/watch?v=3w093nkLqCg\n` +
                 `  White House releases AI policy framework — court rules update ${String(input.query)}\n` +
-                `  https://www.whitehouse.gov/briefing-room/statements-releases/2026/05/23/ai-policy-framework/\n` +
+                `  https://www.whitehouse.gov/briefing-room/statements-releases/${briefTodaySlash}/ai-policy-framework/\n` +
                 `  OpenAI releases agent update — product announcement ${String(input.query)}\n` +
                 `  https://openai.com/news/agent-update\n` +
                 `  Anthropic publishes AI safety update — research note ${String(input.query)}\n` +

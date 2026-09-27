@@ -12,9 +12,6 @@ hero:
     - theme: alt
       text: Follow a series
       link: /blog/building-ai-agents/
-    - theme: alt
-      text: Open the book
-      link: /book/
   image:
     src: /logo.svg
     alt: Agent Engineering publication mark
@@ -28,7 +25,6 @@ features:
     link: /blog/trace-replay-testing
   - title: Workbench evidence, not brand gravity
     details: AgentClaw appears as the production workbench and case-study source, not the center of the publication.
-    link: /book/
 ---
 
 ## Start Here
@@ -43,7 +39,6 @@ The publication helps global agent engineers and teams learn from real failures,
 | [Series](/blog/building-ai-agents/) | Multi-part editorial tracks on the core surfaces of production agents. |
 | [Field Guides](/guide/) | Practical operating guides for architecture, roadmap thinking, and engineering review. |
 | [Systems](/compare/) | System dossiers and trade-off notes drawn from adjacent agent frameworks and production workbenches. |
-| [Book](/book/) | The full Chinese manuscript of 《造一个真能用的 AI Agent》. |
 
 ## Editorial Bar
 

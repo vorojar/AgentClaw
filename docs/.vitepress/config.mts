@@ -38,7 +38,6 @@ export default defineConfig({
       { text: "Field Guides", link: "/guide/" },
       { text: "Systems", link: "/compare/" },
       { text: "Papers", link: "/papers/" },
-      { text: "Book", link: "/book/" },
     ],
     sidebar: {
       "/blog/building-ai-agents/": [
@@ -99,31 +98,6 @@ export default defineConfig({
           items: [
             { text: "Papers Home", link: "/papers/" },
             { text: "Memory as a Control System", link: "/papers/memory-control-system" },
-          ],
-        },
-      ],
-      "/book/": [
-        {
-          text: "造一个真能用的 AI Agent",
-          items: [
-            { text: "Book Home", link: "/book/" },
-            { text: "00 开篇", link: "/book/00-opening" },
-            { text: "01 AI 不只是聊天", link: "/book/01-ai-is-not-chat" },
-            { text: "02 最简 Agent", link: "/book/02-minimal-agent" },
-            { text: "03 工具", link: "/book/03-tool-agent" },
-            { text: "04 工具出错", link: "/book/04-tool-failures" },
-            { text: "05 并行", link: "/book/05-parallelism" },
-            { text: "06 上下文窗口", link: "/book/06-context-window" },
-            { text: "07 长期记忆", link: "/book/07-long-term-memory" },
-            { text: "08 Token 经济学", link: "/book/08-token-economics" },
-            { text: "09 LLM 失败", link: "/book/09-llm-failures" },
-            { text: "10 安全", link: "/book/10-security" },
-            { text: "11 浏览器", link: "/book/11-browser" },
-            { text: "12 多渠道", link: "/book/12-multi-channel" },
-            { text: "13 生产化", link: "/book/13-production" },
-            { text: "14 复盘", link: "/book/14-lessons" },
-            { text: "15 未来", link: "/book/15-future" },
-            { text: "Appendix", link: "/book/appendix" },
           ],
         },
       ],
